@@ -33,6 +33,8 @@ Depends on: none. Specification phase: 0. Coverage: NFR-1, NFR-7; sections 9.6, 
 
 Outcome: a buildable, layered workspace and explicit architectural contracts before behavior grows.
 
+Implementation guide: [M01 implementation details](docs/M01_details.md). Follow its approved defaults and task-level verification boundaries; all tasks below remain pending until implemented and verified.
+
 - M01.01: Record an ADR for daemon scope and lifetime. Compare per-user and per-workspace ownership; define workspace discovery, singleton locking, endpoint ownership, startup, shutdown, and client independence. Verify the design against multiple workspaces and two simultaneous starters.
 - M01.02: Record an ADR for local IPC framing, current-user access checks, initial version policy, and control/terminal multiplexing. Specify Unix sockets and Windows named pipes, with no TCP fallback. Identify platform tests needed in M04.
 - M01.03: Record an ADR for daemon-owned scrollback and reattachment. State how full-screen state can be restored after bounded history truncation, what terminal parsing belongs in each layer, and what prototype evidence M07 must obtain.
