@@ -6,11 +6,11 @@ Rust 1.98.1 is the pinned compiler and initial MSRV. CI also selects current sta
 
 | OS and runner | Target | Bootstrap evidence | Interactive evidence |
 | --- | --- | --- | --- |
-| Linux, ubuntu-24.04 | x86_64-unknown-linux-gnu | Remote CI pending | Pending M07/M08/M11 |
-| macOS, macos-14 | aarch64-apple-darwin | Local native Rust tests passed; remote CI pending | Pending M07/M08/M11 |
-| Windows, windows-2022 | x86_64-pc-windows-msvc | Remote CI pending | Pending M07/M08/M11 |
+| Linux, ubuntu-24.04 | x86_64-unknown-linux-gnu | Native stable and pinned-compiler CI passed | Pending M07/M08/M11 |
+| macOS, macos-14 | aarch64-apple-darwin | Local tests and native stable CI passed | Pending M07/M08/M11 |
+| Windows, windows-2022 | x86_64-pc-windows-msvc | Native stable CI passed | Pending M07/M08/M11 |
 
-The pinned-toolchain CI job also runs on Linux. Record actual compiler host and runner OS for each candidate. Local macOS evidence does not establish Linux or Windows success, and cross-compilation is not native behavior verification. Refer to `avances.md` for executed checks; do not infer results from the presence of workflow files.
+The bootstrap code at `0d14f05` passed Quality run `33974825769` and Security run `33974825731` on 2026-09-05. The pinned-toolchain CI job also runs on Linux. Record actual compiler host and runner OS for each candidate. Local macOS evidence does not establish Linux or Windows success, and cross-compilation is not native behavior verification. Refer to `avances.md` for executed checks; do not infer results from the presence of workflow files.
 
 ## Planned shell and terminal matrix
 

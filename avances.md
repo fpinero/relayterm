@@ -62,3 +62,16 @@ Remaining gates, not completed: M01.12, M01.13, and M01.14. A read-only GitHub A
 Completed M01.12 after explicit maintainer authorization. Enabled GitHub Private vulnerability reporting and updated `SECURITY.md` to describe the operational channel. Published `feature/m01-foundations` to start the authorized native CI verification; M01.13 and M01.14 remain pending until their runs pass.
 
 Verification: the GitHub repository private-vulnerability-reporting API returned `enabled: true` after activation. A read-only fetch of the repository security advisories page confirmed the Report a vulnerability link to the new-advisory entry point. No vulnerability report was submitted. `python3 scripts/check_repository.py` and `git diff --check` validate the policy/queue update before publication.
+
+## 2026-09-05: Verify native CI and close M01
+
+Completed M01.13 and M01.14. The authorized branch publication ran all quality and security workflows. The first native Windows test exposed executable-name inference in Clap: subcommand help displayed `rt.exe daemon`. Commit `0d14f05` sets `bin_name = "rt"`, preserving the canonical help contract across platforms. The existing six-invocation CLI regression test passed locally and on Windows after the correction.
+
+Verification for candidate `0d14f05eb218f23d837e6f1cdcb73f5bc4e66cdd`:
+
+- Quality run `33974825769` completed successfully. All four jobs passed: `ubuntu-24.04 / stable`, `ubuntu-24.04 / 1.98.1`, `macos-14 / stable`, and `windows-2022 / stable`. Each ran locked graph fetch, formatting, all-target checks, Clippy with denied warnings, workspace tests, core-only tests, build, repository contracts, and whitespace checks.
+- Security run `33974825731` completed successfully: verified tool archives, dependency/advisory/license/source checks, full-history secret scan, audit negative controls, and candidate-source scanner negative control.
+- Private reporting was enabled and its reporting entry point verified in M01.12. Eight ADRs, the private-state ignore policy, public documentation, and dependency boundaries were verified by the earlier local checks and the native repository-contract jobs.
+- Updated the platform evidence and removed the completed milestone from `TODO.md`; M02 is the next pending milestone. The closure changes affect documentation only and will receive their own branch CI runs before handoff.
+
+M01 establishes the bootstrap only. Durable coordination, live IPC, PTY sessions, and the real TUI remain unimplemented and require their later milestone acceptance tests. No PR, merge of the implementation branch, tag, or release was performed.
