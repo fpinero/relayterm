@@ -35,7 +35,6 @@ Outcome: a buildable, layered workspace and explicit architectural contracts bef
 
 Implementation guide: [M01 implementation details](docs/M01_details.md). Follow its approved defaults and task-level verification boundaries; all tasks below remain pending until implemented and verified.
 
-- M01.12: Obtain maintainer-authorized activation of GitHub Private vulnerability reporting, verify the enabled setting and private entry point, and update `SECURITY.md` to describe the operational channel. Do not send a test vulnerability or publish sensitive details.
 - M01.13: Run the prepared quality/security workflows for the implementation candidate after authorized branch publication. Verify native Linux, macOS, and Windows jobs, pinned/current-stable compiler jobs, audit/license checks, and secret-scanner controls; fix failures and record actual run evidence.
 - M01.14: Verify the phase-0 gate: all three OS jobs pass, dependency direction is checked, `rt` entry points run, all eight ADRs exist, and repository scans pass. Record evidence and any maintainer-only documentation blocker explicitly before proceeding.
 

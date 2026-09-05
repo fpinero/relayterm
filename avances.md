@@ -56,3 +56,9 @@ Verification on native macOS aarch64 with Rust 1.98.1:
 - Reviewed ADR consistency against the detailed plan and specification. Documentation verification does not claim that future IPC, SQLite, PTY, or worktree behavior has been implemented.
 
 Remaining gates, not completed: M01.12, M01.13, and M01.14. A read-only GitHub API check confirmed private vulnerability reporting is disabled. `SECURITY.md` states that limitation honestly. Quality/security workflows are prepared and locally checked, but no branch was pushed and no native remote CI run was claimed. Linux/Windows behavior and the phase-0 gate remain unverified. Rust and audit tools were installed into an isolated temporary tool directory without editing shell configuration.
+
+## 2026-09-05: Enable private security reporting
+
+Completed M01.12 after explicit maintainer authorization. Enabled GitHub Private vulnerability reporting and updated `SECURITY.md` to describe the operational channel. Published `feature/m01-foundations` to start the authorized native CI verification; M01.13 and M01.14 remain pending until their runs pass.
+
+Verification: the GitHub repository private-vulnerability-reporting API returned `enabled: true` after activation. A read-only fetch of the repository security advisories page confirmed the Report a vulnerability link to the new-advisory entry point. No vulnerability report was submitted. `python3 scripts/check_repository.py` and `git diff --check` validate the policy/queue update before publication.

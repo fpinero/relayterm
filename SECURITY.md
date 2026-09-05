@@ -4,11 +4,11 @@ Relayterm is at the bootstrap stage. There is no supported production release or
 
 ## Private reporting
 
-The selected channel is GitHub Private vulnerability reporting. It was confirmed disabled during bootstrap on 2026-09-05; maintainer activation and verification remain pending in M01.12.
+GitHub Private vulnerability reporting is enabled for this repository. The enabled setting and the public reporting entry point were verified on 2026-09-05.
 
-Once enabled, open this repository's Security tab, select Advisories, and choose Report a vulnerability. Do not put vulnerabilities, credentials, or sensitive reproduction material in public issues. While the private entry point is unavailable, do not submit sensitive details publicly; a public request to enable private reporting should contain no vulnerability details.
+Open this repository's Security tab, select Advisories, and choose Report a vulnerability. Do not put vulnerabilities, credentials, or sensitive reproduction material in public issues. If the private entry point becomes unavailable, do not submit sensitive details publicly; a public request to restore private reporting should contain no vulnerability details.
 
-No response-time commitment or alternative contact address has been established. This policy must be updated after the private channel is verified. Do not send an artificial vulnerability report just to test the setting.
+No response-time commitment or alternative contact address has been established. Do not send an artificial vulnerability report just to test the setting.
 
 ## Safe reports
 
