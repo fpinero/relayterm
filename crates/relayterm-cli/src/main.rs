@@ -4,6 +4,7 @@ use std::process::ExitCode;
 #[derive(Parser)]
 #[command(
     name = "rt",
+    bin_name = "rt",
     version,
     about = "A persistent, agent-neutral development workspace"
 )]
