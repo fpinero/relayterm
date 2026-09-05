@@ -75,3 +75,9 @@ Verification for candidate `0d14f05eb218f23d837e6f1cdcb73f5bc4e66cdd`:
 - Updated the platform evidence and removed the completed milestone from `TODO.md`; M02 is the next pending milestone. The closure changes affect documentation only and will receive their own branch CI runs before handoff.
 
 M01 establishes the bootstrap only. Durable coordination, live IPC, PTY sessions, and the real TUI remain unimplemented and require their later milestone acceptance tests. No PR, merge of the implementation branch, tag, or release was performed.
+
+## 2026-09-05: Clarify merge-to-main authorization
+
+Completed GUIDE-01. Updated the shared Git rules in `AGENTS.md` and `CLAUDE.md`: a request to merge into main includes pushing the resulting main branch to origin/main unless the user explicitly requests a local-only operation. The rule requires divergence checks, remote synchronization verification, and monitoring of triggered CI, without authorizing force-pushes, branch deletion, PR creation, or releases.
+
+Verification: `python3 scripts/check_repository.py` and `git diff --check` passed. An inline Ruby comparison confirmed the shared policy from section 1 onward is identical in both guides; their existing tool-specific introductions remain intact.

@@ -80,6 +80,8 @@ Never modify files directly on `main` or `master`.
 - Never discard, hide, overwrite, or silently include existing user changes in order to create a branch.
 - Keep commits focused and use concise English commit messages.
 - Do not push, create pull requests, merge, tag, or publish releases unless the user requests that external action.
+- In this project, a user request to "merge into main" (including "merge a main") authorizes both merging the requested work into local `main` and pushing the resulting `main` to `origin/main`. Do not stop after a local-only merge or ask for separate push approval. An explicit local-only or no-push instruction overrides this default.
+- Before that merge and push, verify the requested changes, fetch the target branch, and reconcile any divergence without discarding work or force-pushing. After pushing, verify local and remote `main` match and monitor any triggered CI; report failures and correct in-scope issues. This authorization does not include deleting branches, creating a PR, tagging, or publishing a release.
 
 ## 6. Safety and privacy
 
