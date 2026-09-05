@@ -18,3 +18,28 @@ target
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
 #  and can be added to the global gitignore or merged into this file.
 .idea/
+
+# Runtime-private state (normally stored outside the project)
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3-wal
+*.sqlite3-shm
+*.db
+*.db-wal
+*.db-shm
+*.sock
+*.socket
+*.log
+*.log.*
+*.cast
+*.terminal-capture
+.relayterm/
+relayterm.local.toml
+
+# Local verification output
+/coverage/
+*.profraw
+*.profdata
+__pycache__/

@@ -1,0 +1,59 @@
+"""Validate candidate documentation and ignore boundaries without modifying source."""
+
+import re
+import subprocess
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def candidate_paths():
+    result = subprocess.run(
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+        cwd=ROOT, check=True, capture_output=True,
+    )
+    return sorted(set(result.stdout.decode().split("\0")) - {""})
+
+
+def main():
+    count = 0
+    for name in candidate_paths():
+        path = ROOT / name
+        if not path.is_file() or path.suffix not in {".md", ".rs", ".toml", ".yml", ".py"}:
+            continue
+        text = path.read_text(encoding="utf-8")
+        assert "\u2014" not in text, f"Prohibited punctuation: {name}"
+        assert text.endswith("\n"), f"Missing final newline: {name}"
+        assert all(line == line.rstrip() for line in text.splitlines()), f"Trailing whitespace: {name}"
+        if path.suffix == ".md":
+            count += 1
+            assert len(re.findall(r"^```", text, re.M)) % 2 == 0, f"Unbalanced fences: {name}"
+            for link in re.findall(r"\]\(([^)]+)\)", text):
+                if re.match(r"https?://", link) or link.startswith("#"):
+                    continue
+                assert (path.parent / link.split("#")[0]).is_file(), f"Broken link: {name}: {link}"
+            assert not re.search(r"/(?:Users|home)/[\w.-]+/", text), f"Personal path: {name}"
+
+    adrs = sorted((ROOT / "docs/decisions").glob("*.md"))
+    assert len(adrs) == 8, "Expected eight bootstrap ADRs"
+    for number, path in enumerate(adrs, 1):
+        assert path.name.startswith(f"{number:04d}-")
+        text = path.read_text(encoding="utf-8")
+        for section in ["Context", "Decision", "Invariants and behavior", "Alternatives", "Consequences", "Verification and ownership"]:
+            assert f"## {section}\n" in text, f"Missing ADR section: {path.name}: {section}"
+
+    queue = (ROOT / "TODO.md").read_text(encoding="utf-8")
+    assert not re.search(r"\[[xX]\]", queue), "Completed checkbox in pending queue"
+    ignored = ["private.sqlite", "private.sqlite-wal", "private.sqlite-shm", "private.db",
+               "private.sock", "private.log", "private.cast", ".relayterm/config.toml",
+               "relayterm.local.toml", "target/test", ".idea/workspace.xml"]
+    visible = ["Cargo.lock", "Cargo.toml", "migrations/0001.sql", "fixtures/synthetic/example.txt",
+               "fixtures/synthetic/agent.example.toml", "docs/M01_details.md"]
+    for path, expected in [(p, 0) for p in ignored] + [(p, 1) for p in visible]:
+        result = subprocess.run(["git", "check-ignore", "--no-index", "-q", path], cwd=ROOT)
+        assert result.returncode == expected, f"Incorrect ignore policy: {path}"
+    print(f"Passed: {count} Markdown files, eight ADRs, style and candidate links, pending queue, and ignore boundaries.")
+
+
+if __name__ == "__main__":
+    main()

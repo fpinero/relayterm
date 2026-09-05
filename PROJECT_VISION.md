@@ -4,7 +4,7 @@
 
 - Status: Draft for public review
 - Audience: Contributors, maintainers, users, and integration authors
-- License: To be defined by the project maintainers
+- License: Apache-2.0, see [LICENSE](LICENSE)
 - Companion document: [MVP technical specification](MVP_TECHNICAL_SPEC.md)
 
 ## Product identity

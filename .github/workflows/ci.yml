@@ -1,0 +1,56 @@
+name: Quality
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    name: ${{ matrix.os }} / ${{ matrix.toolchain }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            toolchain: stable
+          - os: macos-14
+            toolchain: stable
+          - os: windows-2022
+            toolchain: stable
+          - os: ubuntu-24.04
+            toolchain: 1.98.1
+    env:
+      RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Install compiler and report host
+        run: |
+          rustup toolchain install ${{ matrix.toolchain }} --profile minimal --component rustfmt --component clippy
+          rustc --version --verbose
+          cargo --version
+      - name: Fetch complete locked graph
+        run: cargo fetch --locked
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Check targets
+        run: cargo check --workspace --all-targets --locked
+      - name: Lint
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Test workspace and CLI contracts
+        run: cargo test --workspace --locked
+      - name: Test core without UI
+        run: cargo test -p relayterm-domain -p relayterm-application -p relayterm-protocol --locked
+      - name: Build
+        run: cargo build --workspace --locked
+      - name: Check repository contracts
+        run: python scripts/check_repository.py
+      - name: Check whitespace
+        run: git diff --check

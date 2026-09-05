@@ -27,7 +27,7 @@ Public export and disk-backed scrollback are optional and are deferred from this
 
 Task dependencies mentioned in the vision do not authorize a scheduler. Resolve their minimum representation against the MVP task schema in M02. Git worktree creation is included because AC-10 requires it, even though several related requirements use SHOULD.
 
-## M01: Repository foundations and bootstrap decisions [PLAN]
+## M01: Repository foundations and bootstrap decisions
 
 Depends on: none. Specification phase: 0. Coverage: NFR-1, NFR-7; sections 9.6, 10, 17; AC-11, AC-12, AC-16 foundations.
 
@@ -35,19 +35,8 @@ Outcome: a buildable, layered workspace and explicit architectural contracts bef
 
 Implementation guide: [M01 implementation details](docs/M01_details.md). Follow its approved defaults and task-level verification boundaries; all tasks below remain pending until implemented and verified.
 
-- M01.01: Record an ADR for daemon scope and lifetime. Compare per-user and per-workspace ownership; define workspace discovery, singleton locking, endpoint ownership, startup, shutdown, and client independence. Verify the design against multiple workspaces and two simultaneous starters.
-- M01.02: Record an ADR for local IPC framing, current-user access checks, initial version policy, and control/terminal multiplexing. Specify Unix sockets and Windows named pipes, with no TCP fallback. Identify platform tests needed in M04.
-- M01.03: Record an ADR for daemon-owned scrollback and reattachment. State how full-screen state can be restored after bounded history truncation, what terminal parsing belongs in each layer, and what prototype evidence M07 must obtain.
-- M01.04: Record an ADR for SQLite location, schema versions, migrations, transactional events, backup, and corruption recovery. Keep relational state authoritative and recovery non-destructive.
-- M01.05: Record an ADR for environment inheritance and redaction. Separate environment variable names from values; define permitted launch inheritance, explicit overrides, sensitive input handling, and safe diagnostic fields.
-- M01.06: Record an ADR for the editable agent configuration format, executable discovery, capabilities, and precedence between user configuration and persisted definitions. Keep provider templates equivalent to custom commands.
-- M01.07: Record an ADR for worktree names, allowed roots, ownership, and interrupted creation recovery. Exclude automatic cleanup and define how approved worktree roots extend launch-path validation.
-- M01.08: Record an ADR for stable Rust CI, minimum supported Rust version, supported OS/shell/terminal policy, and dependency licensing. Verify selected dependency versions against primary documentation at implementation time and commit the lockfile.
-- M01.09: Create the minimum Rust workspace with domain, application, protocol, daemon, CLI, and placeholder TUI boundaries. Wire `rt --help`, `rt --version`, daemon dispatch, and a clearly labeled placeholder default client. Verify core crates build and test without UI dependencies.
-- M01.10: Extend ignore rules for runtime databases and sidecars, logs, sockets, captures, private configuration, build and coverage artifacts. Verify representative synthetic paths are ignored without hiding migrations or fixtures.
-- M01.11: Add contribution, privacy, and supported-platform documents with test commands, synthetic-fixture rules, local/SSH expectations, and the non-sandbox trust boundary. Preserve the existing Apache-2.0 license and reconcile the vision's outdated license status with `LICENSE` and `README.md`.
-- M01.12: Add `SECURITY.md` with a verified private reporting mechanism. Obtain a maintainer decision if no real reporting route is available; never invent contact details. Keep this task open if that route cannot yet be established.
-- M01.13: Configure CI builds, unit tests, formatting, and linting for Linux, macOS, and Windows on current stable Rust. Add dependency audit, license checks, and a documented open-source secret scanner with narrowly scoped synthetic-fixture exceptions only when needed.
+- M01.12: Obtain maintainer-authorized activation of GitHub Private vulnerability reporting, verify the enabled setting and private entry point, and update `SECURITY.md` to describe the operational channel. Do not send a test vulnerability or publish sensitive details.
+- M01.13: Run the prepared quality/security workflows for the implementation candidate after authorized branch publication. Verify native Linux, macOS, and Windows jobs, pinned/current-stable compiler jobs, audit/license checks, and secret-scanner controls; fix failures and record actual run evidence.
 - M01.14: Verify the phase-0 gate: all three OS jobs pass, dependency direction is checked, `rt` entry points run, all eight ADRs exist, and repository scans pass. Record evidence and any maintainer-only documentation blocker explicitly before proceeding.
 
 ## M02: Pure domain and application contracts [PLAN]

@@ -85,7 +85,20 @@ The canonical user-facing executable will be `rt`. The reserved `relayterm.com` 
 
 ## Current status
 
-Relayterm is currently at the public specification stage. The first implementation milestone will validate the provider-neutral domain model, SQLite persistence, and versioned local protocol before adding pseudo-terminal and TUI complexity.
+Relayterm now has a Rust bootstrap: neutral workspace/task identifiers, a protocol version check, separate daemon/client boundaries, and the `rt` CLI. Persistence, live sessions, and the TUI are not implemented yet. The first durable slice will validate the domain model, SQLite persistence, and local IPC before adding PTY and TUI complexity.
+
+Build with the pinned Rust toolchain:
+
+```sh
+cargo fetch --locked
+cargo build --workspace --locked
+cargo run -p relayterm-cli --bin rt -- --help
+cargo run -p relayterm-cli --bin rt -- --version
+```
+
+Running `rt` or `rt daemon` currently reports that the runtime is not implemented and exits with code 1. Help/version exit successfully; invalid arguments exit with code 2. No runtime-private state is created by these placeholders.
+
+See [contributing](CONTRIBUTING.md), [architecture decisions](docs/architecture/README.md), [privacy](docs/privacy.md), and [platform evidence](docs/supported-platforms.md). The [detailed M01 plan](docs/M01_details.md) and [pending queue](TODO.md) distinguish implemented bootstrap work from remaining verification.
 
 Contributions and technical discussion are welcome, but interfaces and behavior should be considered unstable until the first working release and stable protocol are defined.
 

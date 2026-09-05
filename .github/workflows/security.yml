@@ -1,0 +1,47 @@
+name: Security
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 6 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install pinned compiler
+        run: rustup toolchain install 1.98.1 --profile minimal
+      - name: Install verified audit tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          tool_dir=$(mktemp -d)
+          cd "$tool_dir"
+          curl --fail --silent --show-error --location https://github.com/EmbarkStudios/cargo-deny/releases/download/0.20.2/cargo-deny-0.20.2-x86_64-unknown-linux-musl.tar.gz -o deny.tar.gz
+          printf '%s  %s\n' '9f12ed4c49936e09b48bf862b595cde2fe64fcbd9d74dfacac6131ca824c8d5f' 'deny.tar.gz' | sha256sum --check
+          tar -xzf deny.tar.gz
+          curl --fail --silent --show-error --location https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz -o gitleaks.tar.gz
+          printf '%s  %s\n' '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb' 'gitleaks.tar.gz' | sha256sum --check
+          tar -xzf gitleaks.tar.gz gitleaks
+          echo "$tool_dir/cargo-deny-0.20.2-x86_64-unknown-linux-musl" >> "$GITHUB_PATH"
+          echo "$tool_dir" >> "$GITHUB_PATH"
+      - name: Audit locked dependencies
+        run: |
+          cargo fetch --locked
+          cargo deny --locked check advisories licenses bans sources
+      - name: Scan Git history
+        run: gitleaks git --redact --no-banner .
+      - name: Test audit controls
+        run: python3 scripts/check_audit_controls.py
+      - name: Scan candidate sources and test scanner
+        run: python3 scripts/check_secrets.py

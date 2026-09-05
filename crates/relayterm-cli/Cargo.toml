@@ -1,0 +1,22 @@
+[package]
+name = "relayterm-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "rt"
+path = "src/main.rs"
+
+[dependencies]
+clap.workspace = true
+relayterm-daemon = { version = "0.1.0", path = "../relayterm-daemon" }
+relayterm-tui = { version = "0.1.0", path = "../relayterm-tui" }
+
+[dev-dependencies]
+serde_json.workspace = true
