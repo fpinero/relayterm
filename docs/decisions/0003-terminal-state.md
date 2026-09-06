@@ -1,6 +1,6 @@
 # 0003: Terminal state and reattachment
 
-Status: Accepted architecture; future runtime verification remains assigned below.
+Status: Accepted and implemented by M07; native evidence is tracked in the platform guide.
 Task: M01.03.
 Requirements: Sections 6.3, 8, 14; FR-3, FR-4.
 
@@ -18,7 +18,15 @@ Use a provider-neutral parser representation containing screen cells, cursor, re
 
 Terminal parsing must never mutate authoritative tasks based on prose or execute clipboard side effects. Bound screen dimensions, parser/history allocations, frames, and per-client queues. Client rendering is an adapter, not the source of surviving terminal state.
 
-M07 prototypes vt100 first and records correctness evidence before dependency selection. That gate also fixes input ownership, resize authority, stream format, overflow behavior, and supported escape-sequence behavior. A failing prototype requires an ADR amendment before production implementation.
+M07 selected `vt100` 0.16.2 after split-sequence and alternate-screen prototypes. It selected `portable-pty-psmux` 0.9.7 as the native PTY adapter after the three-platform prototype. The fork preserves the `portable-pty` API while omitting the ConPTY cursor-inheritance flag that can make pseudo-console startup or teardown wait indefinitely on supported Windows runners. The exact version is locked and remains behind `relayterm-pty`.
+
+The Windows prototype also confirmed that ConPTY interprets application VT output and can emit a rendered primary-screen representation without the original private alternate-screen indicator. Relayterm treats the resulting grid, cursor, dimensions, and modes as authoritative for that platform. The native gate compares those fields across reattachment and asserts the transformed mode explicitly. Unix PTYs preserve the alternate-screen indicator, and provider-neutral parser tests continue to require correct entry, exit, hidden-buffer restoration, and split-input continuation.
+
+The daemon keeps the parser authoritative and publishes versioned provider-neutral replacement snapshots containing cells, attributes, cursor, modes, revision, raw offset, and truncation boundary. Attach binds the snapshot to a daemon generation, connection attachment, and stream identity. Bounded raw continuations use terminal frames with exact offsets. Cursor expiry requires a replacement snapshot. Replacement snapshots preserve future correctness when retained raw bytes no longer include terminal initialization.
+
+Attachments are read-only by default. One connection owns a generation-scoped input lease, and only that owner can send contiguous input sequences or resize. Disconnect and explicit release drop the lease without stopping the child. Snapshot responses and binary continuations have explicit frame budgets. Input uses a separate bounded writer queue so a blocked child cannot allocate unbounded memory.
+
+The session operations activate previously unavailable, capability-negotiated protocol version 1 names. Their strict request bodies were not accepted by a version 1 production server before M07, so adding receipts, leases, attachment identities, snapshots, and output cursors does not reinterpret a formerly successful request. Older servers omit these operations from hello and reject them. New clients require the advertised operation set before use. A protocol version increase remains required if a successful published operation changes incompatibly.
 
 ## Alternatives
 
@@ -30,6 +38,6 @@ Terminal parsing introduces compatibility and resource-limit work. No promise of
 
 ## Verification and ownership
 
-M07 must test alternate-screen applications, cursor movement, split escapes, Unicode, resize, truncation, attach while output is flowing, multiple clients, and high-volume output. Compare reconstructed screen/modes with uninterrupted state.
+Committed parser tests compare cells, cursor, and modes at every split point of representative UTF-8 and CSI input. They verify alternate-screen restoration after raw-history truncation. The native `pty_gate` uses a shell and two test-only interactive children to verify input, resize, full-screen state, exclusive ownership, disconnect, reattachment, termination, and no persistent terminal capture. The console-lifetime gate reconnects to three real shell sessions after their originating console owner closes. CI runs these gates on Linux, macOS, and Windows.
 
 Reference: [vt100 parser documentation](https://docs.rs/vt100/latest/vt100/).

@@ -3,8 +3,12 @@
 use relayterm_ipc::{Endpoint, IpcError, LocalStream, connect, read_frame, write_frame};
 use relayterm_protocol::{
     DecimalU64, ErrorBody, ErrorCode, EventEnvelope, FrameKind, Operation, PROTOCOL_VERSION,
-    RequestEnvelope, RequestType, ResponseEnvelope, SNAPSHOT_STAGING_LIMIT, SubscriptionId,
-    SynchronizationEnvelope, WorkspaceId, decode_json, encode_json,
+    RequestEnvelope, RequestType, ResponseEnvelope, SNAPSHOT_STAGING_LIMIT,
+    SessionAcquireInputParams, SessionAttachParams, SessionCreateParams, SessionCreateResult,
+    SessionInputParams, SessionLeaseResult, SessionReadOutputParams, SessionReleaseInputParams,
+    SessionResizeParams, SessionRevisionResult, SessionTerminateParams, SubscriptionId,
+    SynchronizationEnvelope, TerminalAttachmentDto, TerminalFrame, TerminalOutputDto, WorkspaceId,
+    decode_json, encode_json,
 };
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::Value;
@@ -159,6 +163,94 @@ impl Client {
             )
             .await?;
         serde_json::from_value(value).map_err(|_| ClientError::Protocol)
+    }
+
+    pub async fn create_session(
+        &self,
+        params: &SessionCreateParams,
+    ) -> Result<SessionCreateResult, ClientError> {
+        self.call(Operation::SessionCreate, params).await
+    }
+
+    pub async fn attach_session(
+        &self,
+        params: &SessionAttachParams,
+    ) -> Result<TerminalAttachmentDto, ClientError> {
+        self.call(Operation::SessionAttach, params).await
+    }
+
+    pub async fn read_session_output(
+        &self,
+        params: &SessionReadOutputParams,
+    ) -> Result<(TerminalOutputDto, Option<TerminalFrame>), ClientError> {
+        let request_id = DecimalU64::new(self.next_id.fetch_add(1, Ordering::Relaxed))
+            .map_err(|_| ClientError::ResourceLimit)?;
+        let value = serde_json::to_value(params).map_err(|_| ClientError::Protocol)?;
+        let mut stream = self.stream.lock().await;
+        let value = self
+            .exchange_correlated(
+                &mut stream,
+                request_id,
+                Operation::SessionReadOutput,
+                &value,
+                Delivery::NotSent,
+            )
+            .await?;
+        let metadata: TerminalOutputDto =
+            serde_json::from_value(value).map_err(|_| ClientError::Protocol)?;
+        if !metadata.data_follows {
+            return Ok((metadata, None));
+        }
+        let frame = tokio::time::timeout(self.deadline, read_frame(&mut *stream, self.deadline))
+            .await
+            .map_err(|_| ClientError::Transport(Delivery::NotSent))?
+            .map_err(|_| ClientError::Transport(Delivery::NotSent))?;
+        if frame.kind != FrameKind::Terminal {
+            return Err(ClientError::Protocol);
+        }
+        let terminal = TerminalFrame::decode(&frame.payload).map_err(|_| ClientError::Protocol)?;
+        if terminal.session_id != params.session_id
+            || terminal.stream_id != metadata.stream_id.get()
+            || terminal.offset != params.after_offset.get()
+        {
+            return Err(ClientError::Protocol);
+        }
+        Ok((metadata, Some(terminal)))
+    }
+
+    pub async fn acquire_session_input(
+        &self,
+        params: &SessionAcquireInputParams,
+    ) -> Result<SessionLeaseResult, ClientError> {
+        self.call(Operation::SessionAcquireInput, params).await
+    }
+
+    pub async fn release_session_input(
+        &self,
+        params: &SessionReleaseInputParams,
+    ) -> Result<Value, ClientError> {
+        self.call(Operation::SessionReleaseInput, params).await
+    }
+
+    pub async fn send_session_input(
+        &self,
+        params: &SessionInputParams,
+    ) -> Result<Value, ClientError> {
+        self.call(Operation::SessionInput, params).await
+    }
+
+    pub async fn resize_session(
+        &self,
+        params: &SessionResizeParams,
+    ) -> Result<SessionRevisionResult, ClientError> {
+        self.call(Operation::SessionResize, params).await
+    }
+
+    pub async fn terminate_session(
+        &self,
+        params: &SessionTerminateParams,
+    ) -> Result<Value, ClientError> {
+        self.call(Operation::SessionTerminate, params).await
     }
     pub async fn call_cancellable<P: Serialize, R: DeserializeOwned>(
         &self,

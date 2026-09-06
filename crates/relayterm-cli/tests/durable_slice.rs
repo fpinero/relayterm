@@ -195,7 +195,7 @@ fn run_cli(root: &Path, private: &Path, args: &[&str], input: Option<&Value>) ->
         if Instant::now() >= deadline {
             let _ = child.kill();
             let _ = child.wait();
-            panic!("CLI stage exceeded its deadline");
+            panic!("CLI command {args:?} exceeded its deadline");
         }
         thread::sleep(Duration::from_millis(10));
     };
@@ -847,6 +847,7 @@ fn terminal_process(
     root: &Path,
     private: &Path,
     ready: &Path,
+    session: &Path,
 ) -> Child {
     let mut command = Command::new("script");
     if cfg!(target_os = "macos") {
@@ -861,6 +862,7 @@ fn terminal_process(
         .env("RT_TEST_ROOT", root)
         .env("RT_TEST_PRIVATE", private)
         .env("RT_TEST_READY", ready)
+        .env("RT_TEST_SESSION", session)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -875,6 +877,7 @@ fn terminal_process(
     root: &Path,
     private: &Path,
     ready: &Path,
+    session: &Path,
 ) -> Child {
     use std::os::windows::process::CommandExt;
     const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
@@ -892,6 +895,7 @@ fn terminal_process(
         .env("RT_TEST_ROOT", root)
         .env("RT_TEST_PRIVATE", private)
         .env("RT_TEST_READY", ready)
+        .env("RT_TEST_SESSION", session)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -905,16 +909,17 @@ fn closing_launch_console_keeps_daemon_reachable() {
     let root = scratch.0.join("Console project");
     let private = scratch.0.join("private");
     let ready = scratch.0.join("console-ready");
+    let session = scratch.0.join("session");
     fs::create_dir(&root).unwrap();
     #[cfg(unix)]
     let (script, content) = (
         scratch.0.join("terminal.sh"),
-        "#!/bin/sh\n\"$RT_TEST_BIN\" --workspace \"$RT_TEST_ROOT\" --home \"$RT_TEST_PRIVATE\" --format json daemon start >/dev/null || exit 1\n: > \"$RT_TEST_READY\"\nsleep 300\n",
+        "#!/bin/sh\n\"$RT_TEST_BIN\" --workspace \"$RT_TEST_ROOT\" --home \"$RT_TEST_PRIVATE\" --format json daemon start >/dev/null || exit 1\nfor index in 1 2 3; do\n  \"$RT_TEST_BIN\" --workspace \"$RT_TEST_ROOT\" --home \"$RT_TEST_PRIVATE\" --format json session create > \"$RT_TEST_SESSION.$index\" || exit 1\ndone\n: > \"$RT_TEST_READY\"\nsleep 300\n",
     );
     #[cfg(windows)]
     let (script, content) = (
         scratch.0.join("terminal.ps1"),
-        "& $env:RT_TEST_BIN --workspace $env:RT_TEST_ROOT --home $env:RT_TEST_PRIVATE --format json daemon start\nif ($LASTEXITCODE -ne 0) { exit 1 }\nSet-Content -LiteralPath $env:RT_TEST_READY -Value ready\nStart-Sleep -Seconds 300\n",
+        "& $env:RT_TEST_BIN --workspace $env:RT_TEST_ROOT --home $env:RT_TEST_PRIVATE --format json daemon start\nif ($LASTEXITCODE -ne 0) { exit 1 }\nforeach ($index in 1..3) {\n  $sessionOutput = & $env:RT_TEST_BIN --workspace $env:RT_TEST_ROOT --home $env:RT_TEST_PRIVATE --format json session create\n  if ($LASTEXITCODE -ne 0) { exit 1 }\n  [IO.File]::WriteAllText(\"$env:RT_TEST_SESSION.$index\", ($sessionOutput -join [Environment]::NewLine), [Text.UTF8Encoding]::new($false))\n}\nSet-Content -LiteralPath $env:RT_TEST_READY -Value ready\nStart-Sleep -Seconds 300\n",
     );
     fs::write(&script, content).unwrap();
     success(
@@ -924,7 +929,14 @@ fn closing_launch_console_keeps_daemon_reachable() {
         None,
     );
     success(&root, &private, &["daemon", "stop"], None);
-    let mut terminal = terminal_process(&script, env!("CARGO_BIN_EXE_rt"), &root, &private, &ready);
+    let mut terminal = terminal_process(
+        &script,
+        env!("CARGO_BIN_EXE_rt"),
+        &root,
+        &private,
+        &ready,
+        &session,
+    );
     let deadline = Instant::now() + HOST_TIMEOUT;
     while !ready.exists() {
         if let Some(status) = terminal.try_wait().unwrap() {
@@ -933,10 +945,35 @@ fn closing_launch_console_keeps_daemon_reachable() {
         assert!(Instant::now() < deadline, "console fixture was not ready");
         thread::sleep(Duration::from_millis(10));
     }
+    eprintln!("console gate: three sessions ready");
     terminal.kill().unwrap();
     terminal.wait().unwrap();
+    eprintln!("console gate: launch console closed");
     let state = success(&root, &private, &["daemon", "status"], None);
+    eprintln!("console gate: detached daemon reached");
     assert_eq!(state["lifecycle"], "ready");
-    success(&root, &private, &["daemon", "stop"], None);
+    let session_ids: Vec<String> = (1..=3)
+        .map(|index| {
+            let created: Value = serde_json::from_slice(
+                &fs::read(session.with_extension(index.to_string())).unwrap(),
+            )
+            .unwrap();
+            created["result"]["session_id"].as_str().unwrap().to_owned()
+        })
+        .collect();
+    assert_eq!(session_ids.len(), 3);
+    for session_id in &session_ids {
+        let attached = success(&root, &private, &["session", "attach", session_id], None);
+        assert_eq!(attached["snapshot"]["rows"], 24);
+        assert_eq!(attached["snapshot"]["columns"], 80);
+    }
+    eprintln!("console gate: three sessions reattached");
+    success(
+        &root,
+        &private,
+        &["daemon", "stop", "--terminate-sessions"],
+        None,
+    );
+    eprintln!("console gate: sessions terminated and daemon stopped");
     assert_eq!(fs::read_dir(root).unwrap().count(), 0);
 }

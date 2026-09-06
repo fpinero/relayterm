@@ -1,3 +1,4 @@
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use relayterm_client::{ClientError, Delivery};
 use relayterm_daemon::{BootstrapAction, BootstrapRequest, RuntimeError, WorkspaceRoute};
@@ -95,7 +96,10 @@ enum WorkspaceCommand {
 enum DaemonCommand {
     Start,
     Status,
-    Stop,
+    Stop {
+        #[arg(long)]
+        terminate_sessions: bool,
+    },
 }
 
 #[derive(Args)]
@@ -213,6 +217,40 @@ enum HandoverCommand {
 #[derive(Subcommand)]
 enum SessionCommand {
     List(PageArgs),
+    Create {
+        /// Stable UUID used to inspect or retry an uncertain launch.
+        #[arg(long)]
+        receipt_id: Option<String>,
+        #[arg(long)]
+        definition_id: Option<String>,
+        #[arg(long)]
+        task_id: Option<String>,
+        #[arg(long)]
+        working_directory: Option<PathBuf>,
+        #[arg(long, default_value_t = 24)]
+        rows: u16,
+        #[arg(long, default_value_t = 80)]
+        columns: u16,
+    },
+    Attach {
+        session_id: String,
+    },
+    Detach {
+        session_id: String,
+    },
+    Input {
+        session_id: String,
+        #[command(flatten)]
+        input: InputArgs,
+    },
+    Resize {
+        session_id: String,
+        rows: u16,
+        columns: u16,
+    },
+    Terminate {
+        session_id: String,
+    },
 }
 #[derive(Subcommand)]
 enum EventCommand {
@@ -431,11 +469,22 @@ async fn run(cli: &Cli) -> Result<Value, CliError> {
             command: DaemonCommand::Status,
         } => status(cli, &root).await,
         TopCommand::Daemon {
-            command: DaemonCommand::Stop,
-        } => stop(cli, &root).await,
+            command: DaemonCommand::Stop { terminate_sessions },
+        } => stop(cli, &root, *terminate_sessions).await,
         TopCommand::Event {
             command: EventCommand::Watch { after },
         } => watch_events(cli, &root, after).await,
+        TopCommand::Session {
+            command: SessionCommand::Input { session_id, input },
+        } => session_input(cli, &root, session_id, input).await,
+        TopCommand::Session {
+            command:
+                SessionCommand::Resize {
+                    session_id,
+                    rows,
+                    columns,
+                },
+        } => session_resize(cli, &root, session_id, *rows, *columns).await,
         _ => dispatch_admin(cli, &root, command).await,
     }
 }
@@ -456,6 +505,68 @@ async fn watch_events(cli: &Cli, root: &Path, after: &str) -> Result<Value, CliE
             }
         }
     }
+}
+
+async fn session_input(
+    cli: &Cli,
+    root: &Path,
+    session_id: &str,
+    input: &InputArgs,
+) -> Result<Value, CliError> {
+    let bytes = read_limited_input(input, 64 * 1024)?;
+    let route = invoke_bootstrap("locate", root, cli.home.as_deref(), None, cli.timeout)?;
+    let client = relayterm_daemon::connect_route(&route, cli.home.clone()).await?;
+    let lease: Value = client
+        .call(
+            Operation::SessionAcquireInput,
+            &json!({"session_id":session_id}),
+        )
+        .await?;
+    let lease_id = lease["lease_id"].as_str().ok_or(CliError::InvalidInput)?;
+    let result: Value = client
+        .call(
+            Operation::SessionInput,
+            &json!({"session_id":session_id,"lease_id":lease_id,"sequence":"1","data":STANDARD.encode(bytes)}),
+        )
+        .await?;
+    let _: Value = client
+        .call(
+            Operation::SessionReleaseInput,
+            &json!({"session_id":session_id,"lease_id":lease_id}),
+        )
+        .await?;
+    Ok(result)
+}
+
+async fn session_resize(
+    cli: &Cli,
+    root: &Path,
+    session_id: &str,
+    rows: u16,
+    columns: u16,
+) -> Result<Value, CliError> {
+    let route = invoke_bootstrap("locate", root, cli.home.as_deref(), None, cli.timeout)?;
+    let client = relayterm_daemon::connect_route(&route, cli.home.clone()).await?;
+    let lease: Value = client
+        .call(
+            Operation::SessionAcquireInput,
+            &json!({"session_id":session_id}),
+        )
+        .await?;
+    let lease_id = lease["lease_id"].as_str().ok_or(CliError::InvalidInput)?;
+    let result: Value = client
+        .call(
+            Operation::SessionResize,
+            &json!({"session_id":session_id,"lease_id":lease_id,"rows":rows,"columns":columns}),
+        )
+        .await?;
+    let _: Value = client
+        .call(
+            Operation::SessionReleaseInput,
+            &json!({"session_id":session_id,"lease_id":lease_id}),
+        )
+        .await?;
+    Ok(result)
 }
 
 fn route_value(route: WorkspaceRoute) -> Result<Value, CliError> {
@@ -585,7 +696,7 @@ async fn status(cli: &Cli, root: &Path) -> Result<Value, CliError> {
     }
 }
 
-async fn stop(cli: &Cli, root: &Path) -> Result<Value, CliError> {
+async fn stop(cli: &Cli, root: &Path, terminate_sessions: bool) -> Result<Value, CliError> {
     let route = invoke_bootstrap("locate", root, cli.home.as_deref(), None, cli.timeout)?;
     let client = match relayterm_daemon::connect_route(&route, cli.home.clone()).await {
         Ok(v) => v,
@@ -600,7 +711,10 @@ async fn stop(cli: &Cli, root: &Path) -> Result<Value, CliError> {
         .ok_or(CliError::InvalidInput)?
         .to_owned();
     let _: Value = client
-        .call(Operation::DaemonShutdown, &json!({"generation":generation}))
+        .call(
+            Operation::DaemonShutdown,
+            &json!({"generation":generation,"terminate_sessions":terminate_sessions}),
+        )
         .await?;
     let deadline = Instant::now() + Duration::from_secs(cli.timeout);
     while Instant::now() < deadline {
@@ -783,6 +897,66 @@ fn operation_and_params(command: &TopCommand) -> Result<(Operation, Value), CliE
         TopCommand::Session {
             command: SessionCommand::List(page),
         } => (Operation::SessionList, page_params(page)),
+        TopCommand::Session {
+            command:
+                SessionCommand::Create {
+                    receipt_id,
+                    definition_id,
+                    task_id,
+                    working_directory,
+                    rows,
+                    columns,
+                },
+        } => {
+            let working_directory = working_directory
+                .as_deref()
+                .map(relayterm_daemon::encode_session_path)
+                .transpose()?;
+            (
+                Operation::SessionCreate,
+                json!({
+                    "receipt_id": receipt_id.clone().unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
+                    "launch_kind": if definition_id.is_some() { "definition" } else { "default_shell" },
+                    "definition_id": definition_id,
+                    "task_id": task_id,
+                    "working_directory": working_directory,
+                    "rows": rows,
+                    "columns": columns
+                }),
+            )
+        }
+        TopCommand::Session {
+            command: SessionCommand::Attach { session_id },
+        } => (Operation::SessionAttach, json!({"session_id":session_id})),
+        TopCommand::Session {
+            command: SessionCommand::Detach { session_id },
+        } => (Operation::SessionDetach, json!({"session_id":session_id})),
+        TopCommand::Session {
+            command: SessionCommand::Input { session_id, input },
+        } => {
+            let bytes = read_limited_input(input, 64 * 1024)?;
+            (
+                Operation::SessionInput,
+                json!({"session_id":session_id,"data":STANDARD.encode(bytes)}),
+            )
+        }
+        TopCommand::Session {
+            command:
+                SessionCommand::Resize {
+                    session_id,
+                    rows,
+                    columns,
+                },
+        } => (
+            Operation::SessionResize,
+            json!({"session_id":session_id,"rows":rows,"columns":columns}),
+        ),
+        TopCommand::Session {
+            command: SessionCommand::Terminate { session_id },
+        } => (
+            Operation::SessionTerminate,
+            json!({"session_id":session_id}),
+        ),
         TopCommand::Event {
             command: EventCommand::List(page),
         } => (
@@ -827,6 +1001,16 @@ fn read_text(input: &InputArgs, limit: usize) -> Result<String, CliError> {
     };
     let bytes = read_limited(reader, limit)?;
     String::from_utf8(bytes).map_err(|_| CliError::InvalidInput)
+}
+fn read_limited_input(input: &InputArgs, limit: usize) -> Result<Vec<u8>, CliError> {
+    if input.file.is_none() && !input.stdin {
+        return Err(CliError::Usage("Specify --file or --stdin."));
+    }
+    let reader: Box<dyn Read> = match &input.file {
+        Some(path) => Box::new(File::open(path).map_err(|_| CliError::Io)?),
+        None => Box::new(io::stdin()),
+    };
+    read_limited(reader, limit)
 }
 fn read_limited(reader: impl Read, limit: usize) -> Result<Vec<u8>, CliError> {
     let mut bytes = Vec::new();
