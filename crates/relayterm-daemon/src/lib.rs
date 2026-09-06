@@ -954,6 +954,7 @@ where
                 rows: params.rows,
                 columns: params.columns,
             },
+            cfg!(windows) && matches!(params.launch_kind, wire::SessionLaunchKind::DefaultShell),
         );
         let now = relayterm_platform::SystemClock
             .now()

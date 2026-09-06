@@ -82,6 +82,7 @@ struct Session {
     input: Mutex<Option<SyncSender<InputChunk>>>,
     reader: Mutex<Option<thread::JoinHandle<()>>>,
     writer: Mutex<Option<thread::JoinHandle<()>>>,
+    termination_input: Option<Vec<u8>>,
     queued_input: Arc<AtomicU64>,
     input_owner: Mutex<Option<InputOwner>>,
     attachments: Mutex<HashMap<Uuid, Attachment>>,
@@ -109,6 +110,7 @@ impl SessionSupervisor {
         session_id: Uuid,
         instance_id: Uuid,
         request: SpawnRequest,
+        graceful_shell_exit: bool,
     ) -> Result<(), SupervisorError> {
         let mut sessions = self.sessions.lock().map_err(|_| SupervisorError::Io)?;
         if sessions.contains_key(&session_id) {
@@ -143,6 +145,7 @@ impl SessionSupervisor {
                 input: Mutex::new(Some(input)),
                 reader: Mutex::new(Some(reader)),
                 writer: Mutex::new(Some(writer)),
+                termination_input: graceful_shell_exit.then(|| b"exit\r\n".to_vec()),
                 queued_input,
                 input_owner: Mutex::new(None),
                 attachments: Mutex::new(HashMap::new()),
@@ -441,14 +444,7 @@ impl SessionSupervisor {
             return Err(SupervisorError::Final);
         }
         session.terminate_requested.store(true, Ordering::Release);
-        session
-            .control
-            .lock()
-            .map_err(|_| SupervisorError::Io)?
-            .as_mut()
-            .ok_or(SupervisorError::Final)?
-            .terminate()
-            .map_err(map_pty)
+        request_termination(&session)
     }
 
     pub fn terminate_all(&self) {
@@ -466,11 +462,7 @@ impl SessionSupervisor {
         for session in sessions.values() {
             if !session.final_state.load(Ordering::Acquire) {
                 session.terminate_requested.store(true, Ordering::Release);
-                if let Ok(mut control) = session.control.lock()
-                    && let Some(control) = control.as_mut()
-                {
-                    let _ = control.terminate();
-                }
+                let _ = request_termination(session);
                 break;
             }
         }
@@ -551,6 +543,31 @@ impl SessionSupervisor {
             .cloned()
             .ok_or(SupervisorError::Reference)
     }
+}
+
+fn request_termination(session: &Session) -> Result<(), SupervisorError> {
+    if let Some(bytes) = &session.termination_input {
+        let amount = bytes.len() as u64;
+        session.queued_input.fetch_add(amount, Ordering::AcqRel);
+        let queued = session
+            .input
+            .lock()
+            .map_err(|_| SupervisorError::Io)?
+            .as_ref()
+            .is_some_and(|input| input.try_send(InputChunk(bytes.clone())).is_ok());
+        if queued {
+            return Ok(());
+        }
+        session.queued_input.fetch_sub(amount, Ordering::AcqRel);
+    }
+    session
+        .control
+        .lock()
+        .map_err(|_| SupervisorError::Io)?
+        .as_mut()
+        .ok_or(SupervisorError::Final)?
+        .terminate()
+        .map_err(map_pty)
 }
 
 fn spawn_reader(
