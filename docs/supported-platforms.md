@@ -6,9 +6,9 @@ Rust 1.98.1 is the pinned compiler and initial MSRV. CI also selects current sta
 
 | OS and runner | Target | Bootstrap evidence | Interactive evidence |
 | --- | --- | --- | --- |
-| Linux, ubuntu-24.04 | x86_64-unknown-linux-gnu | Native stable and pinned-compiler CI passed | Pending M07/M08/M11 |
-| macOS, macos-14 | aarch64-apple-darwin | Local tests and native stable CI passed | Pending M07/M08/M11 |
-| Windows, windows-2022 | x86_64-pc-windows-msvc | Native stable CI passed | Pending M07/M08/M11 |
+| Linux, ubuntu-24.04 | x86_64-unknown-linux-gnu | Native stable and pinned-compiler CI passed | Native M07 PTY gate passed; TUI M08/M11 pending |
+| macOS, macos-14 | aarch64-apple-darwin | Local tests and native stable CI passed | Native M07 PTY gate passed; TUI M08/M11 pending |
+| Windows, windows-2022 | x86_64-pc-windows-msvc | Native stable CI passed | Native M07 PTY gate passed; TUI M08/M11 pending |
 
 The bootstrap code at `0d14f05` passed Quality run `33974825769` and Security run `33974825731` on 2026-09-05. The pinned-toolchain CI job also runs on Linux. Record actual compiler host and runner OS for each candidate. Local macOS evidence does not establish Linux or Windows success, and cross-compilation is not native behavior verification. Refer to `avances.md` for executed checks; do not infer results from the presence of workflow files.
 
@@ -85,7 +85,26 @@ Candidate `ef196d789fe64c1ade206fa5e6273dbc1088abc6` passed [Quality run 3405024
 
 Every quality job ran the first durable slice twice before the ordinary parallel workspace suite. Separate `rt` processes used real local IPC and SQLite to exercise Git and non-Git project roots, exclusive and competing claims, progress, structured handover, release, continuation, graceful and abrupt test-host loss, production restart reconciliation, ordered events, pagination, privacy, and source-tree cleanliness. The runtime ownership regression proves that a contender cannot reconcile persisted state before acquiring the endpoint.
 
-The same native gate launches the daemon from a console-lifetime fixture, closes the owning console or pseudo-terminal process, reconnects independently, and stops the reported generation. Unix uses a pseudo-terminal allocated by `script`; Windows uses a process created with a new console. This is automated native process and console lifetime evidence. It does not establish Terminal.app, Windows Terminal, SSH, PTY child supervision, full-screen rendering, or reattachment behavior, which remain M07 and later work.
+The same native gate launches the daemon from a console-lifetime fixture, closes the owning console or pseudo-terminal process, reconnects independently, and stops the reported generation. Unix uses a pseudo-terminal allocated by `script`; Windows uses a process created with a new console. This is automated native process and console lifetime evidence. It does not establish Terminal.app, Windows Terminal, SSH, PTY child supervision, full-screen rendering, or reattachment behavior. M07 supplies the native PTY evidence below.
+
+## M07 real PTY supervision evidence
+
+Candidate `61a516abc5d7696b81482ebba605ea709eb0b6d1` passed [Quality run 34065910975](https://github.com/fpinero/relayterm/actions/runs/34065910975) and [Security run 34065910980](https://github.com/fpinero/relayterm/actions/runs/34065910980) on 2026-09-07.
+
+| Native runner | Toolchain | Result |
+| --- | --- | --- |
+| ubuntu-24.04 | Stable | Passed |
+| ubuntu-24.04 | 1.98.1 | Passed |
+| macos-14 | Stable | Passed |
+| windows-2022 | Stable | Passed |
+
+Every Quality job ran the real PTY gate twice before the complete workspace suite, which ran the gate again. The gate uses Unix PTYs or Windows ConPTY, one native default shell, two neutral interactive fixture sessions, and five additional fixture sessions. It verifies the eight-session capacity and ninth-session rejection, idempotent launch receipts, immutable command and environment assembly, real instance IDs, exclusive claims, progress, atomic handover, ordered continuation, exclusive input leases, resize, high-volume truncation and resnapshot, descendant termination, durable lifecycle observations, and absence of persistent terminal captures.
+
+The terminal-state fixture verifies full-screen redraw, Unicode, dimensions, cursor and input-mode continuity, authoritative cell equality after an independent client reconnect, and correct continuation after raw history truncation. Unix preserves the alternate-screen indicator. ConPTY interprets application VT sequences and exposes the rendered primary-screen representation on the supported Windows runner, so the Windows gate asserts that transformed mode and compares the complete visible state across reattachment. Provider-neutral parser tests independently verify alternate-screen entry and exit, hidden-buffer restoration, split UTF-8 and escape sequences, colors, attributes, cursor operations, invalid input, and exact allocation limits.
+
+The console-lifetime gate now launches three real default-shell PTYs through the detached production daemon. It closes the originating Unix pseudo-terminal owner or Windows console owner, reconnects from a separate `rt` process, reads all three live sessions, and performs explicit bounded cleanup. This proves child survival while the daemon host remains alive. A daemon restart marks unrecoverable sessions lost and does not claim live PTY adoption or terminal-state persistence.
+
+Localhost SSH was probed during M07 validation and refused the connection because no authorized SSH service was available. SSH coverage is therefore not claimed. Terminal.app, Windows Terminal UI, keyboard focus, monochrome rendering, and small-window behavior remain part of the M08 and M11 manual client matrix.
 
 ## Planned shell and terminal matrix
 
@@ -95,10 +114,10 @@ The same native gate launches the daemon from a console-lifetime fixture, closes
 | macOS | Zsh, Bash | Terminal.app and OpenSSH |
 | Windows | PowerShell, cmd.exe | Windows Terminal with ConPTY and supported OpenSSH configurations |
 
-Full-screen redraw, Unicode, resize, focus switching, monochrome use, small-window behavior, and SSH detach/reattach require later empirical tests. No terminal or architecture outside the tested matrix is claimed supported by this bootstrap.
+Native PTY full-screen redraw, Unicode, resize, process survival, and reattachment are covered by the M07 gate. TUI focus switching, presentation in named terminal applications, monochrome use, small-window behavior, and SSH detach/reattach require later empirical tests. No terminal or architecture outside the tested matrix is claimed supported.
 
 ## Prerequisites and limitations
 
 Development requires rustup and native linker/build tools. Git is needed for repository validation and later optional worktree isolation. Provider CLIs, credentials, graphical desktops, and hosted accounts are not needed for automated runtime acceptance.
 
-The administrative daemon and CLI workflow is available. Invoking `rt` without an administrative command still reports that the TUI is pending. Real supervised sessions, PTY interaction, and terminal reattachment remain later work. Host restart recovery of live processes is outside the MVP.
+The administrative daemon, CLI, real supervised sessions, PTY interaction, and terminal reattachment workflow are available. Invoking `rt` without an administrative command still reports that the TUI is pending. Host restart recovery of live processes is outside the MVP.

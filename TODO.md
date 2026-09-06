@@ -8,7 +8,7 @@ Keep the daemon responsible for durable state and supervised processes. Keep dom
 
 ### How to execute this queue
 
-- Start with M07. Follow milestone dependencies and the task order within each milestone; consult `avances.md` for fulfilled dependencies.
+- Start with M08. Follow milestone dependencies and the task order within each milestone; consult `avances.md` for fulfilled dependencies.
 - Treat each task ID as one reviewable outcome, including its relevant tests and documentation. Split a task before coding if its implementation cannot be reviewed coherently in one session. Preserve its ID as a prefix for new child tasks.
 - For a milestone ending in `[PLAN]`, complete its first planning task before implementation. Record the named decisions, contracts, failure cases, and test design, then refine the remaining tasks in this file. The marker identifies unresolved engineering details, not permission to expand MVP scope.
 - At each session start, read repository instructions, check the branch and working tree, and consult `avances.md` for satisfied dependencies. Continue the earliest unblocked task. Work on a feature or fix branch, never directly on `main` or `master`.
@@ -21,61 +21,11 @@ Keep the daemon responsible for durable state and supervised processes. Keep dom
 
 Use the specification's recommended Rust stack and the pinned bootstrap toolchain. Verify support when adding dependencies; avoid unused dependencies and empty adapter crates until needed. Follow the eight [architecture decisions](docs/architecture/README.md), refining the risky ones at their implementation gates.
 
-The durable first-slice gate is complete. M07 adds real PTYs; M08 adds the TUI; M09 and M10 add templates and explicit worktree isolation; M11 and M12 validate and prepare the release candidate. After M08, M09 and M10 may proceed independently. Windows PTY behavior must be validated when that adapter is introduced.
+The durable first-slice and real PTY gates are complete. M08 adds the TUI; M09 and M10 add templates and explicit worktree isolation; M11 and M12 validate and prepare the release candidate. After M08, M09 and M10 may proceed independently.
 
 Public export and disk-backed scrollback are optional and are deferred from this roadmap. Keep scrollback bounded in daemon memory. Do not add transcript ingestion, provider APIs, automatic task mutation from agent prose, autonomous orchestration, TCP listeners, hosted dependencies, telemetry, graphical clients, or automatic Git commits, merges, rebases, or deletion. Any later export proposal must first add exact-content preview, redaction, and destination confirmation as required by FR-10.
 
 Keep task dependencies informational, as defined in the specification and [M02 storage contract](docs/M02_storage_contract.md); do not introduce a scheduler. Git worktree creation is included because AC-10 requires it, even though several related requirements use SHOULD.
-
-## M07: Real PTY supervision and reattachment [PLAN]
-
-Depends on: M06. Specification phase: 2. Coverage: FR-2, FR-3, FR-4, FR-8, FR-9; NFR-2, NFR-3, NFR-8; AC-3, AC-4, AC-8 foundations.
-
-Outcome: three independently supervised interactive sessions survive client disconnection with bounded resources.
-
-Execution contract: [M07 detailed plan](docs/M07_details.md). Add its 30 atomic child tasks before implementation.
-
-- M07.01a: Audit launch, admission, reads, deadlines, and cleanup; reproduce or disprove inherited risks and add regressions for fixes.
-- M07.01b: Prototype portable-pty natively on all three targets, including handle ownership, spawn, I/O, resize, wait, and finite cleanup.
-- M07.01c: Prototype terminal reconstruction and verify snapshot plus continuation correctness and resource boundaries.
-- M07.01d: Amend the terminal ADR with native evidence and final state, wire, lease, signal, and overflow decisions.
-- M07.02a: Build the real test-only interactive child and bounded harness without a production simulation entry point.
-- M07.02b: Verify crash, blocked input, descendant handles, teardown, and concurrent fixture isolation on every OS.
-- M07.03a: Implement native shell and definition resolution with immutable launch snapshots.
-- M07.03b: Implement validated working directory, argument, and allowlisted environment assembly with privacy tests.
-- M07.04a: Add supervisor composition, ownership state, capacity reservations, and enforced architecture boundaries.
-- M07.04b: Implement the starting, spawn, running, and failure saga with receipt semantics and injected failure coverage.
-- M07.04c: Implement wait, final observation, and cleanup with atomic claim, task, and event behavior.
-- M07.05a: Add bounded binary ingestion and terminal parser state with split-sequence and parser-limit tests.
-- M07.05b: Add bounded scrollback, final-state retention, and global accounting with exact-boundary tests.
-- M07.06a: Implement the exclusive input lease and ordered bounded writer with conflict and blocked-input tests.
-- M07.06b: Implement coherent native resize and verify child dimensions, limits, failures, and races.
-- M07.06c: Implement verified native termination and descendant policy without affecting unrelated children.
-- M07.07a: Implement versioned snapshots, deltas, and attachment epochs with full reconstruction tests.
-- M07.07b: Implement snapshot-to-live handoff, truncation, and explicit resynchronization under races and overflow.
-- M07.07c: Implement detach and observer/writer lifetime with independent clients and unchanged task ownership.
-- M07.08a: Enforce per-session and global budgets with reservation rollback and final-state eviction.
-- M07.08b: Implement fair output and control scheduling with slow-client and blocked-writer isolation.
-- M07.08c: Bound workers and teardown, then stress repeated create, attach, and exit cycles for leaks.
-- M07.09a: Implement versioned session wire operations and client APIs with compatibility and hostile-frame tests.
-- M07.09b: Add administrative session CLI commands and safe bounded diagnostics.
-- M07.09c: Integrate busy and explicit shutdown plus honest startup reconciliation for real sessions.
-- M07.09d: Exercise real-instance coordination continuity and child-failure isolation through separate clients and SQLite.
-- M07.10a: Commit the named real three-session and reconstruction gates and pass them twice on each native stable target.
-- M07.10b: Establish console-close child survival and independent reconnect, plus SSH evidence where available.
-- M07.10c: Publish the guide, compatibility, ADR, specification, and native evidence updates and run every repository control.
-- M07.10d: Deliver and merge the reviewed PR only after acceptance passes, then verify post-merge Quality and Security.
-
-- M07.01: Prototype `portable-pty` and provider-neutral terminal reconstruction on all three OS targets. Exercise alternate-screen output, cursor movement, split escape sequences, Unicode, resize, and reconnect after scrollback truncation. Refine the ADR with evidence, input ownership for multiple attached clients, resize authority, signals/termination semantics, and queue overflow policy before production implementation.
-- M07.02: Add a synthetic interactive child fixture with deterministic modes for echo, size reporting, full-screen redraw, high-volume output, controlled exit, and crash. Verify it runs without network access or provider credentials on every OS.
-- M07.03: Implement generic shell/custom-command launch configuration with executable discovery, argument arrays, validated working directories, and approved environment inheritance. Test missing/disabled commands, unsafe paths, spaces, Unicode, and secret-free error reporting.
-- M07.04: Implement PTY allocation, child spawn, instance/session association, start failure, and exit observation. Persist lifecycle changes through application services and test a failed launch leaves no falsely running session.
-- M07.05: Implement bounded binary output streaming and daemon-owned in-memory scrollback. Test non-UTF-8 bytes, split terminal sequences, retention boundaries, and high-volume output without persistent terminal captures.
-- M07.06: Implement input routing, resize propagation, and explicit termination with the approved platform semantics. Test correct target selection and final status without affecting unrelated children.
-- M07.07: Implement attach/detach and reconstruction from retained terminal state using the M07.01 design. Race output against attachment and verify ordering, truncation recovery, full-screen state, and multiple-client ownership behavior.
-- M07.08: Implement session caps, per-client queue bounds, fairness, and backpressure. Test slow/disconnected consumers cannot exhaust memory or block control commands and other sessions.
-- M07.09: Connect session IPC operations and CLI diagnostics to the real supervisor. Test launch/claim/release with real instances, child failure isolation, daemon shutdown policy, and restart reconciliation without attempting unsupported live-process recovery.
-- M07.10: Verify the PTY gate on all three platforms: one shell and two synthetic interactive agents run concurrently; input, full-screen behavior, resize, exit, detach, and reattach pass. Close the client and SSH connection where available while keeping the host/daemon alive; record terminal-specific manual evidence when automation cannot establish behavior.
 
 ## M08: Complete TUI workflow [PLAN]
 
