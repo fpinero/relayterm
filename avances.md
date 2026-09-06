@@ -193,3 +193,9 @@ Local verification on native macOS aarch64:
 Candidate `14ed5ac` passed Quality run `34032866039` on native `ubuntu-24.04 / stable`, `ubuntu-24.04 / 1.98.1`, `macos-14 / stable`, and `windows-2022 / stable`. Security run `34032866081` passed the dependency, advisory, license, ban, source, secret, and negative-control gates. An earlier Windows run exposed that a cancelled named-pipe write half could still deliver a late response to the next request. Commit `14ed5ac` makes every subsequent request replace a connection already marked disconnected, and both repeated native Windows jobs passed.
 
 The M04 acceptance follow-up is complete. The next pending milestone is M05.
+
+## 2026-09-06: Prepare the M05 execution contract
+
+Completed M05-DOC by creating `docs/M05_details.md` and linking it from the pending M05 queue. The plan specifies daemon-side bootstrap IPC, non-creating discovery, singleton ownership, native detachment, readiness, transaction-preserving shutdown, restart reconciliation, administrative commands, explicit configuration import, safe bounded diagnostics, and atomic M05.01-M05.07 implementation tasks. It defines targeted concurrency, cancellation, privacy, recovery, and native acceptance evidence while preserving M06 and M07 scope.
+
+Verification: manually cross-reviewed the plan against the specification, ADRs, M04 contract, and current registry, server, client, configuration, and CLI boundaries. `python3 scripts/check_repository.py`, `python3 scripts/check_audit_controls.py`, `python3 scripts/check_secrets.py`, and `git diff --check` passed. A focused Python check verified all seven M05 task groups and required contract sections, preserved pending implementation tasks, ASCII document content, and the unchanged existing logbook before this append. No Rust implementation was changed and no M05 implementation task was closed. Native runtime checks listed in the plan remain requirements for the implementing agent.

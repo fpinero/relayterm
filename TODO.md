@@ -33,6 +33,8 @@ Depends on: M04. Specification phase: 1. Coverage: FR-1, FR-5, FR-6, FR-8, FR-9;
 
 Outcome: `rt` can operate durable coordination state through an independent daemon.
 
+Execution contract: [M05 detailed plan](docs/M05_details.md). Expand its atomic child tasks before implementation; all M05 implementation work remains pending.
+
 - M05.01: Assemble the daemon from application services, SQLite, local transport, and injectable supervision. Implement endpoint discovery and singleton locking; test simultaneous starts and verify an existing live endpoint is never removed as stale.
 - M05.02: Implement daemon start/status/stop behavior through `rt`, with OS-specific detachment from the launching client. Test closing the starter process and reconnecting from another client on each supported OS.
 - M05.03: Implement orderly shutdown with transaction completion, IPC closure, and an explicit child-process policy ready for M07. Test interrupted requests and durable writes without depending on TUI cleanup.
