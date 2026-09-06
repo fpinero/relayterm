@@ -334,6 +334,7 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(10));
         };
         assert!(exit.code == 0);
+        drop(control);
         let output = output_rx
             .recv_timeout(std::time::Duration::from_secs(5))
             .unwrap()

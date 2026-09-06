@@ -78,7 +78,7 @@ struct Attachment {
 struct Session {
     instance_id: Uuid,
     terminal: Arc<Mutex<TerminalState>>,
-    control: Mutex<NativeControl>,
+    control: Mutex<Option<NativeControl>>,
     input: SyncSender<InputChunk>,
     queued_input: Arc<AtomicU64>,
     input_owner: Mutex<Option<InputOwner>>,
@@ -136,7 +136,7 @@ impl SessionSupervisor {
             Arc::new(Session {
                 instance_id,
                 terminal,
-                control: Mutex::new(control),
+                control: Mutex::new(Some(control)),
                 input,
                 queued_input,
                 input_owner: Mutex::new(None),
@@ -412,6 +412,8 @@ impl SessionSupervisor {
             .control
             .lock()
             .map_err(|_| SupervisorError::Io)?
+            .as_ref()
+            .ok_or(SupervisorError::Final)?
             .resize(rows, columns)
             .map_err(map_pty)?;
         session
@@ -432,6 +434,8 @@ impl SessionSupervisor {
             .control
             .lock()
             .map_err(|_| SupervisorError::Io)?
+            .as_mut()
+            .ok_or(SupervisorError::Final)?
             .terminate()
             .map_err(map_pty)
     }
@@ -443,7 +447,9 @@ impl SessionSupervisor {
         for session in sessions.values() {
             if !session.final_state.load(Ordering::Acquire) {
                 session.terminate_requested.store(true, Ordering::Release);
-                if let Ok(mut control) = session.control.lock() {
+                if let Ok(mut control) = session.control.lock()
+                    && let Some(control) = control.as_mut()
+                {
                     let _ = control.terminate();
                 }
             }
@@ -460,7 +466,9 @@ impl SessionSupervisor {
                 if session.final_state.load(Ordering::Acquire) {
                     return None;
                 }
-                let status = session.control.lock().ok()?.try_wait().ok()??;
+                let mut control = session.control.lock().ok()?;
+                let status = control.as_mut()?.try_wait().ok()??;
+                *control = None;
                 session.final_state.store(true, Ordering::Release);
                 if let Ok(mut owner) = session.input_owner.lock() {
                     *owner = None;
