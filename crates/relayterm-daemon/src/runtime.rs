@@ -310,11 +310,15 @@ pub async fn connect_route(
 ) -> Result<Client, RuntimeError> {
     let locations = locations(home)?;
     let id = route.domain_id()?;
-    Client::connect(
-        &endpoint(&locations, id)?,
-        WireWorkspaceId::from_uuid(id.as_uuid()),
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        Client::connect(
+            &endpoint(&locations, id)?,
+            WireWorkspaceId::from_uuid(id.as_uuid()),
+        ),
     )
     .await
+    .map_err(|_| RuntimeError::Transport)?
     .map_err(map_client)
 }
 
