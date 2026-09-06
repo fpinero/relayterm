@@ -114,6 +114,17 @@ impl NativeControl {
             return rustix::process::kill_process_group(group, rustix::process::Signal::KILL)
                 .map_err(|_| PtyError::Io);
         }
+        #[cfg(windows)]
+        if let Some(process_id) = self.child.process_id() {
+            std::process::Command::new("taskkill.exe")
+                .args(["/PID", &process_id.to_string(), "/T", "/F"])
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .spawn()
+                .map_err(|_| PtyError::Io)?;
+            return Ok(());
+        }
         self.child.kill().map_err(|_| PtyError::Io)
     }
 
