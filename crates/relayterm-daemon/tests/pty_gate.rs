@@ -589,6 +589,19 @@ fn interactive_fixture(_: &Path) -> (String, Vec<String>) {
 fn interactive_fixture(project: &Path) -> (String, Vec<String>) {
     let script = project.join("interactive-fixture.ps1");
     let content = r#"$ErrorActionPreference = 'Stop'
+Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public static class RelaytermConsoleMode {
+    [DllImport("kernel32.dll")] public static extern IntPtr GetStdHandle(int value);
+    [DllImport("kernel32.dll")] public static extern bool GetConsoleMode(IntPtr handle, out uint mode);
+    [DllImport("kernel32.dll")] public static extern bool SetConsoleMode(IntPtr handle, uint mode);
+}
+'@
+$stdout = [RelaytermConsoleMode]::GetStdHandle(-11)
+$mode = [uint32]0
+if (-not [RelaytermConsoleMode]::GetConsoleMode($stdout, [ref]$mode)) { throw 'stdout console mode unavailable' }
+if (-not [RelaytermConsoleMode]::SetConsoleMode($stdout, $mode -bor 4)) { throw 'VT output mode unavailable' }
 $escape = [char]27
 $wide = [char]0x754c
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
