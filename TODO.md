@@ -33,6 +33,8 @@ Depends on: M06. Specification phase: 2. Coverage: FR-2, FR-3, FR-4, FR-8, FR-9;
 
 Outcome: three independently supervised interactive sessions survive client disconnection with bounded resources.
 
+Execution contract: [M07 detailed plan](docs/M07_details.md). Add its 30 atomic child tasks before implementation.
+
 - M07.01: Prototype `portable-pty` and provider-neutral terminal reconstruction on all three OS targets. Exercise alternate-screen output, cursor movement, split escape sequences, Unicode, resize, and reconnect after scrollback truncation. Refine the ADR with evidence, input ownership for multiple attached clients, resize authority, signals/termination semantics, and queue overflow policy before production implementation.
 - M07.02: Add a synthetic interactive child fixture with deterministic modes for echo, size reporting, full-screen redraw, high-volume output, controlled exit, and crash. Verify it runs without network access or provider credentials on every OS.
 - M07.03: Implement generic shell/custom-command launch configuration with executable discovery, argument arrays, validated working directories, and approved environment inheritance. Test missing/disabled commands, unsafe paths, spaces, Unicode, and secret-free error reporting.
