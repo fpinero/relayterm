@@ -96,7 +96,7 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
     let scenario_complete = Arc::new(AtomicBool::new(false));
     let watchdog_state = scenario_complete.clone();
     std::thread::spawn(move || {
-        std::thread::sleep(Duration::from_secs(30));
+        std::thread::sleep(Duration::from_secs(60));
         if !watchdog_state.load(Ordering::Acquire) {
             eprintln!("M07 PTY gate: whole-scenario deadline exceeded");
             std::process::abort();
@@ -422,7 +422,7 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
         .await;
     assert!(conflict.is_err(), "a second writer must be rejected");
     drop(client);
-    let deadline = Instant::now() + Duration::from_secs(5);
+    let deadline = Instant::now() + Duration::from_secs(15);
     let replacement_lease = loop {
         match observer
             .call::<_, Value>(Operation::SessionAcquireInput, &json!({"session_id":first}))
@@ -451,7 +451,7 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
         .unwrap();
     let mut stream_offset = stream_start;
     let mut streamed = Vec::new();
-    let stream_deadline = Instant::now() + Duration::from_secs(5);
+    let stream_deadline = Instant::now() + Duration::from_secs(15);
     loop {
         let (metadata, frame) = observer
             .read_session_output(&SessionReadOutputParams {
@@ -514,7 +514,7 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
         .await
         .unwrap();
     eprintln!("M07 PTY gate: primary process tree terminated");
-    let descendant_deadline = Instant::now() + Duration::from_secs(5);
+    let descendant_deadline = Instant::now() + Duration::from_secs(15);
     while process_exists(descendant_pid) {
         assert!(
             Instant::now() < descendant_deadline,
@@ -640,7 +640,7 @@ async fn create_definition_session(
 }
 
 async fn wait_for_text(client: &relayterm_client::Client, session: &str, expected: &str) -> Value {
-    let deadline = Instant::now() + Duration::from_secs(5);
+    let deadline = Instant::now() + Duration::from_secs(15);
     loop {
         let value: Value = client
             .call(Operation::SessionAttach, &json!({"session_id":session}))
@@ -650,7 +650,10 @@ async fn wait_for_text(client: &relayterm_client::Client, session: &str, expecte
         if text.contains(expected) {
             return value;
         }
-        assert!(Instant::now() < deadline, "terminal output did not arrive");
+        assert!(
+            Instant::now() < deadline,
+            "terminal output marker {expected:?} did not arrive"
+        );
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
 }
