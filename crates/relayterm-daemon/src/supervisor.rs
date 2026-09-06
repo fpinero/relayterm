@@ -79,12 +79,15 @@ struct Session {
     instance_id: Uuid,
     terminal: Arc<Mutex<TerminalState>>,
     control: Mutex<Option<NativeControl>>,
-    input: SyncSender<InputChunk>,
+    input: Mutex<Option<SyncSender<InputChunk>>>,
+    reader: Mutex<Option<thread::JoinHandle<()>>>,
+    writer: Mutex<Option<thread::JoinHandle<()>>>,
     queued_input: Arc<AtomicU64>,
     input_owner: Mutex<Option<InputOwner>>,
     attachments: Mutex<HashMap<Uuid, Attachment>>,
     next_lease: AtomicU64,
     final_state: AtomicBool,
+    cleanup_complete: Arc<AtomicBool>,
     terminate_requested: AtomicBool,
 }
 
@@ -129,20 +132,23 @@ impl SessionSupervisor {
         ));
         let (input, receiver) = mpsc::sync_channel(16);
         let queued_input = Arc::new(AtomicU64::new(0));
-        spawn_writer(writer, receiver, queued_input.clone());
-        spawn_reader(reader, terminal.clone());
+        let writer = spawn_writer(writer, receiver, queued_input.clone());
+        let reader = spawn_reader(reader, terminal.clone());
         sessions.insert(
             session_id,
             Arc::new(Session {
                 instance_id,
                 terminal,
                 control: Mutex::new(Some(control)),
-                input,
+                input: Mutex::new(Some(input)),
+                reader: Mutex::new(Some(reader)),
+                writer: Mutex::new(Some(writer)),
                 queued_input,
                 input_owner: Mutex::new(None),
                 attachments: Mutex::new(HashMap::new()),
                 next_lease: AtomicU64::new(1),
                 final_state: AtomicBool::new(false),
+                cleanup_complete: Arc::new(AtomicBool::new(false)),
                 terminate_requested: AtomicBool::new(false),
             }),
         );
@@ -374,7 +380,12 @@ impl SessionSupervisor {
             session.queued_input.fetch_sub(amount, Ordering::AcqRel);
             return Err(SupervisorError::ResourceLimit);
         }
-        match session.input.try_send(InputChunk(bytes)) {
+        let input = session.input.lock().map_err(|_| SupervisorError::Io)?;
+        let Some(input) = input.as_ref() else {
+            session.queued_input.fetch_sub(amount, Ordering::AcqRel);
+            return Err(SupervisorError::Final);
+        };
+        match input.try_send(InputChunk(bytes)) {
             Ok(()) => {
                 current.next_sequence = current
                     .next_sequence
@@ -468,11 +479,26 @@ impl SessionSupervisor {
                 }
                 let mut control = session.control.lock().ok()?;
                 let status = control.as_mut()?.try_wait().ok()??;
-                *control = None;
+                let control = control.take()?;
+                let input = session.input.lock().ok()?.take();
+                let reader = session.reader.lock().ok()?.take();
+                let writer = session.writer.lock().ok()?.take();
                 session.final_state.store(true, Ordering::Release);
                 if let Ok(mut owner) = session.input_owner.lock() {
                     *owner = None;
                 }
+                let cleanup_complete = session.cleanup_complete.clone();
+                thread::spawn(move || {
+                    drop(input);
+                    if let Some(writer) = writer {
+                        let _ = writer.join();
+                    }
+                    drop(control);
+                    if let Some(reader) = reader {
+                        let _ = reader.join();
+                    }
+                    cleanup_complete.store(true, Ordering::Release);
+                });
                 Some(ExitObservation {
                     instance_id: session.instance_id,
                     code: status.code,
@@ -497,7 +523,7 @@ impl SessionSupervisor {
             .map(|sessions| {
                 sessions
                     .values()
-                    .filter(|session| !session.final_state.load(Ordering::Acquire))
+                    .filter(|session| !session.cleanup_complete.load(Ordering::Acquire))
                     .count()
             })
             .unwrap_or(0)
@@ -505,7 +531,7 @@ impl SessionSupervisor {
 
     pub fn is_live(&self, session_id: Uuid) -> bool {
         self.session(session_id)
-            .is_ok_and(|session| !session.final_state.load(Ordering::Acquire))
+            .is_ok_and(|session| !session.cleanup_complete.load(Ordering::Acquire))
     }
 
     fn session(&self, id: Uuid) -> Result<Arc<Session>, SupervisorError> {
@@ -518,7 +544,10 @@ impl SessionSupervisor {
     }
 }
 
-fn spawn_reader(mut reader: Box<dyn Read + Send>, terminal: Arc<Mutex<TerminalState>>) {
+fn spawn_reader(
+    mut reader: Box<dyn Read + Send>,
+    terminal: Arc<Mutex<TerminalState>>,
+) -> thread::JoinHandle<()> {
     thread::spawn(move || {
         let mut buffer = [0_u8; 64 * 1024];
         loop {
@@ -534,14 +563,14 @@ fn spawn_reader(mut reader: Box<dyn Read + Send>, terminal: Arc<Mutex<TerminalSt
                 }
             }
         }
-    });
+    })
 }
 
 fn spawn_writer(
     mut writer: Box<dyn Write + Send>,
     receiver: mpsc::Receiver<InputChunk>,
     queued: Arc<AtomicU64>,
-) {
+) -> thread::JoinHandle<()> {
     thread::spawn(move || {
         while let Ok(chunk) = receiver.recv() {
             let amount = chunk.0.len() as u64;
@@ -551,7 +580,7 @@ fn spawn_writer(
                 return;
             }
         }
-    });
+    })
 }
 
 fn map_pty(error: PtyError) -> SupervisorError {
