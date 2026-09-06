@@ -253,6 +253,86 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
             .is_err(),
         "the ninth concurrent session must be rejected"
     );
+    let instances: Value = client
+        .call(Operation::SessionList, &json!({"limit":50}))
+        .await
+        .unwrap();
+    let first_instance = instance_for_session(&instances, &first);
+    let second_instance = instance_for_session(&instances, &second);
+    let coordination_peer = connect_route(&route, Some(private.clone())).await.unwrap();
+    let created: Value = client
+        .call(
+            Operation::TaskCreate,
+            &json!({
+                "expected_revision":instances["revision"],"title":"Real PTY coordination",
+                "description":"Coordinate work owned by real supervised instances",
+                "priority":"normal","scope_paths":[],"acceptance_notes":"Complete through handover",
+                "dependency_ids":[]
+            }),
+        )
+        .await
+        .unwrap();
+    let task_id = created["entity_ids"][0].as_str().unwrap();
+    let ready: Value = client
+        .call(
+            Operation::TaskTransition,
+            &json!({"task_id":task_id,"expected_revision":created["revision"],"status":"ready"}),
+        )
+        .await
+        .unwrap();
+    client
+        .call::<_, Value>(
+            Operation::TaskClaim,
+            &json!({"task_id":task_id,"instance_id":first_instance}),
+        )
+        .await
+        .unwrap();
+    assert!(
+        coordination_peer
+            .call::<_, Value>(
+                Operation::TaskClaim,
+                &json!({"task_id":task_id,"instance_id":second_instance}),
+            )
+            .await
+            .is_err()
+    );
+    let progress: Value = client
+        .call(
+            Operation::ProgressAppend,
+            &json!({
+                "task_id":task_id,"summary":"First real instance produced progress",
+                "verification":"PTY output and input verified"
+            }),
+        )
+        .await
+        .unwrap();
+    client
+        .call::<_, Value>(
+            Operation::HandoverCreate,
+            &json!({
+                "task_id":task_id,"expected_revision":progress["revision"],
+                "summary":"Continue in the second real instance","decisions":"Use neutral session IDs",
+                "changed_paths":[],"verification_performed":"Real PTY gate",
+                "open_questions":"","recommended_next_action":"Claim and complete"
+            }),
+        )
+        .await
+        .unwrap();
+    let resumed: Value = coordination_peer
+        .call(
+            Operation::TaskClaim,
+            &json!({"task_id":task_id,"instance_id":second_instance}),
+        )
+        .await
+        .unwrap();
+    coordination_peer
+        .call::<_, Value>(
+            Operation::TaskTransition,
+            &json!({"task_id":task_id,"expected_revision":resumed["revision"],"status":"done"}),
+        )
+        .await
+        .unwrap();
+    let _ = ready;
     let lease: Value = client
         .call(Operation::SessionAcquireInput, &json!({"session_id":first}))
         .await
@@ -490,6 +570,16 @@ fn visible_text(value: &Value) -> String {
         .iter()
         .filter_map(|cell| cell["contents"].as_str())
         .collect()
+}
+
+fn instance_for_session<'a>(instances: &'a Value, session_id: &str) -> &'a str {
+    instances["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|instance| instance["session_id"] == session_id)
+        .and_then(|instance| instance["id"].as_str())
+        .unwrap()
 }
 
 #[cfg(not(windows))]
