@@ -3,8 +3,8 @@
 use relayterm_ipc::{Endpoint, IpcError, LocalStream, connect, read_frame, write_frame};
 use relayterm_protocol::{
     DecimalU64, ErrorBody, ErrorCode, EventEnvelope, FrameKind, Operation, PROTOCOL_VERSION,
-    RequestEnvelope, RequestType, ResponseEnvelope, SNAPSHOT_STAGING_LIMIT, WorkspaceId,
-    decode_json, encode_json,
+    RequestEnvelope, RequestType, ResponseEnvelope, SNAPSHOT_STAGING_LIMIT, SubscriptionId,
+    SynchronizationEnvelope, WorkspaceId, decode_json, encode_json,
 };
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::Value;
@@ -14,7 +14,10 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
     time::Duration,
 };
-use tokio::sync::Mutex;
+use tokio::{
+    io::AsyncWriteExt,
+    sync::{Mutex, watch},
+};
 
 pub const DEFAULT_REQUEST_DEADLINE: Duration = Duration::from_secs(35);
 const RECONNECT_DELAYS: [Duration; 3] = [
@@ -30,6 +33,7 @@ pub enum Delivery {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ClientError {
     Transport(Delivery),
+    Cancelled(Delivery),
     Rejected(ErrorCode),
     Protocol,
     ResourceLimit,
@@ -42,6 +46,10 @@ impl fmt::Display for ClientError {
             Self::Transport(Delivery::NotSent) => "The request was not sent.",
             Self::Transport(Delivery::Unknown) => {
                 "The mutation result is unknown. Refresh state before deciding whether to retry."
+            }
+            Self::Cancelled(Delivery::NotSent) => "The request was cancelled before delivery.",
+            Self::Cancelled(Delivery::Unknown) => {
+                "The cancelled mutation result is unknown. Refresh state before deciding whether to retry."
             }
             Self::Rejected(_) => "The server rejected the request.",
             Self::Protocol => "The peer response violated the protocol.",
@@ -59,6 +67,8 @@ struct EventState {
     queued_bytes: usize,
     queued: VecDeque<Value>,
     subscribed: bool,
+    subscription_id: Option<SubscriptionId>,
+    subscription_request_id: Option<DecimalU64>,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ConnectionStatus {
@@ -150,6 +160,56 @@ impl Client {
             .await?;
         serde_json::from_value(value).map_err(|_| ClientError::Protocol)
     }
+    pub async fn call_cancellable<P: Serialize, R: DeserializeOwned>(
+        &self,
+        operation: Operation,
+        params: &P,
+        cancellation: &mut watch::Receiver<bool>,
+    ) -> Result<R, ClientError> {
+        if *cancellation.borrow() {
+            return Err(ClientError::Cancelled(Delivery::NotSent));
+        }
+        let params = serde_json::to_value(params).map_err(|_| ClientError::Protocol)?;
+        let mut stream = tokio::select! {
+            changed = cancellation.changed() => {
+                let _ = changed;
+                return Err(ClientError::Cancelled(Delivery::NotSent));
+            }
+            stream = self.stream.lock() => stream,
+        };
+        let id = self.next_id.fetch_add(1, Ordering::Relaxed);
+        let request_id = DecimalU64::new(id).map_err(|_| ClientError::ResourceLimit)?;
+        let delivery = if operation.is_mutation() {
+            Delivery::Unknown
+        } else {
+            Delivery::NotSent
+        };
+        let result = tokio::select! { biased;
+            changed = cancellation.changed() => {
+                let _ = changed;
+                let _ = stream.shutdown().await;
+                Err(ClientError::Cancelled(delivery))
+            }
+            result = self.exchange_correlated(
+                &mut stream,
+                request_id,
+                operation,
+                &params,
+                delivery,
+            ) => result,
+        };
+        if matches!(
+            result,
+            Err(ClientError::Transport(_)
+                | ClientError::Cancelled(_)
+                | ClientError::Protocol
+                | ClientError::WorkspaceMismatch
+                | ClientError::VersionMismatch)
+        ) {
+            self.visible.lock().await.connection = ConnectionStatus::Disconnected;
+        }
+        serde_json::from_value(result?).map_err(|_| ClientError::Protocol)
+    }
     async fn call_inner(
         &self,
         operation: Operation,
@@ -190,6 +250,17 @@ impl Client {
         } else {
             Delivery::NotSent
         };
+        self.exchange_correlated(&mut stream, request_id, operation, params, uncertain)
+            .await
+    }
+    async fn exchange_correlated(
+        &self,
+        stream: &mut LocalStream,
+        request_id: DecimalU64,
+        operation: Operation,
+        params: &Value,
+        transport_effect: Delivery,
+    ) -> Result<Value, ClientError> {
         let request = RequestEnvelope {
             message_type: RequestType::Request,
             protocol_version: PROTOCOL_VERSION,
@@ -204,19 +275,29 @@ impl Client {
             write_frame(&mut *stream, FrameKind::Json, &bytes),
         )
         .await
-        .map_err(|_| ClientError::Transport(uncertain))?
-        .map_err(|_| ClientError::Transport(uncertain))?;
+        .map_err(|_| ClientError::Transport(transport_effect))?
+        .map_err(|_| ClientError::Transport(transport_effect))?;
         loop {
             let frame =
                 tokio::time::timeout(self.deadline, read_frame(&mut *stream, self.deadline))
                     .await
-                    .map_err(|_| ClientError::Transport(uncertain))?
-                    .map_err(|_| ClientError::Transport(uncertain))?;
+                    .map_err(|_| ClientError::Transport(transport_effect))?
+                    .map_err(|_| ClientError::Transport(transport_effect))?;
             if frame.kind != FrameKind::Json {
                 return Err(ClientError::Protocol);
             }
             if let Ok(event) = decode_json::<EventEnvelope>(&frame.payload, false) {
-                self.queue_event(event).await?;
+                if let Err(error) = self.queue_event(event).await {
+                    let _ = stream.shutdown().await;
+                    self.visible.lock().await.connection = ConnectionStatus::Disconnected;
+                    return Err(error);
+                }
+                continue;
+            }
+            if let Ok(control) = decode_json::<SynchronizationEnvelope>(&frame.payload, false) {
+                if let Some(error) = self.handle_synchronization(control).await {
+                    return Err(error);
+                }
                 continue;
             }
             let response: ResponseEnvelope =
@@ -257,7 +338,7 @@ impl Client {
         if subscribed {
             let subscribe_id = DecimalU64::new(self.next_id.fetch_add(1, Ordering::Relaxed))
                 .map_err(|_| ClientError::ResourceLimit)?;
-            exchange(
+            let result = exchange(
                 &mut stream,
                 self.workspace_id,
                 subscribe_id,
@@ -267,16 +348,36 @@ impl Client {
                 Delivery::NotSent,
             )
             .await?;
+            self.install_subscription(&result, after).await?;
         }
         *self.stream.lock().await = stream;
         self.visible.lock().await.connection = ConnectionStatus::Connected;
         Ok(())
     }
     async fn queue_event(&self, event: EventEnvelope) -> Result<(), ClientError> {
+        if event.protocol_version != PROTOCOL_VERSION {
+            return Err(ClientError::VersionMismatch);
+        }
         if event.workspace_id != self.workspace_id {
             return Err(ClientError::WorkspaceMismatch);
         }
+        if event.event.get("payload_version").and_then(Value::as_u64) != Some(1) {
+            let mut state = self.events.lock().await;
+            state.queued.clear();
+            state.queued_bytes = 0;
+            state.subscribed = false;
+            state.subscription_id = None;
+            state.subscription_request_id = None;
+            drop(state);
+            self.visible.lock().await.synchronization = SynchronizationStatus::Retryable;
+            return Err(ClientError::Rejected(ErrorCode::ResnapshotRequired));
+        }
         let mut state = self.events.lock().await;
+        if state.subscription_id != Some(event.subscription_id)
+            || state.subscription_request_id != Some(event.request_id)
+        {
+            return Err(ClientError::Protocol);
+        }
         let sequence = event.sequence.get();
         if state.last_sequence != 0 && sequence != state.last_sequence + 1 {
             return Err(ClientError::Protocol);
@@ -372,36 +473,60 @@ impl Client {
                 false,
             )
             .await?;
-        let mut events = self.events.lock().await;
-        events.last_sequence = after_sequence;
-        events.subscribed = true;
+        self.install_subscription(&result, after_sequence).await?;
         Ok(result)
     }
     pub async fn unsubscribe(&self) -> Result<(), ClientError> {
+        let subscription_id = self
+            .events
+            .lock()
+            .await
+            .subscription_id
+            .ok_or(ClientError::Protocol)?;
         let _: Value = self
-            .call_inner(Operation::EventUnsubscribe, &serde_json::json!({}), false)
+            .call_inner(
+                Operation::EventUnsubscribe,
+                &serde_json::json!({"subscription_id":subscription_id.to_string()}),
+                false,
+            )
             .await?;
         let mut state = self.events.lock().await;
         state.queued.clear();
         state.queued_bytes = 0;
         state.subscribed = false;
+        state.subscription_id = None;
+        state.subscription_request_id = None;
         Ok(())
     }
     pub async fn next_event(&self) -> Result<Value, ClientError> {
         if let Some(v) = self.pop_event().await {
             return Ok(v);
         }
-        let mut stream = self.stream.lock().await;
-        let frame = read_frame(&mut *stream, self.deadline)
-            .await
-            .map_err(|_| ClientError::Transport(Delivery::NotSent))?;
-        if frame.kind != FrameKind::Json {
-            return Err(ClientError::Protocol);
+        loop {
+            let mut stream = self.stream.lock().await;
+            let frame = read_frame(&mut *stream, self.deadline)
+                .await
+                .map_err(|_| ClientError::Transport(Delivery::NotSent))?;
+            drop(stream);
+            if frame.kind != FrameKind::Json {
+                return Err(ClientError::Protocol);
+            }
+            if let Ok(control) = decode_json::<SynchronizationEnvelope>(&frame.payload, false) {
+                if let Some(error) = self.handle_synchronization(control).await {
+                    return Err(error);
+                }
+                continue;
+            }
+            let event: EventEnvelope =
+                decode_json(&frame.payload, false).map_err(|_| ClientError::Protocol)?;
+            if let Err(error) = self.queue_event(event).await {
+                let mut stream = self.stream.lock().await;
+                let _ = stream.shutdown().await;
+                self.visible.lock().await.connection = ConnectionStatus::Disconnected;
+                return Err(error);
+            }
+            return self.pop_event().await.ok_or(ClientError::Protocol);
         }
-        let event: EventEnvelope =
-            decode_json(&frame.payload, false).map_err(|_| ClientError::Protocol)?;
-        self.queue_event(event).await?;
-        self.pop_event().await.ok_or(ClientError::Protocol)
     }
     async fn pop_event(&self) -> Option<Value> {
         let mut state = self.events.lock().await;
@@ -410,6 +535,68 @@ impl Client {
             .queued_bytes
             .saturating_sub(serde_json::to_vec(&value).map_or(0, |x| x.len()));
         Some(value)
+    }
+    async fn install_subscription(
+        &self,
+        result: &Value,
+        after_sequence: u64,
+    ) -> Result<(), ClientError> {
+        let subscription_id = result
+            .get("subscription_id")
+            .and_then(Value::as_str)
+            .ok_or(ClientError::Protocol)?
+            .parse()
+            .map_err(|_| ClientError::Protocol)?;
+        let request_id: DecimalU64 = serde_json::from_value(
+            result
+                .get("request_id")
+                .cloned()
+                .ok_or(ClientError::Protocol)?,
+        )
+        .map_err(|_| ClientError::Protocol)?;
+        let mut events = self.events.lock().await;
+        events.last_sequence = after_sequence;
+        events.subscribed = true;
+        events.subscription_id = Some(subscription_id);
+        events.subscription_request_id = Some(request_id);
+        Ok(())
+    }
+    async fn handle_synchronization(
+        &self,
+        control: SynchronizationEnvelope,
+    ) -> Option<ClientError> {
+        if control.protocol_version != PROTOCOL_VERSION {
+            return Some(ClientError::VersionMismatch);
+        }
+        if control.workspace_id != self.workspace_id {
+            return Some(ClientError::WorkspaceMismatch);
+        }
+        let mut events = self.events.lock().await;
+        if events.subscription_id != Some(control.subscription_id)
+            || events.subscription_request_id != Some(control.request_id)
+        {
+            return Some(ClientError::Protocol);
+        }
+        if control.control == relayterm_protocol::SynchronizationControl::CaughtUp {
+            let Some(watermark) = control.watermark else {
+                return Some(ClientError::Protocol);
+            };
+            if control.reason.is_some() || watermark.get() != events.last_sequence {
+                return Some(ClientError::Protocol);
+            }
+            return None;
+        }
+        if control.reason.is_none() || control.watermark.is_some() {
+            return Some(ClientError::Protocol);
+        }
+        events.queued.clear();
+        events.queued_bytes = 0;
+        events.subscribed = false;
+        events.subscription_id = None;
+        events.subscription_request_id = None;
+        drop(events);
+        self.visible.lock().await.synchronization = SynchronizationStatus::Retryable;
+        Some(ClientError::Rejected(ErrorCode::ResnapshotRequired))
     }
     pub async fn refresh_snapshot(&self) -> Result<ClientSnapshot, ClientError> {
         self.visible.lock().await.synchronization = SynchronizationStatus::Refreshing;

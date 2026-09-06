@@ -23,7 +23,7 @@ use std::{
 };
 use tokio::{
     io::AsyncWrite,
-    sync::{Semaphore, mpsc, watch},
+    sync::{Notify, OwnedSemaphorePermit, Semaphore, mpsc, watch},
 };
 
 /// The user-facing daemon lifecycle remains unavailable until M05.
@@ -55,10 +55,33 @@ impl Drop for AbortTask {
     }
 }
 
+#[derive(Clone, Copy)]
+struct Subscription {
+    after_sequence: u64,
+    id: wire::SubscriptionId,
+    request_id: wire::DecimalU64,
+    caught_up_watermark: Option<u64>,
+}
+
+enum WriterControl {
+    Frame(Vec<u8>),
+    ResetSubscription(Vec<u8>),
+}
+
+struct QueuedEvent {
+    bytes: Vec<u8>,
+    _permit: OwnedSemaphorePermit,
+}
+
 #[derive(Clone, Default)]
 pub struct ServerFaults {
     mutation_response: Arc<AtomicBool>,
     any_response: Arc<AtomicBool>,
+    pause_mutation_response: Arc<AtomicBool>,
+    mutation_paused: Arc<Notify>,
+    release_mutation_response: Arc<Notify>,
+    event_wakeup_count: Arc<AtomicU64>,
+    event_wakeup_observed: Arc<Notify>,
 }
 impl ServerFaults {
     pub fn drop_next_mutation_response(&self) {
@@ -66,6 +89,33 @@ impl ServerFaults {
     }
     pub fn drop_next_response(&self) {
         self.any_response.store(true, Ordering::Release)
+    }
+    pub fn pause_next_mutation_response(&self) {
+        self.pause_mutation_response.store(true, Ordering::Release)
+    }
+    pub async fn wait_until_mutation_response_paused(&self) {
+        self.mutation_paused.notified().await;
+    }
+    pub fn release_paused_mutation_response(&self) {
+        self.release_mutation_response.notify_one();
+    }
+    pub fn event_wakeup_count(&self) -> u64 {
+        self.event_wakeup_count.load(Ordering::Acquire)
+    }
+    pub async fn wait_for_event_wakeup_after(&self, previous: u64) {
+        while self.event_wakeup_count() <= previous {
+            self.event_wakeup_observed.notified().await;
+        }
+    }
+    async fn pause_if_requested(&self, mutation: bool) {
+        if mutation && self.pause_mutation_response.swap(false, Ordering::AcqRel) {
+            self.mutation_paused.notify_one();
+            self.release_mutation_response.notified().await;
+        }
+    }
+    fn record_event_wakeup(&self) {
+        self.event_wakeup_count.fetch_add(1, Ordering::AcqRel);
+        self.event_wakeup_observed.notify_waiters();
     }
     fn take_drop(&self, mutation: bool) -> bool {
         self.any_response.swap(false, Ordering::AcqRel)
@@ -96,6 +146,7 @@ pub struct WorkspaceServer<S, C, I, N> {
     connections: Arc<Semaphore>,
     operations: Arc<Semaphore>,
     faults: ServerFaults,
+    event_wakeups: Option<watch::Receiver<u64>>,
 }
 impl<S, C, I, N> WorkspaceServer<S, C, I, N>
 where
@@ -123,7 +174,12 @@ where
             connections: Arc::new(Semaphore::new(MAX_CONNECTIONS)),
             operations: Arc::new(Semaphore::new(relayterm_ipc::MAX_OUTSTANDING_GLOBAL)),
             faults: ServerFaults::default(),
+            event_wakeups: None,
         })
+    }
+    pub fn with_event_wakeups(mut self, receiver: watch::Receiver<u64>) -> Self {
+        self.event_wakeups = Some(receiver);
+        self
     }
     pub fn fault_injector(&self) -> ServerFaults {
         self.faults.clone()
@@ -192,33 +248,178 @@ where
         )
         .await?;
         let mut last_request = request.request_id.get();
-        let mut subscription: Option<u64> = None;
+        let mut subscription: Option<Subscription> = None;
         let mut interval = tokio::time::interval(EVENT_POLL_INTERVAL);
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-        let (mut reader, mut writer) = stream.split();
-        let (incoming_tx, mut incoming_rx) = mpsc::channel(16);
-        let reader_task = tokio::spawn(async move {
-            loop {
-                let result = read_frame(&mut reader, PARTIAL_FRAME_TIMEOUT)
-                    .await
-                    .map_err(|_| ServerError::Transport);
-                if incoming_tx.send(result).await.is_err() {
-                    break;
-                }
+        let mut wakeups = self.event_wakeups.clone();
+        let (mut reader, writer) = stream.split();
+        let (control_tx, control_rx) = mpsc::channel(2);
+        let (event_tx, event_rx) = mpsc::channel(EVENT_QUEUE_ITEMS);
+        let event_budget = Arc::new(Semaphore::new(EVENT_QUEUE_BYTES));
+        let (writer_failed_tx, mut writer_failed_rx) = mpsc::channel(1);
+        let writer_task = tokio::spawn(async move {
+            if writer_loop(writer, control_rx, event_rx).await.is_err() {
+                let _ = writer_failed_tx.send(()).await;
             }
         });
-        let _reader_guard = AbortTask(reader_task);
+        let _writer_guard = AbortTask(writer_task);
         loop {
             tokio::select! {biased;
-             incoming=incoming_rx.recv()=>{let frame=incoming.ok_or(ServerError::Transport)??;if frame.kind!=wire::FrameKind::Json{return Err(ServerError::Protocol)}let request:wire::RequestEnvelope=wire::decode_json(&frame.payload,false).map_err(|_|ServerError::Protocol)?;if request.request_id.get()<=last_request{return Err(ServerError::Protocol)}last_request=request.request_id.get();if request.protocol_version!=wire::PROTOCOL_VERSION{send_response(&mut writer,wire::ResponseEnvelope::failure(request.request_id,self.wire_workspace_id,wire::ErrorBody::not_applied(wire::ErrorCode::UnsupportedVersion,wire::Recovery::UseMatchingVersion))).await?;return Err(ServerError::Protocol)}else if request.workspace_id!=self.wire_workspace_id{send_response(&mut writer,wire::ResponseEnvelope::failure(request.request_id,self.wire_workspace_id,wire::ErrorBody::not_applied(wire::ErrorCode::WorkspaceMismatch,wire::Recovery::None))).await?;return Err(ServerError::Protocol)}
-              if request.operation==wire::Operation::ProtocolHello{return Err(ServerError::Protocol)}
-              if request.operation==wire::Operation::EventSubscribe{let after=parse_decimal_field(&request.params,"after_sequence",true).map_err(|_|ServerError::Protocol)?;match self.reads.event_page(self.workspace_id,EventPageRequest::new(after,1).map_err(|_|ServerError::Protocol)?).await{Ok(page)=>{subscription=Some(after);send_response(&mut writer,wire::ResponseEnvelope::success(request.request_id,self.wire_workspace_id,json!({"accepted_after_sequence":after.to_string(),"last_sequence":page.last_sequence.to_string(),"retained_from_sequence":page.retained_from_sequence.to_string()}))).await?},Err(e)=>send_response(&mut writer,wire::ResponseEnvelope::failure(request.request_id,self.wire_workspace_id,map_domain_error(e))).await?}continue}
-              if request.operation==wire::Operation::EventUnsubscribe{subscription=None;send_response(&mut writer,wire::ResponseEnvelope::success(request.request_id,self.wire_workspace_id,json!({"unsubscribed":true}))).await?;continue}
-              let _operation=self.operations.clone().acquire_owned().await.map_err(|_|ServerError::ResourceLimit)?;let response=match self.dispatch(&request).await{Ok(value)=>wire::ResponseEnvelope::success(request.request_id,self.wire_workspace_id,value),Err(error)=>wire::ResponseEnvelope::failure(request.request_id,self.wire_workspace_id,error)};if self.faults.take_drop(request.operation.is_mutation()){return Err(ServerError::Transport)}send_response(&mut writer,response).await?;
-             }
-             _=interval.tick(),if subscription.is_some()=>{let after=subscription.expect("guarded");let page=self.reads.event_page(self.workspace_id,EventPageRequest::new(after,200).map_err(|_|ServerError::Protocol)?).await.map_err(|_|ServerError::Storage)?;let mut queued_bytes:usize=0;for event in page.events{let sequence=event.record().sequence;if sequence!=subscription.expect("active").saturating_add(1){return Err(ServerError::Protocol)}let event_value=event_dto(&event);let envelope=wire::EventEnvelope{message_type:wire::EventMessageType::Event,protocol_version:wire::PROTOCOL_VERSION,workspace_id:self.wire_workspace_id,sequence:wire::DecimalU64::new(sequence).map_err(|_|ServerError::Protocol)?,event:event_value};let bytes=wire::encode_json(&envelope).map_err(|_|ServerError::Protocol)?;queued_bytes=queued_bytes.checked_add(bytes.len()).ok_or(ServerError::ResourceLimit)?;if queued_bytes>EVENT_QUEUE_BYTES{return Err(ServerError::ResourceLimit)}write_frame(&mut writer,wire::FrameKind::Json,&bytes).await.map_err(|_|ServerError::Transport)?;subscription=Some(sequence);}}
+                failed=writer_failed_rx.recv()=>{let _=failed;return Err(ServerError::Transport)}
+                incoming=read_frame(&mut reader,PARTIAL_FRAME_TIMEOUT)=>{
+                    let frame=incoming.map_err(|_|ServerError::Transport)?;
+                    if frame.kind!=wire::FrameKind::Json{return Err(ServerError::Protocol)}
+                    let request:wire::RequestEnvelope=wire::decode_json(&frame.payload,false).map_err(|_|ServerError::Protocol)?;
+                    if request.request_id.get()<=last_request{return Err(ServerError::Protocol)}
+                    last_request=request.request_id.get();
+                    if request.protocol_version!=wire::PROTOCOL_VERSION{
+                        queue_response(&control_tx,wire::ResponseEnvelope::failure(request.request_id,self.wire_workspace_id,wire::ErrorBody::not_applied(wire::ErrorCode::UnsupportedVersion,wire::Recovery::UseMatchingVersion)),false).await?;
+                        return Err(ServerError::Protocol)
+                    }else if request.workspace_id!=self.wire_workspace_id{
+                        queue_response(&control_tx,wire::ResponseEnvelope::failure(request.request_id,self.wire_workspace_id,wire::ErrorBody::not_applied(wire::ErrorCode::WorkspaceMismatch,wire::Recovery::None)),false).await?;
+                        return Err(ServerError::Protocol)
+                    }
+                    if request.operation==wire::Operation::ProtocolHello{return Err(ServerError::Protocol)}
+                    if request.operation==wire::Operation::EventSubscribe{
+                        if subscription.is_some(){queue_response(&control_tx,wire::ResponseEnvelope::failure(request.request_id,self.wire_workspace_id,map_domain_error(domain::Error::State)),false).await?;continue}
+                        let Ok(after)=parse_decimal_field(&request.params,"after_sequence",true) else {queue_response(&control_tx,wire::ResponseEnvelope::failure(request.request_id,self.wire_workspace_id,invalid()),false).await?;continue};
+                        let Ok(page_request)=EventPageRequest::new(after,1) else {queue_response(&control_tx,wire::ResponseEnvelope::failure(request.request_id,self.wire_workspace_id,invalid()),false).await?;continue};
+                        match self.reads.event_page(self.workspace_id,page_request).await{
+                            Ok(page)=>{
+                                let id=subscription_id();
+                                queue_response(&control_tx,wire::ResponseEnvelope::success(request.request_id,self.wire_workspace_id,json!({"subscription_id":id.to_string(),"request_id":request.request_id.get().to_string(),"accepted_after_sequence":after.to_string(),"last_sequence":page.last_sequence.to_string(),"retained_from_sequence":page.retained_from_sequence.to_string()})),false).await?;
+                                subscription=Some(Subscription{after_sequence:after,id,request_id:request.request_id,caught_up_watermark:None});
+                            },
+                            Err(error)=>queue_response(&control_tx,wire::ResponseEnvelope::failure(request.request_id,self.wire_workspace_id,map_domain_error(error)),false).await?,
+                        }
+                        continue
+                    }
+                    if request.operation==wire::Operation::EventUnsubscribe{
+                        let Ok(supplied)=parse_id::<wire::SubscriptionId>(&request.params,"subscription_id") else {queue_response(&control_tx,wire::ResponseEnvelope::failure(request.request_id,self.wire_workspace_id,invalid()),false).await?;continue};
+                        if subscription.is_none_or(|active|active.id!=supplied){queue_response(&control_tx,wire::ResponseEnvelope::failure(request.request_id,self.wire_workspace_id,map_domain_error(domain::Error::Reference)),false).await?;continue}
+                        subscription=None;
+                        queue_response(&control_tx,wire::ResponseEnvelope::success(request.request_id,self.wire_workspace_id,json!({"unsubscribed":true})),true).await?;
+                        continue
+                    }
+                    let _operation=self.operations.clone().acquire_owned().await.map_err(|_|ServerError::ResourceLimit)?;
+                    let response=match self.dispatch(&request).await{Ok(value)=>wire::ResponseEnvelope::success(request.request_id,self.wire_workspace_id,value),Err(error)=>wire::ResponseEnvelope::failure(request.request_id,self.wire_workspace_id,error)};
+                    self.faults.pause_if_requested(request.operation.is_mutation()).await;
+                    if self.faults.take_drop(request.operation.is_mutation()){return Err(ServerError::Transport)}
+                    queue_response(&control_tx,response,false).await?;
+                }
+                _=wait_for_wakeup(&mut wakeups),if subscription.is_some()=>{
+                    self.faults.record_event_wakeup();
+                    self.queue_events(&mut subscription,&event_tx,&control_tx,&event_budget).await?;
+                }
+                _=interval.tick(),if subscription.is_some()=>{
+                    self.queue_events(&mut subscription,&event_tx,&control_tx,&event_budget).await?;
+                }
             }
         }
+    }
+
+    async fn queue_events(
+        &self,
+        subscription: &mut Option<Subscription>,
+        event_tx: &mpsc::Sender<QueuedEvent>,
+        control_tx: &mpsc::Sender<WriterControl>,
+        budget: &Arc<Semaphore>,
+    ) -> Result<(), ServerError> {
+        let active = subscription.ok_or(ServerError::Protocol)?;
+        let page = match self
+            .reads
+            .event_page(
+                self.workspace_id,
+                EventPageRequest::new(active.after_sequence, 200)
+                    .map_err(|_| ServerError::Protocol)?,
+            )
+            .await
+        {
+            Ok(page) => page,
+            Err(domain::Error::ResnapshotRequired) => {
+                queue_synchronization(
+                    control_tx,
+                    self.wire_workspace_id,
+                    active,
+                    wire::SynchronizationReason::CursorExpired,
+                )
+                .await?;
+                *subscription = None;
+                return Ok(());
+            }
+            Err(_) => return Err(ServerError::Storage),
+        };
+        let mut after_sequence = active.after_sequence;
+        for event in page.events {
+            let sequence = event.record().sequence;
+            if sequence != after_sequence.saturating_add(1) {
+                return Err(ServerError::Protocol);
+            }
+            let envelope = wire::EventEnvelope {
+                message_type: wire::EventMessageType::Event,
+                protocol_version: wire::PROTOCOL_VERSION,
+                workspace_id: self.wire_workspace_id,
+                subscription_id: active.id,
+                request_id: active.request_id,
+                sequence: wire::DecimalU64::new(sequence).map_err(|_| ServerError::Protocol)?,
+                event: event_dto(&event),
+            };
+            let bytes = wire::encode_json(&envelope).map_err(|_| ServerError::Protocol)?;
+            let permit_count =
+                u32::try_from(bytes.len()).map_err(|_| ServerError::ResourceLimit)?;
+            if !try_queue_event(event_tx, budget, bytes, permit_count) {
+                queue_synchronization(
+                    control_tx,
+                    self.wire_workspace_id,
+                    active,
+                    wire::SynchronizationReason::SlowSubscriber,
+                )
+                .await?;
+                *subscription = None;
+                return Ok(());
+            }
+            subscription
+                .as_mut()
+                .ok_or(ServerError::Protocol)?
+                .after_sequence = sequence;
+            after_sequence = sequence;
+        }
+        if page.last_sequence != 0
+            && after_sequence == page.last_sequence
+            && active.caught_up_watermark != Some(page.last_sequence)
+        {
+            let envelope = wire::SynchronizationEnvelope {
+                message_type: wire::SynchronizationMessageType::Event,
+                protocol_version: wire::PROTOCOL_VERSION,
+                workspace_id: self.wire_workspace_id,
+                subscription_id: active.id,
+                request_id: active.request_id,
+                control: wire::SynchronizationControl::CaughtUp,
+                reason: None,
+                watermark: Some(
+                    wire::DecimalU64::new(page.last_sequence).map_err(|_| ServerError::Protocol)?,
+                ),
+            };
+            let bytes = wire::encode_json(&envelope).map_err(|_| ServerError::Protocol)?;
+            let permit_count =
+                u32::try_from(bytes.len()).map_err(|_| ServerError::ResourceLimit)?;
+            if !try_queue_event(event_tx, budget, bytes, permit_count) {
+                queue_synchronization(
+                    control_tx,
+                    self.wire_workspace_id,
+                    active,
+                    wire::SynchronizationReason::SlowSubscriber,
+                )
+                .await?;
+                *subscription = None;
+                return Ok(());
+            }
+            subscription
+                .as_mut()
+                .ok_or(ServerError::Protocol)?
+                .caught_up_watermark = Some(page.last_sequence);
+        }
+        Ok(())
     }
 
     async fn dispatch(&self, request: &wire::RequestEnvelope) -> Result<Value, wire::ErrorBody> {
@@ -581,6 +782,106 @@ where
     }
 }
 
+fn try_queue_event(
+    sender: &mpsc::Sender<QueuedEvent>,
+    budget: &Arc<Semaphore>,
+    bytes: Vec<u8>,
+    permit_count: u32,
+) -> bool {
+    let Ok(permit) = budget.clone().try_acquire_many_owned(permit_count) else {
+        return false;
+    };
+    sender
+        .try_send(QueuedEvent {
+            bytes,
+            _permit: permit,
+        })
+        .is_ok()
+}
+
+async fn wait_for_wakeup(receiver: &mut Option<watch::Receiver<u64>>) {
+    if let Some(active) = receiver {
+        if active.changed().await.is_ok() {
+            return;
+        }
+        *receiver = None;
+    }
+    std::future::pending().await
+}
+
+async fn writer_loop<W: AsyncWrite + Unpin>(
+    mut writer: W,
+    mut controls: mpsc::Receiver<WriterControl>,
+    mut events: mpsc::Receiver<QueuedEvent>,
+) -> Result<(), ServerError> {
+    loop {
+        tokio::select! {biased;
+            control=controls.recv()=>{
+                match control {
+                    Some(WriterControl::Frame(bytes))=>write_frame(&mut writer,wire::FrameKind::Json,&bytes).await.map_err(|_|ServerError::Transport)?,
+                    Some(WriterControl::ResetSubscription(bytes))=>{
+                        while events.try_recv().is_ok() {}
+                        write_frame(&mut writer,wire::FrameKind::Json,&bytes).await.map_err(|_|ServerError::Transport)?;
+                    }
+                    None=>return Ok(()),
+                }
+            }
+            event=events.recv()=>{
+                match event {
+                    Some(event)=>write_frame(&mut writer,wire::FrameKind::Json,&event.bytes).await.map_err(|_|ServerError::Transport)?,
+                    None=>return Ok(()),
+                }
+            }
+        }
+    }
+}
+
+async fn queue_response(
+    sender: &mpsc::Sender<WriterControl>,
+    response: wire::ResponseEnvelope,
+    reset_subscription: bool,
+) -> Result<(), ServerError> {
+    let bytes = wire::encode_json(&response).map_err(|_| ServerError::Protocol)?;
+    if bytes.len() > wire::JSON_FRAME_LIMIT {
+        return Err(ServerError::ResourceLimit);
+    }
+    let command = if reset_subscription {
+        WriterControl::ResetSubscription(bytes)
+    } else {
+        WriterControl::Frame(bytes)
+    };
+    tokio::time::timeout(relayterm_ipc::WRITER_TIMEOUT, sender.send(command))
+        .await
+        .map_err(|_| ServerError::Transport)?
+        .map_err(|_| ServerError::Transport)
+}
+
+async fn queue_synchronization(
+    sender: &mpsc::Sender<WriterControl>,
+    workspace_id: wire::WorkspaceId,
+    subscription: Subscription,
+    reason: wire::SynchronizationReason,
+) -> Result<(), ServerError> {
+    let envelope = wire::SynchronizationEnvelope {
+        message_type: wire::SynchronizationMessageType::Event,
+        protocol_version: wire::PROTOCOL_VERSION,
+        workspace_id,
+        subscription_id: subscription.id,
+        request_id: subscription.request_id,
+        control: wire::SynchronizationControl::ResnapshotRequired,
+        reason: Some(reason),
+        watermark: None,
+    };
+    let bytes = wire::encode_json(&envelope).map_err(|_| ServerError::Protocol)?;
+    tokio::time::timeout(
+        relayterm_ipc::WRITER_TIMEOUT,
+        sender.send(WriterControl::ResetSubscription(bytes)),
+    )
+    .await
+    .map_err(|_| ServerError::Transport)?
+    .map_err(|_| ServerError::Transport)
+}
+
 async fn send_response<W: AsyncWrite + Unpin>(
     stream: &mut W,
     response: wire::ResponseEnvelope,
@@ -594,11 +895,17 @@ async fn send_response<W: AsyncWrite + Unpin>(
         .map_err(|_| ServerError::Transport)
 }
 fn connection_id() -> wire::ConnectionId {
+    wire::ConnectionId::from_uuid(opaque_uuid())
+}
+fn subscription_id() -> wire::SubscriptionId {
+    wire::SubscriptionId::from_uuid(opaque_uuid())
+}
+fn opaque_uuid() -> uuid::Uuid {
     let n = CONNECTION_SEQUENCE.fetch_add(1, Ordering::Relaxed);
     let mut bytes = [0_u8; 16];
     bytes[6] = 0x40;
     bytes[8..].copy_from_slice(&(n | 0x8000_0000_0000_0000).to_be_bytes());
-    wire::ConnectionId::from_uuid(uuid::Uuid::from_bytes(bytes))
+    uuid::Uuid::from_bytes(bytes)
 }
 
 #[derive(Clone, Copy, Deserialize, serde::Serialize)]
@@ -999,4 +1306,41 @@ fn entity_sort_key(value: &Value) -> String {
         .and_then(Value::as_str)
         .unwrap_or("")
         .to_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn event_queue_enforces_item_and_byte_limits_and_releases_permits() {
+        let (sender, mut receiver) = mpsc::channel(1);
+        let budget = Arc::new(Semaphore::new(5));
+        assert!(try_queue_event(&sender, &budget, vec![1; 3], 3));
+        assert!(!try_queue_event(&sender, &budget, vec![2], 1));
+        assert!(!try_queue_event(&sender, &budget, vec![3; 6], 6));
+        assert_eq!(budget.available_permits(), 2);
+        drop(receiver.recv().await.unwrap());
+        assert_eq!(budget.available_permits(), 5);
+    }
+
+    #[tokio::test]
+    async fn reset_control_discards_queued_subscription_events_before_writing() {
+        let (server, mut client) = tokio::io::duplex(4096);
+        let (control_tx, control_rx) = mpsc::channel(2);
+        let (event_tx, event_rx) = mpsc::channel(2);
+        let budget = Arc::new(Semaphore::new(64));
+        assert!(try_queue_event(&event_tx, &budget, vec![99], 1));
+        control_tx
+            .send(WriterControl::ResetSubscription(vec![42]))
+            .await
+            .unwrap();
+        let writer = tokio::spawn(writer_loop(server, control_rx, event_rx));
+        let frame = read_frame(&mut client, Duration::from_secs(1))
+            .await
+            .unwrap();
+        assert_eq!(frame.payload, vec![42]);
+        assert_eq!(budget.available_permits(), 64);
+        writer.abort();
+    }
 }

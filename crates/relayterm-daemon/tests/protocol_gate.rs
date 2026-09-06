@@ -53,7 +53,7 @@ fn process_helper() {
         if role == "server" {
             let database = Database::open(&database_path, DatabaseKind::Workspace, OpenMode::Reopen, PoolSettings::default()).await.unwrap();
             let store = SqliteStore::new(database.pool().clone());
-            let service = Arc::new(Service::new(store.clone(), SystemClock, RandomIdGenerator::default(), Notify));
+            let service = Arc::new(Service::new(store.clone(), SystemClock, RandomIdGenerator::default(), Notify::default()));
             let server = WorkspaceServer::bind(workspace, &endpoint, service, store).await.unwrap();
             let (_sender, receiver) = watch::channel(false);
             server.run(receiver).await.unwrap();
@@ -109,7 +109,7 @@ async fn separate_server_and_client_processes_share_durable_state() {
         store.clone(),
         SystemClock,
         RandomIdGenerator::default(),
-        Notify,
+        Notify::default(),
     );
     service
         .create_workspace_reserved(
@@ -239,10 +239,13 @@ fn private_temp() -> tempfile::TempDir {
         .unwrap()
 }
 
-#[derive(Clone, Copy)]
-struct Notify;
+#[derive(Clone, Default)]
+struct Notify(Option<watch::Sender<u64>>);
 impl EventNotifier for Notify {
-    async fn notify(&self, _: WorkspaceId, _: u64) -> relayterm_domain::Result<()> {
+    async fn notify(&self, _: WorkspaceId, revision: u64) -> relayterm_domain::Result<()> {
+        if let Some(sender) = &self.0 {
+            sender.send_replace(revision);
+        }
         Ok(())
     }
 }
@@ -303,11 +306,12 @@ async fn two_clients_complete_a_durable_handover_journey() {
     .unwrap();
     let store = SqliteStore::new(database.pool().clone());
     let workspace: WorkspaceId = "00000000-0000-4000-8000-000000000101".parse().unwrap();
+    let (event_wakeup_tx, event_wakeup_rx) = watch::channel(0);
     let service = Arc::new(Service::new(
         store.clone(),
         SystemClock,
         RandomIdGenerator::default(),
-        Notify,
+        Notify(Some(event_wakeup_tx)),
     ));
     service
         .create_workspace_reserved(
@@ -326,7 +330,8 @@ async fn two_clients_complete_a_durable_handover_journey() {
     .unwrap();
     let server = WorkspaceServer::bind(workspace, &endpoint, service.clone(), store.clone())
         .await
-        .unwrap();
+        .unwrap()
+        .with_event_wakeups(event_wakeup_rx);
     let faults = server.fault_injector();
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
     let task = tokio::spawn(server.run(shutdown_rx));
@@ -336,6 +341,14 @@ async fn two_clients_complete_a_durable_handover_journey() {
     let b = Client::connect(&endpoint, WireWorkspaceId::from_uuid(workspace.as_uuid()))
         .await
         .unwrap();
+    let (_cancel_tx, mut already_cancelled) = watch::channel(true);
+    let cancelled_before_delivery = b
+        .call_cancellable::<_, Value>(Operation::ProtocolPing, &json!({}), &mut already_cancelled)
+        .await;
+    assert!(matches!(
+        cancelled_before_delivery,
+        Err(ClientError::Cancelled(Delivery::NotSent))
+    ));
     let snapshot: Value = a
         .call(
             Operation::WorkspaceGetSnapshot,
@@ -350,9 +363,39 @@ async fn two_clients_complete_a_durable_handover_journey() {
         .unwrap()
         .parse::<u64>()
         .unwrap();
+    let definition: Value = a
+        .call(
+            Operation::AgentRegisterDefinition,
+            &json!({"expected_revision":revision,"display_name":"Replay fixture","command":"agent","arguments":[],"environment_allowlist":[],"capabilities":[],"enabled":true}),
+        )
+        .await
+        .unwrap();
+    revision = definition["revision"].as_str().unwrap().to_owned();
     b.subscribe(subscription_start).await.unwrap();
+    let replayed = b.next_event().await.unwrap();
+    assert_eq!(
+        replayed["sequence"]
+            .as_str()
+            .unwrap()
+            .parse::<u64>()
+            .unwrap(),
+        subscription_start + 1
+    );
+    let event_wakeups_before_live_commit = faults.event_wakeup_count();
     let created:Value=a.call(Operation::TaskCreate,&json!({"expected_revision":revision,"title":"IPC task","description":"Shared state","priority":"normal","scope_paths":[],"acceptance_notes":"Complete the flow","dependency_ids":[]})).await.unwrap();
     let task_id = entity_id(&created);
+    faults
+        .wait_for_event_wakeup_after(event_wakeups_before_live_commit)
+        .await;
+    let first_live_event = b.next_event().await.unwrap();
+    assert_eq!(
+        first_live_event["sequence"]
+            .as_str()
+            .unwrap()
+            .parse::<u64>()
+            .unwrap(),
+        subscription_start + 2
+    );
     revision = created["revision"].as_str().unwrap().to_owned();
     let ready: Value = a
         .call(
@@ -421,15 +464,6 @@ async fn two_clients_complete_a_durable_handover_journey() {
         .await
         .unwrap();
     assert_eq!(state["status"], json!(TaskStatus::Done));
-    let observed = b.next_event().await.unwrap();
-    assert_eq!(
-        observed["sequence"]
-            .as_str()
-            .unwrap()
-            .parse::<u64>()
-            .unwrap(),
-        subscription_start + 1
-    );
     faults.drop_next_response();
     let reconnected_pong: Value = b.call(Operation::ProtocolPing, &json!({})).await.unwrap();
     assert_eq!(reconnected_pong["ok"], true);
@@ -471,8 +505,33 @@ async fn two_clients_complete_a_durable_handover_journey() {
         unknown_operation,
         Err(ClientError::Rejected(ErrorCode::UnknownOperation))
     ));
+    faults.pause_next_mutation_response();
+    let (cancel_tx, mut cancellation) = watch::channel(false);
+    let cancelled_progress = json!({"task_id":task_id,"summary":"Cancelled local wait","verification":"Recovered from durable state"});
+    let (cancelled_after_delivery, ()) = tokio::join!(
+        a.call_cancellable::<_, Value>(
+            Operation::ProgressAppend,
+            &cancelled_progress,
+            &mut cancellation,
+        ),
+        async {
+            faults.wait_until_mutation_response_paused().await;
+            cancel_tx.send(true).unwrap();
+            faults.release_paused_mutation_response();
+        }
+    );
+    assert!(matches!(
+        cancelled_after_delivery,
+        Err(ClientError::Cancelled(Delivery::Unknown))
+    ));
+    let pong_after_cancellation: Value = a.call(Operation::ProtocolPing, &json!({})).await.unwrap();
+    assert_eq!(pong_after_cancellation["ok"], true);
+    let uncertainty_client =
+        Client::connect(&endpoint, WireWorkspaceId::from_uuid(workspace.as_uuid()))
+            .await
+            .unwrap();
     faults.drop_next_mutation_response();
-    let uncertain=a.call::<_,Value>(Operation::ProgressAppend,&json!({"task_id":task_id,"summary":"Historical correction","verification":"Reviewed after completion"})).await;
+    let uncertain=uncertainty_client.call::<_,Value>(Operation::ProgressAppend,&json!({"task_id":task_id,"summary":"Historical correction","verification":"Reviewed after completion"})).await;
     assert!(matches!(
         uncertain,
         Err(ClientError::Transport(Delivery::Unknown))
@@ -483,13 +542,45 @@ async fn two_clients_complete_a_durable_handover_journey() {
         .refresh_snapshot()
         .await
         .unwrap();
-    assert_eq!(recovered.collections["progress"].len(), 2);
+    assert_eq!(recovered.collections["progress"].len(), 3);
+    let expired = Client::connect(&endpoint, WireWorkspaceId::from_uuid(workspace.as_uuid()))
+        .await
+        .unwrap();
+    expired.subscribe(recovered.last_sequence).await.unwrap();
+    sqlx::query("UPDATE workspace_meta SET retained_from_sequence=? WHERE workspace_id=?")
+        .bind(relayterm_persistence_sqlite::encode_counter(recovered.last_sequence + 2).to_vec())
+        .bind(workspace.as_uuid().as_bytes().to_vec())
+        .execute(store.pool())
+        .await
+        .unwrap();
+    let _: Value=a.call(Operation::ProgressAppend,&json!({"task_id":task_id,"summary":"Force cursor expiry","verification":"Controlled retention watermark"})).await.unwrap();
+    assert!(matches!(
+        expired.next_event().await,
+        Err(ClientError::Rejected(ErrorCode::ResnapshotRequired))
+    ));
+    assert_eq!(
+        expired.status().await.synchronization,
+        relayterm_client::SynchronizationStatus::Retryable
+    );
+    sqlx::query("UPDATE workspace_meta SET retained_from_sequence=? WHERE workspace_id=?")
+        .bind(relayterm_persistence_sqlite::encode_counter(1).to_vec())
+        .bind(workspace.as_uuid().as_bytes().to_vec())
+        .execute(store.pool())
+        .await
+        .unwrap();
     let mut malformed = connect(&endpoint).await.unwrap();
     malformed.write_all(&[0, 0, 0, 1, 0, 2, 1]).await.unwrap();
     drop(malformed);
     let survivor = Client::connect(&endpoint, WireWorkspaceId::from_uuid(workspace.as_uuid()))
         .await
         .unwrap();
+    let invalid_subscription = survivor
+        .call::<_, Value>(Operation::EventSubscribe, &json!({}))
+        .await;
+    assert!(matches!(
+        invalid_subscription,
+        Err(ClientError::Rejected(ErrorCode::InvalidParams))
+    ));
     let pong: Value = survivor
         .call(Operation::ProtocolPing, &json!({}))
         .await

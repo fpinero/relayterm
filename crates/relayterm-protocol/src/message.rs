@@ -60,6 +60,7 @@ wire_uuid!(ProgressId);
 wire_uuid!(HandoverId);
 wire_uuid!(EventId);
 wire_uuid!(WorktreeId);
+wire_uuid!(SubscriptionId);
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct DecimalU64(u64);
@@ -307,6 +308,8 @@ pub struct EventEnvelope {
     pub message_type: EventMessageType,
     pub protocol_version: u16,
     pub workspace_id: WorkspaceId,
+    pub subscription_id: SubscriptionId,
+    pub request_id: DecimalU64,
     pub sequence: DecimalU64,
     pub event: Value,
 }
@@ -314,6 +317,39 @@ pub struct EventEnvelope {
 #[serde(rename_all = "snake_case")]
 pub enum EventMessageType {
     Event,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SynchronizationEnvelope {
+    #[serde(rename = "type")]
+    pub message_type: SynchronizationMessageType,
+    pub protocol_version: u16,
+    pub workspace_id: WorkspaceId,
+    pub subscription_id: SubscriptionId,
+    pub request_id: DecimalU64,
+    pub control: SynchronizationControl,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<SynchronizationReason>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub watermark: Option<DecimalU64>,
+}
+#[derive(Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SynchronizationMessageType {
+    Event,
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SynchronizationControl {
+    CaughtUp,
+    ResnapshotRequired,
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SynchronizationReason {
+    SlowSubscriber,
+    CursorExpired,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -942,6 +978,45 @@ mod tests {
             )),
         };
         assert_eq!(r.validate(), Err(MessageError::InvalidEnvelope));
+    }
+    #[test]
+    fn subscription_messages_are_correlated_and_strict() {
+        let subscription: SubscriptionId = "00000000-0000-4000-8000-000000000099".parse().unwrap();
+        let event = EventEnvelope {
+            message_type: EventMessageType::Event,
+            protocol_version: PROTOCOL_VERSION,
+            workspace_id: workspace(),
+            subscription_id: subscription,
+            request_id: DecimalU64::new(7).unwrap(),
+            sequence: DecimalU64::new(9).unwrap(),
+            event: json!({"kind":"task_changed"}),
+        };
+        let bytes = encode_json(&event).unwrap();
+        let decoded: EventEnvelope = decode_json(&bytes, false).unwrap();
+        assert_eq!(decoded.subscription_id, subscription);
+        assert_eq!(decoded.request_id.get(), 7);
+        assert_eq!(decoded.sequence.get(), 9);
+
+        let control = SynchronizationEnvelope {
+            message_type: SynchronizationMessageType::Event,
+            protocol_version: PROTOCOL_VERSION,
+            workspace_id: workspace(),
+            subscription_id: subscription,
+            request_id: DecimalU64::new(7).unwrap(),
+            control: SynchronizationControl::ResnapshotRequired,
+            reason: Some(SynchronizationReason::SlowSubscriber),
+            watermark: None,
+        };
+        let bytes = encode_json(&control).unwrap();
+        let decoded: SynchronizationEnvelope = decode_json(&bytes, false).unwrap();
+        assert_eq!(decoded.control, SynchronizationControl::ResnapshotRequired);
+        assert_eq!(decoded.reason, Some(SynchronizationReason::SlowSubscriber));
+
+        let with_unknown = br#"{"type":"event","protocol_version":1,"workspace_id":"00000000-0000-4000-8000-000000000001","subscription_id":"00000000-0000-4000-8000-000000000099","request_id":"7","control":"resnapshot_required","reason":"slow_subscriber","private_marker":"must-not-pass"}"#;
+        assert_eq!(
+            decode_json::<SynchronizationEnvelope>(with_unknown, false).err(),
+            Some(MessageError::InvalidEnvelope)
+        );
     }
     #[test]
     fn terminal_is_opaque_and_bounded() {
