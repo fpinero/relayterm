@@ -8,8 +8,12 @@ publish.workspace = true
 
 [dependencies]
 relayterm-application = { version = "0.1.0", path = "../relayterm-application" }
+relayterm-client = { version = "0.1.0", path = "../relayterm-client" }
 relayterm-domain = { version = "0.1.0", path = "../relayterm-domain" }
+relayterm-config = { version = "0.1.0", path = "../relayterm-config" }
 relayterm-ipc = { version = "0.1.0", path = "../relayterm-ipc" }
+relayterm-persistence-sqlite = { version = "0.1.0", path = "../relayterm-persistence-sqlite" }
+relayterm-platform = { version = "0.1.0", path = "../relayterm-platform" }
 relayterm-protocol = { version = "0.1.0", path = "../relayterm-protocol" }
 serde.workspace = true
 serde_json.workspace = true
@@ -17,9 +21,6 @@ tokio.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
-relayterm-client = { version = "0.1.0", path = "../relayterm-client" }
-relayterm-persistence-sqlite = { version = "0.1.0", path = "../relayterm-persistence-sqlite" }
-relayterm-platform = { version = "0.1.0", path = "../relayterm-platform" }
 sqlx.workspace = true
 tempfile.workspace = true
 time.workspace = true

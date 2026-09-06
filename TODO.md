@@ -35,13 +35,41 @@ Outcome: `rt` can operate durable coordination state through an independent daem
 
 Execution contract: [M05 detailed plan](docs/M05_details.md). Expand its atomic child tasks before implementation; all M05 implementation work remains pending.
 
-- M05.01: Assemble the daemon from application services, SQLite, local transport, and injectable supervision. Implement endpoint discovery and singleton locking; test simultaneous starts and verify an existing live endpoint is never removed as stale.
-- M05.02: Implement daemon start/status/stop behavior through `rt`, with OS-specific detachment from the launching client. Test closing the starter process and reconnecting from another client on each supported OS.
-- M05.03: Implement orderly shutdown with transaction completion, IPC closure, and an explicit child-process policy ready for M07. Test interrupted requests and durable writes without depending on TUI cleanup.
-- M05.04: Reconcile persisted starting/running sessions on daemon restart using the approved lost-session and claim policy. Commit related events atomically; test repeated restart is idempotent and historical exit details remain intact.
-- M05.05: Add administrative commands for workspace init/open/status, agent configuration, tasks and claims, progress, handovers, history, and event inspection. Route all state through IPC; validate paths and arguments and provide script-usable output and failure exit codes.
-- M05.06: Add structured severity levels, stable diagnostic event names, safe path aliases, and bounded log retention. Map missing executables, database failures, version mismatch, and IPC failures to actionable messages without logging payloads or sensitive arguments.
-- M05.07: Document and verify the daemon/CLI workflow in disposable Git and non-Git projects, including directories with spaces and Unicode. Confirm state is stored outside project roots and two clients share one authoritative state.
+- M05.01a: Reinspect the baseline and record exact startup, lock-order, capability, bootstrap, and admission contracts.
+- M05.01b: Implement typed bootstrap request/response DTOs, bounded anonymous-pipe exchange, and non-creating lookup.
+- M05.01c: Compose real runtime dependencies and the workspace server in daemon production code.
+- M05.01d: Integrate exclusive ownership, safe candidate cleanup, readiness generation, and discovery.
+- M05.01e: Preserve architecture boundaries and verify public client state access only through IPC.
+- M05.02a: Select and prototype safe native detachment APIs on Linux, macOS, and Windows.
+- M05.02b: Implement detached runtime launch through the same `rt` executable without shell or inherited client pipes.
+- M05.02c: Add status/shutdown DTOs, generation checks, capabilities, and bounded readiness.
+- M05.02d: Implement daemon start/status/stop parsing and result rendering.
+- M05.02e: Verify starter exit, terminal closure, startup races, timeouts, and incompatible endpoints natively.
+- M05.03a: Give connection, writer, background, and admitted service tasks explicit joined ownership.
+- M05.03b: Implement atomic mutation admission and orderly shutdown coordination.
+- M05.03c: Fix lifecycle-relevant fragmented-reader and client concurrency defects with regressions.
+- M05.03d: Add the empty production supervision boundary and cooperative signal handling.
+- M05.03e: Verify transaction barriers, disconnects, slow peers, generation safety, resource release, and durable reopen.
+- M05.04a: Reconcile persisted non-final instances after exclusive ownership and before readiness.
+- M05.04b: Preserve atomic instance, claim, task, and event recovery with fail-closed startup.
+- M05.04c: Add test-only persisted lifecycle fixtures without production fake-session controls.
+- M05.04d: Verify repeated restart, partial recovery, temporal validation, rollback, and workspace isolation.
+- M05.05a: Implement native-path selection, format/timeout parsing, bounded input, and safe parser errors.
+- M05.05b: Implement workspace init/open/status through bootstrap and ordinary IPC.
+- M05.05c: Implement agent list/register/update/import with atomic configuration semantics.
+- M05.05d: Implement task create/list/get/update/transition/claim/release through IPC.
+- M05.05e: Implement progress, handovers, histories, sessions, and bounded event list/watch.
+- M05.05f: Finalize versioned JSON, escaped human output, stable exits, cancellation, and uncertainty guidance.
+- M05.05g: Verify every administrative command and its authoritative failure paths.
+- M05.06a: Define allowlisted diagnostics, severity, safe error mapping, and location aliases.
+- M05.06b: Implement private bounded logging, rotation, queue limits, and failure handling.
+- M05.06c: Prevent raw error, debug, panic, request, and payload leakage.
+- M05.06d: Verify diagnostic failures, marker privacy, rotation, full queues, and unsafe destinations.
+- M05.07a: Document the implemented daemon and CLI workflow and update public architecture contracts.
+- M05.07b: Execute the guide in disposable Git/non-Git and spaces/Unicode workspaces with isolated private state.
+- M05.07c: Run all local quality, security, architecture, and privacy checks.
+- M05.07d: Obtain required native CI and terminal-lifetime evidence.
+- M05.07e: Reconcile the queue/logbook and deliver the verified implementation through PR and merge.
 
 ## M06: First durable vertical slice
 

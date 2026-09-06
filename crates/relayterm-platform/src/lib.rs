@@ -4,11 +4,13 @@ mod identity;
 mod locations;
 mod locking;
 mod permissions;
+mod process;
 
 pub use identity::*;
 pub use locations::*;
 pub use locking::*;
 pub use permissions::*;
+pub use process::*;
 
 use relayterm_application::{Clock, IdGenerator};
 use relayterm_domain::{Error as DomainError, EventId, Timestamp};

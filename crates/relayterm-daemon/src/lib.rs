@@ -1,4 +1,8 @@
-//! Reusable workspace protocol server. Daemon process lifecycle belongs to M05.
+//! Workspace protocol server, runtime composition, recovery, and lifecycle control.
+
+mod diagnostics;
+mod runtime;
+pub use runtime::*;
 
 use relayterm_application::{
     Clock, DurableReadStore, EventNotifier, EventPageRequest, IdGenerator, Request, Service, Store,
@@ -6,8 +10,8 @@ use relayterm_application::{
 };
 use relayterm_domain as domain;
 use relayterm_ipc::{
-    Endpoint, LocalListener, LocalStream, MAX_CONNECTIONS, PARTIAL_FRAME_TIMEOUT, read_frame,
-    write_frame,
+    Endpoint, IpcError, LocalListener, LocalStream, MAX_CONNECTIONS, PARTIAL_FRAME_TIMEOUT,
+    read_frame, write_frame,
 };
 use relayterm_protocol as wire;
 use serde::Deserialize;
@@ -24,34 +28,76 @@ use std::{
 use tokio::{
     io::AsyncWrite,
     sync::{Notify, OwnedSemaphorePermit, Semaphore, mpsc, watch},
+    task::JoinSet,
 };
-
-/// The user-facing daemon lifecycle remains unavailable until M05.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct NotImplemented;
-
-impl fmt::Display for NotImplemented {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("The daemon is not implemented yet. See the MVP roadmap in TODO.md.")
-    }
-}
-
-impl std::error::Error for NotImplemented {}
-
-/// Report unavailable lifecycle behavior without creating processes, files, or terminals.
-pub fn run() -> Result<(), NotImplemented> {
-    Err(NotImplemented)
-}
 
 pub const EVENT_POLL_INTERVAL: Duration = Duration::from_millis(250);
 pub const EVENT_QUEUE_ITEMS: usize = 256;
 pub const EVENT_QUEUE_BYTES: usize = 1024 * 1024;
 static CONNECTION_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
-struct AbortTask(tokio::task::JoinHandle<()>);
+#[derive(Clone)]
+pub struct DaemonControl {
+    generation: Arc<str>,
+    state: Arc<AtomicU64>,
+    shutdown: watch::Sender<bool>,
+}
+
+impl DaemonControl {
+    pub fn new(generation: String) -> (Self, watch::Receiver<bool>) {
+        let (shutdown, receiver) = watch::channel(false);
+        (
+            Self {
+                generation: generation.into(),
+                state: Arc::new(AtomicU64::new(0)),
+                shutdown,
+            },
+            receiver,
+        )
+    }
+
+    pub fn generation(&self) -> &str {
+        &self.generation
+    }
+
+    fn lifecycle(&self) -> &'static str {
+        match self.state.load(Ordering::Acquire) {
+            0 => "ready",
+            1 => "draining",
+            _ => "stopped",
+        }
+    }
+
+    fn begin_shutdown(&self, generation: &str) -> Result<(), wire::ErrorBody> {
+        if generation != self.generation() {
+            return Err(map_domain_error(domain::Error::Conflict));
+        }
+        self.state.store(1, Ordering::Release);
+        Ok(())
+    }
+
+    pub fn request_shutdown(&self) {
+        self.state.store(1, Ordering::Release);
+        let _ = self.shutdown.send(true);
+    }
+}
+
+struct AbortTask(Option<tokio::task::JoinHandle<()>>);
+impl AbortTask {
+    fn new(task: tokio::task::JoinHandle<()>) -> Self {
+        Self(Some(task))
+    }
+    async fn finish(mut self) {
+        if let Some(task) = self.0.take() {
+            let _ = task.await;
+        }
+    }
+}
 impl Drop for AbortTask {
     fn drop(&mut self) {
-        self.0.abort();
+        if let Some(task) = &self.0 {
+            task.abort();
+        }
     }
 }
 
@@ -65,6 +111,7 @@ struct Subscription {
 
 enum WriterControl {
     Frame(Vec<u8>),
+    FrameAndFlush(Vec<u8>, tokio::sync::oneshot::Sender<()>),
     ResetSubscription(Vec<u8>),
 }
 
@@ -147,6 +194,7 @@ pub struct WorkspaceServer<S, C, I, N> {
     operations: Arc<Semaphore>,
     faults: ServerFaults,
     event_wakeups: Option<watch::Receiver<u64>>,
+    lifecycle: Option<DaemonControl>,
 }
 impl<S, C, I, N> WorkspaceServer<S, C, I, N>
 where
@@ -175,10 +223,15 @@ where
             operations: Arc::new(Semaphore::new(relayterm_ipc::MAX_OUTSTANDING_GLOBAL)),
             faults: ServerFaults::default(),
             event_wakeups: None,
+            lifecycle: None,
         })
     }
     pub fn with_event_wakeups(mut self, receiver: watch::Receiver<u64>) -> Self {
         self.event_wakeups = Some(receiver);
+        self
+    }
+    pub fn with_lifecycle(mut self, control: DaemonControl) -> Self {
+        self.lifecycle = Some(control);
         self
     }
     pub fn fault_injector(&self) -> ServerFaults {
@@ -186,11 +239,25 @@ where
     }
     pub async fn run(self, mut shutdown: watch::Receiver<bool>) -> Result<(), ServerError> {
         let shared = Arc::new(self);
+        let mut connections = JoinSet::new();
         loop {
-            tokio::select! {biased;changed=shutdown.changed()=>{if changed.is_err()||*shutdown.borrow(){return Ok(())}},accepted=shared.listener.accept()=>{let Ok(stream)=accepted else{continue};let Ok(permit)=shared.connections.clone().try_acquire_owned()else{drop(stream);continue};let server=shared.clone();tokio::spawn(async move{let _permit=permit;let _=server.connection(stream).await;});}}
+            tokio::select! {biased;
+                changed=shutdown.changed()=>{if changed.is_err()||*shutdown.borrow(){break}}
+                joined=connections.join_next(),if !connections.is_empty()=>{let _=joined;}
+                accepted=shared.listener.accept()=>{let Ok(stream)=accepted else{continue};let Ok(permit)=shared.connections.clone().try_acquire_owned()else{drop(stream);continue};let server=shared.clone();let child_shutdown=shutdown.clone();connections.spawn(async move{let _permit=permit;let _=server.connection(stream,child_shutdown).await;});}
+            }
         }
+        while connections.join_next().await.is_some() {}
+        if let Some(control) = &shared.lifecycle {
+            control.state.store(2, Ordering::Release);
+        }
+        Ok(())
     }
-    async fn connection(self: Arc<Self>, mut stream: LocalStream) -> Result<(), ServerError> {
+    async fn connection(
+        self: Arc<Self>,
+        mut stream: LocalStream,
+        mut shutdown: watch::Receiver<bool>,
+    ) -> Result<(), ServerError> {
         let frame = read_frame(&mut stream, relayterm_ipc::HANDSHAKE_TIMEOUT)
             .await
             .map_err(|_| ServerError::Protocol)?;
@@ -233,11 +300,17 @@ where
             return Err(ServerError::Protocol);
         }
         let connection_id = connection_id();
-        let hello = wire::HelloResult::new(
-            connection_id,
-            self.wire_workspace_id,
-            wire::Operation::ALL.to_vec(),
-        );
+        let operations = wire::Operation::ALL
+            .into_iter()
+            .filter(|operation| {
+                self.lifecycle.is_some()
+                    || !matches!(
+                        operation,
+                        wire::Operation::DaemonStatus | wire::Operation::DaemonShutdown
+                    )
+            })
+            .collect();
+        let hello = wire::HelloResult::new(connection_id, self.wire_workspace_id, operations);
         send_response(
             &mut stream,
             wire::ResponseEnvelope::success(
@@ -253,6 +326,18 @@ where
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         let mut wakeups = self.event_wakeups.clone();
         let (mut reader, writer) = stream.split();
+        let (incoming_tx, mut incoming_rx) = mpsc::channel(2);
+        let reader_task = tokio::spawn(async move {
+            loop {
+                let frame: Result<wire::Frame, IpcError> =
+                    read_frame(&mut reader, PARTIAL_FRAME_TIMEOUT).await;
+                let terminal = frame.is_err();
+                if incoming_tx.send(frame).await.is_err() || terminal {
+                    return;
+                }
+            }
+        });
+        let _reader_guard = AbortTask::new(reader_task);
         let (control_tx, control_rx) = mpsc::channel(2);
         let (event_tx, event_rx) = mpsc::channel(EVENT_QUEUE_ITEMS);
         let event_budget = Arc::new(Semaphore::new(EVENT_QUEUE_BYTES));
@@ -262,12 +347,13 @@ where
                 let _ = writer_failed_tx.send(()).await;
             }
         });
-        let _writer_guard = AbortTask(writer_task);
+        let writer_guard = AbortTask::new(writer_task);
         loop {
             tokio::select! {biased;
+                changed=shutdown.changed()=>{if changed.is_err()||*shutdown.borrow(){break}}
                 failed=writer_failed_rx.recv()=>{let _=failed;return Err(ServerError::Transport)}
-                incoming=read_frame(&mut reader,PARTIAL_FRAME_TIMEOUT)=>{
-                    let frame=incoming.map_err(|_|ServerError::Transport)?;
+                incoming=incoming_rx.recv()=>{
+                    let frame=incoming.ok_or(ServerError::Transport)?.map_err(|_|ServerError::Transport)?;
                     if frame.kind!=wire::FrameKind::Json{return Err(ServerError::Protocol)}
                     let request:wire::RequestEnvelope=wire::decode_json(&frame.payload,false).map_err(|_|ServerError::Protocol)?;
                     if request.request_id.get()<=last_request{return Err(ServerError::Protocol)}
@@ -301,11 +387,23 @@ where
                         queue_response(&control_tx,wire::ResponseEnvelope::success(request.request_id,self.wire_workspace_id,json!({"unsubscribed":true})),true).await?;
                         continue
                     }
+                    if request.operation.is_mutation()
+                        && request.operation != wire::Operation::DaemonShutdown
+                        && self.lifecycle.as_ref().is_some_and(|value| value.lifecycle() != "ready") {
+                        queue_response(&control_tx,wire::ResponseEnvelope::failure(request.request_id,self.wire_workspace_id,unavailable()),false).await?;
+                        continue
+                    }
                     let _operation=self.operations.clone().acquire_owned().await.map_err(|_|ServerError::ResourceLimit)?;
                     let response=match self.dispatch(&request).await{Ok(value)=>wire::ResponseEnvelope::success(request.request_id,self.wire_workspace_id,value),Err(error)=>wire::ResponseEnvelope::failure(request.request_id,self.wire_workspace_id,error)};
+                    let shutdown_accepted = request.operation == wire::Operation::DaemonShutdown && response.error.is_none();
                     self.faults.pause_if_requested(request.operation.is_mutation()).await;
                     if self.faults.take_drop(request.operation.is_mutation()){return Err(ServerError::Transport)}
-                    queue_response(&control_tx,response,false).await?;
+                    if shutdown_accepted {
+                        queue_response_confirmed(&control_tx, response).await?;
+                        if let Some(control) = &self.lifecycle { control.request_shutdown(); }
+                    } else {
+                        queue_response(&control_tx,response,false).await?;
+                    }
                 }
                 _=wait_for_wakeup(&mut wakeups),if subscription.is_some()=>{
                     self.faults.record_event_wakeup();
@@ -316,6 +414,10 @@ where
                 }
             }
         }
+        drop(control_tx);
+        drop(event_tx);
+        writer_guard.finish().await;
+        Ok(())
     }
 
     async fn queue_events(
@@ -439,6 +541,39 @@ where
                 empty(&request.params)?;
                 Ok(json!({"ok":true}))
             }
+            O::DaemonStatus => {
+                let _: wire::DaemonStatusParams = parameters(&request.params)?;
+                let control = self.lifecycle.as_ref().ok_or_else(unavailable)?;
+                let snapshot = self
+                    .reads
+                    .consistent_snapshot(self.workspace_id)
+                    .await
+                    .map_err(map_domain_error)?;
+                let state = snapshot.snapshot.state().map_err(map_domain_error)?;
+                serde_json::to_value(wire::DaemonStatusResult {
+                    workspace_id: wire::WorkspaceId::from_uuid(self.workspace_id.as_uuid()),
+                    generation: control.generation().to_owned(),
+                    lifecycle: control.lifecycle().to_owned(),
+                    protocol_version: wire::PROTOCOL_VERSION,
+                    schema_version: state.workspace().record().schema_version,
+                    revision: wire::DecimalU64::new(snapshot.snapshot.revision())
+                        .map_err(|_| invalid())?,
+                    definitions: state.definitions().len(),
+                    tasks: state.tasks().len(),
+                    instances: state.instances().len(),
+                })
+                .map_err(|_| invalid())
+            }
+            O::DaemonShutdown => {
+                let params: wire::DaemonShutdownParams = parameters(&request.params)?;
+                let control = self.lifecycle.as_ref().ok_or_else(unavailable)?;
+                control.begin_shutdown(&params.generation)?;
+                serde_json::to_value(wire::DaemonShutdownResult {
+                    generation: control.generation().to_owned(),
+                    lifecycle: "draining".to_owned(),
+                })
+                .map_err(|_| invalid())
+            }
             O::WorkspaceGetSnapshot => self.snapshot_page(&request.params, None).await,
             O::AgentListDefinitions => {
                 self.snapshot_page(&request.params, Some(Collection::Definitions))
@@ -488,6 +623,7 @@ where
             O::EventList => self.event_list(&request.params).await,
             O::AgentRegisterDefinition => self.register_definition(&request.params).await,
             O::AgentUpdateDefinition => self.update_definition(&request.params).await,
+            O::AgentImportDefinitions => self.import_definitions(&request.params).await,
             O::TaskCreate => self.mutate_task_create(&request.params).await,
             O::TaskUpdate => self.mutate_task_update(&request.params).await,
             O::TaskTransition => self.mutate_transition(&request.params).await,
@@ -654,6 +790,33 @@ where
             .map_err(map_domain_error)?;
         Ok(receipt(&outcome))
     }
+    async fn import_definitions(&self, v: &Value) -> Result<Value, wire::ErrorBody> {
+        let p: wire::AgentImportDefinitionsParams = parameters(v)?;
+        let parsed = relayterm_config::parse(p.document.as_bytes()).map_err(|_| invalid())?;
+        let definitions = parsed
+            .definitions_for(self.workspace_id)
+            .map_err(|_| invalid())?;
+        let baseline = match p.expected_revision {
+            Some(value) => value.get(),
+            None => self
+                .reads
+                .consistent_snapshot(self.workspace_id)
+                .await
+                .map_err(map_domain_error)?
+                .snapshot
+                .revision(),
+        };
+        let outcome = self
+            .service
+            .import_definitions(self.workspace_id, baseline, definitions)
+            .await
+            .map_err(map_domain_error)?;
+        Ok(json!({
+            "revision": outcome.committed.snapshot.revision().to_string(),
+            "event_sequences": outcome.committed.events.iter().map(|event| event.record().sequence.to_string()).collect::<Vec<_>>(),
+            "warnings": parsed.warnings.iter().map(|warning| format!("{:?}", warning.code).to_ascii_lowercase()).collect::<Vec<_>>()
+        }))
+    }
     async fn mutate_task_create(&self, v: &Value) -> Result<Value, wire::ErrorBody> {
         let p: TaskCreate = parameters(v)?;
         let expected = decimal(&p.expected_revision, false)?;
@@ -819,6 +982,10 @@ async fn writer_loop<W: AsyncWrite + Unpin>(
             control=controls.recv()=>{
                 match control {
                     Some(WriterControl::Frame(bytes))=>write_frame(&mut writer,wire::FrameKind::Json,&bytes).await.map_err(|_|ServerError::Transport)?,
+                    Some(WriterControl::FrameAndFlush(bytes, completed))=>{
+                        write_frame(&mut writer,wire::FrameKind::Json,&bytes).await.map_err(|_|ServerError::Transport)?;
+                        let _ = completed.send(());
+                    }
                     Some(WriterControl::ResetSubscription(bytes))=>{
                         while events.try_recv().is_ok() {}
                         write_frame(&mut writer,wire::FrameKind::Json,&bytes).await.map_err(|_|ServerError::Transport)?;
@@ -834,6 +1001,28 @@ async fn writer_loop<W: AsyncWrite + Unpin>(
             }
         }
     }
+}
+
+async fn queue_response_confirmed(
+    sender: &mpsc::Sender<WriterControl>,
+    response: wire::ResponseEnvelope,
+) -> Result<(), ServerError> {
+    let bytes = wire::encode_json(&response).map_err(|_| ServerError::Protocol)?;
+    if bytes.len() > wire::JSON_FRAME_LIMIT {
+        return Err(ServerError::ResourceLimit);
+    }
+    let (completed, confirmation) = tokio::sync::oneshot::channel();
+    tokio::time::timeout(
+        relayterm_ipc::WRITER_TIMEOUT,
+        sender.send(WriterControl::FrameAndFlush(bytes, completed)),
+    )
+    .await
+    .map_err(|_| ServerError::Transport)?
+    .map_err(|_| ServerError::Transport)?;
+    tokio::time::timeout(relayterm_ipc::WRITER_TIMEOUT, confirmation)
+        .await
+        .map_err(|_| ServerError::Transport)?
+        .map_err(|_| ServerError::Transport)
 }
 
 async fn queue_response(

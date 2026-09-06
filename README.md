@@ -82,10 +82,11 @@ The canonical user-facing executable will be `rt`. The reserved `relayterm.com` 
 
 - [Project vision and request for project](PROJECT_VISION.md) explains the problem, purpose, principles, scope, privacy posture, and long-term direction.
 - [MVP technical specification](MVP_TECHNICAL_SPEC.md) defines the proposed architecture, domain model, requirements, implementation phases, exclusions, and acceptance criteria.
+- [Daemon and administrative CLI](docs/daemon_cli.md) documents the implemented M05 lifecycle and script interface.
 
 ## Current status
 
-Relayterm now has a deterministic coordination core, private SQLite persistence, a versioned local protocol, current-user IPC transports, a reusable workspace server, and a shared client library. Integration tests exercise two clients against real SQLite and local IPC, including ordered events, claims, handovers, coherent snapshot refresh, and uncertain mutation recovery. The `rt` CLI retains its bootstrap behavior; detached daemon lifetime, real sessions, and the TUI remain unimplemented. See the [M04 protocol plan](docs/M04_details.md) and [M03 storage contract](docs/M03_storage_contract.md) for implemented boundaries and later handoffs.
+Relayterm now has a deterministic coordination core, private SQLite persistence, a versioned local protocol, current-user IPC transports, an independent per-workspace daemon, and an administrative CLI. Integration tests exercise detached startup, two clients, ordered events, claims, handovers, restart reconciliation, coherent snapshot refresh, and uncertain mutation recovery. Real PTY sessions and the TUI remain unimplemented. See the [daemon and CLI guide](docs/daemon_cli.md), [M04 protocol plan](docs/M04_details.md), and [M03 storage contract](docs/M03_storage_contract.md) for implemented boundaries and later handoffs.
 
 Build with the pinned Rust toolchain:
 
@@ -96,7 +97,7 @@ cargo run -p relayterm-cli --bin rt -- --help
 cargo run -p relayterm-cli --bin rt -- --version
 ```
 
-Running `rt` or `rt daemon` currently reports that the runtime is not implemented and exits with code 1. Help/version exit successfully; invalid arguments exit with code 2. No runtime-private state is created by these placeholders.
+Running `rt` without a subcommand still reports that the TUI is unavailable and exits with code 1. Use `rt workspace init`, `rt daemon status`, and the administrative command groups before M08. Help/version exit successfully and create no runtime-private state.
 
 See [contributing](CONTRIBUTING.md), [architecture decisions](docs/architecture/README.md), [privacy](docs/privacy.md), and [platform evidence](docs/supported-platforms.md). The [pending queue](TODO.md) distinguishes implemented foundations from the remaining daemon, PTY, TUI, agent-adapter, and worktree milestones.
 

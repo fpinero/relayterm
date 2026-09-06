@@ -1,21 +1,29 @@
+use serde_json::Value;
 use std::{
     fs,
+    io::Write,
     path::PathBuf,
     process::{Command, Stdio},
+    sync::atomic::{AtomicU64, Ordering},
     thread,
-    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant},
 };
 
 struct Scratch(PathBuf);
 
 impl Scratch {
     fn new() -> Self {
-        let nonce = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let path =
-            std::env::temp_dir().join(format!("relayterm-cli-{}-{nonce}", std::process::id()));
+        static NEXT: AtomicU64 = AtomicU64::new(1);
+        let nonce = NEXT.fetch_add(1, Ordering::Relaxed);
+        #[cfg(unix)]
+        let base = PathBuf::from(if cfg!(target_os = "macos") {
+            "/private/tmp"
+        } else {
+            "/tmp"
+        });
+        #[cfg(not(unix))]
+        let base = std::env::temp_dir();
+        let path = base.join(format!("rt5-{}-{nonce}", std::process::id()));
         fs::create_dir(&path).unwrap();
         Self(path)
     }
@@ -34,8 +42,8 @@ fn command_contracts_have_no_runtime_side_effects() {
         (&["--version"], 0, concat!("rt ", env!("CARGO_PKG_VERSION"))),
         (&["daemon", "--help"], 0, "Usage: rt daemon"),
         (&[], 1, "The TUI is not implemented yet"),
-        (&["daemon"], 1, "The daemon is not implemented yet"),
-        (&["--unknown-option"], 2, "unexpected argument"),
+        (&["daemon"], 2, "command arguments are invalid"),
+        (&["--unknown-option"], 2, "command arguments are invalid"),
     ];
     for (args, code, expected) in cases {
         let scratch = Scratch::new();
@@ -80,4 +88,236 @@ fn command_contracts_have_no_runtime_side_effects() {
         assert_eq!(fs::read_dir(&scratch.0).unwrap().count(), 1);
         assert_eq!(fs::read_dir(&private).unwrap().count(), 0);
     }
+}
+
+#[test]
+fn status_of_unknown_workspace_is_non_creating() {
+    let scratch = Scratch::new();
+    let root = scratch.0.join("project");
+    let private = scratch.0.join("private");
+    fs::create_dir(&root).unwrap();
+    let output = invoke(
+        env!("CARGO_BIN_EXE_rt"),
+        &root,
+        &private,
+        &["daemon", "status"],
+    );
+    assert_eq!(output.status.code(), Some(3));
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["error"]["code"], "workspace_not_initialized");
+    assert!(!private.exists());
+    assert_eq!(fs::read_dir(root).unwrap().count(), 0);
+}
+
+#[test]
+fn bootstrap_rejects_invalid_input_without_side_effects() {
+    for input in [
+        b"{".to_vec(),
+        br#"{"schema_version":1,"unknown":true}"#.to_vec(),
+        vec![b'x'; 64 * 1024 + 1],
+    ] {
+        let scratch = Scratch::new();
+        let output = invoke_raw_stdin(
+            env!("CARGO_BIN_EXE_rt"),
+            &["__bootstrap", "--format", "json"],
+            &input,
+            &scratch.0,
+        );
+        assert_eq!(output.status.code(), Some(2));
+        let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(value["error"]["code"], "invalid_input");
+        assert_eq!(fs::read_dir(&scratch.0).unwrap().count(), 0);
+    }
+}
+
+fn invoke(binary: &str, root: &PathBuf, private: &PathBuf, args: &[&str]) -> std::process::Output {
+    Command::new(binary)
+        .args(["--workspace"])
+        .arg(root)
+        .args(["--home"])
+        .arg(private)
+        .args(["--format", "json"])
+        .args(args)
+        .stdin(Stdio::null())
+        .output()
+        .unwrap()
+}
+
+fn invoke_raw_stdin(
+    binary: &str,
+    args: &[&str],
+    input: &[u8],
+    current_dir: &PathBuf,
+) -> std::process::Output {
+    Command::new(binary)
+        .args(args)
+        .current_dir(current_dir)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .and_then(|mut child| {
+            child.stdin.take().unwrap().write_all(input)?;
+            child.wait_with_output()
+        })
+        .unwrap()
+}
+
+#[cfg(unix)]
+fn initialize_from_disposable_shell(
+    binary: &str,
+    root: &PathBuf,
+    private: &PathBuf,
+) -> std::process::Output {
+    Command::new("sh")
+        .args([
+            "-c",
+            "exec \"$RT_TEST_BIN\" --workspace \"$RT_TEST_ROOT\" --home \"$RT_TEST_HOME\" --format json workspace init --name \"Synthetic workspace\"",
+        ])
+        .env("RT_TEST_BIN", binary)
+        .env("RT_TEST_ROOT", root)
+        .env("RT_TEST_HOME", private)
+        .stdin(Stdio::null())
+        .output()
+        .unwrap()
+}
+
+#[cfg(windows)]
+fn initialize_from_disposable_shell(
+    binary: &str,
+    root: &PathBuf,
+    private: &PathBuf,
+) -> std::process::Output {
+    Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            "& $env:RT_TEST_BIN --workspace $env:RT_TEST_ROOT --home $env:RT_TEST_HOME --format json workspace init --name 'Synthetic workspace'",
+        ])
+        .env("RT_TEST_BIN", binary)
+        .env("RT_TEST_ROOT", root)
+        .env("RT_TEST_HOME", private)
+        .stdin(Stdio::null())
+        .output()
+        .unwrap()
+}
+
+fn result(output: std::process::Output) -> Value {
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["schema_version"], 1);
+    assert_eq!(value["ok"], true);
+    value["result"].clone()
+}
+
+#[test]
+fn detached_daemon_survives_starters_and_reopens_durable_state() {
+    let scratch = Scratch::new();
+    let root = scratch.0.join("project with spaces \u{03a9}");
+    let private = scratch.0.join("private");
+    fs::create_dir(&root).unwrap();
+    let binary = env!("CARGO_BIN_EXE_rt");
+
+    let initialized = result(initialize_from_disposable_shell(binary, &root, &private));
+    let workspace_id = initialized["workspace_id"].as_str().unwrap().to_owned();
+    assert_eq!(initialized["started"], true);
+    assert_eq!(initialized["already_initialized"], false);
+
+    let first_status = result(invoke(binary, &root, &private, &["daemon", "status"]));
+    assert_eq!(first_status["lifecycle"], "ready");
+    let first_generation = first_status["generation"].as_str().unwrap().to_owned();
+
+    let task = Command::new(binary)
+        .args(["--workspace"]).arg(&root)
+        .args(["--home"]).arg(&private)
+        .args([
+            "--format",
+            "json",
+            "task",
+            "create",
+            "--expected-revision",
+            "1",
+            "--stdin",
+        ])
+        .stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().and_then(|mut child| {
+            child.stdin.take().unwrap().write_all(br#"{"title":"Synthetic task","description":"Disposable","priority":"normal","scope_paths":[],"acceptance_notes":"Persist","dependency_ids":[]}"#)?;
+            child.wait_with_output()
+        }).unwrap();
+    let task = result(task);
+    assert_eq!(task["revision"], "2");
+
+    let duplicate = Command::new(binary)
+        .args(["--workspace"])
+        .arg(&root)
+        .args(["--home"])
+        .arg(&private)
+        .args([
+            "--format",
+            "json",
+            "task",
+            "create",
+            "--expected-revision",
+            "2",
+            "--stdin",
+        ])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .and_then(|mut child| {
+            child.stdin.take().unwrap().write_all(br#"{"title":"first","title":"second","description":"","priority":"normal","scope_paths":[],"acceptance_notes":"","dependency_ids":[]}"#)?;
+            child.wait_with_output()
+        })
+        .unwrap();
+    assert_eq!(duplicate.status.code(), Some(2));
+    assert_eq!(
+        result(invoke(binary, &root, &private, &["daemon", "status"]))["revision"],
+        "2"
+    );
+
+    let reused = result(invoke(binary, &root, &private, &["daemon", "start"]));
+    assert_eq!(reused["already_running"], true);
+    assert_eq!(reused["started"], false);
+
+    let stopped = result(invoke(binary, &root, &private, &["daemon", "stop"]));
+    assert_eq!(stopped["lifecycle"], "stopped");
+    let (first_start, second_start) = thread::scope(|scope| {
+        let first = scope.spawn(|| invoke(binary, &root, &private, &["daemon", "start"]));
+        let second = scope.spawn(|| invoke(binary, &root, &private, &["daemon", "start"]));
+        (first.join().unwrap(), second.join().unwrap())
+    });
+    assert_eq!(result(first_start)["workspace_id"], workspace_id);
+    assert_eq!(result(second_start)["workspace_id"], workspace_id);
+    let second_status = result(invoke(binary, &root, &private, &["daemon", "status"]));
+    assert_eq!(second_status["revision"], "2");
+    assert_ne!(second_status["generation"], first_generation);
+    assert!(
+        result(invoke(binary, &root, &private, &["task", "list"]))["items"]
+            .as_array()
+            .is_some_and(|items| items.len() == 1)
+    );
+    result(invoke(binary, &root, &private, &["daemon", "stop"]));
+    assert_eq!(fs::read_dir(&root).unwrap().count(), 0);
+
+    let git_root = scratch.0.join("git project");
+    fs::create_dir(&git_root).unwrap();
+    fs::create_dir(git_root.join(".git")).unwrap();
+    let git_workspace = result(invoke(
+        binary,
+        &git_root,
+        &private,
+        &["workspace", "init", "--name", "Synthetic Git workspace"],
+    ));
+    assert_ne!(git_workspace["workspace_id"], workspace_id);
+    result(invoke(binary, &git_root, &private, &["daemon", "stop"]));
+    assert_eq!(
+        fs::read_dir(&git_root)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name())
+            .collect::<Vec<_>>(),
+        vec![std::ffi::OsString::from(".git")]
+    );
 }
