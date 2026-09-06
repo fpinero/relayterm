@@ -541,14 +541,22 @@ mod platform {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(unix)]
+    fn private_temp(prefix: &str) -> tempfile::TempDir {
+        tempfile::Builder::new()
+            .prefix(prefix)
+            .tempdir_in(if cfg!(target_os = "macos") {
+                "/private/tmp"
+            } else {
+                "/tmp"
+            })
+            .unwrap()
+    }
     #[tokio::test]
     #[cfg(unix)]
     async fn private_socket_round_trip_and_cleanup() {
         use std::os::unix::fs::PermissionsExt;
-        let temp = tempfile::Builder::new()
-            .prefix("rt-ipc-")
-            .tempdir_in("/private/tmp")
-            .unwrap();
+        let temp = private_temp("rt-ipc-");
         let root = temp.path().join("runtime");
         let endpoint = Endpoint::derive(
             &root,
@@ -619,10 +627,7 @@ mod tests {
     #[tokio::test]
     #[cfg(unix)]
     async fn stale_socket_is_reclaimed_but_live_and_regular_endpoints_are_preserved() {
-        let temp = tempfile::Builder::new()
-            .prefix("rt-ipc-state-")
-            .tempdir_in("/private/tmp")
-            .unwrap();
+        let temp = private_temp("rt-ipc-state-");
         let root = temp.path().join("runtime");
         relayterm_platform::create_private_dir(&root).unwrap();
         let first = Endpoint::derive(
@@ -655,10 +660,7 @@ mod tests {
     #[tokio::test]
     #[cfg(unix)]
     async fn listener_cleanup_preserves_a_replacement_object() {
-        let temp = tempfile::Builder::new()
-            .prefix("rt-ipc-replacement-")
-            .tempdir_in("/private/tmp")
-            .unwrap();
+        let temp = private_temp("rt-ipc-replacement-");
         let root = temp.path().join("runtime");
         relayterm_platform::create_private_dir(&root).unwrap();
         let endpoint = Endpoint::derive(

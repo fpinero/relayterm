@@ -23,7 +23,11 @@ use tokio::sync::watch;
 fn private_temp() -> tempfile::TempDir {
     tempfile::Builder::new()
         .prefix("rt-m04-")
-        .tempdir_in("/private/tmp")
+        .tempdir_in(if cfg!(target_os = "macos") {
+            "/private/tmp"
+        } else {
+            "/tmp"
+        })
         .unwrap()
 }
 
