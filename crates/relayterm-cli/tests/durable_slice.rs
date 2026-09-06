@@ -880,7 +880,13 @@ fn terminal_process(
     const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
     let mut command = Command::new("powershell");
     command
-        .args(["-NoProfile", "-NonInteractive", "-File"])
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+        ])
         .arg(script)
         .env("RT_TEST_BIN", binary)
         .env("RT_TEST_ROOT", root)
@@ -903,14 +909,21 @@ fn closing_launch_console_keeps_daemon_reachable() {
     #[cfg(unix)]
     let (script, content) = (
         scratch.0.join("terminal.sh"),
-        "#!/bin/sh\n\"$RT_TEST_BIN\" --workspace \"$RT_TEST_ROOT\" --home \"$RT_TEST_PRIVATE\" --format json workspace init --name \"Console fixture\" >/dev/null || exit 1\n: > \"$RT_TEST_READY\"\nsleep 300\n",
+        "#!/bin/sh\n\"$RT_TEST_BIN\" --workspace \"$RT_TEST_ROOT\" --home \"$RT_TEST_PRIVATE\" --format json daemon start >/dev/null || exit 1\n: > \"$RT_TEST_READY\"\nsleep 300\n",
     );
     #[cfg(windows)]
     let (script, content) = (
         scratch.0.join("terminal.ps1"),
-        "& $env:RT_TEST_BIN --workspace $env:RT_TEST_ROOT --home $env:RT_TEST_PRIVATE --format json workspace init --name 'Console fixture' | Out-Null\nif ($LASTEXITCODE -ne 0) { exit 1 }\nSet-Content -LiteralPath $env:RT_TEST_READY -Value ready\nStart-Sleep -Seconds 300\n",
+        "& $env:RT_TEST_BIN --workspace $env:RT_TEST_ROOT --home $env:RT_TEST_PRIVATE --format json daemon start | Out-Null\nif ($LASTEXITCODE -ne 0) { exit 1 }\nSet-Content -LiteralPath $env:RT_TEST_READY -Value ready\nStart-Sleep -Seconds 300\n",
     );
     fs::write(&script, content).unwrap();
+    success(
+        &root,
+        &private,
+        &["workspace", "init", "--name", "Console fixture"],
+        None,
+    );
+    success(&root, &private, &["daemon", "stop"], None);
     let mut terminal = terminal_process(&script, env!("CARGO_BIN_EXE_rt"), &root, &private, &ready);
     let deadline = Instant::now() + HOST_TIMEOUT;
     while !ready.exists() {
