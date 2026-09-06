@@ -21,4 +21,6 @@ Domain, application, and protocol cannot depend on UI, SQLite, PTY, Git, or prov
 
 M02 introduces domain state machines and use-case ports. M03-M06 prove durable coordination through SQLite and IPC before M07 adds PTY and M08 adds terminal presentation.
 
-M03 preserves these exact project edges: application to domain; platform to application and domain; configuration to domain; SQLite persistence to application, domain, and platform. Domain, application, and protocol have no transitive adapter, SQLx, SQLite, Tokio, configuration-parser, or UI dependency.
+M03 preserves these exact project edges: application to domain; platform to application and domain; configuration to domain; SQLite persistence to application, domain, and platform. M04 adds IPC to platform and protocol, client to IPC and protocol, and daemon composition to application, domain, IPC, and protocol. Domain, application, and protocol have no transitive adapter, SQLx, SQLite, Tokio, configuration-parser, or UI dependency.
+
+`relayterm-protocol` owns pure wire scalars, strict JSON DTOs, framing, errors, and limits. `relayterm-ipc` owns authenticated local streams and bounded output scheduling. `relayterm-client` owns correlation, explicit uncertain outcomes, staged snapshots, and event consumption. The daemon library maps those DTOs to application services; its independent process lifecycle remains assigned to M05.

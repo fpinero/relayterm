@@ -151,3 +151,25 @@ Local verification on native macOS aarch64 with Rust 1.98.1:
 Candidate `9b539b9768d658e55551ff9edd10177e5528d514` passed Quality run `34025433599` on native `ubuntu-24.04 / stable`, `ubuntu-24.04 / 1.98.1`, `macos-14 / stable`, and `windows-2022 / stable`. Every job passed locked fetch, formatting, all-target checks, Clippy with denied warnings, workspace and core-only tests, build, repository contracts, and whitespace checks. Security run `34025433476` passed dependency, advisory, license, and source audits, full-history and candidate-source secret scans, and audit negative controls.
 
 M03 is complete. Relayterm now provides durable private coordination state and deterministic SQLite recovery across process boundaries. Local IPC, daemon lifecycle, real process supervision, PTY behavior, and the TUI remain pending in M04 and later milestones.
+
+## 2026-09-06: Implement and verify M04 local protocol and synchronization
+
+Completed M04.01-M04.09.
+
+- M04.01: Reconciled ADR 0002, specification section 6.2, architecture boundaries, public operation ownership, revision preconditions, synchronization, uncertainty, local transport security, and the M05/M07 handoffs.
+- M04.02: Added explicit version-1 wire scalars, entity DTOs, stable operations and errors, strict bounded JSON with duplicate-key and nesting rejection, incremental seven-byte framing, lossless native paths, and the reserved binary terminal envelope.
+- M04.03-M04.04: Added Tokio Unix sockets with private endpoint locking, mode and UID checks, stale-socket recovery, identity-safe cleanup, and no TCP fallback. Added Interprocess 2.4.4 Windows byte-mode named pipes with a protected current-user-only DACL, explicit owner, disabled remote access, non-inheritable handles, bounded instances, first-instance collision protection, actual-handle security validation, and native allow/deny tests.
+- M04.05-M04.06: Added the reusable workspace server, complete public `LocalUser` dispatch, transaction-bound revision checks, compact mutation receipts, bounded reads, safe error mapping, validated unavailable session/worktree operations, and retained the M05 daemon entry point as unavailable.
+- M04.07-M04.08: Added revision-checked bounded snapshot pages, ordered durable event polling and replay, subscription cleanup, shared client handshake and monotonic request IDs, staged atomic snapshots, visible stale/current state, bounded reconnect with subscription resumption, and explicit mutation uncertainty without automatic mutation replay.
+- M04.09: Added real SQLite and local IPC integration gates. One test composes two clients against the reusable server; another launches separate server, handover client, and completion client processes. The suite verifies exclusive claims, progress, handover continuity, event order, response loss after commit, exact recovery without duplication, malformed-peer isolation, reserved-operation side-effect exclusion, storage reopen, and architecture/privacy controls.
+
+Local verification on native macOS aarch64:
+
+- `cargo fmt --all -- --check`, `cargo check --workspace --all-targets --locked`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, `cargo test --workspace --locked`, and `cargo build --workspace --locked` passed.
+- `cargo test -p relayterm-domain -p relayterm-application -p relayterm-protocol --locked` passed. The workspace includes 76 passing test functions and four compile-fail doctests, with two process-helper tests intentionally ignored except when invoked by their parent process gates.
+- `cargo check -p relayterm-ipc --target x86_64-pc-windows-msvc --tests --locked` passed as an additional compile check. Native Windows behavior was established by CI.
+- `cargo deny check advisories licenses bans sources`, `python3 scripts/check_repository.py`, `python3 scripts/check_audit_controls.py`, `python3 scripts/check_secrets.py`, `gitleaks git --redact --no-banner .`, and `git diff --check` passed. The reviewed 0BSD license used by two Interprocess dependencies was added to the explicit allowlist.
+
+Candidate `ec1953e` passed Quality run `34030632309` on native `ubuntu-24.04 / stable`, `ubuntu-24.04 / 1.98.1`, `macos-14 / stable`, and `windows-2022 / stable`. Each job passed formatting, all-target checks, Clippy, workspace and core-only tests, build, repository contracts, and whitespace checks. Security run `34030632344` passed dependency, advisory, license, ban, and source checks, full-history and candidate-source secret scans, and negative controls. The first Linux candidate exposed a macOS-specific `/private/tmp` test path; commit `ec1953e` selected a short native temporary root per Unix platform, and the complete matrix then passed.
+
+M04 is complete. Relayterm now provides authenticated current-user local IPC, a strict versioned protocol, reusable service dispatch, coherent client snapshots, ordered durable events, safe reconnect behavior, and explicit uncertain mutation recovery. Detached daemon lifetime and administrative CLI composition remain M05 work. Real process supervision, PTY streams, terminal reconstruction, and reattachment remain M07 work.

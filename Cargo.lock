@@ -367,6 +367,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "doctest-file"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c2db04e74f0a9a93103b50e90b96024c9b2bdca8bce6a632ec71b88736d3d359"
+
+[[package]]
 name = "dotenvy"
 version = "0.15.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -749,6 +755,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "interprocess"
+version = "2.4.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6cb02ffbf25e8ef0f4a95bff054eef75f6d1bf16919474cf2caa63b21997478a"
+dependencies = [
+ "doctest-file",
+ "futures-core",
+ "libc",
+ "recvmsg",
+ "tokio",
+ "widestring",
+ "windows-sys",
+]
+
+[[package]]
 name = "is_terminal_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -988,6 +1009,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "63b8176103e19a2643978565ca18b50549f6101881c443590420e4dc998a3c69"
 
 [[package]]
+name = "recvmsg"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3edd4d5d42c92f0a659926464d4cce56b562761267ecf0f469d85b7de384175"
+
+[[package]]
 name = "redox_syscall"
 version = "0.5.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1026,6 +1053,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "relayterm-client"
+version = "0.1.0"
+dependencies = [
+ "relayterm-ipc",
+ "relayterm-protocol",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "relayterm-config"
 version = "0.1.0"
 dependencies = [
@@ -1038,6 +1076,21 @@ dependencies = [
 [[package]]
 name = "relayterm-daemon"
 version = "0.1.0"
+dependencies = [
+ "relayterm-application",
+ "relayterm-client",
+ "relayterm-domain",
+ "relayterm-ipc",
+ "relayterm-persistence-sqlite",
+ "relayterm-platform",
+ "relayterm-protocol",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "time",
+ "tokio",
+ "uuid",
+]
 
 [[package]]
 name = "relayterm-domain"
@@ -1047,6 +1100,20 @@ dependencies = [
  "serde_json",
  "time",
  "uuid",
+]
+
+[[package]]
+name = "relayterm-ipc"
+version = "0.1.0"
+dependencies = [
+ "interprocess",
+ "relayterm-platform",
+ "relayterm-protocol",
+ "rustix",
+ "tempfile",
+ "tokio",
+ "widestring",
+ "windows-permissions",
 ]
 
 [[package]]
@@ -1082,6 +1149,12 @@ dependencies = [
 [[package]]
 name = "relayterm-protocol"
 version = "0.1.0"
+dependencies = [
+ "base64",
+ "serde",
+ "serde_json",
+ "uuid",
+]
 
 [[package]]
 name = "relayterm-tui"
@@ -1775,6 +1848,12 @@ name = "whoami"
 version = "2.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "626c4bac6755d76ffc12cb01b2eac751db1996b9e0041de9aa02c8c211ddc82c"
+
+[[package]]
+name = "widestring"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72069c3113ab32ab29e5584db3c6ec55d416895e60715417b5b883a357c3e471"
 
 [[package]]
 name = "winapi"

@@ -1,5 +1,5 @@
 [package]
-name = "relayterm-protocol"
+name = "relayterm-client"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -7,10 +7,11 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
-base64.workspace = true
+relayterm-ipc = { version = "0.1.0", path = "../relayterm-ipc" }
+relayterm-protocol = { version = "0.1.0", path = "../relayterm-protocol" }
 serde.workspace = true
 serde_json.workspace = true
-uuid.workspace = true
+tokio.workspace = true
 
 [lints]
 workspace = true

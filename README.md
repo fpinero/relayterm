@@ -85,7 +85,7 @@ The canonical user-facing executable will be `rt`. The reserved `relayterm.com` 
 
 ## Current status
 
-Relayterm now has a Rust bootstrap and deterministic coordination core: validated tasks and instances, exclusive claims, progress, atomic handovers and loss recovery, versioned events, and application services over asynchronous storage ports. In-memory tests verify continuity and transaction conflicts. The `rt` CLI retains its bootstrap behavior; durable persistence, live IPC, real sessions, and the TUI remain unimplemented. See the [M02 storage and application contract](docs/M02_storage_contract.md) for model fields, validation, adapter obligations, and verification boundaries.
+Relayterm now has a deterministic coordination core, private SQLite persistence, a versioned local protocol, current-user IPC transports, a reusable workspace server, and a shared client library. Integration tests exercise two clients against real SQLite and local IPC, including ordered events, claims, handovers, coherent snapshot refresh, and uncertain mutation recovery. The `rt` CLI retains its bootstrap behavior; detached daemon lifetime, real sessions, and the TUI remain unimplemented. See the [M04 protocol plan](docs/M04_details.md) and [M03 storage contract](docs/M03_storage_contract.md) for implemented boundaries and later handoffs.
 
 Build with the pinned Rust toolchain:
 
@@ -98,7 +98,7 @@ cargo run -p relayterm-cli --bin rt -- --version
 
 Running `rt` or `rt daemon` currently reports that the runtime is not implemented and exits with code 1. Help/version exit successfully; invalid arguments exit with code 2. No runtime-private state is created by these placeholders.
 
-See [contributing](CONTRIBUTING.md), [architecture decisions](docs/architecture/README.md), [privacy](docs/privacy.md), and [platform evidence](docs/supported-platforms.md). The [detailed M01 plan](docs/M01_details.md) and [pending queue](TODO.md) distinguish implemented bootstrap work from remaining verification.
+See [contributing](CONTRIBUTING.md), [architecture decisions](docs/architecture/README.md), [privacy](docs/privacy.md), and [platform evidence](docs/supported-platforms.md). The [pending queue](TODO.md) distinguishes implemented foundations from the remaining daemon, PTY, TUI, agent-adapter, and worktree milestones.
 
 Contributions and technical discussion are welcome, but interfaces and behavior should be considered unstable until the first working release and stable protocol are defined.
 

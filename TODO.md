@@ -8,7 +8,7 @@ Keep the daemon responsible for durable state and supervised processes. Keep dom
 
 ### How to execute this queue
 
-- Start with M04. Follow milestone dependencies and the task order within each milestone; consult `avances.md` for fulfilled dependencies. Complete M06 before production PTY or TUI implementation.
+- Start with M05. Follow milestone dependencies and the task order within each milestone; consult `avances.md` for fulfilled dependencies. Complete M06 before production PTY or TUI implementation.
 - Treat each task ID as one reviewable outcome, including its relevant tests and documentation. Split a task before coding if its implementation cannot be reviewed coherently in one session. Preserve its ID as a prefix for new child tasks.
 - For a milestone ending in `[PLAN]`, complete its first planning task before implementation. Record the named decisions, contracts, failure cases, and test design, then refine the remaining tasks in this file. The marker identifies unresolved engineering details, not permission to expand MVP scope.
 - At each session start, read repository instructions, check the branch and working tree, and consult `avances.md` for satisfied dependencies. Continue the earliest unblocked task. Work on a feature or fix branch, never directly on `main` or `master`.
@@ -21,27 +21,11 @@ Keep the daemon responsible for durable state and supervised processes. Keep dom
 
 Use the specification's recommended Rust stack and the pinned bootstrap toolchain. Verify support when adding dependencies; avoid unused dependencies and empty adapter crates until needed. Follow the eight [architecture decisions](docs/architecture/README.md), refining the risky ones at their implementation gates.
 
-The remaining first-slice route is M04 through M06: protocol, daemon, and a verified administrative CLI workflow. M07 adds real PTYs; M08 adds the TUI; M09 and M10 add templates and explicit worktree isolation; M11 and M12 validate and prepare the release candidate. After M08, M09 and M10 may proceed independently. Windows IPC and PTY behavior must be validated when those adapters are introduced.
+The remaining first-slice route is M05 through M06: daemon lifecycle, an administrative CLI workflow, and the durable vertical-slice gate. M07 adds real PTYs; M08 adds the TUI; M09 and M10 add templates and explicit worktree isolation; M11 and M12 validate and prepare the release candidate. After M08, M09 and M10 may proceed independently. Windows PTY behavior must be validated when that adapter is introduced.
 
 Public export and disk-backed scrollback are optional and are deferred from this roadmap. Keep scrollback bounded in daemon memory. Do not add transcript ingestion, provider APIs, automatic task mutation from agent prose, autonomous orchestration, TCP listeners, hosted dependencies, telemetry, graphical clients, or automatic Git commits, merges, rebases, or deletion. Any later export proposal must first add exact-content preview, redaction, and destination confirmation as required by FR-10.
 
 Keep task dependencies informational, as defined in the specification and [M02 storage contract](docs/M02_storage_contract.md); do not introduce a scheduler. Git worktree creation is included because AC-10 requires it, even though several related requirements use SHOULD.
-
-## M04: Versioned local protocol and client synchronization [PLAN]
-
-Depends on: M03. Specification phase: 1. Coverage: FR-8; NFR-2, NFR-4, NFR-8; sections 6.2, 9.2, 9.5.
-
-Outcome: two independent clients see consistent snapshots and ordered events over current-user-only IPC.
-
-- M04.01: Refine the IPC ADR into an operation/schema table, error contract, framing limits, and synchronization algorithm. Resolve snapshot/subscription races, cursor expiry, slow subscribers, reconnect after an ambiguous mutation result, and terminal stream fairness. Choose bounded retry/idempotency semantics before implementing client retries.
-- M04.02: Implement request/response/event envelopes with protocol version and request ID, bounded framing, and version negotiation. Test fragmented and combined frames, oversized lengths, malformed payloads, unknown operations, and incompatible versions.
-- M04.03: Implement Unix socket transport with restrictive endpoint permissions and peer validation where available. Test authorized connections, rejected peer identity through suitable fixtures, stale endpoint handling, and disconnects.
-- M04.04: Implement Windows named-pipe transport with current-user access restrictions and peer validation where available. Run Windows tests for unauthorized access policy, name collisions, partial reads, and client disconnects.
-- M04.05: Expose workspace snapshot, definition listing/registration, task list/create/update/claim/release, progress append, handover create/read, claim history, and event subscription through application services. Document additive operations beyond the section-6.2 minimum and test request-to-use-case mappings.
-- M04.06: Define session and worktree operation payloads from section 6.2 for later adapters, including bounded opaque terminal bytes. Return explicit unavailable-operation errors until each implementation exists; test that placeholders never report success.
-- M04.07: Implement snapshot watermarks and ordered subscriptions with bounded queues and recovery from expired cursors. Race mutations against subscription and verify no unnoticed gaps or duplicates, including reconnect and a slow client beside a fast client.
-- M04.08: Implement a shared client library with request correlation, connection errors, safe reconnect behavior, and cancellation. Test uncertain mutation outcomes according to M04.01 without duplicating progress or handovers.
-- M04.09: Verify the protocol gate on all three OS targets with two real IPC clients, concurrent claims, ordered state refresh, invalid frames, version mismatch, and access-control tests. Confirm failures do not crash the service harness.
 
 ## M05: Daemon lifecycle and administrative CLI
 
@@ -164,21 +148,21 @@ This index identifies the planned proof for each specification criterion. As mil
 
 | Criterion | Planned implementation | Required proof |
 | --- | --- | --- |
-| AC-1: Private workspace initialization | M03, M05 | M06.03; M11.02; M12.03 |
-| AC-2: Independent daemon and restricted IPC through `rt` | M04, M05, M08 | M04.09; M05.02; M08.10; M11.05 |
+| AC-1: Private workspace initialization | M05 | M06.03; M11.02; M12.03 |
+| AC-2: Independent daemon and restricted IPC through `rt` | M05, M08 | M05.02; M08.10; M11.05 |
 | AC-3: Three real concurrent sessions | M07 | M07.10; M11.02 |
 | AC-4: Full-screen input, resize, switching, exit, bounds | M07, M08 | M07.10; M08.10; M11.04; M11.07 |
-| AC-5: Exclusive instance claim | M03, M05 | M03.05; M06.02; M11.02 |
-| AC-6: Progress and structured handover | M03, M08 | M06.02; M08.06; M11.02 |
+| AC-5: Exclusive instance claim | M05 | M06.02; M11.02 |
+| AC-6: Progress and structured handover | M08 | M06.02; M08.06; M11.02 |
 | AC-7: Another instance resumes shared work | M05, M08 | M06.02; M08.10; M11.02 |
 | AC-8: TUI detach and reattach preserves children | M05, M07, M08 | M07.10; M08.10; M11.07 |
-| AC-9: Durable restart and honest session loss | M03, M05, M07 | M06.03; M07.09; M11.03 |
+| AC-9: Durable restart and honest session loss | M05, M07 | M06.03; M07.09; M11.03 |
 | AC-10: Task session in an explicit worktree | M10 | M10.06; M11.02 |
-| AC-11: Core and protocol independent from TUI | M04 | M06.04; M11.10 |
+| AC-11: Core and protocol independent from TUI | M06, M11 | M06.04; M11.10 |
 | AC-12: Cross-platform CI and quality checks | All remaining implementation milestones | M11.10; M12.06 |
-| AC-13: No injected secrets, personal paths, or transcripts in logs/artifacts | M03, M05, M07, M08 | M03.09; M11.05; M11.09 |
+| AC-13: No injected secrets, personal paths, or transcripts in logs/artifacts | M05, M07, M08 | M11.05; M11.09 |
 | AC-14: No hosted service, API key, or graphical requirement | M05, M07, M09 | M09.05; M11.06; M12.03 |
-| AC-15: Unknown CLI requires no domain/TUI changes | M03, M07, M09 | M09.05 |
+| AC-15: Unknown CLI requires no domain/TUI changes | M07, M09 | M09.05 |
 | AC-16: Single `rt` executable and naming conflict guidance | M05, M12 | M12.01; M12.02 |
 
 FR-10 remains conditional: export is deferred, and no automatic project export may be introduced. Remaining NFR coverage is carried by M12 (platforms), M03-M07/M11 (reliability), M07-M08/M11 (performance), M03-M04/M12 (compatibility), M05/M11 (observability), M08/M11 (accessibility), M06 (maintainability), and M03-M04/M07/M11 (resource limits).
