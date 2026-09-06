@@ -701,11 +701,8 @@ mod tests {
                 );
                 let (first, second) = tokio::join!(first, second);
                 assert!(first.is_ok() || second.is_ok());
-                for result in [first, second] {
-                    match result {
-                        Ok(database) => database.pool().close().await,
-                        Err(_) => {}
-                    }
+                for database in [first, second].into_iter().flatten() {
+                    database.pool().close().await;
                 }
                 let reopened = Database::open(
                     &path,
