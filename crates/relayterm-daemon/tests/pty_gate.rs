@@ -402,8 +402,15 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
         )
         .await
         .unwrap();
-    let attached = wait_for_text(&client, &first, "fixture-echo:hello").await;
-    let attached_again = wait_for_text(&client, &first, "fixture-echo:hello").await;
+    client
+        .call::<_, Value>(
+            Operation::SessionInput,
+            &json!({"session_id":first,"lease_id":lease_id,"sequence":"3","data":STANDARD.encode(terminal_line("after-resize"))}),
+        )
+        .await
+        .unwrap();
+    let attached = wait_for_text(&client, &first, "fixture-echo:after-resize").await;
+    let attached_again = wait_for_text(&client, &first, "fixture-echo:after-resize").await;
     assert_eq!(attached["attachment_id"], attached_again["attachment_id"]);
     assert_eq!(attached["snapshot"]["rows"], 30);
     assert_eq!(attached["snapshot"]["columns"], 100);
@@ -437,7 +444,7 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
         }
     };
     assert!(replacement_lease["lease_id"].as_str().is_some());
-    let reconstructed = wait_for_text(&observer, &first, "fixture-echo:hello").await;
+    let reconstructed = wait_for_text(&observer, &first, "fixture-echo:after-resize").await;
     assert_ne!(attached["attachment_id"], reconstructed["attachment_id"]);
     assert_eq!(reconstructed["snapshot"]["rows"], 30);
     assert_eq!(reconstructed["snapshot"]["alternate_screen"], true);
@@ -590,6 +597,7 @@ $wide = [char]0x754c
 [Console]::WriteLine("fixture-private-canary-absent:" + (($null -eq $env:RELAYTERM_PRIVATE_CANARY).ToString().ToLowerInvariant()))
 while (($line = [Console]::ReadLine()) -ne $null) {
     if ($line -eq 'flood') {
+        [Console]::Write("$escape[?1049h")
         [Console]::Write(('0123456789abcdef0123456789abcdef' + "`r`n") * 32768)
         [Console]::WriteLine('flood-complete')
         continue
@@ -601,9 +609,11 @@ while (($line = [Console]::ReadLine()) -ne $null) {
         $start.UseShellExecute = $false
         $start.CreateNoWindow = $true
         $child = [Diagnostics.Process]::Start($start)
+        [Console]::Write("$escape[?1049h")
         [Console]::WriteLine("fixture-descendant:" + $child.Id)
         continue
     }
+    [Console]::Write("$escape[?1049h")
     [Console]::WriteLine("fixture-echo:" + $line)
     if ($line -eq 'quit') { exit 0 }
 }
