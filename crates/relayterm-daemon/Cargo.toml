@@ -20,6 +20,7 @@ uuid.workspace = true
 relayterm-client = { version = "0.1.0", path = "../relayterm-client" }
 relayterm-persistence-sqlite = { version = "0.1.0", path = "../relayterm-persistence-sqlite" }
 relayterm-platform = { version = "0.1.0", path = "../relayterm-platform" }
+sqlx.workspace = true
 tempfile.workspace = true
 time.workspace = true
 

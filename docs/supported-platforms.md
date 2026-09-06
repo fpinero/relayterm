@@ -51,6 +51,8 @@ Candidate `ec1953e` passed [Quality run 34030632309](https://github.com/fpinero/
 
 Each quality job passed locked dependency fetch, formatting, all-target checks, Clippy with denied warnings, workspace and core-only tests, build, repository contracts, and whitespace validation. Native tests cover private Unix sockets, symmetric UID policy, protected Windows named-pipe DACL inspection through actual handles, denied access, endpoint collision and cleanup, strict framing, two-client coordination, ordered durable events, coherent snapshot refresh, read reconnection, mutation uncertainty, and continuity across separate server and client processes. Security checks passed dependency, advisory, license, ban, and source auditing, full-history and candidate-source secret scans, and negative controls.
 
+Acceptance follow-up candidate `14ed5ac` passed [Quality run 34032866039](https://github.com/fpinero/relayterm/actions/runs/34032866039) and [Security run 34032866081](https://github.com/fpinero/relayterm/actions/runs/34032866081) on the same native matrix. It adds coalesced event wakeups, persistent bounded subscription queues, correlated event and synchronization controls, deterministic cancellation recovery, cursor-expiry handling, and resource-release tests. An earlier candidate exposed a Windows named-pipe late-response correlation failure. The client now replaces an unusable connection before sending a new request, and the repeated native Windows gate passed.
+
 This closes the M04 local protocol gate. Detached daemon startup, CLI administration, real process supervision, PTY behavior, and the TUI remain pending in M05 and later milestones.
 
 ## Planned shell and terminal matrix
