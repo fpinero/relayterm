@@ -250,12 +250,15 @@ fn detached_daemon_survives_starters_and_reopens_durable_state() {
     fs::create_dir(&root).unwrap();
     let binary = env!("CARGO_BIN_EXE_rt");
 
+    eprintln!("stage: initialize from disposable shell");
     let initialized = result(initialize_from_disposable_shell(binary, &root, &private));
+    eprintln!("stage: initialized");
     let workspace_id = initialized["workspace_id"].as_str().unwrap().to_owned();
     assert_eq!(initialized["started"], true);
     assert_eq!(initialized["already_initialized"], false);
 
     let first_status = result(invoke(binary, &root, &private, &["daemon", "status"]));
+    eprintln!("stage: first status");
     assert_eq!(first_status["lifecycle"], "ready");
     let first_generation = first_status["generation"].as_str().unwrap().to_owned();
 
@@ -276,6 +279,7 @@ fn detached_daemon_survives_starters_and_reopens_durable_state() {
             child.wait_with_output()
         }).unwrap();
     let task = result(task);
+    eprintln!("stage: task created");
     assert_eq!(task["revision"], "2");
 
     let duplicate = Command::new(binary)
@@ -301,22 +305,26 @@ fn detached_daemon_survives_starters_and_reopens_durable_state() {
         })
         .unwrap();
     assert_eq!(duplicate.status.code(), Some(2));
+    eprintln!("stage: duplicate rejected");
     assert_eq!(
         result(invoke(binary, &root, &private, &["daemon", "status"]))["revision"],
         "2"
     );
 
     let reused = result(invoke(binary, &root, &private, &["daemon", "start"]));
+    eprintln!("stage: live daemon reused");
     assert_eq!(reused["already_running"], true);
     assert_eq!(reused["started"], false);
 
     let stopped = result(invoke(binary, &root, &private, &["daemon", "stop"]));
+    eprintln!("stage: first daemon stopped");
     assert_eq!(stopped["lifecycle"], "stopped");
     let (first_start, second_start) = thread::scope(|scope| {
         let first = scope.spawn(|| invoke(binary, &root, &private, &["daemon", "start"]));
         let second = scope.spawn(|| invoke(binary, &root, &private, &["daemon", "start"]));
         (first.join().unwrap(), second.join().unwrap())
     });
+    eprintln!("stage: concurrent starts completed");
     assert_eq!(result(first_start)["workspace_id"], workspace_id);
     assert_eq!(result(second_start)["workspace_id"], workspace_id);
     let second_status = result(invoke(binary, &root, &private, &["daemon", "status"]));
@@ -328,6 +336,7 @@ fn detached_daemon_survives_starters_and_reopens_durable_state() {
             .is_some_and(|items| items.len() == 1)
     );
     result(invoke(binary, &root, &private, &["daemon", "stop"]));
+    eprintln!("stage: restarted daemon stopped");
     assert_eq!(fs::read_dir(&root).unwrap().count(), 0);
 
     let git_root = scratch.0.join("git project");
@@ -339,8 +348,10 @@ fn detached_daemon_survives_starters_and_reopens_durable_state() {
         &private,
         &["workspace", "init", "--name", "Synthetic Git workspace"],
     ));
+    eprintln!("stage: Git workspace initialized");
     assert_ne!(git_workspace["workspace_id"], workspace_id);
     result(invoke(binary, &git_root, &private, &["daemon", "stop"]));
+    eprintln!("stage: Git workspace daemon stopped");
     assert_eq!(
         fs::read_dir(&git_root)
             .unwrap()
