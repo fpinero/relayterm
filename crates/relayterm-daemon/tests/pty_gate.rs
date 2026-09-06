@@ -414,7 +414,7 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
     assert_eq!(attached["attachment_id"], attached_again["attachment_id"]);
     assert_eq!(attached["snapshot"]["rows"], 30);
     assert_eq!(attached["snapshot"]["columns"], 100);
-    assert_eq!(attached["snapshot"]["alternate_screen"], true);
+    assert_native_full_screen_mode(&attached);
     let environment = wait_for_text(&client, &first, "fixture-private-canary-absent:true").await;
     let environment_text: String = environment["snapshot"]["cells"]
         .as_array()
@@ -447,7 +447,23 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
     let reconstructed = wait_for_text(&observer, &first, "fixture-echo:after-resize").await;
     assert_ne!(attached["attachment_id"], reconstructed["attachment_id"]);
     assert_eq!(reconstructed["snapshot"]["rows"], 30);
-    assert_eq!(reconstructed["snapshot"]["alternate_screen"], true);
+    assert_native_full_screen_mode(&reconstructed);
+    assert_eq!(
+        attached["snapshot"]["cells"], reconstructed["snapshot"]["cells"],
+        "reattachment must reproduce the authoritative visible grid"
+    );
+    assert_eq!(
+        attached["snapshot"]["cursor_row"],
+        reconstructed["snapshot"]["cursor_row"]
+    );
+    assert_eq!(
+        attached["snapshot"]["cursor_column"],
+        reconstructed["snapshot"]["cursor_column"]
+    );
+    assert_eq!(
+        attached["snapshot"]["bracketed_paste"],
+        reconstructed["snapshot"]["bracketed_paste"]
+    );
     let replacement_lease_id = replacement_lease["lease_id"].as_str().unwrap();
     let stream_start = reconstructed["snapshot"]["raw_offset"].as_u64().unwrap();
     observer
@@ -703,6 +719,19 @@ fn whole_scenario_timeout() -> Duration {
     } else {
         Duration::from_secs(60)
     }
+}
+
+fn assert_native_full_screen_mode(value: &Value) {
+    #[cfg(windows)]
+    assert_eq!(
+        value["snapshot"]["alternate_screen"], false,
+        "ConPTY must expose its rendered primary-screen representation"
+    );
+    #[cfg(not(windows))]
+    assert_eq!(
+        value["snapshot"]["alternate_screen"], true,
+        "Unix PTYs must preserve alternate-screen mode"
+    );
 }
 
 fn visible_text(value: &Value) -> String {

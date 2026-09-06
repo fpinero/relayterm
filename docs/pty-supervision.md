@@ -24,6 +24,8 @@ The launch sequence records `starting`, spawns exactly once, retains the native 
 
 Parsing accepts split UTF-8 and escape sequences. Alternate-screen entry and exit preserve the parser's normal and alternate grids. The daemon produces each replacement from its authoritative parser, so a client never needs to recreate hidden parser state. Terminal control data never mutates tasks and Relayterm does not execute clipboard, hyperlink, or shell side effects from output.
 
+ConPTY interprets application VT output before emitting the host-side stream. On the supported Windows runner it presents full-screen redraws in the primary-screen representation and does not preserve the application's private alternate-screen indicator. The Windows native gate therefore verifies the rendered grid, cursor, dimensions, input modes, and exact reattachment equivalence while asserting this transformed mode value. The provider-neutral parser tests independently verify alternate-screen entry, exit, restoration, and continuation at every input split. Unix native PTYs preserve the alternate-screen indicator end to end.
+
 | Resource | Limit |
 | --- | --- |
 | Live sessions | 8 per workspace daemon |
