@@ -14,9 +14,11 @@ TOML is the editable import format. Definitions have stable IDs, command plus ar
 
 ## Invariants and behavior
 
-Precedence is explicit: offer template import; validate user TOML; persist the accepted definition through the daemon. File edits do not automatically change active state. An explicit reload applies a validated candidate. TUI edits go through IPC and do not rewrite the source TOML automatically. A subsequent explicit reload may replace active fields and must present conflict semantics defined before M03 write implementation.
+Precedence is explicit: offer template import; validate user TOML; persist the accepted definition through the daemon. File edits do not automatically change active state. An explicit reload applies a validated candidate. TUI edits go through IPC and do not rewrite the source TOML automatically.
 
-Resolve a validated executable path or search permitted PATH at launch. An existing instance retains its launch configuration; edits affect subsequent launches only. Disabled definitions retain identity and historical attribution but cannot launch. Unknown fields warn; security-sensitive invalid fields fail closed. Store variable names, never environment values. No provider-specific domain branches or automatic authentication.
+M03 resolves reload conflicts with a workspace revision captured after complete candidate validation. Apply compares that baseline with the current durable revision in the write transaction. Any stale baseline fails with `Conflict`, including a stale candidate whose values happen to match current state. Relayterm does not silently rebase configuration edits. A current identical import is a no-op. Supplied stable IDs are created or updated atomically, omitted definitions remain active, and imports never delete definitions or rewrite their source file.
+
+Resolve a validated executable path or search permitted PATH at launch. An existing instance retains an immutable snapshot of the accepted definition fields; edits affect subsequent launches only. Disabled definitions retain identity and historical attribution but cannot launch. Unknown non-security fields produce bounded structural warnings; security-shaped unknown fields and recognized credential patterns fail closed. Store variable names, never environment values. No provider-specific domain branches or automatic authentication.
 
 ## Alternatives
 

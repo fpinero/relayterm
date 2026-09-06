@@ -335,6 +335,7 @@ fn instance_metadata_and_observation_times_are_validated() {
         workspace_id: id(3),
         agent_definition_id: None,
         task_id: None,
+        launch_definition: None,
         working_directory: "project".into(),
         status: InstanceStatus::Starting,
         started_at: at(10),
@@ -384,6 +385,10 @@ fn every_event_variant_round_trips_with_strict_versions_and_safe_errors() {
     let payloads = vec![
         EventPayload::WorkspaceCreated { id: id(1) },
         EventPayload::DefinitionCreated { id: id(2) },
+        EventPayload::DefinitionUpdated {
+            id: id(2),
+            fields: vec![DefinitionField::Command, DefinitionField::Enabled],
+        },
         EventPayload::TaskCreated { id: id(3) },
         EventPayload::TaskEdited {
             id: id(3),

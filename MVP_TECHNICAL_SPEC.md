@@ -175,6 +175,7 @@ Required fields:
 - `ended_at`, nullable
 - `exit_code`, nullable
 - `terminal_size`
+- `launch_definition_snapshot`, nullable for a generic shell and immutable after registration
 
 Required lifecycle:
 
@@ -184,7 +185,7 @@ Required lifecycle:
 | `running` | `exited`, `failed`, `terminated`, `lost` |
 | `exited`, `failed`, `terminated`, `lost` | None |
 
-An instance and its terminal session share one lifecycle record, with distinct one-to-one `id` and `session_id` identifiers and explicit `workspace_id`. `starting` records a launch attempt. Startup failure is `failed` without an invented exit code. `exited` is an observed exit, including nonzero codes; `terminated` requires confirmed termination. `lost` means the outcome cannot be reconstructed. Unknown exit codes are nullable; final states require `ended_at`. Identical final observations are no-ops; incompatible observations are rejected.
+An instance and its terminal session share one lifecycle record, with distinct one-to-one `id` and `session_id` identifiers and explicit `workspace_id`. Configured launches capture the accepted definition ID, display name, command, arguments, environment names, capabilities, and enabled state in `launch_definition_snapshot` inside the registration transaction. Generic shells have no definition snapshot. Definition edits affect later attempts and never rewrite existing snapshots. `starting` records a launch attempt. Startup failure is `failed` without an invented exit code. `exited` is an observed exit, including nonzero codes; `terminated` requires confirmed termination. `lost` means the outcome cannot be reconstructed. Unknown exit codes are nullable; final states require `ended_at`. Identical final observations are no-ops; incompatible observations are rejected.
 
 Finalizing an instance MUST atomically close its open claim and block the active task, if any. Exit never automatically completes work. Optional `task_id` is launch context, not current ownership. Pre-PTY simulation is restricted to tests, including M06; production cannot fabricate running processes.
 
@@ -582,6 +583,10 @@ Suggested logical separation:
 - Project directory: source code and only explicitly exported coordination artifacts.
 
 Configuration MUST support a documented override for tests and portable development environments. Unknown fields SHOULD produce warnings, and invalid security-sensitive fields MUST fail closed.
+
+Relayterm uses `RELAYTERM_HOME` as its single bootstrap override, with `config`, `data`, `runtime`, and `cache` children. An explicitly supplied internal `LocationOptions` value takes precedence. Overrides must be absolute and are the only supported way to place private state inside a project. Default resolution never falls back to the current directory. Location resolution has no filesystem side effects.
+
+Accepted definitions in SQLite are authoritative. TOML uses `format_version = 1`, requires stable definition IDs, and is imported only by an explicit operation. Imports compare a captured workspace revision, apply supplied creates and updates atomically, preserve omitted definitions, and never rewrite the source file. Unknown non-security fields produce bounded warnings. Unknown security-shaped settings, invalid security values, and recognized credential patterns are rejected without echoing input.
 
 ## 12. Implementation phases
 

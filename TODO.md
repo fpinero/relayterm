@@ -8,7 +8,7 @@ Keep the daemon responsible for durable state and supervised processes. Keep dom
 
 ### How to execute this queue
 
-- Start with M03. Follow milestone dependencies and the task order within each milestone; consult `avances.md` for fulfilled dependencies. Complete M06 before production PTY or TUI implementation.
+- Start with M04. Follow milestone dependencies and the task order within each milestone; consult `avances.md` for fulfilled dependencies. Complete M06 before production PTY or TUI implementation.
 - Treat each task ID as one reviewable outcome, including its relevant tests and documentation. Split a task before coding if its implementation cannot be reviewed coherently in one session. Preserve its ID as a prefix for new child tasks.
 - For a milestone ending in `[PLAN]`, complete its first planning task before implementation. Record the named decisions, contracts, failure cases, and test design, then refine the remaining tasks in this file. The marker identifies unresolved engineering details, not permission to expand MVP scope.
 - At each session start, read repository instructions, check the branch and working tree, and consult `avances.md` for satisfied dependencies. Continue the earliest unblocked task. Work on a feature or fix branch, never directly on `main` or `master`.
@@ -21,29 +21,11 @@ Keep the daemon responsible for durable state and supervised processes. Keep dom
 
 Use the specification's recommended Rust stack and the pinned bootstrap toolchain. Verify support when adding dependencies; avoid unused dependencies and empty adapter crates until needed. Follow the eight [architecture decisions](docs/architecture/README.md), refining the risky ones at their implementation gates.
 
-The remaining first-slice route is M03 through M06: durable storage, protocol, daemon, and a verified administrative CLI workflow. M07 adds real PTYs; M08 adds the TUI; M09 and M10 add templates and explicit worktree isolation; M11 and M12 validate and prepare the release candidate. After M08, M09 and M10 may proceed independently. Windows IPC and PTY behavior must be validated when those adapters are introduced.
+The remaining first-slice route is M04 through M06: protocol, daemon, and a verified administrative CLI workflow. M07 adds real PTYs; M08 adds the TUI; M09 and M10 add templates and explicit worktree isolation; M11 and M12 validate and prepare the release candidate. After M08, M09 and M10 may proceed independently. Windows IPC and PTY behavior must be validated when those adapters are introduced.
 
 Public export and disk-backed scrollback are optional and are deferred from this roadmap. Keep scrollback bounded in daemon memory. Do not add transcript ingestion, provider APIs, automatic task mutation from agent prose, autonomous orchestration, TCP listeners, hosted dependencies, telemetry, graphical clients, or automatic Git commits, merges, rebases, or deletion. Any later export proposal must first add exact-content preview, redaction, and destination confirmation as required by FR-10.
 
 Keep task dependencies informational, as defined in the specification and [M02 storage contract](docs/M02_storage_contract.md); do not introduce a scheduler. Git worktree creation is included because AC-10 requires it, even though several related requirements use SHOULD.
-
-## M03: Private configuration and transactional SQLite
-
-Depends on: M02. Specification phase: 1. Coverage: FR-1, FR-5, FR-6, FR-9; NFR-2, NFR-4; sections 9, 11.
-
-Outcome: durable entities and event history outside the project, with safe version handling.
-
-Detailed implementation plan, contracts, and verification gates: [M03 details](docs/M03_details.md).
-
-- M03.01: Implement OS-appropriate configuration, data, runtime, and cache locations plus a documented test/portable override. Test canonical workspace identity, missing directories, restrictive permissions or ACLs, and absence of generated state in the project by default.
-- M03.02: Implement configuration parsing and validation for definitions, preferences, and resource bounds. Warn on unknown fields, fail closed for invalid security-sensitive values, and test precedence and rejected secret-bearing configuration according to the ADR.
-- M03.03: Add the SQLite adapter and versioned initial migrations for workspaces, definitions, instances/sessions, tasks, claim history, progress, handovers, and events. Enforce references, claim exclusivity, and ordered per-workspace event sequences at the storage boundary.
-- M03.04: Implement workspace initialization/reopening and definition persistence through application ports. Test duplicate opens, isolated workspaces, disabled definitions, and save/reload equivalence.
-- M03.05: Implement transactional task mutations and claim history. Race two independent database clients and verify exactly one claim wins, one successful transition event is committed, and failed transactions leave neither partial state nor events.
-- M03.06: Implement append-only progress and handover repositories with bounded reads. Test historical entries remain intact, attribution survives reload, and a new instance can read the same structured context.
-- M03.07: Implement session metadata storage and durable event queries with snapshot watermarks, bounded pages, and retention/resynchronization behavior agreed for M04. Test ordering and isolation across workspaces.
-- M03.08: Implement migration checks and actionable errors for newer schemas, locked/read-only databases, failed migrations, and corruption. Add fixtures for initial-schema migration and transactional rollback; never silently recreate or overwrite an unreadable database.
-- M03.09: Verify the persistence gate using separate processes to write and reopen state. Test migration from the initial schema, rollback on injected failure, and atomic claim races; scan produced diagnostics for synthetic secret and path markers.
 
 ## M04: Versioned local protocol and client synchronization [PLAN]
 

@@ -30,6 +30,95 @@ pub trait EventNotifier: Sync {
         revision: u64,
     ) -> impl Future<Output = Result<()>> + Send;
 }
+pub trait DurableReadStore: Sync {
+    fn consistent_snapshot(
+        &self,
+        workspace_id: WorkspaceId,
+    ) -> impl Future<Output = Result<WatermarkedSnapshot>> + Send;
+    fn event_page(
+        &self,
+        workspace_id: WorkspaceId,
+        request: EventPageRequest,
+    ) -> impl Future<Output = Result<EventPage>> + Send;
+    fn task_history_page(
+        &self,
+        workspace_id: WorkspaceId,
+        task_id: TaskId,
+        request: TaskHistoryPageRequest,
+    ) -> impl Future<Output = Result<TaskHistoryPage>> + Send;
+}
+
+#[derive(Clone)]
+pub struct WatermarkedSnapshot {
+    pub snapshot: Snapshot,
+    pub last_sequence: u64,
+    pub retained_from_sequence: u64,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct EventPageRequest {
+    pub after_sequence: u64,
+    pub limit: u16,
+}
+
+impl EventPageRequest {
+    pub fn new(after_sequence: u64, limit: u16) -> Result<Self> {
+        if limit == 0 || limit > 200 {
+            return Err(Error::Validation("page_limit"));
+        }
+        Ok(Self {
+            after_sequence,
+            limit,
+        })
+    }
+}
+
+pub struct EventPage {
+    pub events: Vec<WorkspaceEvent>,
+    pub last_sequence: u64,
+    pub retained_from_sequence: u64,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct TaskHistoryPageRequest {
+    pub after_sequence: u64,
+    pub limit: u16,
+    pub expected_revision: u64,
+}
+
+impl TaskHistoryPageRequest {
+    pub fn new(after_sequence: u64, limit: u16, expected_revision: u64) -> Result<Self> {
+        if limit == 0 || limit > 200 {
+            return Err(Error::Validation("page_limit"));
+        }
+        if expected_revision == 0 {
+            return Err(Error::Validation("expected_revision"));
+        }
+        Ok(Self {
+            after_sequence,
+            limit,
+            expected_revision,
+        })
+    }
+}
+
+#[derive(Clone)]
+pub enum TaskHistoryItem {
+    Claim(Claim),
+    Progress(ProgressEntry),
+    Handover(Handover),
+}
+
+#[derive(Clone)]
+pub struct TaskHistoryEntry {
+    pub sequence: u64,
+    pub item: TaskHistoryItem,
+}
+
+pub struct TaskHistoryPage {
+    pub revision: u64,
+    pub entries: Vec<TaskHistoryEntry>,
+}
 #[derive(Clone)]
 pub struct Snapshot {
     revision: u64,
@@ -167,8 +256,17 @@ impl<S: Store, C: Clock, I: IdGenerator, N: EventNotifier> Service<S, C, I, N> {
         Ok(self.store.begin(id).await?.snapshot().clone())
     }
     pub async fn create_workspace(&self, name: String, root: PathBuf) -> Result<Outcome> {
-        let at = self.clock.now()?;
         let id = WorkspaceId::from_uuid(self.ids.next()?.as_uuid());
+        self.create_workspace_reserved(id, name, root).await
+    }
+    /// Initialize one registry-reserved workspace identity without generating a replacement.
+    pub async fn create_workspace_reserved(
+        &self,
+        id: WorkspaceId,
+        name: String,
+        root: PathBuf,
+    ) -> Result<Outcome> {
+        let at = self.clock.now()?;
         let workspace = Workspace::restore(WorkspaceRecord {
             id,
             display_name: name,
@@ -191,6 +289,23 @@ impl<S: Store, C: Clock, I: IdGenerator, N: EventNotifier> Service<S, C, I, N> {
             events: vec![event],
         };
         self.commit(transaction, batch).await
+    }
+    pub async fn import_definitions(
+        &self,
+        workspace_id: WorkspaceId,
+        baseline_revision: u64,
+        definitions: Vec<AgentDefinition>,
+    ) -> Result<Outcome> {
+        let transaction = self.store.begin(workspace_id).await?;
+        if transaction.snapshot().revision() != baseline_revision {
+            return Err(Error::Conflict);
+        }
+        let changes = transaction.snapshot().state()?.execute(
+            Actor::LocalUser,
+            Command::ImportDefinitions(definitions),
+            self.clock.now()?,
+        )?;
+        self.commit_changes(transaction, changes).await
     }
     pub async fn execute(
         &self,
@@ -261,12 +376,26 @@ impl<S: Store, C: Clock, I: IdGenerator, N: EventNotifier> Service<S, C, I, N> {
         context: LaunchContext,
     ) -> Result<Outcome> {
         let at = self.clock.now()?;
+        let transaction = self.store.begin(workspace_id).await?;
+        let launch_definition = match context.agent_definition_id {
+            Some(id) => Some(LaunchDefinitionSnapshot::from_definition(
+                transaction
+                    .snapshot()
+                    .state()?
+                    .definitions()
+                    .iter()
+                    .find(|definition| definition.record().id == id)
+                    .ok_or(Error::Reference)?,
+            )),
+            None => None,
+        };
         let instance = AgentInstance::restore(AgentInstanceRecord {
             id: AgentInstanceId::from_uuid(self.ids.next()?.as_uuid()),
             session_id: TerminalSessionId::from_uuid(self.ids.next()?.as_uuid()),
             workspace_id,
             agent_definition_id: context.agent_definition_id,
             task_id: context.task_id,
+            launch_definition,
             working_directory: context.working_directory,
             status: InstanceStatus::Starting,
             started_at: at,
@@ -275,8 +404,11 @@ impl<S: Store, C: Clock, I: IdGenerator, N: EventNotifier> Service<S, C, I, N> {
             exit_code: None,
             terminal_size: context.terminal_size,
         })?;
-        self.observe_at(workspace_id, Observation::Register(instance), at)
-            .await
+        let changes = transaction
+            .snapshot()
+            .state()?
+            .observe(Observation::Register(Box::new(instance)), at)?;
+        self.commit_changes(transaction, changes).await
     }
     pub async fn observe(
         &self,
@@ -366,6 +498,25 @@ impl<S: Store, C: Clock, I: IdGenerator, N: EventNotifier> Service<S, C, I, N> {
                     .filter(|x| x.record().task_id == task_id),
             ),
         })
+    }
+}
+
+impl<S: Store + DurableReadStore, C: Clock, I: IdGenerator, N: EventNotifier> Service<S, C, I, N> {
+    pub async fn durable_snapshot(&self, id: WorkspaceId) -> Result<WatermarkedSnapshot> {
+        self.store.consistent_snapshot(id).await
+    }
+
+    pub async fn events(&self, id: WorkspaceId, request: EventPageRequest) -> Result<EventPage> {
+        self.store.event_page(id, request).await
+    }
+
+    pub async fn durable_task_history(
+        &self,
+        id: WorkspaceId,
+        task_id: TaskId,
+        request: TaskHistoryPageRequest,
+    ) -> Result<TaskHistoryPage> {
+        self.store.task_history_page(id, task_id, request).await
     }
 }
 /// Append-order offset pages. Keep a snapshot revision when comparing pages.

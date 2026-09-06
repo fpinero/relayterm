@@ -18,7 +18,7 @@ Use six crates with inward dependency boundaries. Bootstrap direct production de
 
 Native CI targets are x86_64-unknown-linux-gnu on ubuntu-24.04, aarch64-apple-darwin on macos-14, and x86_64-pc-windows-msvc on windows-2022. Record actual rustc host and runner OS, not inferred coverage. Pinned-toolchain CI also runs on Linux. OS/architecture support beyond these targets requires evidence before release claims.
 
-Use minimal rustup profile with rustfmt/clippy. Deny unsafe code in first-party bootstrap crates. Audit with cargo-deny and scan with Gitleaks. Allowed licenses are Apache-2.0, MIT, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, Unicode-3.0. Unknown licenses and known vulnerabilities fail. Review narrowly scoped exceptions explicitly; do not hide findings to pass CI.
+Use minimal rustup profile with rustfmt/clippy. Deny unsafe code in first-party bootstrap crates. Audit with cargo-deny and scan with Gitleaks. Allowed licenses are Apache-2.0, MIT, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, Unicode-3.0, and MPL-2.0. MPL-2.0 was added after reviewing the `option-ext` dependency used by the cross-platform directory resolver. Its file-level copyleft terms permit use in this Apache-2.0 project without changing the license of Relayterm source files. Unknown licenses and known vulnerabilities fail. Review narrowly scoped exceptions explicitly; do not hide findings to pass CI.
 
 ## Alternatives
 

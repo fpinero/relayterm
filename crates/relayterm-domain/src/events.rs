@@ -13,6 +13,16 @@ pub enum TaskField {
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+pub enum DefinitionField {
+    DisplayName,
+    Command,
+    Arguments,
+    EnvironmentAllowlist,
+    Capabilities,
+    Enabled,
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum EntityId {
     Workspace(WorkspaceId),
     Definition(AgentDefinitionId),
@@ -27,6 +37,7 @@ pub enum EntityId {
 pub enum EventType {
     WorkspaceCreated,
     DefinitionCreated,
+    DefinitionUpdated,
     TaskCreated,
     TaskEdited,
     TaskTransitioned,
@@ -45,6 +56,10 @@ pub enum EventPayload {
     },
     DefinitionCreated {
         id: AgentDefinitionId,
+    },
+    DefinitionUpdated {
+        id: AgentDefinitionId,
+        fields: Vec<DefinitionField>,
     },
     TaskCreated {
         id: TaskId,
@@ -92,6 +107,7 @@ impl EventPayload {
         match self {
             Self::WorkspaceCreated { .. } => EventType::WorkspaceCreated,
             Self::DefinitionCreated { .. } => EventType::DefinitionCreated,
+            Self::DefinitionUpdated { .. } => EventType::DefinitionUpdated,
             Self::TaskCreated { .. } => EventType::TaskCreated,
             Self::TaskEdited { .. } => EventType::TaskEdited,
             Self::TaskTransitioned { .. } => EventType::TaskTransitioned,
@@ -106,7 +122,9 @@ impl EventPayload {
     pub fn entity_id(&self) -> EntityId {
         match self {
             Self::WorkspaceCreated { id } => EntityId::Workspace(*id),
-            Self::DefinitionCreated { id } => EntityId::Definition(*id),
+            Self::DefinitionCreated { id } | Self::DefinitionUpdated { id, .. } => {
+                EntityId::Definition(*id)
+            }
             Self::TaskCreated { id }
             | Self::TaskEdited { id, .. }
             | Self::TaskTransitioned { id, .. } => EntityId::Task(*id),
@@ -174,8 +192,12 @@ impl TryFrom<EventRecord> for WorkspaceEvent {
         {
             return Err(Error::State);
         }
-        if let EventPayload::TaskEdited { fields, .. } = &record.payload {
-            crate::validation::set(fields, "fields")?;
+        match &record.payload {
+            EventPayload::TaskEdited { fields, .. } => crate::validation::set(fields, "fields")?,
+            EventPayload::DefinitionUpdated { fields, .. } => {
+                crate::validation::set(fields, "fields")?
+            }
+            _ => {}
         }
         Ok(Self(record))
     }

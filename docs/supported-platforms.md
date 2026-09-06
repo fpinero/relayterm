@@ -25,6 +25,19 @@ Candidate `9a92d2714664e5b6b46b0a438e527747b2cfd643` passed [Quality run 3401982
 
 Each quality job passed locked dependency fetch, formatting, all-target checks, Clippy, workspace and core-only tests, build, repository contracts, and whitespace validation. The tests cover task and instance state matrices, claims, atomic handover/loss handling, deterministic transaction conflicts, privacy, and architecture boundaries. Security checks passed dependency/advisory/license/source auditing, Git-history and candidate-source scanning, and negative controls. This closes the M02 domain gate, without establishing durable persistence, IPC transport, or interactive terminal behavior.
 
+## M03 private persistence evidence
+
+Candidate `9b539b9768d658e55551ff9edd10177e5528d514` passed [Quality run 34025433599](https://github.com/fpinero/relayterm/actions/runs/34025433599) and [Security run 34025433476](https://github.com/fpinero/relayterm/actions/runs/34025433476) on 2026-09-06.
+
+| Native runner | Toolchain | Result |
+| --- | --- | --- |
+| ubuntu-24.04 | Stable | Passed |
+| ubuntu-24.04 | 1.98.1 | Passed |
+| macos-14 | Stable | Passed |
+| windows-2022 | Stable | Passed |
+
+Each quality job passed locked dependency fetch, formatting, all-target checks, Clippy, workspace and core-only tests, build, repository contracts, and whitespace validation. Native tests cover private filesystem permissions, Windows protected ACL ownership and broad-access rejection, bundled SQLite requirements, transactional migrations, durable entity reconstruction, conflicting claims, append-only history, consistent event watermarks, backup reopening, and separate-process continuity. Security checks passed dependency, advisory, license, and source auditing, full-history and candidate-source secret scans, and negative controls. This closes the M03 persistence gate. IPC transport, daemon lifecycle, real process supervision, and interactive terminal behavior remain pending.
+
 ## Planned shell and terminal matrix
 
 | Platform | Shells | Terminals and connections to verify |

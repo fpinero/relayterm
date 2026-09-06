@@ -15,6 +15,13 @@ pub enum Error {
     Conflict,
     Time,
     Storage,
+    StorageBusy,
+    ReadOnly,
+    Integrity,
+    Migration,
+    InvalidCursor,
+    ResnapshotRequired,
+    Uncertain,
     Unavailable,
     Version,
 }

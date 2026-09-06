@@ -1,6 +1,6 @@
 # Architecture decisions
 
-Relayterm keeps domain and application logic independent from adapters. The bootstrap creates only six crates: domain IDs, the application boundary, protocol version checks, separate daemon/TUI entry points, and the `rt` CLI composition root. Empty future adapters and fake use cases are intentionally absent.
+Relayterm keeps domain and application logic independent from adapters. The bootstrap created six core and composition crates. M03 adds platform, configuration, and SQLite adapter crates when their production behavior is implemented. Future empty adapters and fake use cases remain absent.
 
 ## Decision index
 
@@ -20,3 +20,5 @@ Each ADR records requirements, invariants, alternatives, consequences, and later
 Domain, application, and protocol cannot depend on UI, SQLite, PTY, Git, or provider adapters. Daemon composes future services/adapters; TUI consumes the protocol; CLI selects separate runtime entries. The CLI integration suite inspects Cargo declarations and the resolved core graph, including target-specific dependencies, and tests synthetic violations.
 
 M02 introduces domain state machines and use-case ports. M03-M06 prove durable coordination through SQLite and IPC before M07 adds PTY and M08 adds terminal presentation.
+
+M03 preserves these exact project edges: application to domain; platform to application and domain; configuration to domain; SQLite persistence to application, domain, and platform. Domain, application, and protocol have no transitive adapter, SQLx, SQLite, Tokio, configuration-parser, or UI dependency.
