@@ -27,6 +27,8 @@ windows-permissions = "0.2.4"
 interprocess = { version = "2.4.0", default-features = false, features = ["tokio"] }
 base64 = "0.22.1"
 widestring = "1.2.1"
+portable-pty = "0.9.0"
+vt100 = "0.16.2"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

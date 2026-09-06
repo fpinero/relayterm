@@ -35,6 +35,37 @@ Outcome: three independently supervised interactive sessions survive client disc
 
 Execution contract: [M07 detailed plan](docs/M07_details.md). Add its 30 atomic child tasks before implementation.
 
+- M07.01a: Audit launch, admission, reads, deadlines, and cleanup; reproduce or disprove inherited risks and add regressions for fixes.
+- M07.01b: Prototype portable-pty natively on all three targets, including handle ownership, spawn, I/O, resize, wait, and finite cleanup.
+- M07.01c: Prototype terminal reconstruction and verify snapshot plus continuation correctness and resource boundaries.
+- M07.01d: Amend the terminal ADR with native evidence and final state, wire, lease, signal, and overflow decisions.
+- M07.02a: Build the real test-only interactive child and bounded harness without a production simulation entry point.
+- M07.02b: Verify crash, blocked input, descendant handles, teardown, and concurrent fixture isolation on every OS.
+- M07.03a: Implement native shell and definition resolution with immutable launch snapshots.
+- M07.03b: Implement validated working directory, argument, and allowlisted environment assembly with privacy tests.
+- M07.04a: Add supervisor composition, ownership state, capacity reservations, and enforced architecture boundaries.
+- M07.04b: Implement the starting, spawn, running, and failure saga with receipt semantics and injected failure coverage.
+- M07.04c: Implement wait, final observation, and cleanup with atomic claim, task, and event behavior.
+- M07.05a: Add bounded binary ingestion and terminal parser state with split-sequence and parser-limit tests.
+- M07.05b: Add bounded scrollback, final-state retention, and global accounting with exact-boundary tests.
+- M07.06a: Implement the exclusive input lease and ordered bounded writer with conflict and blocked-input tests.
+- M07.06b: Implement coherent native resize and verify child dimensions, limits, failures, and races.
+- M07.06c: Implement verified native termination and descendant policy without affecting unrelated children.
+- M07.07a: Implement versioned snapshots, deltas, and attachment epochs with full reconstruction tests.
+- M07.07b: Implement snapshot-to-live handoff, truncation, and explicit resynchronization under races and overflow.
+- M07.07c: Implement detach and observer/writer lifetime with independent clients and unchanged task ownership.
+- M07.08a: Enforce per-session and global budgets with reservation rollback and final-state eviction.
+- M07.08b: Implement fair output and control scheduling with slow-client and blocked-writer isolation.
+- M07.08c: Bound workers and teardown, then stress repeated create, attach, and exit cycles for leaks.
+- M07.09a: Implement versioned session wire operations and client APIs with compatibility and hostile-frame tests.
+- M07.09b: Add administrative session CLI commands and safe bounded diagnostics.
+- M07.09c: Integrate busy and explicit shutdown plus honest startup reconciliation for real sessions.
+- M07.09d: Exercise real-instance coordination continuity and child-failure isolation through separate clients and SQLite.
+- M07.10a: Commit the named real three-session and reconstruction gates and pass them twice on each native stable target.
+- M07.10b: Establish console-close child survival and independent reconnect, plus SSH evidence where available.
+- M07.10c: Publish the guide, compatibility, ADR, specification, and native evidence updates and run every repository control.
+- M07.10d: Deliver and merge the reviewed PR only after acceptance passes, then verify post-merge Quality and Security.
+
 - M07.01: Prototype `portable-pty` and provider-neutral terminal reconstruction on all three OS targets. Exercise alternate-screen output, cursor movement, split escape sequences, Unicode, resize, and reconnect after scrollback truncation. Refine the ADR with evidence, input ownership for multiple attached clients, resize authority, signals/termination semantics, and queue overflow policy before production implementation.
 - M07.02: Add a synthetic interactive child fixture with deterministic modes for echo, size reporting, full-screen redraw, high-volume output, controlled exit, and crash. Verify it runs without network access or provider credentials on every OS.
 - M07.03: Implement generic shell/custom-command launch configuration with executable discovery, argument arrays, validated working directories, and approved environment inheritance. Test missing/disabled commands, unsafe paths, spaces, Unicode, and secret-free error reporting.
