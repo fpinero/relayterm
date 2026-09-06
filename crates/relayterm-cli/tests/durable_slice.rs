@@ -7,10 +7,13 @@ use relayterm_daemon::{
 use serde_json::{Value, json};
 use std::{
     fs,
-    io::Write,
+    io::{BufRead, BufReader, Read, Write},
     path::{Path, PathBuf},
     process::{Child, Command, Output, Stdio},
-    sync::atomic::{AtomicU64, Ordering},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        mpsc,
+    },
     thread,
     time::{Duration, Instant},
 };
@@ -164,7 +167,7 @@ fn run_cli(root: &Path, private: &Path, args: &[&str], input: Option<&Value>) ->
             Stdio::null()
         })
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+        .stderr(Stdio::null());
     let mut child = command.spawn().unwrap();
     if let Some(value) = input {
         child
@@ -174,19 +177,38 @@ fn run_cli(root: &Path, private: &Path, args: &[&str], input: Option<&Value>) ->
             .write_all(&serde_json::to_vec(value).unwrap())
             .unwrap();
     }
+    let stdout = child.stdout.take().unwrap();
+    let (output_tx, output_rx) = mpsc::sync_channel(1);
+    thread::spawn(move || {
+        let mut output = Vec::new();
+        let result = BufReader::new(stdout)
+            .take((OUTPUT_LIMIT + 1) as u64)
+            .read_until(b'\n', &mut output)
+            .map(|_| output);
+        let _ = output_tx.send(result);
+    });
     let deadline = Instant::now() + COMMAND_TIMEOUT;
-    while child.try_wait().unwrap().is_none() {
+    let status = loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            break status;
+        }
         if Instant::now() >= deadline {
             let _ = child.kill();
             let _ = child.wait();
             panic!("CLI stage exceeded its deadline");
         }
         thread::sleep(Duration::from_millis(10));
+    };
+    let stdout = output_rx
+        .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+        .expect("CLI response did not arrive before its deadline")
+        .unwrap();
+    assert!(stdout.len() <= OUTPUT_LIMIT);
+    Output {
+        status,
+        stdout,
+        stderr: Vec::new(),
     }
-    let output = child.wait_with_output().unwrap();
-    assert!(output.stdout.len() <= OUTPUT_LIMIT);
-    assert!(output.stderr.len() <= OUTPUT_LIMIT);
-    output
 }
 
 fn success(root: &Path, private: &Path, args: &[&str], input: Option<&Value>) -> Value {
