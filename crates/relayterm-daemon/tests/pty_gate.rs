@@ -7,7 +7,7 @@ use relayterm_protocol::{
 };
 use serde_json::{Value, json};
 use std::{
-    io::{BufRead as _, Write as _},
+    io::{Read as _, Write as _},
     path::Path,
     sync::mpsc,
     time::{Duration, Instant},
@@ -43,8 +43,18 @@ fn interactive_fixture_child() {
         std::env::var_os("RELAYTERM_PRIVATE_CANARY").is_none()
     );
     std::io::stdout().flush().unwrap();
-    for line in std::io::stdin().lock().lines() {
-        let line = line.unwrap();
+    let mut input = std::io::stdin().lock();
+    let mut byte = [0_u8; 1];
+    let mut pending = Vec::new();
+    while input.read_exact(&mut byte).is_ok() {
+        if !matches!(byte[0], b'\r' | b'\n') {
+            pending.push(byte[0]);
+            continue;
+        }
+        if pending.is_empty() {
+            continue;
+        }
+        let line = String::from_utf8(std::mem::take(&mut pending)).unwrap();
         if line == "flood" {
             for _ in 0..32_768 {
                 print!("0123456789abcdef0123456789abcdef\r\n");
