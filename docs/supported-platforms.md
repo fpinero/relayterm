@@ -72,6 +72,21 @@ The daemon starts through the absolute `rt` executable with argument arrays and 
 
 Security CI passed dependency, advisory, license, ban, and source checks, full-history and candidate-source secret scans, and negative controls. M05 adds no provider execution, PTY, terminal stream, or production fake-session capability.
 
+## M06 first durable slice evidence
+
+Candidate `ef196d789fe64c1ade206fa5e6273dbc1088abc6` passed [Quality run 34050246932](https://github.com/fpinero/relayterm/actions/runs/34050246932) and [Security run 34050246913](https://github.com/fpinero/relayterm/actions/runs/34050246913) on 2026-09-06. An independent push-triggered repetition passed [Quality run 34050245498](https://github.com/fpinero/relayterm/actions/runs/34050245498) and [Security run 34050245501](https://github.com/fpinero/relayterm/actions/runs/34050245501).
+
+| Native runner | Toolchain | Result |
+| --- | --- | --- |
+| ubuntu-24.04 | Stable | Passed |
+| ubuntu-24.04 | 1.98.1 | Passed |
+| macos-14 | Stable | Passed |
+| windows-2022 | Stable | Passed |
+
+Every quality job ran the first durable slice twice before the ordinary parallel workspace suite. Separate `rt` processes used real local IPC and SQLite to exercise Git and non-Git project roots, exclusive and competing claims, progress, structured handover, release, continuation, graceful and abrupt test-host loss, production restart reconciliation, ordered events, pagination, privacy, and source-tree cleanliness. The runtime ownership regression proves that a contender cannot reconcile persisted state before acquiring the endpoint.
+
+The same native gate launches the daemon from a console-lifetime fixture, closes the owning console or pseudo-terminal process, reconnects independently, and stops the reported generation. Unix uses a pseudo-terminal allocated by `script`; Windows uses a process created with a new console. This is automated native process and console lifetime evidence. It does not establish Terminal.app, Windows Terminal, SSH, PTY child supervision, full-screen rendering, or reattachment behavior, which remain M07 and later work.
+
 ## Planned shell and terminal matrix
 
 | Platform | Shells | Terminals and connections to verify |

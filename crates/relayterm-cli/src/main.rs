@@ -469,6 +469,7 @@ fn invoke_bootstrap(
     name: Option<&str>,
     timeout: u64,
 ) -> Result<WorkspaceRoute, CliError> {
+    let operation_started = Instant::now();
     let mut command = ProcessCommand::new(std::env::current_exe().map_err(|_| CliError::Io)?);
     command
         .arg("__bootstrap")
@@ -512,8 +513,8 @@ fn invoke_bootstrap(
             .map(|_| response);
         let _ = response_tx.send(result);
     });
-    let response_deadline = Duration::from_secs(timeout.saturating_add(2));
-    let stdout = match response_rx.recv_timeout(response_deadline) {
+    let operation_limit = Duration::from_secs(timeout.saturating_add(2));
+    let stdout = match response_rx.recv_timeout(operation_limit) {
         Ok(Ok(value)) => value,
         Ok(Err(_)) => return Err(CliError::Runtime(RuntimeError::Transport)),
         Err(_) => {
@@ -522,9 +523,20 @@ fn invoke_bootstrap(
             return Err(CliError::Runtime(RuntimeError::Timeout));
         }
     };
-    let status = child
-        .wait()
-        .map_err(|_| CliError::Runtime(RuntimeError::Transport))?;
+    let status = loop {
+        if let Some(status) = child
+            .try_wait()
+            .map_err(|_| CliError::Runtime(RuntimeError::Transport))?
+        {
+            break status;
+        }
+        if operation_started.elapsed() >= operation_limit {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(CliError::Runtime(RuntimeError::Timeout));
+        }
+        thread::sleep(Duration::from_millis(10));
+    };
     if stdout.len() > MAX_BOOTSTRAP {
         return Err(CliError::InvalidInput);
     }

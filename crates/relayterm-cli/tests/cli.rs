@@ -1,7 +1,7 @@
 use serde_json::Value;
 use std::{
     fs,
-    io::{BufRead, BufReader, Write},
+    io::{BufRead, BufReader, Read, Write},
     path::PathBuf,
     process::{Command, Stdio},
     sync::atomic::{AtomicU64, Ordering},
@@ -211,6 +211,16 @@ fn initialize_from_disposable_shell(
 
 fn finish_line_after_exit(mut child: std::process::Child, stage: &str) -> std::process::Output {
     let deadline = Instant::now() + Duration::from_secs(30);
+    let stdout = child.stdout.take().unwrap();
+    let (output_tx, output_rx) = std::sync::mpsc::sync_channel(1);
+    thread::spawn(move || {
+        let mut output = Vec::new();
+        let result = BufReader::new(stdout)
+            .take((64 * 1024 + 1) as u64)
+            .read_until(b'\n', &mut output)
+            .map(|_| output);
+        let _ = output_tx.send(result);
+    });
     let status = loop {
         if let Some(status) = child.try_wait().unwrap() {
             break status;
@@ -222,10 +232,15 @@ fn finish_line_after_exit(mut child: std::process::Child, stage: &str) -> std::p
         }
         thread::sleep(Duration::from_millis(10));
     };
-    let mut stdout = Vec::new();
-    BufReader::new(child.stdout.take().unwrap())
-        .read_until(b'\n', &mut stdout)
+    let remaining = deadline.saturating_duration_since(Instant::now());
+    let stdout = output_rx
+        .recv_timeout(remaining)
+        .expect("CLI output did not close before its deadline")
         .unwrap();
+    assert!(
+        stdout.len() <= 64 * 1024,
+        "{stage} output exceeded its bound"
+    );
     std::process::Output {
         status,
         stdout,

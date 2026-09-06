@@ -83,10 +83,11 @@ The canonical user-facing executable will be `rt`. The reserved `relayterm.com` 
 - [Project vision and request for project](PROJECT_VISION.md) explains the problem, purpose, principles, scope, privacy posture, and long-term direction.
 - [MVP technical specification](MVP_TECHNICAL_SPEC.md) defines the proposed architecture, domain model, requirements, implementation phases, exclusions, and acceptance criteria.
 - [Daemon and administrative CLI](docs/daemon_cli.md) documents the implemented M05 lifecycle and script interface.
+- [First durable slice](docs/first-durable-slice.md) documents the implemented M06 process, restart, continuity, and native verification gate.
 
 ## Current status
 
-Relayterm now has a deterministic coordination core, private SQLite persistence, a versioned local protocol, current-user IPC transports, an independent per-workspace daemon, and an administrative CLI. Integration tests exercise detached startup, two clients, ordered events, claims, handovers, restart reconciliation, coherent snapshot refresh, and uncertain mutation recovery. Real PTY sessions and the TUI remain unimplemented. See the [daemon and CLI guide](docs/daemon_cli.md), [M04 protocol plan](docs/M04_details.md), and [M03 storage contract](docs/M03_storage_contract.md) for implemented boundaries and later handoffs.
+Relayterm now has a deterministic coordination core, private SQLite persistence, a versioned local protocol, current-user IPC transports, an independent per-workspace daemon, and an administrative CLI. The first durable slice exercises separate clients, exclusive claims, progress, handover, explicit continuation, restart reconciliation, ordered history, and console-independent daemon lifetime on native Linux, macOS, and Windows. Real PTY sessions and the TUI remain unimplemented. See the [first durable slice guide](docs/first-durable-slice.md), [daemon and CLI guide](docs/daemon_cli.md), and [supported platform evidence](docs/supported-platforms.md) for the implemented boundaries and later handoffs.
 
 Build with the pinned Rust toolchain:
 

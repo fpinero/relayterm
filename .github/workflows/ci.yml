@@ -47,6 +47,11 @@ jobs:
       - name: Test detached daemon lifecycle
         timeout-minutes: 3
         run: cargo test -p relayterm-cli --test cli detached_daemon_survives_starters_and_reopens_durable_state --locked -- --exact --nocapture --test-threads=1
+      - name: Test first durable slice twice
+        timeout-minutes: 10
+        run: |
+          cargo test -p relayterm-cli --test durable_slice --locked -- --nocapture --test-threads=1
+          cargo test -p relayterm-cli --test durable_slice --locked -- --nocapture --test-threads=1
       - name: Test workspace and CLI contracts
         timeout-minutes: 5
         run: cargo test --workspace --locked

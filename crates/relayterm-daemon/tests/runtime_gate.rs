@@ -2,7 +2,9 @@ use relayterm_application::{
     Clock, EventNotifier, LaunchContext, Request, Service, Store, Transaction,
 };
 use relayterm_client::Client;
-use relayterm_daemon::{DaemonControl, WorkspaceServer, initialize, serve_workspace};
+use relayterm_daemon::{
+    DaemonControl, RuntimeError, WorkspaceServer, initialize, prepare_workspace, serve_workspace,
+};
 use relayterm_domain::{
     Actor, InstanceStatus, Observation, Priority, TaskContent, TaskStatus, TerminalSize,
     WorkspaceId,
@@ -32,6 +34,165 @@ fn short_temp() -> tempfile::TempDir {
             "/tmp"
         })
         .unwrap()
+}
+
+#[tokio::test]
+async fn runtime_ownership_precedes_recovery_and_rejects_a_contender() {
+    let temporary = short_temp();
+    let root = temporary.path().join("project");
+    let home = temporary.path().join("private");
+    std::fs::create_dir(&root).unwrap();
+    let (route, locations) = initialize(&root, Some(home), "Ownership fixture".into())
+        .await
+        .unwrap();
+    let workspace: WorkspaceId = route.workspace_id.parse().unwrap();
+    let prepared = prepare_workspace(&root, Some(temporary.path().join("private")), workspace)
+        .await
+        .unwrap();
+    let service = prepared.service();
+    service
+        .execute(
+            workspace,
+            Actor::LocalUser,
+            Request::CreateTask(TaskContent {
+                title: "Owned task".into(),
+                description: String::new(),
+                priority: Priority::Normal,
+                scope_paths: vec![],
+                acceptance_notes: String::new(),
+                dependency_ids: vec![],
+            }),
+        )
+        .await
+        .unwrap();
+    let transaction = SqliteStore::new(
+        Database::open(
+            &locations
+                .data()
+                .join("workspaces")
+                .join(workspace.to_string())
+                .join("workspace.sqlite3"),
+            DatabaseKind::Workspace,
+            OpenMode::Reopen,
+            PoolSettings::default(),
+        )
+        .await
+        .unwrap()
+        .pool()
+        .clone(),
+    )
+    .begin(workspace)
+    .await
+    .unwrap();
+    let task = transaction.snapshot().state().unwrap().tasks()[0]
+        .record()
+        .id;
+    drop(transaction);
+    service
+        .execute(
+            workspace,
+            Actor::LocalUser,
+            Request::Transition {
+                id: task,
+                to: TaskStatus::Ready,
+            },
+        )
+        .await
+        .unwrap();
+    let registered = service
+        .register_instance(
+            workspace,
+            LaunchContext {
+                agent_definition_id: None,
+                task_id: Some(task),
+                working_directory: root.clone(),
+                terminal_size: TerminalSize::new(24, 80).unwrap(),
+            },
+        )
+        .await
+        .unwrap();
+    let owner = registered.committed.snapshot.state().unwrap().instances()[0]
+        .record()
+        .id;
+    service
+        .register_instance(
+            workspace,
+            LaunchContext {
+                agent_definition_id: None,
+                task_id: None,
+                working_directory: root.clone(),
+                terminal_size: TerminalSize::new(24, 80).unwrap(),
+            },
+        )
+        .await
+        .unwrap();
+    service
+        .observe(
+            workspace,
+            Observation::Status {
+                id: owner,
+                status: InstanceStatus::Running,
+                observed_at: SystemClock.now().unwrap(),
+                exit_code: None,
+            },
+        )
+        .await
+        .unwrap();
+    service
+        .execute(
+            workspace,
+            Actor::LocalUser,
+            Request::Claim {
+                task_id: task,
+                instance_id: owner,
+            },
+        )
+        .await
+        .unwrap();
+    let before = service
+        .execute(
+            workspace,
+            Actor::LocalUser,
+            Request::Progress {
+                task_id: task,
+                summary: "Ownership established".into(),
+                verification: "Deterministic contender gate".into(),
+            },
+        )
+        .await
+        .unwrap()
+        .committed
+        .snapshot
+        .revision();
+    assert!(matches!(
+        prepare_workspace(&root, Some(temporary.path().join("private")), workspace).await,
+        Err(RuntimeError::Busy)
+    ));
+    let endpoint = Endpoint::derive(
+        locations.runtime(),
+        WireWorkspaceId::from_uuid(workspace.as_uuid()),
+    )
+    .unwrap();
+    let server = tokio::spawn(prepared.run());
+    let client = Client::connect(&endpoint, WireWorkspaceId::from_uuid(workspace.as_uuid()))
+        .await
+        .unwrap();
+    let status: Value = client
+        .call(Operation::DaemonStatus, &json!({}))
+        .await
+        .unwrap();
+    assert_eq!(status["revision"], before.to_string());
+    let task_state: Value = client
+        .call(Operation::TaskGet, &json!({"task_id":task.to_string()}))
+        .await
+        .unwrap();
+    assert_eq!(task_state["status"], "active");
+    let generation = status["generation"].as_str().unwrap();
+    let _: Value = client
+        .call(Operation::DaemonShutdown, &json!({"generation":generation}))
+        .await
+        .unwrap();
+    server.await.unwrap().unwrap();
 }
 
 #[cfg(not(unix))]

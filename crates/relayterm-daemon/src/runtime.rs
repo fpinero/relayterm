@@ -3,7 +3,7 @@ use relayterm_application::{EventNotifier, IdGenerator, Service, Store, Transact
 use relayterm_client::{Client, ClientError, Delivery};
 use relayterm_config::StorageSettings;
 use relayterm_domain::{Observation, WorkspaceId};
-use relayterm_ipc::Endpoint;
+use relayterm_ipc::{Endpoint, LocalListener};
 use relayterm_persistence_sqlite::{
     Database, DatabaseKind, InitializationError, OpenMode, PoolSettings, RegistrationState,
     Registry, SqliteStore, StorageError, initialize_workspace,
@@ -152,10 +152,11 @@ fn decode_path(path: NativePathDto) -> Result<PathBuf, RuntimeError> {
     decode_native_path(&path.encoding, &bytes).map_err(|_| RuntimeError::Protocol)
 }
 
+#[doc(hidden)]
 #[derive(Clone)]
-struct Notify(watch::Sender<u64>);
+pub struct RuntimeNotifier(watch::Sender<u64>);
 
-impl EventNotifier for Notify {
+impl EventNotifier for RuntimeNotifier {
     async fn notify(&self, _: WorkspaceId, revision: u64) -> relayterm_domain::Result<()> {
         let _ = self.0.send(revision);
         Ok(())
@@ -240,7 +241,7 @@ pub async fn initialize(
         pool_settings(config.as_ref()),
         SystemClock,
         RandomIdGenerator::default(),
-        Notify(watch::channel(0).0),
+        RuntimeNotifier(watch::channel(0).0),
     )
     .await
     .map_err(map_initialization)?;
@@ -348,10 +349,89 @@ pub async fn serve_workspace(
     home: Option<PathBuf>,
     expected: WorkspaceId,
 ) -> Result<(), RuntimeError> {
+    prepare_workspace(root, home, expected).await?.run().await
+}
+
+/// Prepared production runtime composition. Exposed for process-level integration tests and
+/// the future supervisor adapter; normal clients cannot inject lifecycle observations.
+pub struct PreparedWorkspace {
+    expected: WorkspaceId,
+    diagnostics: DiagnosticLog,
+    database: Database,
+    store: SqliteStore,
+    service: Arc<Service<SqliteStore, SystemClock, RandomIdGenerator, RuntimeNotifier>>,
+    notify_rx: watch::Receiver<u64>,
+    listener: LocalListener,
+}
+
+impl PreparedWorkspace {
+    #[doc(hidden)]
+    pub fn service(
+        &self,
+    ) -> Arc<Service<SqliteStore, SystemClock, RandomIdGenerator, RuntimeNotifier>> {
+        self.service.clone()
+    }
+
+    pub async fn run(self) -> Result<(), RuntimeError> {
+        self.run_with_ready(|| {}).await
+    }
+
+    #[doc(hidden)]
+    pub async fn run_with_ready<F>(self, ready: F) -> Result<(), RuntimeError>
+    where
+        F: FnOnce(),
+    {
+        let (control, shutdown) = DaemonControl::new(
+            RandomIdGenerator::default()
+                .next()
+                .map_err(|_| RuntimeError::Spawn)?
+                .to_string(),
+        );
+        let server =
+            WorkspaceServer::from_listener(self.expected, self.listener, self.service, self.store)
+                .with_event_wakeups(self.notify_rx)
+                .with_lifecycle(control.clone());
+        self.diagnostics.write(
+            "info",
+            "daemon.ready",
+            self.expected,
+            Some(control.generation()),
+        );
+        ready();
+        let signal_control = control.clone();
+        let signal = tokio::spawn(async move {
+            if tokio::signal::ctrl_c().await.is_ok() {
+                signal_control.request_shutdown();
+            }
+        });
+        let result = server.run(shutdown).await;
+        signal.abort();
+        result.map_err(|_| RuntimeError::Transport)?;
+        self.diagnostics.write(
+            "info",
+            "daemon.stopped",
+            self.expected,
+            Some(control.generation()),
+        );
+        drop(self.database);
+        Ok(())
+    }
+}
+
+/// Open and reconcile a workspace only after acquiring exclusive runtime ownership.
+pub async fn prepare_workspace(
+    root: &Path,
+    home: Option<PathBuf>,
+    expected: WorkspaceId,
+) -> Result<PreparedWorkspace, RuntimeError> {
     let (route, locations) = locate_workspace(root, home).await?;
     if route.domain_id()? != expected {
         return Err(RuntimeError::InvalidWorkspace);
     }
+    let endpoint = endpoint(&locations, expected)?;
+    let listener = LocalListener::bind(&endpoint)
+        .await
+        .map_err(|_| RuntimeError::Busy)?;
     let diagnostics =
         DiagnosticLog::open(&locations, expected).map_err(|_| RuntimeError::AccessDenied)?;
     diagnostics.write("info", "daemon.starting", expected, None);
@@ -370,7 +450,7 @@ pub async fn serve_workspace(
         store.clone(),
         SystemClock,
         RandomIdGenerator::default(),
-        Notify(notify_tx),
+        RuntimeNotifier(notify_tx),
     ));
     let snapshot = store
         .begin(expected)
@@ -391,36 +471,15 @@ pub async fn serve_workspace(
         diagnostics.write("error", "daemon.recovery_failed", expected, None);
         return Err(RuntimeError::RecoveryRequired);
     }
-    let endpoint = endpoint(&locations, expected)?;
-    let (control, shutdown) = DaemonControl::new(
-        RandomIdGenerator::default()
-            .next()
-            .map_err(|_| RuntimeError::Spawn)?
-            .to_string(),
-    );
-    let server = WorkspaceServer::bind(expected, &endpoint, service, store)
-        .await
-        .map_err(|_| RuntimeError::Transport)?
-        .with_event_wakeups(notify_rx)
-        .with_lifecycle(control.clone());
-    diagnostics.write("info", "daemon.ready", expected, Some(control.generation()));
-    let signal_control = control.clone();
-    let signal = tokio::spawn(async move {
-        if tokio::signal::ctrl_c().await.is_ok() {
-            signal_control.request_shutdown();
-        }
-    });
-    let result = server.run(shutdown).await;
-    signal.abort();
-    result.map_err(|_| RuntimeError::Transport)?;
-    diagnostics.write(
-        "info",
-        "daemon.stopped",
+    Ok(PreparedWorkspace {
         expected,
-        Some(control.generation()),
-    );
-    drop(database);
-    Ok(())
+        diagnostics,
+        database,
+        store,
+        service,
+        notify_rx,
+        listener,
+    })
 }
 
 fn workspace_database_path(locations: &PrivateLocations, id: WorkspaceId) -> PathBuf {
