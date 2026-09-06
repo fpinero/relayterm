@@ -8,7 +8,7 @@ Keep the daemon responsible for durable state and supervised processes. Keep dom
 
 ### How to execute this queue
 
-- Start with M06. Follow milestone dependencies and the task order within each milestone; consult `avances.md` for fulfilled dependencies. Complete M06 before production PTY or TUI implementation.
+- Start with M07. Follow milestone dependencies and the task order within each milestone; consult `avances.md` for fulfilled dependencies.
 - Treat each task ID as one reviewable outcome, including its relevant tests and documentation. Split a task before coding if its implementation cannot be reviewed coherently in one session. Preserve its ID as a prefix for new child tasks.
 - For a milestone ending in `[PLAN]`, complete its first planning task before implementation. Record the named decisions, contracts, failure cases, and test design, then refine the remaining tasks in this file. The marker identifies unresolved engineering details, not permission to expand MVP scope.
 - At each session start, read repository instructions, check the branch and working tree, and consult `avances.md` for satisfied dependencies. Continue the earliest unblocked task. Work on a feature or fix branch, never directly on `main` or `master`.
@@ -21,43 +21,11 @@ Keep the daemon responsible for durable state and supervised processes. Keep dom
 
 Use the specification's recommended Rust stack and the pinned bootstrap toolchain. Verify support when adding dependencies; avoid unused dependencies and empty adapter crates until needed. Follow the eight [architecture decisions](docs/architecture/README.md), refining the risky ones at their implementation gates.
 
-The remaining first-slice route is M05 through M06: daemon lifecycle, an administrative CLI workflow, and the durable vertical-slice gate. M07 adds real PTYs; M08 adds the TUI; M09 and M10 add templates and explicit worktree isolation; M11 and M12 validate and prepare the release candidate. After M08, M09 and M10 may proceed independently. Windows PTY behavior must be validated when that adapter is introduced.
+The durable first-slice gate is complete. M07 adds real PTYs; M08 adds the TUI; M09 and M10 add templates and explicit worktree isolation; M11 and M12 validate and prepare the release candidate. After M08, M09 and M10 may proceed independently. Windows PTY behavior must be validated when that adapter is introduced.
 
 Public export and disk-backed scrollback are optional and are deferred from this roadmap. Keep scrollback bounded in daemon memory. Do not add transcript ingestion, provider APIs, automatic task mutation from agent prose, autonomous orchestration, TCP listeners, hosted dependencies, telemetry, graphical clients, or automatic Git commits, merges, rebases, or deletion. Any later export proposal must first add exact-content preview, redaction, and destination confirmation as required by FR-10.
 
 Keep task dependencies informational, as defined in the specification and [M02 storage contract](docs/M02_storage_contract.md); do not introduce a scheduler. Git worktree creation is included because AC-10 requires it, even though several related requirements use SHOULD.
-
-## M06: First durable vertical slice
-
-Depends on: M05. Specification phase: 1 exit gate. Coverage: FR-1, FR-5, FR-6, FR-9; AC-1, AC-5, AC-6, AC-7, AC-9, AC-11 foundations; section 18.
-
-Outcome: prove continuity before adding real PTY and TUI complexity.
-
-Execution contract: [M06 detailed plan](docs/M06_details.md). Add its section 10 child tasks before implementation; preserve missing prerequisite evidence as pending.
-
-- M06.01a: Audit runtime ownership before recovery and bounded child I/O; reproduce and fix confirmed defects with regression tests.
-- M06.01b: Build isolated Git and non-Git native fixtures with bounded child ownership, output, deadlines, and cleanup.
-- M06.01c: Add a test-only synthetic lifecycle host over shared production daemon composition, with no production simulation surface.
-- M06.01d: Add deterministic readiness, concurrency, and fault barriers, and prove all process helpers are invoked by non-ignored gates.
-- M06.01e: Resolve and record the inherited M05 terminal-close evidence discrepancy on native platforms.
-- M06.02a: Exercise initialization, definitions, instances, tasks, exclusive claims, and progress through real CLI and IPC processes.
-- M06.02b: Exercise rejected handover rollback, atomic handover release, fresh-client context reads, successor claim, and completion.
-- M06.02c: Exercise explicit release/reopen/reclaim, instance exclusivity, informational dependencies, and cross-workspace rejection.
-- M06.02d: Race claims from separate clients behind a deterministic barrier and prove one winner with no losing effects.
-- M06.03a: Verify graceful and abrupt restart recovery, production startup, lost reconciliation, and idempotence.
-- M06.03b: Verify explicit continuation by a new instance without reviving prior instances or claims.
-- M06.03c: Verify transaction and connection failure boundaries with accurate process-level and internal evidence.
-- M06.03d: Verify bounded pagination, coherent two-client reads, ordered event continuity, and reconnect behavior.
-- M06.03e: Verify source-tree cleanliness and safe event, diagnostic, and error content.
-- M06.04a: Publish reproducible first-slice instructions and update only evidence-backed status documentation.
-- M06.04b: Add the bounded native M06 CI gate and obtain repeated Linux, macOS, and Windows evidence.
-- M06.04c: Run all contract checks and record exact candidate and native evidence, including M06.01e.
-- M06.04d: Close only verified queue entries, deliver the PR, merge after required checks, and verify postmerge CI.
-
-- M06.01: Build a process-level test harness with isolated data/runtime directories and synthetic instance supervision. Run the real daemon and administrative client against real SQLite and IPC; keep the fake supervisor confined to tests.
-- M06.02: Automate workspace initialization, task creation, exclusive claim, rejected competing claim, progress, structured handover, release, and resume by another synthetic instance. Assert verification and next action remain readable without any private transcript.
-- M06.03: Restart the daemon in that scenario and assert durable entities, claim history, honest lost-session reconciliation, and ordered events survive. Repeat state reads from two clients and check the source tree contains no runtime-private artifacts.
-- M06.04: Publish the reproducible first-slice test instructions and verify the gate in Linux, macOS, and Windows CI. Run core/protocol checks without the TUI. Only proceed to production PTY/TUI work when this scenario passes; real-session acceptance remains pending in M07 and M11.
 
 ## M07: Real PTY supervision and reattachment [PLAN]
 
