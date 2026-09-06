@@ -839,3 +839,91 @@ fn completed_host_can_be_joined() {
     }
     Host(child).wait();
 }
+
+#[cfg(unix)]
+fn terminal_process(
+    script: &Path,
+    binary: &str,
+    root: &Path,
+    private: &Path,
+    ready: &Path,
+) -> Child {
+    let mut command = Command::new("script");
+    if cfg!(target_os = "macos") {
+        command.args(["-q", "/dev/null", "sh"]);
+        command.arg(script);
+    } else {
+        command.args(["-q", "-c", "sh \"$RT_TERMINAL_SCRIPT\"", "/dev/null"]);
+    }
+    command
+        .env("RT_TERMINAL_SCRIPT", script)
+        .env("RT_TEST_BIN", binary)
+        .env("RT_TEST_ROOT", root)
+        .env("RT_TEST_PRIVATE", private)
+        .env("RT_TEST_READY", ready)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap()
+}
+
+#[cfg(windows)]
+fn terminal_process(
+    script: &Path,
+    binary: &str,
+    root: &Path,
+    private: &Path,
+    ready: &Path,
+) -> Child {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
+    let mut command = Command::new("powershell");
+    command
+        .args(["-NoProfile", "-NonInteractive", "-File"])
+        .arg(script)
+        .env("RT_TEST_BIN", binary)
+        .env("RT_TEST_ROOT", root)
+        .env("RT_TEST_PRIVATE", private)
+        .env("RT_TEST_READY", ready)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .creation_flags(CREATE_NEW_CONSOLE);
+    command.spawn().unwrap()
+}
+
+#[test]
+fn closing_launch_console_keeps_daemon_reachable() {
+    let scratch = Scratch::new();
+    let root = scratch.0.join("Console project");
+    let private = scratch.0.join("private");
+    let ready = scratch.0.join("console-ready");
+    fs::create_dir(&root).unwrap();
+    #[cfg(unix)]
+    let (script, content) = (
+        scratch.0.join("terminal.sh"),
+        "#!/bin/sh\n\"$RT_TEST_BIN\" --workspace \"$RT_TEST_ROOT\" --home \"$RT_TEST_PRIVATE\" --format json workspace init --name \"Console fixture\" >/dev/null || exit 1\n: > \"$RT_TEST_READY\"\nsleep 300\n",
+    );
+    #[cfg(windows)]
+    let (script, content) = (
+        scratch.0.join("terminal.ps1"),
+        "& $env:RT_TEST_BIN --workspace $env:RT_TEST_ROOT --home $env:RT_TEST_PRIVATE --format json workspace init --name 'Console fixture' | Out-Null\nif ($LASTEXITCODE -ne 0) { exit 1 }\nSet-Content -LiteralPath $env:RT_TEST_READY -Value ready\nStart-Sleep -Seconds 300\n",
+    );
+    fs::write(&script, content).unwrap();
+    let mut terminal = terminal_process(&script, env!("CARGO_BIN_EXE_rt"), &root, &private, &ready);
+    let deadline = Instant::now() + HOST_TIMEOUT;
+    while !ready.exists() {
+        if let Some(status) = terminal.try_wait().unwrap() {
+            panic!("console fixture exited before readiness: {status}");
+        }
+        assert!(Instant::now() < deadline, "console fixture was not ready");
+        thread::sleep(Duration::from_millis(10));
+    }
+    terminal.kill().unwrap();
+    terminal.wait().unwrap();
+    let state = success(&root, &private, &["daemon", "status"], None);
+    assert_eq!(state["lifecycle"], "ready");
+    success(&root, &private, &["daemon", "stop"], None);
+    assert_eq!(fs::read_dir(root).unwrap().count(), 0);
+}
