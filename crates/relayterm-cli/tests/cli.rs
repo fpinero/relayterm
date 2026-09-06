@@ -131,7 +131,7 @@ fn bootstrap_rejects_invalid_input_without_side_effects() {
 }
 
 fn invoke(binary: &str, root: &PathBuf, private: &PathBuf, args: &[&str]) -> std::process::Output {
-    Command::new(binary)
+    let child = Command::new(binary)
         .args(["--workspace"])
         .arg(root)
         .args(["--home"])
@@ -139,8 +139,11 @@ fn invoke(binary: &str, root: &PathBuf, private: &PathBuf, args: &[&str]) -> std
         .args(["--format", "json"])
         .args(args)
         .stdin(Stdio::null())
-        .output()
-        .unwrap()
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    finish_line_after_exit(child, "CLI command")
 }
 
 fn invoke_raw_stdin(
