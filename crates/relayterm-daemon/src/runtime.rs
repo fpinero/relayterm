@@ -442,6 +442,7 @@ impl PreparedWorkspace {
                     .await
                     .map_err(|_| RuntimeError::Storage)?;
             }
+            supervisor.terminate_all();
             if tokio::time::Instant::now() >= cleanup_deadline {
                 return Err(RuntimeError::Timeout);
             }

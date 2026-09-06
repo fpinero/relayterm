@@ -661,6 +661,9 @@ where
                     {
                         supervisor::wait_for_output().await;
                         self.observe_terminal_exits().await;
+                        if let Some(supervisor) = &self.supervisor {
+                            supervisor.terminate_all();
+                        }
                         if tokio::time::Instant::now() >= deadline {
                             return Err(unavailable());
                         }

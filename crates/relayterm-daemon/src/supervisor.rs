@@ -455,6 +455,14 @@ impl SessionSupervisor {
         let Ok(sessions) = self.sessions.lock() else {
             return;
         };
+        if sessions.values().any(|session| {
+            (!session.final_state.load(Ordering::Acquire)
+                && session.terminate_requested.load(Ordering::Acquire))
+                || (session.final_state.load(Ordering::Acquire)
+                    && !session.cleanup_complete.load(Ordering::Acquire))
+        }) {
+            return;
+        }
         for session in sessions.values() {
             if !session.final_state.load(Ordering::Acquire) {
                 session.terminate_requested.store(true, Ordering::Release);
@@ -463,6 +471,7 @@ impl SessionSupervisor {
                 {
                     let _ = control.terminate();
                 }
+                break;
             }
         }
     }
