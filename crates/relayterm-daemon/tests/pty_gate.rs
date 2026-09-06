@@ -365,6 +365,7 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
         )
         .await
         .unwrap();
+    wait_for_text(&client, &first, "fixture-echo:hello").await;
     assert!(
         client
             .call::<_, Value>(
@@ -382,7 +383,6 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
         )
         .await
         .unwrap();
-    wait_for_text(&client, &first, "fixture-echo:hello").await;
     let descendant_state = wait_for_text(&client, &first, "fixture-descendant:").await;
     let descendant_text = visible_text(&descendant_state);
     let descendant_pid: u32 = descendant_text
