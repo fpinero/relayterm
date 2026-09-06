@@ -116,15 +116,27 @@ impl NativeControl {
         }
         #[cfg(windows)]
         if let Some(process_id) = self.child.process_id() {
-            let status = std::process::Command::new("taskkill.exe")
+            let mut terminator = std::process::Command::new("taskkill.exe")
                 .args(["/PID", &process_id.to_string(), "/T", "/F"])
                 .stdin(std::process::Stdio::null())
                 .stdout(std::process::Stdio::null())
                 .stderr(std::process::Stdio::null())
-                .status()
+                .spawn()
                 .map_err(|_| PtyError::Io)?;
-            if status.success() {
-                return Ok(());
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+            loop {
+                if let Some(status) = terminator.try_wait().map_err(|_| PtyError::Io)? {
+                    if status.success() {
+                        return Ok(());
+                    }
+                    break;
+                }
+                if std::time::Instant::now() >= deadline {
+                    let _ = terminator.kill();
+                    let _ = terminator.wait();
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(10));
             }
         }
         self.child.kill().map_err(|_| PtyError::Io)

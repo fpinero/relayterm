@@ -203,6 +203,9 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
     );
     let first_receipt = uuid::Uuid::new_v4().to_string();
     let first = create_definition_session(&client, &definition, &first_receipt).await;
+    eprintln!("M07 PTY gate: first native session launched");
+    wait_for_text(&client, &first, "fixture-ready").await;
+    eprintln!("M07 PTY gate: initial terminal output reconstructed");
     let repeated = create_definition_session(&client, &definition, &first_receipt).await;
     assert_eq!(repeated, first, "a launch receipt must be idempotent");
     assert!(
@@ -341,7 +344,7 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
     client
         .call::<_, Value>(
             Operation::SessionInput,
-            &json!({"session_id":first,"lease_id":lease_id,"sequence":"1","data":STANDARD.encode(b"hello\n")}),
+            &json!({"session_id":first,"lease_id":lease_id,"sequence":"1","data":STANDARD.encode(terminal_line("hello"))}),
         )
         .await
         .unwrap();
@@ -349,7 +352,7 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
         client
             .call::<_, Value>(
                 Operation::SessionInput,
-                &json!({"session_id":first,"lease_id":lease_id,"sequence":"1","data":STANDARD.encode(b"duplicate\n")}),
+                &json!({"session_id":first,"lease_id":lease_id,"sequence":"1","data":STANDARD.encode(terminal_line("duplicate"))}),
             )
             .await
             .is_err(),
@@ -358,7 +361,7 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
     client
         .call::<_, Value>(
             Operation::SessionInput,
-            &json!({"session_id":first,"lease_id":lease_id,"sequence":"2","data":STANDARD.encode(b"descendant\n")}),
+            &json!({"session_id":first,"lease_id":lease_id,"sequence":"2","data":STANDARD.encode(terminal_line("descendant"))}),
         )
         .await
         .unwrap();
@@ -373,6 +376,7 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
         .collect::<String>()
         .parse()
         .unwrap();
+    eprintln!("M07 PTY gate: descendant process observed");
     client
         .call::<_, Value>(
             Operation::SessionResize,
@@ -424,7 +428,7 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
     observer
         .call::<_, Value>(
             Operation::SessionInput,
-            &json!({"session_id":first,"lease_id":replacement_lease_id,"sequence":"1","data":STANDARD.encode(b"stream-check\n")}),
+            &json!({"session_id":first,"lease_id":replacement_lease_id,"sequence":"1","data":STANDARD.encode(terminal_line("stream-check"))}),
         )
         .await
         .unwrap();
@@ -461,7 +465,7 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
     observer
         .call::<_, Value>(
             Operation::SessionInput,
-            &json!({"session_id":first,"lease_id":replacement_lease_id,"sequence":"2","data":STANDARD.encode(b"flood\n")}),
+            &json!({"session_id":first,"lease_id":replacement_lease_id,"sequence":"2","data":STANDARD.encode(terminal_line("flood"))}),
         )
         .await
         .unwrap();
@@ -492,6 +496,7 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
         .call::<_, Value>(Operation::SessionTerminate, &json!({"session_id":first}))
         .await
         .unwrap();
+    eprintln!("M07 PTY gate: primary process tree terminated");
     let descendant_deadline = Instant::now() + Duration::from_secs(5);
     while process_exists(descendant_pid) {
         assert!(
@@ -526,6 +531,13 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
         .unwrap()
         .unwrap();
     assert_private_tree_has_no_terminal_capture(&private);
+    eprintln!("M07 PTY gate: completed");
+}
+
+fn terminal_line(value: &str) -> Vec<u8> {
+    let mut bytes = value.as_bytes().to_vec();
+    bytes.push(b'\r');
+    bytes
 }
 
 async fn create_definition_session(
