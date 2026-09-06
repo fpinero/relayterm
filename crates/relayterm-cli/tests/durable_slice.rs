@@ -195,7 +195,7 @@ fn run_cli(root: &Path, private: &Path, args: &[&str], input: Option<&Value>) ->
         if Instant::now() >= deadline {
             let _ = child.kill();
             let _ = child.wait();
-            panic!("CLI stage exceeded its deadline");
+            panic!("CLI command {args:?} exceeded its deadline");
         }
         thread::sleep(Duration::from_millis(10));
     };
@@ -945,9 +945,12 @@ fn closing_launch_console_keeps_daemon_reachable() {
         assert!(Instant::now() < deadline, "console fixture was not ready");
         thread::sleep(Duration::from_millis(10));
     }
+    eprintln!("console gate: three sessions ready");
     terminal.kill().unwrap();
     terminal.wait().unwrap();
+    eprintln!("console gate: launch console closed");
     let state = success(&root, &private, &["daemon", "status"], None);
+    eprintln!("console gate: detached daemon reached");
     assert_eq!(state["lifecycle"], "ready");
     let session_ids: Vec<String> = (1..=3)
         .map(|index| {
@@ -964,11 +967,13 @@ fn closing_launch_console_keeps_daemon_reachable() {
         assert_eq!(attached["snapshot"]["rows"], 24);
         assert_eq!(attached["snapshot"]["columns"], 80);
     }
+    eprintln!("console gate: three sessions reattached");
     success(
         &root,
         &private,
         &["daemon", "stop", "--terminate-sessions"],
         None,
     );
+    eprintln!("console gate: sessions terminated and daemon stopped");
     assert_eq!(fs::read_dir(root).unwrap().count(), 0);
 }
