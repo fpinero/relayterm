@@ -191,6 +191,43 @@ impl AgentDefinition {
         Ok(())
     }
 }
+#[derive(Clone, Eq, PartialEq)]
+pub struct LaunchDefinitionSnapshot {
+    pub definition_id: AgentDefinitionId,
+    pub display_name: String,
+    pub command: String,
+    pub arguments: Vec<String>,
+    pub environment_allowlist: Vec<String>,
+    pub capabilities: Vec<String>,
+    pub enabled: bool,
+}
+impl LaunchDefinitionSnapshot {
+    pub fn from_definition(definition: &AgentDefinition) -> Self {
+        let record = definition.record();
+        Self {
+            definition_id: record.id,
+            display_name: record.display_name.clone(),
+            command: record.command.clone(),
+            arguments: record.arguments.clone(),
+            environment_allowlist: record.environment_allowlist.clone(),
+            capabilities: record.capabilities.clone(),
+            enabled: record.enabled,
+        }
+    }
+    pub fn validate(&self, workspace_id: WorkspaceId) -> Result<()> {
+        AgentDefinition::restore(AgentDefinitionRecord {
+            id: self.definition_id,
+            workspace_id,
+            display_name: self.display_name.clone(),
+            command: self.command.clone(),
+            arguments: self.arguments.clone(),
+            environment_allowlist: self.environment_allowlist.clone(),
+            capabilities: self.capabilities.clone(),
+            enabled: self.enabled,
+        })
+        .map(|_| ())
+    }
+}
 #[derive(Clone, PartialEq, Eq)]
 pub struct TaskContent {
     pub title: String,
@@ -274,6 +311,7 @@ impl TerminalSize {
 record!(AgentInstance, AgentInstanceRecord {
     id: AgentInstanceId, session_id: TerminalSessionId, workspace_id: WorkspaceId,
     agent_definition_id: Option<AgentDefinitionId>, task_id: Option<TaskId>,
+    launch_definition: Option<LaunchDefinitionSnapshot>,
     working_directory: PathBuf, status: InstanceStatus, started_at: Timestamp, last_observed_at: Timestamp,
     ended_at: Option<Timestamp>, exit_code: Option<i32>, terminal_size: TerminalSize,
 });
@@ -281,6 +319,12 @@ impl AgentInstance {
     fn validate(&self) -> Result<()> {
         let r = &self.0;
         native_path(&r.working_directory, "working_directory")?;
+        if r.agent_definition_id != r.launch_definition.as_ref().map(|x| x.definition_id) {
+            return Err(Error::State);
+        }
+        if let Some(snapshot) = &r.launch_definition {
+            snapshot.validate(r.workspace_id)?;
+        }
         if r.status.is_final() != r.ended_at.is_some()
             || (!r.status.is_final() && r.exit_code.is_some())
             || (r.status == InstanceStatus::Lost && r.exit_code.is_some())

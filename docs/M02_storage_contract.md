@@ -16,7 +16,8 @@ All IDs are distinct UUID wrappers retaining the M01 workspace/task API. `Timest
 | `AgentDefinitionRecord` | `id`, `workspace_id`, `display_name`, `command`, `arguments`, `environment_allowlist`, `capabilities`, `enabled` |
 | `TaskRecord` | `id`, `workspace_id`, `content`, `status`, `claimed_by_instance_id`, `worktree_id`, `created_at`, `updated_at` |
 | `TaskContent` | `title`, `description`, `priority`, `scope_paths`, `acceptance_notes`, `dependency_ids` |
-| `AgentInstanceRecord` | `id`, `session_id`, `workspace_id`, `agent_definition_id`, `task_id`, `working_directory`, `status`, `started_at`, `last_observed_at`, `ended_at`, `exit_code`, `terminal_size` |
+| `AgentInstanceRecord` | `id`, `session_id`, `workspace_id`, `agent_definition_id`, `task_id`, `launch_definition`, `working_directory`, `status`, `started_at`, `last_observed_at`, `ended_at`, `exit_code`, `terminal_size` |
+| `LaunchDefinitionSnapshot` | Stable definition ID, display name, command, arguments, environment names, capabilities, and enabled state accepted for one configured launch |
 | `TerminalSize` | `rows`, `columns` through validated construction |
 | `ClaimRecord` | `id`, `workspace_id`, `task_id`, `instance_id`, `requested_by`, `opened_at`, `closed_at`, `close_reason`, `closed_by` |
 | `ProgressEntryRecord` | `id`, `workspace_id`, `task_id`, `agent_instance_id`, `summary`, `verification`, `created_at` |
@@ -73,7 +74,7 @@ An adapter commit must:
 1. Compare the captured revision with the current revision inside the storage transaction.
 2. Call `WriteBatch::validate` against the current snapshot and enforce storage key, reference, and claim-exclusivity constraints.
 3. Prepare all row changes and event records without partial writes.
-4. Reject duplicate event IDs, including collisions with already committed events.
+4. Reject duplicate event IDs, including collisions with already committed events in the same workspace. Separate workspace databases do not claim a cross-file atomic event-ID reservation.
 5. Assign strictly increasing per-workspace event sequences, starting at 1, and increment the workspace revision for a material commit. Detect integer exhaustion before writes.
 6. Atomically persist all rows, histories, revision, and confirmed events.
 7. Return a `Committed` value only after successful commit.
@@ -84,11 +85,11 @@ After commit, the service calls `EventNotifier`. Failure is reported as `notific
 
 ## Events, queries, and actor routing
 
-Payload variants use stable `snake_case` names for workspace/definition/task creation, task edits and transitions, instance registration and observations, claim opening and closure, progress, and handover preparation. Payloads contain only typed identities, states, closure reasons, and changed-field names. They never copy narrative text, arguments, environment entries, private paths, or terminal bytes. `event_type` and `entity_id` are checked against the typed payload; payload version remains independent of IPC version 1.
+Payload variants use stable `snake_case` names for workspace, definition, and task creation, definition updates, task edits and transitions, instance registration and observations, claim opening and closure, progress, and handover preparation. Definition updates list changed field names without their values. Payloads contain only typed identities, states, closure reasons, and changed-field names. They never copy narrative text, arguments, environment entries, private paths, or terminal bytes. `event_type` and `entity_id` are checked against the typed payload; payload version remains independent of IPC version 1.
 
 Deserialize confirmed events through `WorkspaceEvent` so unknown variants, fields, invalid IDs, and invalid versions produce safe diagnostics without echoing input. Boundary `EventRecord` is an explicit adapter DTO, not a substitute for the validated event type.
 
-`Service::snapshot` queries workspace, definitions, tasks, current claims, and instances through immutable views. `Service::history` returns separately paginated claim, progress, and handover histories for one existing task. Pages use append-order offsets and return the snapshot revision. Clients comparing pages must use revision information; M04 defines stronger synchronized client query contracts.
+`Service::snapshot` queries workspace, definitions, tasks, current claims, and instances through immutable views. M03 adds a durable read port that returns snapshot revision, last event sequence, and retention floor from one SQLite read transaction, plus bounded event pages. `Service::history` retains offset compatibility for pure tests. Durable clients use database indexes and sequence cursors. M04 owns subscription after a watermark and resnapshot behavior.
 
 Client requests use `Service::execute`; it rejects `System`. `register_instance` and `observe` are internal supervisor entry points, and future IPC routing must not expose unrestricted synthetic observations. User interventions retain user attribution, with absent optional instance attribution in user progress and handovers.
 

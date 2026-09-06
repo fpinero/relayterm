@@ -91,11 +91,7 @@ impl Transaction for MemoryTransaction {
         let mut all = existing;
         let mut confirmed = vec![];
         for pending in batch.events() {
-            if db
-                .events
-                .values()
-                .flatten()
-                .any(|e| e.record().event_id == pending.event_id)
+            if all.iter().any(|e| e.record().event_id == pending.event_id)
                 || confirmed
                     .iter()
                     .any(|e: &WorkspaceEvent| e.record().event_id == pending.event_id)

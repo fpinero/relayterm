@@ -102,6 +102,11 @@ mod contract_tests;
 /// ```
 ///
 /// ```compile_fail
+/// use relayterm_domain::LaunchDefinitionSnapshot;
+/// fn log_launch(value: &LaunchDefinitionSnapshot) { println!("{value:?}"); }
+/// ```
+///
+/// ```compile_fail
 /// use relayterm_domain::{AgentInstanceId, TerminalSessionId};
 /// fn session(instance: AgentInstanceId) -> TerminalSessionId { instance }
 /// ```

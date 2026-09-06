@@ -1,0 +1,22 @@
+[package]
+name = "relayterm-persistence-sqlite"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+relayterm-application = { path = "../relayterm-application", version = "0.1.0" }
+relayterm-domain = { path = "../relayterm-domain", version = "0.1.0" }
+relayterm-platform = { path = "../relayterm-platform", version = "0.1.0" }
+serde_json.workspace = true
+sqlx.workspace = true
+tokio.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

@@ -9,6 +9,13 @@ fn allowed_dependencies(name: &str) -> Option<&'static [&'static str]> {
     match name {
         "relayterm-domain" => Some(&[]),
         "relayterm-application" => Some(&["relayterm-domain"]),
+        "relayterm-platform" => Some(&["relayterm-application", "relayterm-domain"]),
+        "relayterm-config" => Some(&["relayterm-application", "relayterm-domain"]),
+        "relayterm-persistence-sqlite" => Some(&[
+            "relayterm-application",
+            "relayterm-domain",
+            "relayterm-platform",
+        ]),
         "relayterm-protocol" => Some(&[]),
         "relayterm-daemon" => Some(&[
             "relayterm-application",

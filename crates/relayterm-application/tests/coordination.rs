@@ -10,6 +10,90 @@ use std::{
 use support::*;
 
 #[test]
+fn stable_definition_import_is_revision_checked_atomic_and_idempotent() {
+    let fixture = Fixture::new();
+    fixture
+        .run(
+            Actor::LocalUser,
+            Request::AddDefinition {
+                display_name: "Preserved agent".into(),
+                command: "preserved".into(),
+                arguments: Vec::new(),
+                environment_allowlist: Vec::new(),
+                capabilities: Vec::new(),
+                enabled: true,
+            },
+        )
+        .unwrap();
+    let preserved_id = fixture.state().definitions()[0].record().id;
+    let baseline = block_on(fixture.service.snapshot(fixture.workspace))
+        .unwrap()
+        .revision();
+    let definition_id: AgentDefinitionId = "30000000-0000-4000-8000-000000000001".parse().unwrap();
+    let candidate = |command: &str| {
+        AgentDefinition::restore(AgentDefinitionRecord {
+            id: definition_id,
+            workspace_id: fixture.workspace,
+            display_name: "Imported agent".into(),
+            command: command.into(),
+            arguments: vec!["--safe".into()],
+            environment_allowlist: vec!["PATH".into()],
+            capabilities: vec!["terminal".into()],
+            enabled: true,
+        })
+        .unwrap()
+    };
+    let created = block_on(fixture.service.import_definitions(
+        fixture.workspace,
+        baseline,
+        vec![candidate("agent")],
+    ))
+    .unwrap();
+    assert_eq!(created.committed.events.len(), 1);
+    assert!(
+        created
+            .committed
+            .snapshot
+            .state()
+            .unwrap()
+            .definitions()
+            .iter()
+            .any(|definition| definition.record().id == preserved_id)
+    );
+    assert!(matches!(
+        created.committed.events[0].record().payload,
+        EventPayload::DefinitionCreated { .. }
+    ));
+    let current_revision = created.committed.snapshot.revision();
+    let identical = block_on(fixture.service.import_definitions(
+        fixture.workspace,
+        current_revision,
+        vec![candidate("agent")],
+    ))
+    .unwrap();
+    assert_eq!(identical.committed.snapshot.revision(), current_revision);
+    assert!(identical.committed.events.is_empty());
+    assert_eq!(
+        block_on(fixture.service.import_definitions(
+            fixture.workspace,
+            baseline,
+            vec![candidate("new-agent")]
+        ))
+        .err(),
+        Some(Error::Conflict)
+    );
+    let updated = block_on(fixture.service.import_definitions(
+        fixture.workspace,
+        current_revision,
+        vec![candidate("new-agent")],
+    ))
+    .unwrap();
+    assert!(
+        matches!(&updated.committed.events[0].record().payload, EventPayload::DefinitionUpdated { fields, .. } if fields == &[DefinitionField::Command])
+    );
+}
+
+#[test]
 fn continuity_gate_preserves_context_attribution_and_event_order() {
     let f = Fixture::new();
     f.run(

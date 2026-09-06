@@ -24,6 +24,7 @@ pub struct WorkspaceRows {
 /// User-facing intent cannot carry the internal System actor.
 pub enum Command {
     AddDefinition(AgentDefinition),
+    ImportDefinitions(Vec<AgentDefinition>),
     CreateTask {
         id: TaskId,
         content: TaskContent,
@@ -58,7 +59,7 @@ pub enum Command {
 }
 /// Supervisor-only observations, routed separately from client commands.
 pub enum Observation {
-    Register(AgentInstance),
+    Register(Box<AgentInstance>),
     Status {
         id: AgentInstanceId,
         status: InstanceStatus,
@@ -223,7 +224,9 @@ impl WorkspaceState {
         let mut after = self.clone();
         let mut events = vec![];
         after.apply(actor, command, at, &mut events)?;
-        after.workspace.0.updated_at = at;
+        if !events.is_empty() {
+            after.workspace.0.updated_at = at;
+        }
         after.validate()?;
         Ok(Changes {
             before: self.clone(),
@@ -254,6 +257,59 @@ impl WorkspaceState {
                     id: definition.0.id,
                 });
                 self.definitions.push(definition);
+            }
+            Command::ImportDefinitions(definitions) => {
+                actor.user()?;
+                for (index, definition) in definitions.iter().enumerate() {
+                    if definition.0.workspace_id != workspace_id {
+                        return Err(Error::Reference);
+                    }
+                    if definitions[..index]
+                        .iter()
+                        .any(|candidate| candidate.0.id == definition.0.id)
+                    {
+                        return Err(Error::Conflict);
+                    }
+                }
+                for definition in definitions {
+                    if let Some(current) = self
+                        .definitions
+                        .iter_mut()
+                        .find(|current| current.0.id == definition.0.id)
+                    {
+                        let old = current.record();
+                        let new = definition.record();
+                        let mut fields = Vec::new();
+                        if old.display_name != new.display_name {
+                            fields.push(DefinitionField::DisplayName);
+                        }
+                        if old.command != new.command {
+                            fields.push(DefinitionField::Command);
+                        }
+                        if old.arguments != new.arguments {
+                            fields.push(DefinitionField::Arguments);
+                        }
+                        if old.environment_allowlist != new.environment_allowlist {
+                            fields.push(DefinitionField::EnvironmentAllowlist);
+                        }
+                        if old.capabilities != new.capabilities {
+                            fields.push(DefinitionField::Capabilities);
+                        }
+                        if old.enabled != new.enabled {
+                            fields.push(DefinitionField::Enabled);
+                        }
+                        if !fields.is_empty() {
+                            let id = new.id;
+                            *current = definition;
+                            events.push(EventPayload::DefinitionUpdated { id, fields });
+                        }
+                    } else {
+                        events.push(EventPayload::DefinitionCreated {
+                            id: definition.0.id,
+                        });
+                        self.definitions.push(definition);
+                    }
+                }
             }
             Command::CreateTask { id, content } => {
                 actor.user()?;
@@ -423,6 +479,7 @@ impl WorkspaceState {
         let mut events = vec![];
         match observation {
             Observation::Register(instance) => {
+                let instance = *instance;
                 if instance.0.workspace_id != self.workspace.0.id {
                     return Err(Error::Reference);
                 }
@@ -444,6 +501,11 @@ impl WorkspaceState {
                         .ok_or(Error::Reference)?;
                     if !definition.0.enabled {
                         return Err(Error::Unavailable);
+                    }
+                    if instance.0.launch_definition.as_ref()
+                        != Some(&LaunchDefinitionSnapshot::from_definition(definition))
+                    {
+                        return Err(Error::State);
                     }
                 }
                 events.push(EventPayload::InstanceRegistered {
