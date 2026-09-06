@@ -53,7 +53,7 @@ pub fn validate_private_dir(path: &Path) -> Result<(), PrivatePathError> {
     }
     validate_metadata(&metadata, true)?;
     #[cfg(windows)]
-    validate_windows_acl(path)?;
+    validate_windows_acl(path, true)?;
     Ok(())
 }
 
@@ -67,7 +67,7 @@ pub fn validate_private_file(path: &Path) -> Result<(), PrivatePathError> {
     }
     validate_metadata(&metadata, false)?;
     #[cfg(windows)]
-    validate_windows_acl(path)?;
+    validate_windows_acl(path, false)?;
     Ok(())
 }
 
@@ -201,12 +201,26 @@ fn secure_windows_path(path: &Path) -> Result<(), PrivatePathError> {
 }
 
 #[cfg(windows)]
-fn validate_windows_acl(path: &Path) -> Result<(), PrivatePathError> {
-    use windows_permissions::{WindowsSecure, constants::SecurityInformation, wrappers};
-    let descriptor = path
-        .as_os_str()
-        .security_descriptor(SecurityInformation::Owner | SecurityInformation::Dacl)
-        .map_err(|_| PrivatePathError::AccessDenied)?;
+fn validate_windows_acl(path: &Path, directory: bool) -> Result<(), PrivatePathError> {
+    use std::os::windows::fs::OpenOptionsExt;
+    use windows_permissions::{
+        constants::{SeObjectType, SecurityInformation},
+        wrappers,
+    };
+
+    const FILE_FLAG_BACKUP_SEMANTICS: u32 = 0x0200_0000;
+    let mut options = OpenOptions::new();
+    options.read(true).access_mode(windows_read_acl_access());
+    if directory {
+        options.custom_flags(FILE_FLAG_BACKUP_SEMANTICS);
+    }
+    let handle = options.open(path).map_err(map_io)?;
+    let descriptor = wrappers::GetSecurityInfo(
+        &handle,
+        SeObjectType::SE_FILE_OBJECT,
+        SecurityInformation::Owner | SecurityInformation::Dacl,
+    )
+    .map_err(|_| PrivatePathError::AccessDenied)?;
     let owner = descriptor.owner().ok_or(PrivatePathError::AccessDenied)?;
     let current = windows_permissions::utilities::current_process_sid()
         .map_err(|_| PrivatePathError::AccessDenied)?;
@@ -239,9 +253,14 @@ fn validate_windows_acl(path: &Path) -> Result<(), PrivatePathError> {
 
 #[cfg(windows)]
 const fn windows_security_access() -> u32 {
-    const READ_CONTROL: u32 = 0x0002_0000;
     const WRITE_DAC: u32 = 0x0004_0000;
-    READ_CONTROL | WRITE_DAC
+    windows_read_acl_access() | WRITE_DAC
+}
+
+#[cfg(windows)]
+const fn windows_read_acl_access() -> u32 {
+    const READ_CONTROL: u32 = 0x0002_0000;
+    READ_CONTROL
 }
 
 #[cfg(windows)]
@@ -290,7 +309,10 @@ mod tests {
     #[test]
     fn rejects_broad_existing_windows_acl() {
         use std::os::windows::fs::OpenOptionsExt;
-        use windows_permissions::WindowsSecure;
+        use windows_permissions::{
+            constants::{SeObjectType, SecurityInformation},
+            wrappers,
+        };
 
         const FILE_FLAG_BACKUP_SEMANTICS: u32 = 0x0200_0000;
         let temporary = tempfile::tempdir().unwrap();
@@ -307,7 +329,16 @@ mod tests {
             .custom_flags(FILE_FLAG_BACKUP_SEMANTICS)
             .open(&directory)
             .unwrap();
-        handle.set_dacl(descriptor.dacl().unwrap()).unwrap();
+        wrappers::SetSecurityInfo(
+            &mut handle,
+            SeObjectType::SE_FILE_OBJECT,
+            SecurityInformation::Dacl | SecurityInformation::ProtectedDacl,
+            None,
+            None,
+            descriptor.dacl(),
+            None,
+        )
+        .unwrap();
         assert_eq!(
             validate_private_dir(&directory),
             Err(PrivatePathError::AccessDenied)
