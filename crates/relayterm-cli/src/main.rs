@@ -5,9 +5,11 @@ use relayterm_protocol::{ErrorCode, JSON_FRAME_LIMIT, Operation, decode_json};
 use serde_json::{Value, json};
 use std::{
     fs::File,
-    io::{self, Read, Write},
+    io::{self, BufRead, BufReader, Read, Write},
     path::{Path, PathBuf},
     process::{Command as ProcessCommand, ExitCode, Stdio},
+    sync::mpsc,
+    thread,
     time::{Duration, Instant},
 };
 
@@ -500,15 +502,35 @@ fn invoke_bootstrap(
         .ok_or(CliError::Io)?
         .write_all(&request)
         .map_err(|_| CliError::Runtime(RuntimeError::Transport))?;
-    let output = child
-        .wait_with_output()
+    let stdout = child.stdout.take().ok_or(CliError::Io)?;
+    let (response_tx, response_rx) = mpsc::sync_channel(1);
+    thread::spawn(move || {
+        let mut response = Vec::new();
+        let result = BufReader::new(stdout)
+            .take((MAX_BOOTSTRAP + 1) as u64)
+            .read_until(b'\n', &mut response)
+            .map(|_| response);
+        let _ = response_tx.send(result);
+    });
+    let response_deadline = Duration::from_secs(timeout.saturating_add(2));
+    let stdout = match response_rx.recv_timeout(response_deadline) {
+        Ok(Ok(value)) => value,
+        Ok(Err(_)) => return Err(CliError::Runtime(RuntimeError::Transport)),
+        Err(_) => {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(CliError::Runtime(RuntimeError::Timeout));
+        }
+    };
+    let status = child
+        .wait()
         .map_err(|_| CliError::Runtime(RuntimeError::Transport))?;
-    if output.stdout.len() > MAX_BOOTSTRAP {
+    if stdout.len() > MAX_BOOTSTRAP {
         return Err(CliError::InvalidInput);
     }
-    let envelope: Value = serde_json::from_slice(&output.stdout)
-        .map_err(|_| CliError::Runtime(RuntimeError::Protocol))?;
-    if !output.status.success() {
+    let envelope: Value =
+        serde_json::from_slice(&stdout).map_err(|_| CliError::Runtime(RuntimeError::Protocol))?;
+    if !status.success() {
         return Err(map_bootstrap_error(&envelope));
     }
     serde_json::from_value(
