@@ -33,6 +33,8 @@ Depends on: M02. Specification phase: 1. Coverage: FR-1, FR-5, FR-6, FR-9; NFR-2
 
 Outcome: durable entities and event history outside the project, with safe version handling.
 
+Detailed implementation plan, contracts, and verification gates: [M03 details](docs/M03_details.md).
+
 - M03.01: Implement OS-appropriate configuration, data, runtime, and cache locations plus a documented test/portable override. Test canonical workspace identity, missing directories, restrictive permissions or ACLs, and absence of generated state in the project by default.
 - M03.02: Implement configuration parsing and validation for definitions, preferences, and resource bounds. Warn on unknown fields, fail closed for invalid security-sensitive values, and test precedence and rejected secret-bearing configuration according to the ADR.
 - M03.03: Add the SQLite adapter and versioned initial migrations for workspaces, definitions, instances/sessions, tasks, claim history, progress, handovers, and events. Enforce references, claim exclusivity, and ordered per-workspace event sequences at the storage boundary.
