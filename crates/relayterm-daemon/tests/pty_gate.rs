@@ -13,6 +13,23 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[cfg(unix)]
+fn native_temp() -> tempfile::TempDir {
+    tempfile::Builder::new()
+        .prefix("rt7-")
+        .tempdir_in(if cfg!(target_os = "macos") {
+            "/private/tmp"
+        } else {
+            "/tmp"
+        })
+        .unwrap()
+}
+
+#[cfg(windows)]
+fn native_temp() -> tempfile::TempDir {
+    tempfile::tempdir().unwrap()
+}
+
 #[test]
 #[ignore]
 fn interactive_fixture_child() {
@@ -62,7 +79,7 @@ fn interactive_fixture_child() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
-    let temporary = tempfile::tempdir().unwrap();
+    let temporary = native_temp();
     let project = temporary.path().join("project with space");
     std::fs::create_dir(&project).unwrap();
     let private = temporary.path().join("private");
