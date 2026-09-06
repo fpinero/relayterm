@@ -114,6 +114,19 @@ impl NativeControl {
             return rustix::process::kill_process_group(group, rustix::process::Signal::KILL)
                 .map_err(|_| PtyError::Io);
         }
+        #[cfg(windows)]
+        if let Some(process_id) = self.child.process_id() {
+            let status = std::process::Command::new("taskkill.exe")
+                .args(["/PID", &process_id.to_string(), "/T", "/F"])
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status()
+                .map_err(|_| PtyError::Io)?;
+            if status.success() {
+                return Ok(());
+            }
+        }
         self.child.kill().map_err(|_| PtyError::Io)
     }
 
@@ -294,8 +307,12 @@ mod tests {
         .unwrap();
         let (mut control, writer, mut reader) = native.into_parts();
         drop(writer);
-        let mut output = Vec::new();
-        reader.read_to_end(&mut output).unwrap();
+        let (output_tx, output_rx) = std::sync::mpsc::sync_channel(1);
+        std::thread::spawn(move || {
+            let mut output = Vec::new();
+            let result = reader.read_to_end(&mut output).map(|_| output);
+            let _ = output_tx.send(result);
+        });
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
         let exit = loop {
             if let Some(exit) = control.try_wait().unwrap() {
@@ -305,6 +322,10 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(10));
         };
         assert!(exit.code == 0);
+        let output = output_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .unwrap()
+            .unwrap();
         assert!(String::from_utf8_lossy(&output).contains("relayterm-pty"));
     }
 }

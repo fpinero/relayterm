@@ -2,6 +2,7 @@
 
 mod diagnostics;
 mod runtime;
+mod supervisor;
 pub use runtime::*;
 
 #[doc(hidden)]
@@ -14,6 +15,7 @@ pub use relayterm_domain::{
 #[doc(hidden)]
 pub use relayterm_platform::SystemClock as RuntimeSystemClock;
 
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use relayterm_application::{
     Clock, DurableReadStore, EventNotifier, EventPageRequest, IdGenerator, Request, Service, Store,
     TaskHistoryItem, TaskHistoryPageRequest,
@@ -111,6 +113,19 @@ impl Drop for AbortTask {
     }
 }
 
+struct TerminalConnectionGuard {
+    supervisor: Option<Arc<supervisor::SessionSupervisor>>,
+    connection_id: uuid::Uuid,
+}
+
+impl Drop for TerminalConnectionGuard {
+    fn drop(&mut self) {
+        if let Some(supervisor) = &self.supervisor {
+            supervisor.release_connection(self.connection_id);
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 struct Subscription {
     after_sequence: u64,
@@ -121,6 +136,7 @@ struct Subscription {
 
 enum WriterControl {
     Frame(Vec<u8>),
+    FrameThenTerminal(Vec<u8>, Vec<u8>),
     FrameAndFlush(Vec<u8>, tokio::sync::oneshot::Sender<()>),
     ResetSubscription(Vec<u8>),
 }
@@ -205,6 +221,7 @@ pub struct WorkspaceServer<S, C, I, N> {
     faults: ServerFaults,
     event_wakeups: Option<watch::Receiver<u64>>,
     lifecycle: Option<DaemonControl>,
+    supervisor: Option<Arc<supervisor::SessionSupervisor>>,
 }
 impl<S, C, I, N> WorkspaceServer<S, C, I, N>
 where
@@ -243,6 +260,7 @@ where
             faults: ServerFaults::default(),
             event_wakeups: None,
             lifecycle: None,
+            supervisor: None,
         }
     }
     pub fn with_event_wakeups(mut self, receiver: watch::Receiver<u64>) -> Self {
@@ -251,6 +269,13 @@ where
     }
     pub fn with_lifecycle(mut self, control: DaemonControl) -> Self {
         self.lifecycle = Some(control);
+        self
+    }
+    pub(crate) fn with_supervisor(
+        mut self,
+        supervisor: Arc<supervisor::SessionSupervisor>,
+    ) -> Self {
+        self.supervisor = Some(supervisor);
         self
     }
     pub fn fault_injector(&self) -> ServerFaults {
@@ -319,6 +344,10 @@ where
             return Err(ServerError::Protocol);
         }
         let connection_id = connection_id();
+        let _terminal_connection = TerminalConnectionGuard {
+            supervisor: self.supervisor.clone(),
+            connection_id: connection_id.as_uuid(),
+        };
         let operations = wire::Operation::ALL
             .into_iter()
             .filter(|operation| {
@@ -329,7 +358,8 @@ where
                     )
             })
             .collect();
-        let hello = wire::HelloResult::new(connection_id, self.wire_workspace_id, operations);
+        let hello = wire::HelloResult::new(connection_id, self.wire_workspace_id, operations)
+            .with_terminal(self.supervisor.is_some());
         send_response(
             &mut stream,
             wire::ResponseEnvelope::success(
@@ -412,8 +442,16 @@ where
                         queue_response(&control_tx,wire::ResponseEnvelope::failure(request.request_id,self.wire_workspace_id,unavailable()),false).await?;
                         continue
                     }
+                    if request.operation == wire::Operation::SessionReadOutput {
+                        let (response, terminal) = match self.session_read_output(&request.params, connection_id) {
+                            Ok((value, terminal)) => (wire::ResponseEnvelope::success(request.request_id, self.wire_workspace_id, value), terminal),
+                            Err(error) => (wire::ResponseEnvelope::failure(request.request_id, self.wire_workspace_id, error), None),
+                        };
+                        queue_terminal_response(&control_tx, response, terminal).await?;
+                        continue
+                    }
                     let _operation=self.operations.clone().acquire_owned().await.map_err(|_|ServerError::ResourceLimit)?;
-                    let response=match self.dispatch(&request).await{Ok(value)=>wire::ResponseEnvelope::success(request.request_id,self.wire_workspace_id,value),Err(error)=>wire::ResponseEnvelope::failure(request.request_id,self.wire_workspace_id,error)};
+                    let response=match self.dispatch(&request,connection_id).await{Ok(value)=>wire::ResponseEnvelope::success(request.request_id,self.wire_workspace_id,value),Err(error)=>wire::ResponseEnvelope::failure(request.request_id,self.wire_workspace_id,error)};
                     let shutdown_accepted = request.operation == wire::Operation::DaemonShutdown && response.error.is_none();
                     self.faults.pause_if_requested(request.operation.is_mutation()).await;
                     if self.faults.take_drop(request.operation.is_mutation()){return Err(ServerError::Transport)}
@@ -543,15 +581,33 @@ where
         Ok(())
     }
 
-    async fn dispatch(&self, request: &wire::RequestEnvelope) -> Result<Value, wire::ErrorBody> {
+    async fn dispatch(
+        &self,
+        request: &wire::RequestEnvelope,
+        connection_id: wire::ConnectionId,
+    ) -> Result<Value, wire::ErrorBody> {
         use wire::Operation as O;
+        self.observe_terminal_exits().await;
         if request.operation == O::Unknown {
             return Err(wire::ErrorBody::not_applied(
                 wire::ErrorCode::UnknownOperation,
                 wire::Recovery::None,
             ));
         }
-        if request.operation.is_reserved() {
+        if request.operation.is_reserved()
+            && !matches!(
+                request.operation,
+                O::SessionCreate
+                    | O::SessionAttach
+                    | O::SessionInput
+                    | O::SessionResize
+                    | O::SessionTerminate
+                    | O::SessionDetach
+                    | O::SessionAcquireInput
+                    | O::SessionReleaseInput
+                    | O::SessionReadOutput
+            )
+        {
             validate_reserved(request.operation, &request.params)?;
             return Err(unavailable());
         }
@@ -586,12 +642,125 @@ where
             O::DaemonShutdown => {
                 let params: wire::DaemonShutdownParams = parameters(&request.params)?;
                 let control = self.lifecycle.as_ref().ok_or_else(unavailable)?;
+                if self
+                    .supervisor
+                    .as_ref()
+                    .is_some_and(|supervisor| supervisor.live_count() != 0)
+                {
+                    if !params.terminate_sessions {
+                        return Err(map_domain_error(domain::Error::Conflict));
+                    }
+                    if let Some(supervisor) = &self.supervisor {
+                        supervisor.terminate_all();
+                    }
+                    let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+                    while self
+                        .supervisor
+                        .as_ref()
+                        .is_some_and(|supervisor| supervisor.live_count() != 0)
+                    {
+                        supervisor::wait_for_output().await;
+                        self.observe_terminal_exits().await;
+                        if tokio::time::Instant::now() >= deadline {
+                            return Err(unavailable());
+                        }
+                    }
+                }
                 control.begin_shutdown(&params.generation)?;
                 serde_json::to_value(wire::DaemonShutdownResult {
                     generation: control.generation().to_owned(),
                     lifecycle: "draining".to_owned(),
                 })
                 .map_err(|_| invalid())
+            }
+            O::SessionCreate => self.session_create(&request.params).await,
+            O::SessionAttach => self.session_attach(&request.params, connection_id).await,
+            O::SessionDetach => {
+                let params: wire::SessionDetachParams = parameters(&request.params)?;
+                self.supervisor
+                    .as_ref()
+                    .ok_or_else(unavailable)?
+                    .detach(params.session_id.as_uuid(), connection_id.as_uuid())
+                    .map_err(map_supervisor)?;
+                Ok(json!({"detached":true}))
+            }
+            O::SessionAcquireInput => {
+                let params: wire::SessionAcquireInputParams = parameters(&request.params)?;
+                let lease = self
+                    .supervisor
+                    .as_ref()
+                    .ok_or_else(unavailable)?
+                    .acquire_input(params.session_id.as_uuid(), connection_id.as_uuid())
+                    .map_err(map_supervisor)?;
+                Ok(json!({"lease_id":lease.to_string(),"next_input_sequence":"1"}))
+            }
+            O::SessionReleaseInput => {
+                let params: wire::SessionReleaseInputParams = parameters(&request.params)?;
+                self.supervisor
+                    .as_ref()
+                    .ok_or_else(unavailable)?
+                    .release_input(
+                        params.session_id.as_uuid(),
+                        connection_id.as_uuid(),
+                        params.lease_id.get(),
+                    )
+                    .map_err(map_supervisor)?;
+                Ok(json!({"released":true}))
+            }
+            O::SessionInput => {
+                let params: wire::SessionInputParams = parameters(&request.params)?;
+                let data = STANDARD
+                    .decode(params.data)
+                    .map_err(|_| invalid_field(wire::ErrorField::TerminalData))?;
+                self.supervisor
+                    .as_ref()
+                    .ok_or_else(unavailable)?
+                    .input(
+                        params.session_id.as_uuid(),
+                        connection_id.as_uuid(),
+                        params.lease_id.get(),
+                        params.sequence.get(),
+                        data,
+                    )
+                    .map_err(map_supervisor)?;
+                Ok(json!({"accepted":true}))
+            }
+            O::SessionResize => {
+                let params: wire::SessionResizeParams = parameters(&request.params)?;
+                let revision = self
+                    .supervisor
+                    .as_ref()
+                    .ok_or_else(unavailable)?
+                    .resize(
+                        params.session_id.as_uuid(),
+                        connection_id.as_uuid(),
+                        params.lease_id.get(),
+                        params.rows,
+                        params.columns,
+                    )
+                    .map_err(map_supervisor)?;
+                Ok(json!({"revision":revision.to_string()}))
+            }
+            O::SessionTerminate => {
+                let params: wire::SessionTerminateParams = parameters(&request.params)?;
+                self.supervisor
+                    .as_ref()
+                    .ok_or_else(unavailable)?
+                    .terminate(params.session_id.as_uuid())
+                    .map_err(map_supervisor)?;
+                let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+                while self
+                    .supervisor
+                    .as_ref()
+                    .is_some_and(|supervisor| supervisor.is_live(params.session_id.as_uuid()))
+                {
+                    supervisor::wait_for_output().await;
+                    self.observe_terminal_exits().await;
+                    if tokio::time::Instant::now() >= deadline {
+                        return Err(unavailable());
+                    }
+                }
+                Ok(json!({"terminated":true}))
             }
             O::WorkspaceGetSnapshot => self.snapshot_page(&request.params, None).await,
             O::AgentListDefinitions => {
@@ -652,6 +821,285 @@ where
             O::HandoverCreate => self.mutate_handover(&request.params).await,
             O::ProtocolHello | O::EventSubscribe | O::EventUnsubscribe => Err(invalid()),
             _ => Err(unavailable()),
+        }
+    }
+
+    async fn session_create(&self, value: &Value) -> Result<Value, wire::ErrorBody> {
+        let params: wire::SessionCreateParams = parameters(value)?;
+        validate_reserved(wire::Operation::SessionCreate, value)?;
+        let supervisor = self.supervisor.as_ref().ok_or_else(unavailable)?;
+        let before = self
+            .reads
+            .consistent_snapshot(self.workspace_id)
+            .await
+            .map_err(map_domain_error)?;
+        let state = before.snapshot.state().map_err(map_domain_error)?;
+        let root = state.workspace().record().project_root.clone();
+        let requested = match params.working_directory {
+            Some(path) => {
+                let bytes = path.decode().map_err(|_| invalid())?;
+                relayterm_platform::decode_native_path(&path.encoding, &bytes)
+                    .map_err(|_| invalid())?
+            }
+            None => root.clone(),
+        };
+        let working_directory =
+            relayterm_pty::canonical_working_directory(&root, &requested).map_err(|_| invalid())?;
+        let definition_id = params
+            .definition_id
+            .map(|id| domain::AgentDefinitionId::from_uuid(id.as_uuid()));
+        let task_id = params
+            .task_id
+            .map(|id| domain::TaskId::from_uuid(id.as_uuid()));
+        let (program, arguments, allowed) = match params.launch_kind {
+            wire::SessionLaunchKind::DefaultShell => {
+                (relayterm_pty::default_shell(), Vec::new(), Vec::new())
+            }
+            wire::SessionLaunchKind::Definition => {
+                let id = definition_id.ok_or_else(invalid)?;
+                let definition = state
+                    .definitions()
+                    .iter()
+                    .find(|definition| definition.record().id == id)
+                    .ok_or_else(|| map_domain_error(domain::Error::Reference))?;
+                let record = definition.record();
+                if !record.enabled {
+                    return Err(unavailable());
+                }
+                (
+                    record.command.clone().into(),
+                    record.arguments.iter().map(Into::into).collect(),
+                    record.environment_allowlist.clone(),
+                )
+            }
+        };
+        let receipt_id = params.receipt_id.as_uuid();
+        let launch_key = supervisor::LaunchKey {
+            definition_id: definition_id.map(|id| id.as_uuid()),
+            task_id: task_id.map(|id| id.as_uuid()),
+            program: program.clone(),
+            arguments: arguments.clone(),
+            working_directory: working_directory.clone(),
+            rows: params.rows,
+            columns: params.columns,
+        };
+        match supervisor
+            .admit_launch(receipt_id, launch_key)
+            .map_err(map_supervisor)?
+        {
+            supervisor::LaunchAdmission::New => {}
+            supervisor::LaunchAdmission::Existing(outcome) if outcome.succeeded => {
+                return Ok(json!({
+                    "receipt_id": receipt_id.to_string(),
+                    "instance_id": outcome.instance_id.to_string(),
+                    "session_id": outcome.session_id.to_string(),
+                    "status": "running"
+                }));
+            }
+            supervisor::LaunchAdmission::Existing(_) => {
+                return Err(map_supervisor(supervisor::SupervisorError::Io));
+            }
+        }
+        let previous: std::collections::HashSet<_> = state
+            .instances()
+            .iter()
+            .map(|instance| instance.record().id)
+            .collect();
+        let registered = self
+            .service
+            .register_instance(
+                self.workspace_id,
+                relayterm_application::LaunchContext {
+                    agent_definition_id: definition_id,
+                    task_id,
+                    working_directory: working_directory.clone(),
+                    terminal_size: domain::TerminalSize::new(params.rows, params.columns)
+                        .map_err(map_domain_error)?,
+                },
+            )
+            .await;
+        let registered = match registered {
+            Ok(value) => value,
+            Err(error) => {
+                supervisor.cancel_launch(receipt_id);
+                return Err(map_domain_error(error));
+            }
+        };
+        let instance = registered
+            .committed
+            .snapshot
+            .state()
+            .map_err(map_domain_error)?
+            .instances()
+            .iter()
+            .find(|instance| !previous.contains(&instance.record().id))
+            .ok_or_else(|| map_domain_error(domain::Error::State))?;
+        let instance_id = instance.record().id;
+        let session_id = instance.record().session_id;
+        let environment = relayterm_pty::terminal_environment(relayterm_pty::approved_environment(
+            &allowed,
+            std::env::vars_os(),
+        ));
+        let spawned = supervisor.launch(
+            session_id.as_uuid(),
+            instance_id.as_uuid(),
+            relayterm_pty::SpawnRequest {
+                program,
+                arguments,
+                working_directory,
+                environment,
+                rows: params.rows,
+                columns: params.columns,
+            },
+        );
+        let now = relayterm_platform::SystemClock
+            .now()
+            .map_err(map_domain_error)?;
+        let status = if spawned.is_ok() {
+            domain::InstanceStatus::Running
+        } else {
+            domain::InstanceStatus::Failed
+        };
+        let observed = self
+            .service
+            .observe(
+                self.workspace_id,
+                domain::Observation::Status {
+                    id: instance_id,
+                    status,
+                    observed_at: now,
+                    exit_code: None,
+                },
+            )
+            .await;
+        if observed.is_err() && spawned.is_ok() {
+            let _ = supervisor.terminate(session_id.as_uuid());
+        }
+        let succeeded = spawned.is_ok() && observed.is_ok();
+        supervisor
+            .complete_launch(
+                receipt_id,
+                supervisor::LaunchOutcome {
+                    instance_id: instance_id.as_uuid(),
+                    session_id: session_id.as_uuid(),
+                    succeeded,
+                },
+            )
+            .map_err(map_supervisor)?;
+        observed.map_err(map_domain_error)?;
+        spawned.map_err(map_supervisor)?;
+        Ok(json!({
+            "receipt_id": receipt_id.to_string(),
+            "instance_id": instance_id.to_string(),
+            "session_id": session_id.to_string(),
+            "status": "running"
+        }))
+    }
+
+    async fn session_attach(
+        &self,
+        value: &Value,
+        connection_id: wire::ConnectionId,
+    ) -> Result<Value, wire::ErrorBody> {
+        let params: wire::SessionAttachParams = parameters(value)?;
+        let (attachment_id, stream_id, snapshot) = self
+            .supervisor
+            .as_ref()
+            .ok_or_else(unavailable)?
+            .attach(params.session_id.as_uuid(), connection_id.as_uuid())
+            .map_err(map_supervisor)?;
+        let generation = self
+            .lifecycle
+            .as_ref()
+            .ok_or_else(unavailable)?
+            .generation();
+        let value = json!({
+            "daemon_generation": generation,
+            "attachment_id": attachment_id.to_string(),
+            "stream_id": stream_id.to_string(),
+            "snapshot": snapshot,
+        });
+        if serde_json::to_vec(&value).map_err(|_| resource())?.len() > wire::JSON_FRAME_LIMIT / 2 {
+            return Err(resource());
+        }
+        Ok(value)
+    }
+
+    fn session_read_output(
+        &self,
+        value: &Value,
+        connection_id: wire::ConnectionId,
+    ) -> Result<(Value, Option<Vec<u8>>), wire::ErrorBody> {
+        let params: wire::SessionReadOutputParams = parameters(value)?;
+        let supervisor = self.supervisor.as_ref().ok_or_else(unavailable)?;
+        match supervisor.read_output(
+            params.session_id.as_uuid(),
+            connection_id.as_uuid(),
+            params.attachment_id.as_uuid(),
+            params.after_offset.get(),
+        ) {
+            Ok((stream_id, next_offset, data)) => {
+                let terminal = if data.is_empty() {
+                    None
+                } else {
+                    Some(
+                        wire::TerminalFrame {
+                            session_id: params.session_id,
+                            stream_id,
+                            offset: params.after_offset.get(),
+                            data,
+                        }
+                        .encode()
+                        .map_err(|_| resource())?,
+                    )
+                };
+                Ok((
+                    json!({
+                        "stream_id": stream_id.to_string(),
+                        "data_follows": terminal.is_some(),
+                        "resnapshot_required": false,
+                        "next_offset": next_offset.to_string()
+                    }),
+                    terminal,
+                ))
+            }
+            Err(supervisor::SupervisorError::ResnapshotRequired(stream_id)) => Ok((
+                json!({
+                    "stream_id": stream_id.to_string(),
+                    "data_follows": false,
+                    "resnapshot_required": true,
+                    "next_offset": params.after_offset.get().to_string()
+                }),
+                None,
+            )),
+            Err(error) => Err(map_supervisor(error)),
+        }
+    }
+
+    async fn observe_terminal_exits(&self) {
+        let Some(supervisor) = &self.supervisor else {
+            return;
+        };
+        for exit in supervisor.poll_exits() {
+            let Ok(at) = relayterm_platform::SystemClock.now() else {
+                continue;
+            };
+            let _ = self
+                .service
+                .observe(
+                    self.workspace_id,
+                    domain::Observation::Status {
+                        id: domain::AgentInstanceId::from_uuid(exit.instance_id),
+                        status: if exit.terminated {
+                            domain::InstanceStatus::Terminated
+                        } else {
+                            domain::InstanceStatus::Exited
+                        },
+                        observed_at: at,
+                        exit_code: Some(exit.code),
+                    },
+                )
+                .await;
         }
     }
 
@@ -1001,6 +1449,10 @@ async fn writer_loop<W: AsyncWrite + Unpin>(
             control=controls.recv()=>{
                 match control {
                     Some(WriterControl::Frame(bytes))=>write_frame(&mut writer,wire::FrameKind::Json,&bytes).await.map_err(|_|ServerError::Transport)?,
+                    Some(WriterControl::FrameThenTerminal(bytes, terminal))=>{
+                        write_frame(&mut writer,wire::FrameKind::Json,&bytes).await.map_err(|_|ServerError::Transport)?;
+                        write_frame(&mut writer,wire::FrameKind::Terminal,&terminal).await.map_err(|_|ServerError::Transport)?;
+                    }
                     Some(WriterControl::FrameAndFlush(bytes, completed))=>{
                         write_frame(&mut writer,wire::FrameKind::Json,&bytes).await.map_err(|_|ServerError::Transport)?;
                         let _ = completed.send(());
@@ -1057,6 +1509,25 @@ async fn queue_response(
         WriterControl::ResetSubscription(bytes)
     } else {
         WriterControl::Frame(bytes)
+    };
+    tokio::time::timeout(relayterm_ipc::WRITER_TIMEOUT, sender.send(command))
+        .await
+        .map_err(|_| ServerError::Transport)?
+        .map_err(|_| ServerError::Transport)
+}
+
+async fn queue_terminal_response(
+    sender: &mpsc::Sender<WriterControl>,
+    response: wire::ResponseEnvelope,
+    terminal: Option<Vec<u8>>,
+) -> Result<(), ServerError> {
+    let bytes = wire::encode_json(&response).map_err(|_| ServerError::Protocol)?;
+    if bytes.len() > wire::JSON_FRAME_LIMIT {
+        return Err(ServerError::ResourceLimit);
+    }
+    let command = match terminal {
+        Some(terminal) => WriterControl::FrameThenTerminal(bytes, terminal),
+        None => WriterControl::Frame(bytes),
     };
     tokio::time::timeout(relayterm_ipc::WRITER_TIMEOUT, sender.send(command))
         .await
@@ -1309,6 +1780,9 @@ fn validate_reserved(operation: wire::Operation, value: &Value) -> Result<(), wi
         O::SessionAttach => {
             let _: wire::SessionAttachParams = parameters(value)?;
         }
+        O::SessionReadOutput => {
+            let _: wire::SessionReadOutputParams = parameters(value)?;
+        }
         O::SessionInput => {
             let _: wire::SessionInputParams = parameters(value)?;
         }
@@ -1384,6 +1858,16 @@ fn unavailable() -> wire::ErrorBody {
 }
 fn resource() -> wire::ErrorBody {
     wire::ErrorBody::not_applied(wire::ErrorCode::ResourceLimit, wire::Recovery::None)
+}
+fn map_supervisor(error: supervisor::SupervisorError) -> wire::ErrorBody {
+    match error {
+        supervisor::SupervisorError::Reference => map_domain_error(domain::Error::Reference),
+        supervisor::SupervisorError::Conflict => map_domain_error(domain::Error::Conflict),
+        supervisor::SupervisorError::ResourceLimit => resource(),
+        supervisor::SupervisorError::Final => map_domain_error(domain::Error::State),
+        supervisor::SupervisorError::Io => unavailable(),
+        supervisor::SupervisorError::ResnapshotRequired(_) => resource(),
+    }
 }
 fn map_domain_error(error: domain::Error) -> wire::ErrorBody {
     use domain::Error as D;

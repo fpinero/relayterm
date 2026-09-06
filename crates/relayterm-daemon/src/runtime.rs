@@ -1,8 +1,10 @@
-use crate::{DaemonControl, WorkspaceServer, diagnostics::DiagnosticLog};
-use relayterm_application::{EventNotifier, IdGenerator, Service, Store, Transaction};
+use crate::{
+    DaemonControl, WorkspaceServer, diagnostics::DiagnosticLog, supervisor::SessionSupervisor,
+};
+use relayterm_application::{Clock, EventNotifier, IdGenerator, Service, Store, Transaction};
 use relayterm_client::{Client, ClientError, Delivery};
 use relayterm_config::StorageSettings;
-use relayterm_domain::{Observation, WorkspaceId};
+use relayterm_domain::{AgentInstanceId, InstanceStatus, Observation, WorkspaceId};
 use relayterm_ipc::{Endpoint, LocalListener};
 use relayterm_persistence_sqlite::{
     Database, DatabaseKind, InitializationError, OpenMode, PoolSettings, RegistrationState,
@@ -145,6 +147,10 @@ impl BootstrapRequest {
 fn encode_path(path: &Path) -> Result<NativePathDto, RuntimeError> {
     let encoded = encode_native_path(path).map_err(|_| RuntimeError::InvalidLocation)?;
     NativePathDto::from_bytes(encoded.tag, &encoded.bytes).map_err(|_| RuntimeError::Protocol)
+}
+
+pub fn encode_session_path(path: &Path) -> Result<NativePathDto, RuntimeError> {
+    encode_path(path)
 }
 
 fn decode_path(path: NativePathDto) -> Result<PathBuf, RuntimeError> {
@@ -387,10 +393,16 @@ impl PreparedWorkspace {
                 .map_err(|_| RuntimeError::Spawn)?
                 .to_string(),
         );
-        let server =
-            WorkspaceServer::from_listener(self.expected, self.listener, self.service, self.store)
-                .with_event_wakeups(self.notify_rx)
-                .with_lifecycle(control.clone());
+        let supervisor = Arc::new(SessionSupervisor::default());
+        let server = WorkspaceServer::from_listener(
+            self.expected,
+            self.listener,
+            self.service.clone(),
+            self.store,
+        )
+        .with_event_wakeups(self.notify_rx)
+        .with_lifecycle(control.clone())
+        .with_supervisor(supervisor.clone());
         self.diagnostics.write(
             "info",
             "daemon.ready",
@@ -407,6 +419,33 @@ impl PreparedWorkspace {
         let result = server.run(shutdown).await;
         signal.abort();
         result.map_err(|_| RuntimeError::Transport)?;
+        supervisor.terminate_all();
+        let cleanup_deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+        while supervisor.live_count() != 0 {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+            for exit in supervisor.poll_exits() {
+                let observed_at = SystemClock.now().map_err(|_| RuntimeError::Storage)?;
+                self.service
+                    .observe(
+                        self.expected,
+                        Observation::Status {
+                            id: AgentInstanceId::from_uuid(exit.instance_id),
+                            status: if exit.terminated {
+                                InstanceStatus::Terminated
+                            } else {
+                                InstanceStatus::Exited
+                            },
+                            observed_at,
+                            exit_code: Some(exit.code),
+                        },
+                    )
+                    .await
+                    .map_err(|_| RuntimeError::Storage)?;
+            }
+            if tokio::time::Instant::now() >= cleanup_deadline {
+                return Err(RuntimeError::Timeout);
+            }
+        }
         self.diagnostics.write(
             "info",
             "daemon.stopped",

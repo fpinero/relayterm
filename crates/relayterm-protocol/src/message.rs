@@ -61,6 +61,8 @@ wire_uuid!(HandoverId);
 wire_uuid!(EventId);
 wire_uuid!(WorktreeId);
 wire_uuid!(SubscriptionId);
+wire_uuid!(LaunchReceiptId);
+wire_uuid!(AttachmentId);
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct DecimalU64(u64);
@@ -91,6 +93,37 @@ impl<'de> Deserialize<'de> for DecimalU64 {
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ScalarError;
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct DecimalOffset(u64);
+impl DecimalOffset {
+    pub const fn new(value: u64) -> Self {
+        Self(value)
+    }
+    pub const fn get(self) -> u64 {
+        self.0
+    }
+}
+impl Serialize for DecimalOffset {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.0.to_string())
+    }
+}
+impl<'de> Deserialize<'de> for DecimalOffset {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let value = String::deserialize(deserializer)?;
+        if value.is_empty()
+            || (value.len() > 1 && value.starts_with('0'))
+            || !value.bytes().all(|byte| byte.is_ascii_digit())
+        {
+            return Err(de::Error::custom("invalid decimal offset"));
+        }
+        value
+            .parse()
+            .map(Self)
+            .map_err(|_| de::Error::custom("invalid decimal offset"))
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Operation {
@@ -124,12 +157,16 @@ pub enum Operation {
     SessionInput,
     SessionResize,
     SessionTerminate,
+    SessionDetach,
+    SessionAcquireInput,
+    SessionReleaseInput,
+    SessionReadOutput,
     WorktreeCreate,
     WorktreeList,
     Unknown,
 }
 impl Operation {
-    pub const ALL: [Self; 32] = [
+    pub const ALL: [Self; 36] = [
         Self::ProtocolHello,
         Self::ProtocolPing,
         Self::DaemonStatus,
@@ -160,6 +197,10 @@ impl Operation {
         Self::SessionInput,
         Self::SessionResize,
         Self::SessionTerminate,
+        Self::SessionDetach,
+        Self::SessionAcquireInput,
+        Self::SessionReleaseInput,
+        Self::SessionReadOutput,
         Self::WorktreeCreate,
         Self::WorktreeList,
     ];
@@ -195,6 +236,10 @@ impl Operation {
             Self::SessionInput => "session.input",
             Self::SessionResize => "session.resize",
             Self::SessionTerminate => "session.terminate",
+            Self::SessionDetach => "session.detach",
+            Self::SessionAcquireInput => "session.acquire_input",
+            Self::SessionReleaseInput => "session.release_input",
+            Self::SessionReadOutput => "session.read_output",
             Self::WorktreeCreate => "worktree.create",
             Self::WorktreeList => "worktree.list",
             Self::Unknown => "unknown",
@@ -208,6 +253,10 @@ impl Operation {
                 | Self::SessionInput
                 | Self::SessionResize
                 | Self::SessionTerminate
+                | Self::SessionDetach
+                | Self::SessionAcquireInput
+                | Self::SessionReleaseInput
+                | Self::SessionReadOutput
                 | Self::WorktreeCreate
                 | Self::WorktreeList
         )
@@ -226,6 +275,12 @@ impl Operation {
                 | Self::TaskRelease
                 | Self::ProgressAppend
                 | Self::HandoverCreate
+                | Self::SessionCreate
+                | Self::SessionInput
+                | Self::SessionResize
+                | Self::SessionTerminate
+                | Self::SessionAcquireInput
+                | Self::SessionReleaseInput
         )
     }
 }
@@ -470,6 +525,11 @@ impl HelloResult {
             terminal_available: false,
         }
     }
+
+    pub fn with_terminal(mut self, available: bool) -> Self {
+        self.terminal_available = available;
+        self
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -526,6 +586,8 @@ pub struct DaemonStatusResult {
 #[serde(deny_unknown_fields)]
 pub struct DaemonShutdownParams {
     pub generation: String,
+    #[serde(default)]
+    pub terminate_sessions: bool,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -730,6 +792,7 @@ pub struct HandoverDto {
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SessionCreateParams {
+    pub receipt_id: LaunchReceiptId,
     pub launch_kind: SessionLaunchKind,
     pub definition_id: Option<AgentDefinitionId>,
     pub task_id: Option<TaskId>,
@@ -752,12 +815,15 @@ pub struct SessionAttachParams {
 #[serde(deny_unknown_fields)]
 pub struct SessionInputParams {
     pub session_id: SessionId,
-    pub stream_id: DecimalU64,
+    pub lease_id: DecimalU64,
+    pub sequence: DecimalU64,
+    pub data: String,
 }
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SessionResizeParams {
     pub session_id: SessionId,
+    pub lease_id: DecimalU64,
     pub rows: u16,
     pub columns: u16,
 }
@@ -765,6 +831,103 @@ pub struct SessionResizeParams {
 #[serde(deny_unknown_fields)]
 pub struct SessionTerminateParams {
     pub session_id: SessionId,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SessionDetachParams {
+    pub session_id: SessionId,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SessionAcquireInputParams {
+    pub session_id: SessionId,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SessionReleaseInputParams {
+    pub session_id: SessionId,
+    pub lease_id: DecimalU64,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SessionReadOutputParams {
+    pub session_id: SessionId,
+    pub attachment_id: AttachmentId,
+    pub after_offset: DecimalOffset,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SessionCreateResult {
+    pub receipt_id: LaunchReceiptId,
+    pub instance_id: AgentInstanceId,
+    pub session_id: SessionId,
+    pub status: String,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SessionLeaseResult {
+    pub lease_id: DecimalU64,
+    pub next_input_sequence: DecimalU64,
+}
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TerminalAttachmentDto {
+    pub daemon_generation: String,
+    pub attachment_id: AttachmentId,
+    pub stream_id: DecimalU64,
+    pub snapshot: TerminalSnapshotDto,
+}
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TerminalOutputDto {
+    pub stream_id: DecimalU64,
+    pub data_follows: bool,
+    pub resnapshot_required: bool,
+    pub next_offset: DecimalOffset,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SessionRevisionResult {
+    pub revision: DecimalU64,
+}
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "value", rename_all = "snake_case")]
+pub enum TerminalColorDto {
+    Default,
+    Indexed(u8),
+    Rgb([u8; 3]),
+}
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TerminalCellDto {
+    pub contents: String,
+    pub foreground: TerminalColorDto,
+    pub background: TerminalColorDto,
+    pub bold: bool,
+    pub dim: bool,
+    pub italic: bool,
+    pub underline: bool,
+    pub inverse: bool,
+    pub wide: bool,
+    pub wide_continuation: bool,
+}
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TerminalSnapshotDto {
+    pub schema_version: u8,
+    pub revision: u64,
+    pub raw_offset: u64,
+    pub retained_from_offset: u64,
+    pub rows: u16,
+    pub columns: u16,
+    pub cursor_row: u16,
+    pub cursor_column: u16,
+    pub cursor_hidden: bool,
+    pub alternate_screen: bool,
+    pub application_cursor: bool,
+    pub application_keypad: bool,
+    pub bracketed_paste: bool,
+    pub cells: Vec<TerminalCellDto>,
 }
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -1080,6 +1243,33 @@ mod tests {
         assert_eq!(d.data, f.data);
         assert_eq!(d.stream_id, 7);
         assert!(TerminalFrame { data: vec![], ..f }.encode().is_err());
+    }
+
+    #[test]
+    fn session_stream_contract_is_strict_and_bounded() {
+        let id = SessionId::from_uuid(Uuid::nil());
+        let lease = DecimalU64::new(1).unwrap();
+        let encoded = encode_json(&SessionInputParams {
+            session_id: id,
+            lease_id: lease,
+            sequence: DecimalU64::new(1).unwrap(),
+            data: STANDARD.encode(b"input"),
+        })
+        .unwrap();
+        let decoded: SessionInputParams = decode_json(&encoded, false).unwrap();
+        assert_eq!(decoded.lease_id.get(), 1);
+        assert_eq!(decoded.sequence.get(), 1);
+        assert!(decode_json::<SessionInputParams>(
+            br#"{"session_id":"00000000-0000-0000-0000-000000000000","lease_id":"1","data":"aQ==","unexpected":true}"#,
+            false
+        )
+        .is_err());
+        for valid in [r#""0""#, r#""1""#, r#""18446744073709551615""#] {
+            assert!(serde_json::from_str::<DecimalOffset>(valid).is_ok());
+        }
+        for invalid in [r#""""#, r#""00""#, r#""01""#, "0"] {
+            assert!(serde_json::from_str::<DecimalOffset>(invalid).is_err());
+        }
     }
     #[test]
     fn paths_and_pages_are_bounded() {

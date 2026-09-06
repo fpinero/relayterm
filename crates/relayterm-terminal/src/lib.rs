@@ -14,6 +14,7 @@ pub enum TerminalError {
     InvalidSize,
     ResourceLimit,
     CounterOverflow,
+    ResnapshotRequired,
 }
 
 impl std::fmt::Display for TerminalError {
@@ -195,6 +196,32 @@ impl TerminalState {
     pub fn retained_bytes(&self) -> Vec<u8> {
         self.retained.iter().copied().collect()
     }
+
+    pub fn output_since(
+        &self,
+        after_offset: u64,
+        limit: usize,
+    ) -> Result<(u64, Vec<u8>), TerminalError> {
+        if limit == 0 || limit > 16 * 1024 || after_offset > self.raw_offset {
+            return Err(TerminalError::ResourceLimit);
+        }
+        if after_offset < self.retained_from_offset {
+            return Err(TerminalError::ResnapshotRequired);
+        }
+        let start = usize::try_from(after_offset - self.retained_from_offset)
+            .map_err(|_| TerminalError::ResourceLimit)?;
+        let data = self
+            .retained
+            .iter()
+            .skip(start)
+            .take(limit)
+            .copied()
+            .collect::<Vec<_>>();
+        let next = after_offset
+            .checked_add(u64::try_from(data.len()).map_err(|_| TerminalError::CounterOverflow)?)
+            .ok_or(TerminalError::CounterOverflow)?;
+        Ok((next, data))
+    }
 }
 
 fn validate_size(rows: u16, columns: u16) -> Result<(), TerminalError> {
@@ -258,7 +285,14 @@ mod tests {
 
     #[test]
     fn split_sequences_match_uninterrupted_state() {
-        let bytes = "start\x1b[2;3H\x1b[31mred界\x1b[?2004h".as_bytes();
+        let bytes = concat!(
+            "start\r\n",
+            "\x1b[2;3H\x1b[31mred",
+            "e\u{301}",
+            "\x1b[s\x1b[2;4r\x1b[4;11H界x\x1b[u",
+            "\x1b[?1h\x1b[?2004h"
+        )
+        .as_bytes();
         let mut expected = TerminalState::new(4, 12, 128).unwrap();
         expected.process(bytes).unwrap();
         let expected = expected.snapshot().unwrap();
@@ -271,6 +305,7 @@ mod tests {
             assert_eq!(candidate.cursor_row, expected.cursor_row);
             assert_eq!(candidate.cursor_column, expected.cursor_column);
             assert_eq!(candidate.bracketed_paste, expected.bracketed_paste);
+            assert_eq!(candidate.application_cursor, expected.application_cursor);
         }
     }
 
@@ -290,5 +325,17 @@ mod tests {
             .map(|cell| cell.contents.as_str())
             .collect();
         assert!(visible.contains("safe"));
+    }
+
+    #[test]
+    fn output_cursor_detects_truncation_and_accepts_zero() {
+        let mut terminal = TerminalState::new(2, 2, 4).unwrap();
+        terminal.process(b"abcdef").unwrap();
+        assert_eq!(
+            terminal.output_since(0, 4),
+            Err(TerminalError::ResnapshotRequired)
+        );
+        assert_eq!(terminal.output_since(2, 2).unwrap(), (4, b"cd".to_vec()));
+        assert_eq!(terminal.output_since(6, 2).unwrap(), (6, Vec::new()));
     }
 }

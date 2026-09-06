@@ -51,6 +51,11 @@ jobs:
         timeout-minutes: 10
         run: |
           cargo test -p relayterm-cli --test durable_slice --locked -- --nocapture --test-threads=1
+      - name: Test real PTY supervision twice
+        timeout-minutes: 10
+        run: |
+          cargo test -p relayterm-daemon --test pty_gate --locked -- --nocapture --test-threads=1
+          cargo test -p relayterm-daemon --test pty_gate --locked -- --nocapture --test-threads=1
           cargo test -p relayterm-cli --test durable_slice --locked -- --nocapture --test-threads=1
       - name: Test workspace and CLI contracts
         timeout-minutes: 5
