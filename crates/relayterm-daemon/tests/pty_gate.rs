@@ -222,6 +222,9 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
     let first = create_definition_session(&client, &definition, &first_receipt).await;
     eprintln!("M07 PTY gate: first native session launched");
     wait_for_text(&client, &first, "fixture-ready").await;
+    let environment = wait_for_text(&client, &first, "fixture-private-canary-absent:true").await;
+    let environment_text = visible_text(&environment);
+    assert!(environment_text.contains("fixture-term:true"));
     eprintln!("M07 PTY gate: initial terminal output reconstructed");
     let repeated = create_definition_session(&client, &definition, &first_receipt).await;
     assert_eq!(repeated, first, "a launch receipt must be idempotent");
@@ -415,15 +418,6 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
     assert_eq!(attached["snapshot"]["rows"], 30);
     assert_eq!(attached["snapshot"]["columns"], 100);
     assert_native_full_screen_mode(&attached);
-    let environment = wait_for_text(&client, &first, "fixture-private-canary-absent:true").await;
-    let environment_text: String = environment["snapshot"]["cells"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .filter_map(|cell| cell["contents"].as_str())
-        .collect();
-    assert!(environment_text.contains("fixture-term:true"));
-
     let observer = connect_route(&route, Some(private.clone())).await.unwrap();
     let conflict = observer
         .call::<_, Value>(Operation::SessionAcquireInput, &json!({"session_id":first}))
