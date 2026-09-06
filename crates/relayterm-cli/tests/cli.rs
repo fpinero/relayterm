@@ -1,7 +1,7 @@
 use serde_json::Value;
 use std::{
     fs,
-    io::Write,
+    io::{BufRead, BufReader, Write},
     path::PathBuf,
     process::{Command, Stdio},
     sync::atomic::{AtomicU64, Ordering},
@@ -168,7 +168,7 @@ fn initialize_from_disposable_shell(
     root: &PathBuf,
     private: &PathBuf,
 ) -> std::process::Output {
-    Command::new("sh")
+    let child = Command::new("sh")
         .args([
             "-c",
             "exec \"$RT_TEST_BIN\" --workspace \"$RT_TEST_ROOT\" --home \"$RT_TEST_HOME\" --format json workspace init --name \"Synthetic workspace\"",
@@ -177,8 +177,10 @@ fn initialize_from_disposable_shell(
         .env("RT_TEST_ROOT", root)
         .env("RT_TEST_HOME", private)
         .stdin(Stdio::null())
-        .output()
-        .unwrap()
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    finish_line_after_exit(child, "Unix launcher shell")
 }
 
 #[cfg(windows)]
@@ -187,7 +189,7 @@ fn initialize_from_disposable_shell(
     root: &PathBuf,
     private: &PathBuf,
 ) -> std::process::Output {
-    Command::new("powershell")
+    let child = Command::new("powershell")
         .args([
             "-NoProfile",
             "-NonInteractive",
@@ -198,8 +200,34 @@ fn initialize_from_disposable_shell(
         .env("RT_TEST_ROOT", root)
         .env("RT_TEST_HOME", private)
         .stdin(Stdio::null())
-        .output()
-        .unwrap()
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    finish_line_after_exit(child, "PowerShell launcher")
+}
+
+fn finish_line_after_exit(mut child: std::process::Child, stage: &str) -> std::process::Output {
+    let deadline = Instant::now() + Duration::from_secs(30);
+    let status = loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            break status;
+        }
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            panic!("{stage} did not exit independently");
+        }
+        thread::sleep(Duration::from_millis(10));
+    };
+    let mut stdout = Vec::new();
+    BufReader::new(child.stdout.take().unwrap())
+        .read_until(b'\n', &mut stdout)
+        .unwrap();
+    std::process::Output {
+        status,
+        stdout,
+        stderr: Vec::new(),
+    }
 }
 
 fn result(output: std::process::Output) -> Value {
