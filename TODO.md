@@ -8,7 +8,7 @@ Keep the daemon responsible for durable state and supervised processes. Keep dom
 
 ### How to execute this queue
 
-- Start with M03. Follow milestone dependencies and the task order within each milestone; consult `avances.md` for fulfilled dependencies. Complete M06 before production PTY or TUI implementation.
+- Start with M04. Follow milestone dependencies and the task order within each milestone; consult `avances.md` for fulfilled dependencies. Complete M06 before production PTY or TUI implementation.
 - Treat each task ID as one reviewable outcome, including its relevant tests and documentation. Split a task before coding if its implementation cannot be reviewed coherently in one session. Preserve its ID as a prefix for new child tasks.
 - For a milestone ending in `[PLAN]`, complete its first planning task before implementation. Record the named decisions, contracts, failure cases, and test design, then refine the remaining tasks in this file. The marker identifies unresolved engineering details, not permission to expand MVP scope.
 - At each session start, read repository instructions, check the branch and working tree, and consult `avances.md` for satisfied dependencies. Continue the earliest unblocked task. Work on a feature or fix branch, never directly on `main` or `master`.
@@ -21,82 +21,11 @@ Keep the daemon responsible for durable state and supervised processes. Keep dom
 
 Use the specification's recommended Rust stack and the pinned bootstrap toolchain. Verify support when adding dependencies; avoid unused dependencies and empty adapter crates until needed. Follow the eight [architecture decisions](docs/architecture/README.md), refining the risky ones at their implementation gates.
 
-The remaining first-slice route is M03 through M06: durable storage, protocol, daemon, and a verified administrative CLI workflow. M07 adds real PTYs; M08 adds the TUI; M09 and M10 add templates and explicit worktree isolation; M11 and M12 validate and prepare the release candidate. After M08, M09 and M10 may proceed independently. Windows IPC and PTY behavior must be validated when those adapters are introduced.
+The remaining first-slice route is M04 through M06: protocol, daemon, and a verified administrative CLI workflow. M07 adds real PTYs; M08 adds the TUI; M09 and M10 add templates and explicit worktree isolation; M11 and M12 validate and prepare the release candidate. After M08, M09 and M10 may proceed independently. Windows IPC and PTY behavior must be validated when those adapters are introduced.
 
 Public export and disk-backed scrollback are optional and are deferred from this roadmap. Keep scrollback bounded in daemon memory. Do not add transcript ingestion, provider APIs, automatic task mutation from agent prose, autonomous orchestration, TCP listeners, hosted dependencies, telemetry, graphical clients, or automatic Git commits, merges, rebases, or deletion. Any later export proposal must first add exact-content preview, redaction, and destination confirmation as required by FR-10.
 
 Keep task dependencies informational, as defined in the specification and [M02 storage contract](docs/M02_storage_contract.md); do not introduce a scheduler. Git worktree creation is included because AC-10 requires it, even though several related requirements use SHOULD.
-
-## M03: Private configuration and transactional SQLite
-
-Depends on: M02. Specification phase: 1. Coverage: FR-1, FR-5, FR-6, FR-9; NFR-2, NFR-4; sections 9, 11.
-
-Outcome: durable entities and event history outside the project, with safe version handling.
-
-Detailed implementation plan, contracts, and verification gates: [M03 details](docs/M03_details.md).
-
-- M03.01: Implement private locations and canonical workspace identity.
-  - M03.01a: Specify side-effect-free location inputs, default mappings, override precedence, and public-safe aliases.
-  - M03.01b: Select and prove safe Unix and Windows permission, ACL, and file-lock APIs without unsafe core code.
-  - M03.01c: Create and validate managed private directories and files, rejecting unsafe links, types, ownership, or access.
-  - M03.01d: Implement native path codecs, canonical roots, filesystem identity guards, and alias behavior.
-  - M03.01e: Implement bounded registry and initialization locks with a single lock order.
-  - M03.01f: Document OS defaults, `RELAYTERM_HOME`, unavailable directories, and explicit portable locations.
-- M03.02: Implement configuration parsing and import contracts.
-  - M03.02a: Parse bounded versioned TOML for stable-ID definitions, preferences, and storage settings.
-  - M03.02b: Validate candidates through domain rules and return bounded safe warnings and errors.
-  - M03.02c: Add stable definition updates/imports, typed update events, and revision-aware application commands.
-  - M03.02d: Add immutable launch-definition snapshots captured from accepted active definitions.
-  - M03.02e: Apply complete candidates atomically, preserve omitted definitions, and make identical current imports no-ops.
-  - M03.02f: Update ADR 0006, the specification, and M02 contracts for reload conflicts and accepted additions.
-- M03.03: Add the SQLite adapter and initial schema.
-  - M03.03a: Pin compatible dependencies, prove the bundled SQLite WAL fix, and extend architecture controls.
-  - M03.03b: Implement explicit-new, reopen, and read-only connection factories with verified PRAGMAs.
-  - M03.03c: Add separate checked-in registry and workspace migrations with checksum compatibility.
-  - M03.03d: Implement strict codecs for IDs, counters, timestamps, actors, enums, native paths, and events.
-  - M03.03e: Enforce relational references, ordering, exclusivity, append-only history, and query indexes.
-  - M03.03f: Reconstruct complete validated state and compute row deltas without historical rewrites.
-- M03.04: Implement workspace initialization, reopening, and active definitions.
-  - M03.04a: Reserve one workspace identity per canonical root under the registry lock.
-  - M03.04b: Add reserved-ID workspace creation and idempotent initialization coordination.
-  - M03.04c: Recover safely across every registry and workspace initialization boundary.
-  - M03.04d: Persist definition create, update, and import through application services.
-  - M03.04e: Reopen validated workspaces and definitions without implicit imports or lifecycle mutations.
-  - M03.04f: Expose registry lookups without leaking private paths in routine diagnostics.
-- M03.05: Implement transactional tasks and claims.
-  - M03.05a: Implement the application store and transactions with revision validation.
-  - M03.05b: Persist task creation, edits, transitions, dependencies, and exact events.
-  - M03.05c: Persist exclusive claim acquisition, one-time closure, and ownership reconstruction.
-  - M03.05d: Update workspace revisions and event sequences atomically and reject event-ID collisions.
-  - M03.05e: Categorize rollback, cancellation, busy, stale-conflict, and uncertain outcomes.
-  - M03.05f: Race two independent SQLite clients against the same workspace revision.
-- M03.06: Implement durable progress and handovers.
-  - M03.06a: Persist progress and user corrections as append-only records.
-  - M03.06b: Commit handover content, paths, task state, claim closure, and events atomically.
-  - M03.06c: Add bounded indexed task-history queries with append-order cursors.
-  - M03.06d: Preserve actor attribution and context across process reopen.
-  - M03.06e: Validate handover and claim-closure reconstruction consistency.
-- M03.07: Implement durable sessions, events, and watermarks.
-  - M03.07a: Persist complete instance/session metadata and accepted launch snapshots.
-  - M03.07b: Persist final observations and lost reconciliation atomically with task and claim changes.
-  - M03.07c: Return snapshot revision and event watermarks from one read transaction.
-  - M03.07d: Add bounded event pages, strict decoders, cursor validation, and retention-floor metadata.
-  - M03.07e: Preserve final-observation no-ops without revision, sequence, or notification changes.
-  - M03.07f: Document M04 subscription, resnapshot, pruning, and uncertain-result handoff contracts.
-- M03.08: Implement migrations and non-destructive failure handling.
-  - M03.08a: Validate schema history, model versions, checksums, and database identity before mutation.
-  - M03.08b: Return safe categorized recovery guidance for open, migration, permission, busy, read-only, and corruption failures.
-  - M03.08c: Prove transactional migration rollback with populated fixtures and a test-only failing successor.
-  - M03.08d: Test concurrent migration, cancellation, interrupted initialization, write failure, and pool reuse.
-  - M03.08e: Validate SQLite-consistent snapshots to fresh private destinations and document restore constraints.
-  - M03.08f: Scan diagnostics and serialization for synthetic secrets, private path markers, and raw backend context.
-- M03.09: Verify the persistence gate and native behavior.
-  - M03.09a: Build separate-process continuity and recovery journeys.
-  - M03.09b: Run real-file race, crash, convergence, rollback, migration, permission, and privacy suites.
-  - M03.09c: Keep all M02 core and architecture negative controls green without adapters.
-  - M03.09d: Run native Linux, macOS, and Windows CI plus pinned Linux and security checks.
-  - M03.09e: Review field, constraint, requirement, and downstream handoff coverage.
-  - M03.09f: Update platform documentation and record exact local and CI evidence in `avances.md`.
 
 ## M04: Versioned local protocol and client synchronization [PLAN]
 
