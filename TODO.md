@@ -8,7 +8,7 @@ Keep the daemon responsible for durable state and supervised processes. Keep dom
 
 ### How to execute this queue
 
-- Start with M05. Follow milestone dependencies and the task order within each milestone; consult `avances.md` for fulfilled dependencies. Complete M06 before production PTY or TUI implementation.
+- Start with M06. Follow milestone dependencies and the task order within each milestone; consult `avances.md` for fulfilled dependencies. Complete M06 before production PTY or TUI implementation.
 - Treat each task ID as one reviewable outcome, including its relevant tests and documentation. Split a task before coding if its implementation cannot be reviewed coherently in one session. Preserve its ID as a prefix for new child tasks.
 - For a milestone ending in `[PLAN]`, complete its first planning task before implementation. Record the named decisions, contracts, failure cases, and test design, then refine the remaining tasks in this file. The marker identifies unresolved engineering details, not permission to expand MVP scope.
 - At each session start, read repository instructions, check the branch and working tree, and consult `avances.md` for satisfied dependencies. Continue the earliest unblocked task. Work on a feature or fix branch, never directly on `main` or `master`.
@@ -26,22 +26,6 @@ The remaining first-slice route is M05 through M06: daemon lifecycle, an adminis
 Public export and disk-backed scrollback are optional and are deferred from this roadmap. Keep scrollback bounded in daemon memory. Do not add transcript ingestion, provider APIs, automatic task mutation from agent prose, autonomous orchestration, TCP listeners, hosted dependencies, telemetry, graphical clients, or automatic Git commits, merges, rebases, or deletion. Any later export proposal must first add exact-content preview, redaction, and destination confirmation as required by FR-10.
 
 Keep task dependencies informational, as defined in the specification and [M02 storage contract](docs/M02_storage_contract.md); do not introduce a scheduler. Git worktree creation is included because AC-10 requires it, even though several related requirements use SHOULD.
-
-## M05: Daemon lifecycle and administrative CLI
-
-Depends on: M04. Specification phase: 1. Coverage: FR-1, FR-5, FR-6, FR-8, FR-9; AC-1, AC-2, AC-9, AC-16 foundations.
-
-Outcome: `rt` can operate durable coordination state through an independent daemon.
-
-Execution contract: [M05 detailed plan](docs/M05_details.md). Expand its atomic child tasks before implementation; all M05 implementation work remains pending.
-
-- M05.01: Assemble the daemon from application services, SQLite, local transport, and injectable supervision. Implement endpoint discovery and singleton locking; test simultaneous starts and verify an existing live endpoint is never removed as stale.
-- M05.02: Implement daemon start/status/stop behavior through `rt`, with OS-specific detachment from the launching client. Test closing the starter process and reconnecting from another client on each supported OS.
-- M05.03: Implement orderly shutdown with transaction completion, IPC closure, and an explicit child-process policy ready for M07. Test interrupted requests and durable writes without depending on TUI cleanup.
-- M05.04: Reconcile persisted starting/running sessions on daemon restart using the approved lost-session and claim policy. Commit related events atomically; test repeated restart is idempotent and historical exit details remain intact.
-- M05.05: Add administrative commands for workspace init/open/status, agent configuration, tasks and claims, progress, handovers, history, and event inspection. Route all state through IPC; validate paths and arguments and provide script-usable output and failure exit codes.
-- M05.06: Add structured severity levels, stable diagnostic event names, safe path aliases, and bounded log retention. Map missing executables, database failures, version mismatch, and IPC failures to actionable messages without logging payloads or sensitive arguments.
-- M05.07: Document and verify the daemon/CLI workflow in disposable Git and non-Git projects, including directories with spaces and Unicode. Confirm state is stored outside project roots and two clients share one authoritative state.
 
 ## M06: First durable vertical slice
 

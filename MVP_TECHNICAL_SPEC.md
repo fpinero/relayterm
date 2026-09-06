@@ -289,6 +289,8 @@ Responsibilities:
 
 The daemon MUST reject unsupported protocol versions and malformed requests without crashing.
 
+M05 implements one independently detached daemon per registered workspace. A finite internal bootstrap subprocess performs explicit initialization or non-creating registry lookup before a workspace endpoint exists. Public clients never open SQLite. Readiness requires an authenticated workspace handshake after exclusive endpoint ownership and restart reconciliation. Orderly shutdown rejects new mutations, retains daemon ownership of accepted transactions, closes client tasks, and releases the endpoint last.
+
 ### 6.2 Local IPC API
 
 The MVP SHOULD use a framed, versioned request, response, and event protocol over:
@@ -322,7 +324,9 @@ Minimum operations:
 - `worktree.list`
 - `event.subscribe`
 
-The initial protocol also provides `protocol.hello`, `protocol.ping`, `agent.register_definition`, `agent.update_definition`, `task.get`, `task.transition`, `handover.get`, `task.get_history`, `task.get_claim_history`, `session.list`, `event.list`, and `event.unsubscribe`. Session creation, attachment, input, resize, termination, and worktree operations retain versioned payload definitions but return `operation_unavailable` until their later adapters exist.
+The initial protocol also provides `protocol.hello`, `protocol.ping`, `daemon.status`, `daemon.shutdown`, `agent.register_definition`, `agent.update_definition`, `agent.import_definitions`, `task.get`, `task.transition`, `handover.get`, `task.get_history`, `task.get_claim_history`, `session.list`, `event.list`, and `event.unsubscribe`. Session creation, attachment, input, resize, termination, and worktree operations retain versioned payload definitions but return `operation_unavailable` until their later adapters exist.
+
+Protocol version 1 permits these additive lifecycle and configuration operations. Clients inspect advertised operations and treat an older server's rejection as an unsupported capability. Shutdown targets an opaque runtime generation so a delayed request cannot stop a replacement daemon. Configuration import sends bounded contents, never a source path, and preserves revision-based atomic semantics.
 
 Public IPC clients act only as `LocalUser`; lifecycle observations and the `System` actor remain internal service boundaries. Mutation requests that update observed state include an expected workspace revision. Claims retain domain-level atomic exclusivity and do not require a revision precondition. A client MUST NOT automatically repeat a mutation if writing began and no definitive response arrived. It MUST report the outcome as unknown and refresh authoritative state.
 

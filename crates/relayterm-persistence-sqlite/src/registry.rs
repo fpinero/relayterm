@@ -47,6 +47,14 @@ impl Registry {
         })
     }
 
+    /// Open an existing registry without creating files or applying migrations.
+    pub async fn open_read_only(path: &Path, settings: PoolSettings) -> Result<Self, StorageError> {
+        Ok(Self {
+            database: Database::open(path, DatabaseKind::Registry, OpenMode::ReadOnly, settings)
+                .await?,
+        })
+    }
+
     pub async fn reserve_or_get(
         &self,
         identity: &WorkspaceRootIdentity,

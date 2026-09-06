@@ -96,10 +96,13 @@ pub struct ScalarError;
 pub enum Operation {
     ProtocolHello,
     ProtocolPing,
+    DaemonStatus,
+    DaemonShutdown,
     WorkspaceGetSnapshot,
     AgentListDefinitions,
     AgentRegisterDefinition,
     AgentUpdateDefinition,
+    AgentImportDefinitions,
     TaskList,
     TaskGet,
     TaskCreate,
@@ -126,13 +129,16 @@ pub enum Operation {
     Unknown,
 }
 impl Operation {
-    pub const ALL: [Self; 29] = [
+    pub const ALL: [Self; 32] = [
         Self::ProtocolHello,
         Self::ProtocolPing,
+        Self::DaemonStatus,
+        Self::DaemonShutdown,
         Self::WorkspaceGetSnapshot,
         Self::AgentListDefinitions,
         Self::AgentRegisterDefinition,
         Self::AgentUpdateDefinition,
+        Self::AgentImportDefinitions,
         Self::TaskList,
         Self::TaskGet,
         Self::TaskCreate,
@@ -161,10 +167,13 @@ impl Operation {
         match self {
             Self::ProtocolHello => "protocol.hello",
             Self::ProtocolPing => "protocol.ping",
+            Self::DaemonStatus => "daemon.status",
+            Self::DaemonShutdown => "daemon.shutdown",
             Self::WorkspaceGetSnapshot => "workspace.get_snapshot",
             Self::AgentListDefinitions => "agent.list_definitions",
             Self::AgentRegisterDefinition => "agent.register_definition",
             Self::AgentUpdateDefinition => "agent.update_definition",
+            Self::AgentImportDefinitions => "agent.import_definitions",
             Self::TaskList => "task.list",
             Self::TaskGet => "task.get",
             Self::TaskCreate => "task.create",
@@ -206,8 +215,10 @@ impl Operation {
     pub const fn is_mutation(self) -> bool {
         matches!(
             self,
-            Self::AgentRegisterDefinition
+            Self::DaemonShutdown
+                | Self::AgentRegisterDefinition
                 | Self::AgentUpdateDefinition
+                | Self::AgentImportDefinitions
                 | Self::TaskCreate
                 | Self::TaskUpdate
                 | Self::TaskTransition
@@ -491,6 +502,45 @@ pub struct MutationReceipt {
     pub changed: bool,
     pub first_sequence: Option<DecimalU64>,
     pub last_sequence: Option<DecimalU64>,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DaemonStatusParams {}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DaemonStatusResult {
+    pub workspace_id: WorkspaceId,
+    pub generation: String,
+    pub lifecycle: String,
+    pub protocol_version: u16,
+    pub schema_version: u32,
+    pub revision: DecimalU64,
+    pub definitions: usize,
+    pub tasks: usize,
+    pub instances: usize,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DaemonShutdownParams {
+    pub generation: String,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DaemonShutdownResult {
+    pub generation: String,
+    pub lifecycle: String,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AgentImportDefinitionsParams {
+    pub document: String,
+    #[serde(default)]
+    pub expected_revision: Option<DecimalU64>,
 }
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
