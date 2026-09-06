@@ -8,3 +8,9 @@ publish.workspace = true
 
 [lints]
 workspace = true
+
+[dependencies]
+relayterm-domain = { path = "../relayterm-domain", version = "0.1.0" }
+
+[dev-dependencies]
+serde_json.workspace = true

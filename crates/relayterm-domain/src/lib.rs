@@ -1,4 +1,13 @@
-//! Provider-neutral identifiers. Domain state machines follow in M02.
+//! Pure, validated coordination models and deterministic workspace mutations.
+
+mod events;
+mod models;
+mod state;
+mod validation;
+pub use events::*;
+pub use models::*;
+pub use state::*;
+pub use validation::*;
 
 use std::{fmt, str::FromStr};
 use uuid::Uuid;
@@ -6,7 +15,7 @@ use uuid::Uuid;
 macro_rules! identifier {
     ($name:ident, $description:literal) => {
         #[doc = $description]
-        #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+        #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, serde::Serialize, serde::Deserialize)]
         pub struct $name(Uuid);
 
         impl $name {
@@ -24,7 +33,7 @@ macro_rules! identifier {
         impl FromStr for $name {
             type Err = uuid::Error;
 
-            fn from_str(value: &str) -> Result<Self, Self::Err> {
+            fn from_str(value: &str) -> std::result::Result<Self, Self::Err> {
                 value.parse().map(Self)
             }
         }
@@ -39,6 +48,14 @@ macro_rules! identifier {
 
 identifier!(WorkspaceId, "An opaque workspace identity.");
 identifier!(TaskId, "An opaque task identity.");
+identifier!(AgentDefinitionId, "An opaque definition identity.");
+identifier!(AgentInstanceId, "An opaque instance identity.");
+identifier!(TerminalSessionId, "An opaque terminal session identity.");
+identifier!(ClaimId, "An opaque claim identity.");
+identifier!(ProgressEntryId, "An opaque progress entry identity.");
+identifier!(HandoverId, "An opaque handover identity.");
+identifier!(EventId, "An opaque event identity.");
+identifier!(WorktreeId, "An opaque worktree identity.");
 
 /// Workspace and task IDs cannot be substituted for each other.
 ///
@@ -73,3 +90,19 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod contract_tests;
+
+/// Sensitive entities deliberately have no Debug representation or unchecked decoder.
+///
+/// ```compile_fail
+/// use relayterm_domain::Task;
+/// fn log_task(task: &Task) { println!("{task:?}"); }
+/// ```
+///
+/// ```compile_fail
+/// use relayterm_domain::{AgentInstanceId, TerminalSessionId};
+/// fn session(instance: AgentInstanceId) -> TerminalSessionId { instance }
+/// ```
+pub mod privacy_contract {}

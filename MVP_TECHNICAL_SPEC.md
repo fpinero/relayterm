@@ -164,34 +164,42 @@ The environment policy MUST inherit only the environment required for normal chi
 Required fields:
 
 - `id`
+- `session_id`
+- `workspace_id`
 - `agent_definition_id`, nullable for a generic shell
 - `task_id`, nullable
 - `working_directory`
 - `status`
 - `started_at`
+- `last_observed_at`
 - `ended_at`, nullable
 - `exit_code`, nullable
 - `terminal_size`
 
-Suggested states:
+Required lifecycle:
 
-```text
-starting -> running -> exited
-                   -> failed
-                   -> terminated
-                   -> lost
-```
+| Source | Allowed destinations |
+| --- | --- |
+| `starting` | `running`, `failed`, `terminated`, `lost` |
+| `running` | `exited`, `failed`, `terminated`, `lost` |
+| `exited`, `failed`, `terminated`, `lost` | None |
+
+An instance and its terminal session share one lifecycle record, with distinct one-to-one `id` and `session_id` identifiers and explicit `workspace_id`. `starting` records a launch attempt. Startup failure is `failed` without an invented exit code. `exited` is an observed exit, including nonzero codes; `terminated` requires confirmed termination. `lost` means the outcome cannot be reconstructed. Unknown exit codes are nullable; final states require `ended_at`. Identical final observations are no-ops; incompatible observations are rejected.
+
+Finalizing an instance MUST atomically close its open claim and block the active task, if any. Exit never automatically completes work. Optional `task_id` is launch context, not current ownership. Pre-PTY simulation is restricted to tests, including M06; production cannot fabricate running processes.
 
 ### 5.4 Task
 
 Required fields:
 
 - `id`
+- `workspace_id`
 - `title`
 - `description`
 - `status`
 - `priority`
 - `scope_paths`
+- `dependency_ids`
 - `acceptance_notes`
 - `claimed_by_instance_id`, nullable
 - `worktree_id`, nullable
@@ -200,14 +208,23 @@ Required fields:
 
 Required lifecycle:
 
-```text
-backlog -> ready -> active -> blocked -> ready
-                          -> handover_ready -> active
-                          -> done
-                          -> cancelled
-```
+| Source | Allowed destinations |
+| --- | --- |
+| `backlog` | `ready`, `cancelled` |
+| `ready` | `active`, `cancelled` |
+| `active` | `blocked`, `handover_ready`, `done`, `cancelled` |
+| `blocked` | `ready`, `cancelled` |
+| `handover_ready` | `active`, `cancelled` |
+| `done` | None |
+| `cancelled` | None |
 
-Transitions MUST be validated by the domain layer. A task MUST have at most one active claim in the MVP. Claims MUST record history even after release.
+Tasks have explicit `workspace_id`. Dependencies are informational references to up to 128 distinct tasks in the same workspace. Self-references are rejected; cycles between distinct tasks are allowed. Dependencies never block claims or propagate state and do not introduce scheduling.
+
+Transitions MUST be validated by the domain layer; same-state transitions are rejected. Activation requires a dedicated claim operation from `ready` or `handover_ready` and a `running` instance. Exactly one claim is open on an active task, and none on other states. An instance may hold at most one open claim. Repeated claims, including by the owner, are rejected. Closed claims remain immutable history.
+
+Leaving `active` closes the claim atomically. Explicit release leaves the task `blocked`; availability requires an explicit `blocked` to `ready` transition. Handover preparation atomically creates the handover, closes the claim, and sets `handover_ready`; a successor must claim explicitly. Final tasks cannot reopen or be edited, but the user may append historical corrections.
+
+Actors are `LocalUser` (without personal identity), `Instance(AgentInstanceId)`, and internal `System` for lifecycle observations/reconciliation. Clients cannot select `System`. The user may administer tasks, cancel any non-final task, and request claims for running instances with user attribution. Instances may act only on their own active work. Unowned-task cancellation requires the user. User intervention never impersonates an instance. See the [M02 contracts](docs/M02_details.md) for the permission table and validation limits.
 
 ### 5.5 Progress entry
 

@@ -27,21 +27,15 @@ Public export and disk-backed scrollback are optional and are deferred from this
 
 Task dependencies mentioned in the vision do not authorize a scheduler. Resolve their minimum representation against the MVP task schema in M02. Git worktree creation is included because AC-10 requires it, even though several related requirements use SHOULD.
 
-## M02: Pure domain and application contracts [PLAN]
+## M02: Pure domain and application contracts
 
 Depends on: M01. Specification phase: 1. Coverage: FR-1, FR-2, FR-5, FR-6, FR-9; NFR-2, NFR-7.
 
 Outcome: deterministic coordination rules that can be tested with in-memory ports and no external processes.
 
-- M02.01: Specify exact task and session transition tables, claim eligibility, actor attribution, release rules, and how handover, terminal exits, and lost sessions affect ownership. Resolve the vision's dependency field versus the MVP schema without introducing scheduling. Define how the first pre-PTY slice represents instances using test supervision, without exposing fabricated running processes as production sessions.
-- M02.02: Implement stable IDs, timestamps, and validated workspace and agent definition types with every required field from sections 5.1 and 5.2. Test malformed identifiers, empty commands, and declared text limits.
-- M02.03: Implement task fields and the approved task transition table. Table-test every status pair, including rejected transitions, and ensure rejection leaves state unchanged.
-- M02.04: Implement exclusive claim and release rules with immutable claim history. Test second claim rejection, invalid actors, release and reclaim, and the approved stale-owner policy.
-- M02.05: Implement instance and session metadata with all fields from section 5.3 and the approved lifecycle. Test start failure, normal exit, termination, and restart loss without invented exit codes.
-- M02.06: Implement append-only progress and structured handovers with all required fields. Validate lengths, attribution, verification, and next-action requirements; test corrections as new entries and reading a predecessor's handover.
-- M02.07: Define typed, versioned workspace events for material mutations and typed errors for validation, conflicts, unavailable resources, and infrastructure failures. Test safe serialization without terminal output or environment values.
-- M02.08: Define persistence, transaction, event delivery, clock, identifier, supervisor, Git, and launch-configuration ports only as needed by these use cases. Implement coordination services and in-memory fakes; test atomic mutation/event intent and cross-workspace reference rejection.
-- M02.09: Verify the domain gate: every transition pair and claim invariant passes without SQLite, PTY, Git, provider CLI, or TUI imports. Review field coverage against specification section 5 and record the chosen ownership semantics.
+Detailed contracts, atomic tasks, and verification plan: [M02 details](docs/M02_details.md). Adapter inventory and constraints: [M02 storage contract](docs/M02_storage_contract.md).
+
+- M02.09: Verify native Linux and Windows CI for this implementation and record cross-platform evidence before closing the domain gate. Publishing the branch to run the existing CI matrix requires explicit maintainer authorization.
 
 ## M03: Private configuration and transactional SQLite
 

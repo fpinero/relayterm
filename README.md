@@ -85,7 +85,7 @@ The canonical user-facing executable will be `rt`. The reserved `relayterm.com` 
 
 ## Current status
 
-Relayterm now has a Rust bootstrap: neutral workspace/task identifiers, a protocol version check, separate daemon/client boundaries, and the `rt` CLI. Persistence, live sessions, and the TUI are not implemented yet. The first durable slice will validate the domain model, SQLite persistence, and local IPC before adding PTY and TUI complexity.
+Relayterm now has a Rust bootstrap and deterministic coordination core: validated tasks and instances, exclusive claims, progress, atomic handovers and loss recovery, versioned events, and application services over asynchronous storage ports. In-memory tests verify continuity and transaction conflicts. The `rt` CLI retains its bootstrap behavior; durable persistence, live IPC, real sessions, and the TUI remain unimplemented. See the [M02 storage and application contract](docs/M02_storage_contract.md) for model fields, validation, adapter obligations, and verification boundaries.
 
 Build with the pinned Rust toolchain:
 

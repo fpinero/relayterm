@@ -69,6 +69,8 @@ fn validate(metadata: &Value) -> Result<(), String> {
                 || name.contains("sqlite")
                 || name.starts_with("ratatui")
                 || name == "crossterm"
+                || name == "tokio"
+                || name == "git2"
                 || name == "portable-pty"
                 || name == "vt100"
                 || name == "relayterm-tui"
