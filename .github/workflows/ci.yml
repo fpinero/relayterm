@@ -44,7 +44,11 @@ jobs:
         run: cargo check --workspace --all-targets --locked
       - name: Lint
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Test detached daemon lifecycle
+        timeout-minutes: 3
+        run: cargo test -p relayterm-cli --test cli detached_daemon_survives_starters_and_reopens_durable_state --locked -- --exact --nocapture --test-threads=1
       - name: Test workspace and CLI contracts
+        timeout-minutes: 5
         run: cargo test --workspace --locked
       - name: Test core without UI
         run: cargo test -p relayterm-domain -p relayterm-application -p relayterm-protocol --locked
