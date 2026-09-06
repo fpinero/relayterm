@@ -1,6 +1,6 @@
 # 0002: Local IPC and synchronization
 
-Status: Accepted architecture; implemented by M04 with native verification recorded separately.
+Status: Accepted architecture; implemented by M04 and extended by M05 with native verification recorded separately.
 Task: M01.02, refined by M04.01.
 Requirements: Sections 6.2, 9.2, 9.5; NFR-2, NFR-4, NFR-8.
 
@@ -25,6 +25,8 @@ M04 has no durable request receipt table. A client never automatically retries a
 Restrict Unix endpoint parents to mode `0700`, sockets to `0600`, and validate credentials symmetrically against the current UID. The endpoint lock remains held for the listener lifetime, and stale cleanup checks type, ownership, and socket identity. On Windows create a byte-mode pipe with a protected owner-only DACL, disabled remote access, non-inheritable handles, a bounded instance count, and first-instance collision protection. Do not use default permissive descriptors or any TCP fallback.
 
 Public clients always act as `LocalUser`. They may request a claim for a concrete running instance while retaining user attribution. Public dispatch cannot select `System`, inject lifecycle observations, or fabricate an active process.
+
+M05 adds `daemon.status`, generation-targeted `daemon.shutdown`, and `agent.import_definitions` without changing protocol version 1 or envelope shapes. Implemented capability remains advertised in the hello response, so an older version-1 server can reject an unknown additive operation without replacement. A separate 64 KiB, one-exchange bootstrap schema runs only over inherited anonymous process pipes before a workspace endpoint can exist. It is not a public listener and cannot bypass registry or path validation.
 
 ## Alternatives
 

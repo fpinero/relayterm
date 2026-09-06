@@ -9,8 +9,8 @@ use relayterm_persistence_sqlite::{
     Registry, SqliteStore, StorageError, initialize_workspace,
 };
 use relayterm_platform::{
-    LocationOptions, PrivateLocations, RandomIdGenerator, SystemClock, WorkspaceRootIdentity,
-    decode_native_path, detach_current_process, encode_native_path,
+    LocationOptions, PrivateLocations, PrivateLock, RandomIdGenerator, SystemClock,
+    WorkspaceRootIdentity, decode_native_path, detach_current_process, encode_native_path,
     spawn_detached as spawn_detached_process,
 };
 use relayterm_protocol::{NativePathDto, WorkspaceId as WireWorkspaceId};
@@ -288,13 +288,24 @@ pub async fn bootstrap(
     }
     let id = route.domain_id()?;
     let endpoint = endpoint(&locations, id)?;
+    let startup_started = Instant::now();
+    let _startup_lock = PrivateLock::acquire(
+        &locations
+            .runtime()
+            .join(format!("workspace-{id}.start.lock")),
+        timeout,
+    )
+    .map_err(|error| match error {
+        relayterm_platform::LockError::Busy => RuntimeError::Busy,
+        relayterm_platform::LockError::AccessDenied => RuntimeError::AccessDenied,
+        relayterm_platform::LockError::Unavailable => RuntimeError::Transport,
+    })?;
     if probe(&endpoint, id).await? {
         route.already_running = true;
         return Ok(route);
     }
     spawn_detached(executable, root, home.as_deref(), id)?;
-    let started = Instant::now();
-    while started.elapsed() < timeout {
+    while startup_started.elapsed() < timeout {
         if probe(&endpoint, id).await? {
             route.started = true;
             return Ok(route);
