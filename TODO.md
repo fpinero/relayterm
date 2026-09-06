@@ -27,14 +27,6 @@ Public export and disk-backed scrollback are optional and are deferred from this
 
 Keep task dependencies informational, as defined in the specification and [M02 storage contract](docs/M02_storage_contract.md); do not introduce a scheduler. Git worktree creation is included because AC-10 requires it, even though several related requirements use SHOULD.
 
-## M04 follow-up: Complete protocol acceptance gaps
-
-Depends on: merged M04 implementation. Specification phase: 1. Contract: [M04 detailed plan](docs/M04_details.md).
-
-- M04.07c-M04.07g: Connect coalesced notifier wakeups to the durable event pump, implement a real bounded per-subscription queue with unsubscribe cleanup and slow-subscriber isolation, and add deterministic replay/race/resource tests.
-- M04.08c: Add explicit local cancellation before and after writer ownership, preserve mutation uncertainty, close unusable correlations, and verify late responses cannot poison later calls.
-- M04.09d: Verify malformed peers, connection/request limits, slow-client isolation, cursor error mapping, and service survival with unaffected clients.
-
 ## M05: Daemon lifecycle and administrative CLI
 
 Depends on: M04. Specification phase: 1. Coverage: FR-1, FR-5, FR-6, FR-8, FR-9; AC-1, AC-2, AC-9, AC-16 foundations.

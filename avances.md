@@ -173,3 +173,23 @@ Local verification on native macOS aarch64:
 Candidate `ec1953e` passed Quality run `34030632309` on native `ubuntu-24.04 / stable`, `ubuntu-24.04 / 1.98.1`, `macos-14 / stable`, and `windows-2022 / stable`. Each job passed formatting, all-target checks, Clippy, workspace and core-only tests, build, repository contracts, and whitespace checks. Security run `34030632344` passed dependency, advisory, license, ban, and source checks, full-history and candidate-source secret scans, and negative controls. The first Linux candidate exposed a macOS-specific `/private/tmp` test path; commit `ec1953e` selected a short native temporary root per Unix platform, and the complete matrix then passed.
 
 M04 is complete. Relayterm now provides authenticated current-user local IPC, a strict versioned protocol, reusable service dispatch, coherent client snapshots, ordered durable events, safe reconnect behavior, and explicit uncertain mutation recovery. Detached daemon lifetime and administrative CLI composition remain M05 work. Real process supervision, PTY streams, terminal reconstruction, and reattachment remain M07 work.
+
+## 2026-09-06: Close M04 subscription acceptance gaps
+
+Completed the M04.07c-M04.07g, M04.08c, and M04.09d follow-up audit.
+
+- Connected coalesced application commit notifications to each subscription while retaining the 250 millisecond durable fallback poll.
+- Added persistent per-subscription item and byte budgets, ordered `caught_up` and `resnapshot_required` controls, subscription and request correlation, and pending-frame cleanup before unsubscribe acknowledgement.
+- Added explicit client cancellation before and after writer ownership. Mutations cancelled after writer ownership report an unknown result, complete server dispatch, replace the unusable connection, resubscribe from the last contiguous sequence, and never replay the mutation automatically.
+- Added deterministic gates for snapshot-to-subscribe replay, live notification wakeups, cancellation after commit, exact durable recovery, cursor expiry, malformed parameter survival, queue exhaustion, frame cleanup, permit release, and continued service to unaffected clients.
+
+Local verification on native macOS aarch64:
+
+- `cargo fmt --all -- --check`, `cargo check --workspace --all-targets --locked`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, `cargo test --workspace --locked`, and `cargo build --workspace --locked` passed.
+- `cargo test -p relayterm-protocol -p relayterm-client -p relayterm-daemon --locked` passed, including the real SQLite and local IPC protocol gates.
+- `cargo check -p relayterm-protocol -p relayterm-client -p relayterm-daemon --lib --target x86_64-pc-windows-msvc --locked` passed. A whole-workspace cross-check could not compile bundled SQLite C without a Windows SDK, so native Windows behavior remained a CI requirement.
+- `cargo deny --locked check advisories licenses bans sources`, `python3 scripts/check_repository.py`, `python3 scripts/check_audit_controls.py`, `python3 scripts/check_secrets.py`, `gitleaks git --redact --no-banner .`, and `git diff --check` passed.
+
+Candidate `14ed5ac` passed Quality run `34032866039` on native `ubuntu-24.04 / stable`, `ubuntu-24.04 / 1.98.1`, `macos-14 / stable`, and `windows-2022 / stable`. Security run `34032866081` passed the dependency, advisory, license, ban, source, secret, and negative-control gates. An earlier Windows run exposed that a cancelled named-pipe write half could still deliver a late response to the next request. Commit `14ed5ac` makes every subsequent request replace a connection already marked disconnected, and both repeated native Windows jobs passed.
+
+The M04 acceptance follow-up is complete. The next pending milestone is M05.
