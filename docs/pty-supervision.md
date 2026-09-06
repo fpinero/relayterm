@@ -67,6 +67,8 @@ The PTY gate uses one actual platform shell and two separately launched instance
 
 Native CI is the authority for Linux, macOS, and Windows behavior. Cross-compilation is supplementary. SSH coverage is recorded only where an authorized SSH environment exists; Relayterm does not provision hosted machines or credentials for this gate.
 
+The Windows gate allows 30 seconds for each observable terminal marker and 120 seconds for the complete scenario. Hosted Windows runners can delay a fresh Windows PowerShell process while security scanning and console initialization complete, especially when the gate is repeated inside the full workspace suite. Linux and macOS retain 15-second marker and 60-second scenario deadlines. All deadlines use monotonic time and still fail closed when the child produces no observable state.
+
 ## Platform termination
 
 On Unix, the PTY adapter reports the controlling process-group leader. Relayterm signals that exact owned process group through safe `rustix` APIs and then observes the leader exit. It never signals a stored or unrelated PID.

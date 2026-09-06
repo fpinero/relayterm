@@ -96,7 +96,7 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
     let scenario_complete = Arc::new(AtomicBool::new(false));
     let watchdog_state = scenario_complete.clone();
     std::thread::spawn(move || {
-        std::thread::sleep(Duration::from_secs(60));
+        std::thread::sleep(whole_scenario_timeout());
         if !watchdog_state.load(Ordering::Acquire) {
             eprintln!("M07 PTY gate: whole-scenario deadline exceeded");
             std::process::abort();
@@ -671,7 +671,7 @@ async fn create_definition_session(
 }
 
 async fn wait_for_text(client: &relayterm_client::Client, session: &str, expected: &str) -> Value {
-    let deadline = Instant::now() + Duration::from_secs(15);
+    let deadline = Instant::now() + output_wait_timeout();
     loop {
         let value: Value = client
             .call(Operation::SessionAttach, &json!({"session_id":session}))
@@ -686,6 +686,22 @@ async fn wait_for_text(client: &relayterm_client::Client, session: &str, expecte
             "terminal output marker {expected:?} did not arrive; visible text: {text:?}"
         );
         tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+}
+
+fn output_wait_timeout() -> Duration {
+    if cfg!(windows) {
+        Duration::from_secs(30)
+    } else {
+        Duration::from_secs(15)
+    }
+}
+
+fn whole_scenario_timeout() -> Duration {
+    if cfg!(windows) {
+        Duration::from_secs(120)
+    } else {
+        Duration::from_secs(60)
     }
 }
 
