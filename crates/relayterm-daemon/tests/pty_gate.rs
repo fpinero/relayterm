@@ -382,6 +382,7 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
         )
         .await
         .unwrap();
+    wait_for_text(&client, &first, "fixture-echo:hello").await;
     let descendant_state = wait_for_text(&client, &first, "fixture-descendant:").await;
     let descendant_text = visible_text(&descendant_state);
     let descendant_pid: u32 = descendant_text
@@ -594,7 +595,12 @@ while (($line = [Console]::ReadLine()) -ne $null) {
         continue
     }
     if ($line -eq 'descendant') {
-        $child = Start-Process -PassThru -WindowStyle Hidden -FilePath $env:ComSpec -ArgumentList @('/D', '/C', 'ping -n 300 127.0.0.1 >nul')
+        $start = [Diagnostics.ProcessStartInfo]::new()
+        $start.FileName = $env:ComSpec
+        $start.Arguments = '/D /C ping -n 300 127.0.0.1 >nul'
+        $start.UseShellExecute = $false
+        $start.CreateNoWindow = $true
+        $child = [Diagnostics.Process]::Start($start)
         [Console]::WriteLine("fixture-descendant:" + $child.Id)
         continue
     }
@@ -654,7 +660,7 @@ async fn wait_for_text(client: &relayterm_client::Client, session: &str, expecte
         }
         assert!(
             Instant::now() < deadline,
-            "terminal output marker {expected:?} did not arrive"
+            "terminal output marker {expected:?} did not arrive; visible text: {text:?}"
         );
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
