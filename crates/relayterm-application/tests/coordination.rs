@@ -10,6 +10,24 @@ use std::{
 use support::*;
 
 #[test]
+fn client_revision_precondition_is_checked_before_mutation() {
+    let fixture = Fixture::new();
+    let observed = block_on(fixture.service.snapshot(fixture.workspace))
+        .unwrap()
+        .revision();
+    fixture.task();
+    let before = fixture.state();
+    let result = block_on(fixture.service.execute_at_revision(
+        fixture.workspace,
+        Actor::LocalUser,
+        Request::CreateTask(content()),
+        observed,
+    ));
+    assert_eq!(result.err(), Some(Error::Conflict));
+    assert_eq!(fixture.state().tasks().len(), before.tasks().len());
+}
+
+#[test]
 fn stable_definition_import_is_revision_checked_atomic_and_idempotent() {
     let fixture = Fixture::new();
     fixture

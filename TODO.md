@@ -27,21 +27,23 @@ Public export and disk-backed scrollback are optional and are deferred from this
 
 Keep task dependencies informational, as defined in the specification and [M02 storage contract](docs/M02_storage_contract.md); do not introduce a scheduler. Git worktree creation is included because AC-10 requires it, even though several related requirements use SHOULD.
 
-## M04: Versioned local protocol and client synchronization [PLAN]
+## M04: Versioned local protocol and client synchronization
 
 Depends on: M03. Specification phase: 1. Coverage: FR-8; NFR-2, NFR-4, NFR-8; sections 6.2, 9.2, 9.5.
 
 Outcome: two independent clients see consistent snapshots and ordered events over current-user-only IPC.
 
-- M04.01: Refine the IPC ADR into an operation/schema table, error contract, framing limits, and synchronization algorithm. Resolve snapshot/subscription races, cursor expiry, slow subscribers, reconnect after an ambiguous mutation result, and terminal stream fairness. Choose bounded retry/idempotency semantics before implementing client retries.
-- M04.02: Implement request/response/event envelopes with protocol version and request ID, bounded framing, and version negotiation. Test fragmented and combined frames, oversized lengths, malformed payloads, unknown operations, and incompatible versions.
-- M04.03: Implement Unix socket transport with restrictive endpoint permissions and peer validation where available. Test authorized connections, rejected peer identity through suitable fixtures, stale endpoint handling, and disconnects.
-- M04.04: Implement Windows named-pipe transport with current-user access restrictions and peer validation where available. Run Windows tests for unauthorized access policy, name collisions, partial reads, and client disconnects.
-- M04.05: Expose workspace snapshot, definition listing/registration, task list/create/update/claim/release, progress append, handover create/read, claim history, and event subscription through application services. Document additive operations beyond the section-6.2 minimum and test request-to-use-case mappings.
-- M04.06: Define session and worktree operation payloads from section 6.2 for later adapters, including bounded opaque terminal bytes. Return explicit unavailable-operation errors until each implementation exists; test that placeholders never report success.
-- M04.07: Implement snapshot watermarks and ordered subscriptions with bounded queues and recovery from expired cursors. Race mutations against subscription and verify no unnoticed gaps or duplicates, including reconnect and a slow client beside a fast client.
-- M04.08: Implement a shared client library with request correlation, connection errors, safe reconnect behavior, and cancellation. Test uncertain mutation outcomes according to M04.01 without duplicating progress or handovers.
-- M04.09: Verify the protocol gate on all three OS targets with two real IPC clients, concurrent claims, ordered state refresh, invalid frames, version mismatch, and access-control tests. Confirm failures do not crash the service harness.
+Implementation contract: [M04 detailed plan](docs/M04_details.md).
+
+- M04.01: Finalize the operation, schema, error, synchronization, endpoint ownership, crate-boundary, and M05/M07 handoff contracts described by M04.01a through M04.01g.
+- M04.02: Implement pure protocol scalars, DTOs, strict bounded JSON, incremental frames, handshake, safe errors, golden fixtures, and boundary tests described by M04.02a through M04.02g.
+- M04.03: Implement Unix IPC interfaces, endpoint resolution and locking, private binding, symmetric UID checks, stale cleanup, shutdown, and native tests described by M04.03a through M04.03f.
+- M04.04: Implement and natively verify the Windows named-pipe descriptor, local endpoint, protected DACL, collision, connection, and disconnect behavior described by M04.04a through M04.04f.
+- M04.05: Implement explicit DTO conversion, revision preconditions, public service dispatch, compact receipts, workspace binding, user attribution, and error mapping described by M04.05a through M04.05g.
+- M04.06: Reserve session and worktree DTOs, unavailable outcomes, terminal binary encoding, queue fairness, and public lifecycle exclusion described by M04.06a through M04.06e.
+- M04.07: Implement revision-checked snapshot pages, durable event pumping, notifier-independent polling, cursor recovery, queue bounds, unsubscribe ordering, and deterministic race tests described by M04.07a through M04.07g.
+- M04.08: Implement client handshake, typed calls, bounded correlation, cancellation, uncertainty, staged snapshots, reconnect, and recovery outcomes described by M04.08a through M04.08g.
+- M04.09: Verify the real SQLite and IPC gate, two-client continuity, response-loss uncertainty, malformed peers, resource isolation, privacy controls, and native CI described by M04.09a through M04.09g.
 
 ## M05: Daemon lifecycle and administrative CLI
 

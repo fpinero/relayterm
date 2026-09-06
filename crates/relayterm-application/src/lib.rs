@@ -313,6 +313,32 @@ impl<S: Store, C: Clock, I: IdGenerator, N: EventNotifier> Service<S, C, I, N> {
         actor: Actor,
         request: Request,
     ) -> Result<Outcome> {
+        self.execute_checked(workspace_id, actor, request, None)
+            .await
+    }
+
+    /// Execute a client mutation against the exact revision it observed.
+    pub async fn execute_at_revision(
+        &self,
+        workspace_id: WorkspaceId,
+        actor: Actor,
+        request: Request,
+        expected_revision: u64,
+    ) -> Result<Outcome> {
+        if expected_revision == 0 {
+            return Err(Error::Validation("expected_revision"));
+        }
+        self.execute_checked(workspace_id, actor, request, Some(expected_revision))
+            .await
+    }
+
+    async fn execute_checked(
+        &self,
+        workspace_id: WorkspaceId,
+        actor: Actor,
+        request: Request,
+        expected_revision: Option<u64>,
+    ) -> Result<Outcome> {
         let command = match request {
             Request::AddDefinition {
                 display_name,
@@ -363,6 +389,9 @@ impl<S: Store, C: Clock, I: IdGenerator, N: EventNotifier> Service<S, C, I, N> {
             },
         };
         let transaction = self.store.begin(workspace_id).await?;
+        if expected_revision.is_some_and(|revision| transaction.snapshot().revision() != revision) {
+            return Err(Error::Conflict);
+        }
         let changes = transaction
             .snapshot()
             .state()?

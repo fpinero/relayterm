@@ -298,6 +298,8 @@ The MVP SHOULD use a framed, versioned request, response, and event protocol ove
 
 JSON is recommended for the first protocol because it is inspectable and easy for future clients to implement. Messages MUST include a protocol version and request identifier. Terminal byte streams MAY use a distinct binary frame type to avoid unsafe text conversions.
 
+Protocol version 1 uses a seven-byte frame header with a big-endian payload length and version followed by a frame kind. Control JSON rejects duplicate and unknown fields, and all payloads have explicit byte limits. Request identifiers are nonzero decimal `u64` strings that increase per connection. The first request MUST be `protocol.hello` and MUST bind the connection to the server's fixed workspace.
+
 The IPC endpoint MUST be accessible only to the current local user using operating-system permissions. TCP listening is excluded from the MVP.
 
 Minimum operations:
@@ -319,6 +321,12 @@ Minimum operations:
 - `worktree.create`
 - `worktree.list`
 - `event.subscribe`
+
+The initial protocol also provides `protocol.hello`, `protocol.ping`, `agent.register_definition`, `agent.update_definition`, `task.get`, `task.transition`, `handover.get`, `task.get_history`, `task.get_claim_history`, `session.list`, `event.list`, and `event.unsubscribe`. Session creation, attachment, input, resize, termination, and worktree operations retain versioned payload definitions but return `operation_unavailable` until their later adapters exist.
+
+Public IPC clients act only as `LocalUser`; lifecycle observations and the `System` actor remain internal service boundaries. Mutation requests that update observed state include an expected workspace revision. Claims retain domain-level atomic exclusivity and do not require a revision precondition. A client MUST NOT automatically repeat a mutation if writing began and no definitive response arrived. It MUST report the outcome as unknown and refresh authoritative state.
+
+Snapshot collection pages carry a workspace revision, last event sequence, and retained event floor. Clients MUST stage all pages against one revision and install them together. Event subscription starts after the snapshot watermark, replays durable events in sequence, and reports invalid or expired cursors explicitly. Notification is an optimization; bounded durable polling remains the gap-free fallback.
 
 The exact subcommand hierarchy MAY evolve before the first stable release, but `rt` MUST remain the canonical user-facing executable.
 
