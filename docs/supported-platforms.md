@@ -55,6 +55,23 @@ Acceptance follow-up candidate `14ed5ac` passed [Quality run 34032866039](https:
 
 This closes the M04 local protocol gate. Detached daemon startup, CLI administration, real process supervision, PTY behavior, and the TUI remain pending in M05 and later milestones.
 
+## M05 daemon and CLI evidence
+
+Candidate `7a4b0f9b590cf98f493eed0e338b2493c159c91b` passed [Quality run 34043677019](https://github.com/fpinero/relayterm/actions/runs/34043677019) and [Security run 34043677020](https://github.com/fpinero/relayterm/actions/runs/34043677020) on 2026-09-06.
+
+| Native runner | Toolchain | Result |
+| --- | --- | --- |
+| ubuntu-24.04 | Stable | Passed |
+| ubuntu-24.04 | 1.98.1 | Passed |
+| macos-14 | Stable | Passed |
+| windows-2022 | Stable | Passed |
+
+Each quality job passed the dedicated detached daemon lifecycle gate before the complete workspace suite. The process gate initializes disposable Git and non-Git workspaces whose paths contain spaces and Unicode, starts Relayterm from a disposable native shell (`sh` on Unix and PowerShell on Windows), confirms the launcher exits within a monotonic deadline, reconnects from a separate CLI process, preserves a durable task across shutdown and restart, serializes simultaneous starts, and stops the exact reported generation. The Windows runner exposed two bounded-wait defects and one concurrent-start defect in earlier candidates. The final implementation reads one bounded bootstrap response without waiting for pipe EOF, bounds the complete connection handshake, and serializes endpoint probing, process creation, and readiness under a private per-workspace startup lock.
+
+The daemon starts through the absolute `rt` executable with argument arrays and null standard streams. Native CI establishes independent lifetime after the disposable shell process exits. Hosted runners do not provide an interactive terminal window to close, so this evidence does not claim manual Windows Terminal, Terminal.app, or SSH behavior. Those terminal and connection scenarios remain assigned to the later interactive milestones.
+
+Security CI passed dependency, advisory, license, ban, and source checks, full-history and candidate-source secret scans, and negative controls. M05 adds no provider execution, PTY, terminal stream, or production fake-session capability.
+
 ## Planned shell and terminal matrix
 
 | Platform | Shells | Terminals and connections to verify |
@@ -69,4 +86,4 @@ Full-screen redraw, Unicode, resize, focus switching, monochrome use, small-wind
 
 Development requires rustup and native linker/build tools. Git is needed for repository validation and later optional worktree isolation. Provider CLIs, credentials, graphical desktops, and hosted accounts are not needed for automated runtime acceptance.
 
-The current TUI and daemon entry points deliberately return unavailable errors. The future daemon must stay alive for supervised sessions to survive disconnects. Host restart recovery of live processes is outside the MVP.
+The administrative daemon and CLI workflow is available. Invoking `rt` without an administrative command still reports that the TUI is pending. Real supervised sessions, PTY interaction, and terminal reattachment remain later work. Host restart recovery of live processes is outside the MVP.
