@@ -123,3 +123,9 @@ Verification:
 - Updated native platform evidence and the M02 contract, removed the completed milestone from the queue, and moved remaining sequencing/acceptance coverage to M03 onward. The closure documentation is checked with `python3 scripts/check_repository.py` and `git diff --check` before integration.
 
 M02 is complete. Durable storage, live IPC, real process supervision, and TUI behavior remain the responsibilities of later milestones. The authorized main integration and its resulting CI will be verified separately after publication.
+
+## 2026-09-06: Prepare the exhaustive M03 plan
+
+Completed M03-DOC. Created `docs/M03_details.md` and linked it from M03 in `TODO.md`. The English plan covers M03.01-M03.09 with 53 atomic child tasks, private locations and native permissions, canonical identity, recoverable registry initialization, explicit configuration import/reload, required M02 application extensions, relational schemas and lossless codecs, atomic SQLite commits, bounded queries and watermarks, migrations, safe recovery, separate-process tests, native CI gates, and later-milestone handoffs. Consulted official SQLite, SQLx, and directory-library documentation and included supporting references, including the patched SQLite WAL requirement.
+
+Verification: `python3 scripts/check_repository.py` passed for 24 Markdown files, candidate links/style, eight ADRs, queue rules, and ignore boundaries. An inline Python check confirmed all nine M03 sections, 53 unique child tasks, required contract topics, the milestone link, all nine implementation tasks still pending, and an unchanged existing logbook before this append. Reviewed the plan against the current M02 service, record inventory, specification, and accepted ADRs. `git diff --check` passed. No Rust code, dependency, migration, or existing architecture policy changed; implementation tests were not claimed. All M03 implementation tasks remain pending.
