@@ -4,6 +4,16 @@ mod diagnostics;
 mod runtime;
 pub use runtime::*;
 
+#[doc(hidden)]
+pub use relayterm_application::{Clock as RuntimeClock, LaunchContext as RuntimeLaunchContext};
+#[doc(hidden)]
+pub use relayterm_domain::{
+    AgentDefinitionId as RuntimeAgentDefinitionId, InstanceStatus as RuntimeInstanceStatus,
+    Observation as RuntimeObservation, TerminalSize as RuntimeTerminalSize,
+};
+#[doc(hidden)]
+pub use relayterm_platform::SystemClock as RuntimeSystemClock;
+
 use relayterm_application::{
     Clock, DurableReadStore, EventNotifier, EventPageRequest, IdGenerator, Request, Service, Store,
     TaskHistoryItem, TaskHistoryPageRequest,
@@ -213,7 +223,16 @@ where
         let listener = LocalListener::bind(endpoint)
             .await
             .map_err(|_| ServerError::Transport)?;
-        Ok(Self {
+        Ok(Self::from_listener(workspace_id, listener, service, reads))
+    }
+
+    pub(crate) fn from_listener(
+        workspace_id: domain::WorkspaceId,
+        listener: LocalListener,
+        service: Arc<Service<S, C, I, N>>,
+        reads: S,
+    ) -> Self {
+        Self {
             workspace_id,
             wire_workspace_id: wire::WorkspaceId::from_uuid(workspace_id.as_uuid()),
             listener,
@@ -224,7 +243,7 @@ where
             faults: ServerFaults::default(),
             event_wakeups: None,
             lifecycle: None,
-        })
+        }
     }
     pub fn with_event_wakeups(mut self, receiver: watch::Receiver<u64>) -> Self {
         self.event_wakeups = Some(receiver);
