@@ -338,7 +338,10 @@ fn diagnostic_logs(path: &Path, output: &mut Vec<u8>) {
 }
 
 fn run_journey(git: bool) {
-    eprintln!("m06 stage: initialize {} fixture", if git { "git" } else { "non-git" });
+    eprintln!(
+        "m06 stage: initialize {} fixture",
+        if git { "git" } else { "non-git" }
+    );
     let scratch = Scratch::new();
     let root = scratch.0.join(if git {
         "Git project with spaces Ω"
