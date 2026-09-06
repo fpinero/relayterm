@@ -95,6 +95,7 @@ fn validate(metadata: &Value) -> Result<(), String> {
                 || name == "tokio"
                 || name == "git2"
                 || name == "portable-pty"
+                || name == "portable-pty-psmux"
                 || name == "vt100"
                 || name == "relayterm-tui"
                 || name == "relayterm-daemon"

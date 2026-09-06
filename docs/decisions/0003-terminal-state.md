@@ -18,7 +18,9 @@ Use a provider-neutral parser representation containing screen cells, cursor, re
 
 Terminal parsing must never mutate authoritative tasks based on prose or execute clipboard side effects. Bound screen dimensions, parser/history allocations, frames, and per-client queues. Client rendering is an adapter, not the source of surviving terminal state.
 
-M07 selected `vt100` 0.16.2 after split-sequence and alternate-screen prototypes. The daemon keeps the parser authoritative and publishes versioned provider-neutral replacement snapshots containing cells, attributes, cursor, modes, revision, raw offset, and truncation boundary. Attach binds the snapshot to a daemon generation, connection attachment, and stream identity. Bounded raw continuations use terminal frames with exact offsets. Cursor expiry requires a replacement snapshot. Replacement snapshots preserve future correctness when retained raw bytes no longer include terminal initialization.
+M07 selected `vt100` 0.16.2 after split-sequence and alternate-screen prototypes. It selected `portable-pty-psmux` 0.9.7 as the native PTY adapter after the three-platform prototype. The fork preserves the `portable-pty` API while omitting the ConPTY cursor-inheritance flag that can make pseudo-console startup or teardown wait indefinitely on supported Windows runners. The exact version is locked and remains behind `relayterm-pty`.
+
+The daemon keeps the parser authoritative and publishes versioned provider-neutral replacement snapshots containing cells, attributes, cursor, modes, revision, raw offset, and truncation boundary. Attach binds the snapshot to a daemon generation, connection attachment, and stream identity. Bounded raw continuations use terminal frames with exact offsets. Cursor expiry requires a replacement snapshot. Replacement snapshots preserve future correctness when retained raw bytes no longer include terminal initialization.
 
 Attachments are read-only by default. One connection owns a generation-scoped input lease, and only that owner can send contiguous input sequences or resize. Disconnect and explicit release drop the lease without stopping the child. Snapshot responses and binary continuations have explicit frame budgets. Input uses a separate bounded writer queue so a blocked child cannot allocate unbounded memory.
 
@@ -34,6 +36,6 @@ Terminal parsing introduces compatibility and resource-limit work. No promise of
 
 ## Verification and ownership
 
-Committed parser tests compare cells, cursor, and modes at every split point of representative UTF-8 and CSI input. They verify alternate-screen restoration after raw-history truncation. The native `pty_gate` uses a shell and two test-only interactive children to verify input, resize, full-screen state, exclusive ownership, disconnect, reattachment, termination, and no persistent terminal capture. The console-lifetime gate reconnects to a real shell session after its originating console owner closes. CI runs these gates on Linux, macOS, and Windows.
+Committed parser tests compare cells, cursor, and modes at every split point of representative UTF-8 and CSI input. They verify alternate-screen restoration after raw-history truncation. The native `pty_gate` uses a shell and two test-only interactive children to verify input, resize, full-screen state, exclusive ownership, disconnect, reattachment, termination, and no persistent terminal capture. The console-lifetime gate reconnects to three real shell sessions after their originating console owner closes. CI runs these gates on Linux, macOS, and Windows.
 
 Reference: [vt100 parser documentation](https://docs.rs/vt100/latest/vt100/).
