@@ -555,6 +555,8 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
 fn terminal_line(value: &str) -> Vec<u8> {
     let mut bytes = value.as_bytes().to_vec();
     bytes.push(b'\r');
+    #[cfg(windows)]
+    bytes.push(b'\n');
     bytes
 }
 
