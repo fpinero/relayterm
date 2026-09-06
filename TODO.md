@@ -8,7 +8,7 @@ Keep the daemon responsible for durable state and supervised processes. Keep dom
 
 ### How to execute this queue
 
-- Start with M02. Follow milestone dependencies and the task order within each milestone; consult `avances.md` for fulfilled dependencies. Complete M06 before production PTY or TUI implementation.
+- Start with M03. Follow milestone dependencies and the task order within each milestone; consult `avances.md` for fulfilled dependencies. Complete M06 before production PTY or TUI implementation.
 - Treat each task ID as one reviewable outcome, including its relevant tests and documentation. Split a task before coding if its implementation cannot be reviewed coherently in one session. Preserve its ID as a prefix for new child tasks.
 - For a milestone ending in `[PLAN]`, complete its first planning task before implementation. Record the named decisions, contracts, failure cases, and test design, then refine the remaining tasks in this file. The marker identifies unresolved engineering details, not permission to expand MVP scope.
 - At each session start, read repository instructions, check the branch and working tree, and consult `avances.md` for satisfied dependencies. Continue the earliest unblocked task. Work on a feature or fix branch, never directly on `main` or `master`.
@@ -21,21 +21,11 @@ Keep the daemon responsible for durable state and supervised processes. Keep dom
 
 Use the specification's recommended Rust stack and the pinned bootstrap toolchain. Verify support when adding dependencies; avoid unused dependencies and empty adapter crates until needed. Follow the eight [architecture decisions](docs/architecture/README.md), refining the risky ones at their implementation gates.
 
-The remaining first-slice route is M02 through M06: pure domain, durable storage, protocol, daemon, and a verified administrative CLI workflow. M07 adds real PTYs; M08 adds the TUI; M09 and M10 add templates and explicit worktree isolation; M11 and M12 validate and prepare the release candidate. After M08, M09 and M10 may proceed independently. Windows IPC and PTY behavior must be validated when those adapters are introduced.
+The remaining first-slice route is M03 through M06: durable storage, protocol, daemon, and a verified administrative CLI workflow. M07 adds real PTYs; M08 adds the TUI; M09 and M10 add templates and explicit worktree isolation; M11 and M12 validate and prepare the release candidate. After M08, M09 and M10 may proceed independently. Windows IPC and PTY behavior must be validated when those adapters are introduced.
 
 Public export and disk-backed scrollback are optional and are deferred from this roadmap. Keep scrollback bounded in daemon memory. Do not add transcript ingestion, provider APIs, automatic task mutation from agent prose, autonomous orchestration, TCP listeners, hosted dependencies, telemetry, graphical clients, or automatic Git commits, merges, rebases, or deletion. Any later export proposal must first add exact-content preview, redaction, and destination confirmation as required by FR-10.
 
-Task dependencies mentioned in the vision do not authorize a scheduler. Resolve their minimum representation against the MVP task schema in M02. Git worktree creation is included because AC-10 requires it, even though several related requirements use SHOULD.
-
-## M02: Pure domain and application contracts
-
-Depends on: M01. Specification phase: 1. Coverage: FR-1, FR-2, FR-5, FR-6, FR-9; NFR-2, NFR-7.
-
-Outcome: deterministic coordination rules that can be tested with in-memory ports and no external processes.
-
-Detailed contracts, atomic tasks, and verification plan: [M02 details](docs/M02_details.md). Adapter inventory and constraints: [M02 storage contract](docs/M02_storage_contract.md).
-
-- M02.09: Verify native Linux and Windows CI for this implementation and record cross-platform evidence before closing the domain gate. Publishing the branch to run the existing CI matrix requires explicit maintainer authorization.
+Keep task dependencies informational, as defined in the specification and [M02 storage contract](docs/M02_storage_contract.md); do not introduce a scheduler. Git worktree creation is included because AC-10 requires it, even though several related requirements use SHOULD.
 
 ## M03: Private configuration and transactional SQLite
 
@@ -194,17 +184,17 @@ This index identifies the planned proof for each specification criterion. As mil
 | AC-2: Independent daemon and restricted IPC through `rt` | M04, M05, M08 | M04.09; M05.02; M08.10; M11.05 |
 | AC-3: Three real concurrent sessions | M07 | M07.10; M11.02 |
 | AC-4: Full-screen input, resize, switching, exit, bounds | M07, M08 | M07.10; M08.10; M11.04; M11.07 |
-| AC-5: Exclusive instance claim | M02, M03, M05 | M03.05; M06.02; M11.02 |
-| AC-6: Progress and structured handover | M02, M03, M08 | M06.02; M08.06; M11.02 |
-| AC-7: Another instance resumes shared work | M02, M05, M08 | M06.02; M08.10; M11.02 |
+| AC-5: Exclusive instance claim | M03, M05 | M03.05; M06.02; M11.02 |
+| AC-6: Progress and structured handover | M03, M08 | M06.02; M08.06; M11.02 |
+| AC-7: Another instance resumes shared work | M05, M08 | M06.02; M08.10; M11.02 |
 | AC-8: TUI detach and reattach preserves children | M05, M07, M08 | M07.10; M08.10; M11.07 |
 | AC-9: Durable restart and honest session loss | M03, M05, M07 | M06.03; M07.09; M11.03 |
 | AC-10: Task session in an explicit worktree | M10 | M10.06; M11.02 |
-| AC-11: Core and protocol independent from TUI | M02, M04 | M02.09; M06.04; M11.10 |
+| AC-11: Core and protocol independent from TUI | M04 | M06.04; M11.10 |
 | AC-12: Cross-platform CI and quality checks | All remaining implementation milestones | M11.10; M12.06 |
 | AC-13: No injected secrets, personal paths, or transcripts in logs/artifacts | M03, M05, M07, M08 | M03.09; M11.05; M11.09 |
 | AC-14: No hosted service, API key, or graphical requirement | M05, M07, M09 | M09.05; M11.06; M12.03 |
 | AC-15: Unknown CLI requires no domain/TUI changes | M03, M07, M09 | M09.05 |
 | AC-16: Single `rt` executable and naming conflict guidance | M05, M12 | M12.01; M12.02 |
 
-FR-10 remains conditional: export is deferred, and no automatic project export may be introduced. Remaining NFR coverage is carried by M12 (platforms), M02-M07/M11 (reliability), M07-M08/M11 (performance), M03-M04/M12 (compatibility), M05/M11 (observability), M08/M11 (accessibility), M02/M06 (maintainability), and M03-M04/M07/M11 (resource limits).
+FR-10 remains conditional: export is deferred, and no automatic project export may be introduced. Remaining NFR coverage is carried by M12 (platforms), M03-M07/M11 (reliability), M07-M08/M11 (performance), M03-M04/M12 (compatibility), M05/M11 (observability), M08/M11 (accessibility), M06 (maintainability), and M03-M04/M07/M11 (resource limits).

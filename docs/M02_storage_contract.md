@@ -96,4 +96,4 @@ Client requests use `Service::execute`; it rejects `System`. `register_instance`
 
 The tests cover all 49 task pairs and 36 instance pairs, continuity and loss recovery, actor guards, exclusive claims, dependency cycles and foreign references, reconstruction, serialization privacy, exact size limits, pagination, clock reversal, deterministic concurrent commits, injected storage failures, and notifier failure after commit.
 
-The repository's existing CI matrix runs the same locked workspace/core checks on native Linux, macOS, and Windows. Local macOS verification does not establish native Linux/Windows evidence for this change. Track remaining gate evidence in [the queue](../TODO.md) and exact executed checks in [the logbook](../avances.md).
+M02 passed the repository's locked workspace/core checks on native Linux, macOS, and Windows, plus the security workflow, on 2026-09-06. See [platform evidence](supported-platforms.md) and [the logbook](../avances.md) for the verified candidate and CI runs. M02 is closed; subsequent milestones remain in [the queue](../TODO.md).

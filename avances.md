@@ -110,3 +110,16 @@ Verification on native macOS aarch64 with the pinned Rust 1.98.1 toolchain:
 - Reviewed field coverage against specification section 5 and documented additional workspace/session/closure/last-observation metadata. Checked the queue's original first-line edit and append-only preservation of the existing logbook.
 
 M02.09 remains open only for native Linux/Windows CI evidence for this candidate. The existing quality matrix includes those platforms, but no branch publication or remote CI run was authorized or claimed. M02 does not claim durable SQLite persistence, restart survival, live IPC, real process supervision, or a working TUI. No commit, push, PR, merge, tag, or release was performed in this implementation session.
+
+## 2026-09-06: Verify native CI and close M02
+
+Completed M02.09 after authorization to merge the current branch into main. Published implementation candidate `9a92d2714664e5b6b46b0a438e527747b2cfd643` from `feature/m02-details`, retaining the pre-existing first-line edit of `TODO.md` only in the local working tree.
+
+Verification:
+
+- Quality run `34019822893` completed successfully on native `ubuntu-24.04 / stable`, `ubuntu-24.04 / 1.98.1`, `macos-14 / stable`, and `windows-2022 / stable`. Every job passed locked fetch, formatting, all-target checks, Clippy, workspace/core-only tests, build, repository contracts, and whitespace validation.
+- Security run `34019822888` completed successfully: dependency/advisory/license/source audits, Git-history and candidate-source secret scans, and negative controls passed.
+- Before publication, `cargo fmt --all -- --check`, `cargo test --workspace --locked`, `python3 scripts/check_repository.py`, and `git diff --check` passed again locally. The tested workspace contains 30 test functions and three compile-fail doctests, including the 49 task pairs and 36 instance pairs.
+- Updated native platform evidence and the M02 contract, removed the completed milestone from the queue, and moved remaining sequencing/acceptance coverage to M03 onward. The closure documentation is checked with `python3 scripts/check_repository.py` and `git diff --check` before integration.
+
+M02 is complete. Durable storage, live IPC, real process supervision, and TUI behavior remain the responsibilities of later milestones. The authorized main integration and its resulting CI will be verified separately after publication.

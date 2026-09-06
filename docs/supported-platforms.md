@@ -12,6 +12,19 @@ Rust 1.98.1 is the pinned compiler and initial MSRV. CI also selects current sta
 
 The bootstrap code at `0d14f05` passed Quality run `33974825769` and Security run `33974825731` on 2026-09-05. The pinned-toolchain CI job also runs on Linux. Record actual compiler host and runner OS for each candidate. Local macOS evidence does not establish Linux or Windows success, and cross-compilation is not native behavior verification. Refer to `avances.md` for executed checks; do not infer results from the presence of workflow files.
 
+## M02 domain and application evidence
+
+Candidate `9a92d2714664e5b6b46b0a438e527747b2cfd643` passed [Quality run 34019822893](https://github.com/fpinero/relayterm/actions/runs/34019822893) and [Security run 34019822888](https://github.com/fpinero/relayterm/actions/runs/34019822888) on 2026-09-06.
+
+| Native runner | Toolchain | Result |
+| --- | --- | --- |
+| ubuntu-24.04 | Stable | Passed |
+| ubuntu-24.04 | 1.98.1 | Passed |
+| macos-14 | Stable | Passed |
+| windows-2022 | Stable | Passed |
+
+Each quality job passed locked dependency fetch, formatting, all-target checks, Clippy, workspace and core-only tests, build, repository contracts, and whitespace validation. The tests cover task and instance state matrices, claims, atomic handover/loss handling, deterministic transaction conflicts, privacy, and architecture boundaries. Security checks passed dependency/advisory/license/source auditing, Git-history and candidate-source scanning, and negative controls. This closes the M02 domain gate, without establishing durable persistence, IPC transport, or interactive terminal behavior.
+
 ## Planned shell and terminal matrix
 
 | Platform | Shells | Terminals and connections to verify |
