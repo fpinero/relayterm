@@ -338,6 +338,7 @@ fn diagnostic_logs(path: &Path, output: &mut Vec<u8>) {
 }
 
 fn run_journey(git: bool) {
+    eprintln!("m06 stage: initialize {} fixture", if git { "git" } else { "non-git" });
     let scratch = Scratch::new();
     let root = scratch.0.join(if git {
         "Git project with spaces Ω"
@@ -363,9 +364,11 @@ fn run_journey(git: bool) {
     ];
     success(&root, &private, &["daemon", "stop"], None);
 
+    eprintln!("m06 stage: start first synthetic host");
     let ready = private.join(format!("host-{}.json", u8::from(git)));
     let (host, instances) = start_host(&root, &private, &workspace, &definitions, &ready);
     let task = create_task(&root, &private, "Durable handover task");
+    eprintln!("m06 stage: execute handover journey");
     transition(&root, &private, &task, "ready");
     success(
         &root,
@@ -550,6 +553,7 @@ fn run_journey(git: bool) {
     );
     transition(&root, &private, &race, "done");
 
+    eprintln!("m06 stage: prepare recovery journey");
     let recovery = create_task(&root, &private, "Interrupted active task");
     transition(&root, &private, &recovery, "ready");
     success(
@@ -671,13 +675,16 @@ fn run_journey(git: bool) {
     let prefix = events_before["events"].as_array().unwrap().clone();
     let mut host = host;
     if git {
+        eprintln!("m06 stage: orderly host stop");
         success(&root, &private, &["daemon", "stop"], None);
         host.wait();
     } else {
+        eprintln!("m06 stage: abrupt host stop");
         host.kill_and_wait();
     }
 
     let started = success(&root, &private, &["daemon", "start"], None);
+    eprintln!("m06 stage: verify production recovery");
     assert_eq!(started["workspace_id"], workspace);
     let done = success(&root, &private, &["task", "get", &task], None);
     assert_eq!(done["status"], "done");
@@ -738,6 +745,7 @@ fn run_journey(git: bool) {
     assert_eq!(revision(&root, &private), recovered_revision);
     success(&root, &private, &["daemon", "stop"], None);
 
+    eprintln!("m06 stage: start successor host");
     fs::remove_file(&ready).unwrap();
     let (successor_host, successors) =
         start_host(&root, &private, &workspace, &definitions, &ready);
@@ -760,6 +768,7 @@ fn run_journey(git: bool) {
     transition(&root, &private, &recovery, "done");
     success(&root, &private, &["daemon", "stop"], None);
     successor_host.wait();
+    eprintln!("m06 stage: final production restart");
     success(&root, &private, &["daemon", "start"], None);
     assert_eq!(
         success(&root, &private, &["task", "get", &recovery], None)["status"],
