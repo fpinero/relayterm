@@ -914,7 +914,7 @@ fn closing_launch_console_keeps_daemon_reachable() {
     #[cfg(windows)]
     let (script, content) = (
         scratch.0.join("terminal.ps1"),
-        "& $env:RT_TEST_BIN --workspace $env:RT_TEST_ROOT --home $env:RT_TEST_PRIVATE --format json daemon start | Out-Null\nif ($LASTEXITCODE -ne 0) { exit 1 }\nSet-Content -LiteralPath $env:RT_TEST_READY -Value ready\nStart-Sleep -Seconds 300\n",
+        "& $env:RT_TEST_BIN --workspace $env:RT_TEST_ROOT --home $env:RT_TEST_PRIVATE --format json daemon start\nif ($LASTEXITCODE -ne 0) { exit 1 }\nSet-Content -LiteralPath $env:RT_TEST_READY -Value ready\nStart-Sleep -Seconds 300\n",
     );
     fs::write(&script, content).unwrap();
     success(
