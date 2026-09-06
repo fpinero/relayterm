@@ -7,8 +7,13 @@ use std::{
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PrivatePathError {
     AccessDenied,
+    AclNotProtected,
+    AclTooBroad,
     InvalidType,
     LinkRejected,
+    OwnerMismatch,
+    SecurityDescriptorUnavailable,
+    SecurityUpdateFailed,
     Unavailable,
 }
 
@@ -165,7 +170,7 @@ fn private_descriptor(
     windows_permissions::wrappers::ConvertStringSecurityDescriptorToSecurityDescriptor(
         std::ffi::OsStr::new(&descriptor),
     )
-    .map_err(|_| PrivatePathError::AccessDenied)
+    .map_err(|_| PrivatePathError::SecurityUpdateFailed)
 }
 
 #[cfg(windows)]
@@ -175,16 +180,22 @@ fn secure_windows_handle(file: &mut File, inheritable: bool) -> Result<(), Priva
         wrappers,
     };
     let descriptor = private_descriptor(inheritable)?;
+    let owner = windows_permissions::utilities::current_process_sid()
+        .map_err(|_| PrivatePathError::AccessDenied)?;
     wrappers::SetSecurityInfo(
         file,
         SeObjectType::SE_FILE_OBJECT,
-        SecurityInformation::Dacl | SecurityInformation::ProtectedDacl,
+        SecurityInformation::Owner | SecurityInformation::Dacl | SecurityInformation::ProtectedDacl,
+        Some(&owner),
         None,
-        None,
-        Some(descriptor.dacl().ok_or(PrivatePathError::AccessDenied)?),
+        Some(
+            descriptor
+                .dacl()
+                .ok_or(PrivatePathError::SecurityDescriptorUnavailable)?,
+        ),
         None,
     )
-    .map_err(|_| PrivatePathError::AccessDenied)
+    .map_err(|_| PrivatePathError::SecurityUpdateFailed)
 }
 
 #[cfg(windows)]
@@ -220,32 +231,36 @@ fn validate_windows_acl(path: &Path, directory: bool) -> Result<(), PrivatePathE
         SeObjectType::SE_FILE_OBJECT,
         SecurityInformation::Owner | SecurityInformation::Dacl,
     )
-    .map_err(|_| PrivatePathError::AccessDenied)?;
-    let owner = descriptor.owner().ok_or(PrivatePathError::AccessDenied)?;
+    .map_err(|_| PrivatePathError::SecurityDescriptorUnavailable)?;
+    let owner = descriptor
+        .owner()
+        .ok_or(PrivatePathError::SecurityDescriptorUnavailable)?;
     let current = windows_permissions::utilities::current_process_sid()
         .map_err(|_| PrivatePathError::AccessDenied)?;
     if !wrappers::EqualSid(owner, &current) {
-        return Err(PrivatePathError::AccessDenied);
+        return Err(PrivatePathError::OwnerMismatch);
     }
     let sddl = wrappers::ConvertSecurityDescriptorToStringSecurityDescriptor(
         &descriptor,
         SecurityInformation::Dacl,
     )
-    .map_err(|_| PrivatePathError::AccessDenied)?;
+    .map_err(|_| PrivatePathError::SecurityDescriptorUnavailable)?;
     if !sddl.to_string_lossy().starts_with("D:P") {
-        return Err(PrivatePathError::AccessDenied);
+        return Err(PrivatePathError::AclNotProtected);
     }
-    let dacl = descriptor.dacl().ok_or(PrivatePathError::AccessDenied)?;
+    let dacl = descriptor
+        .dacl()
+        .ok_or(PrivatePathError::SecurityDescriptorUnavailable)?;
     for sid_text in ["S-1-1-0", "S-1-5-32-545"] {
         let sid = wrappers::ConvertStringSidToSid(std::ffi::OsStr::new(sid_text))
             .map_err(|_| PrivatePathError::AccessDenied)?;
         let trustee = windows_permissions::Trustee::from(&*sid);
         if !dacl
             .effective_rights(&trustee)
-            .map_err(|_| PrivatePathError::AccessDenied)?
+            .map_err(|_| PrivatePathError::SecurityDescriptorUnavailable)?
             .is_empty()
         {
-            return Err(PrivatePathError::AccessDenied);
+            return Err(PrivatePathError::AclTooBroad);
         }
     }
     Ok(())
@@ -254,7 +269,8 @@ fn validate_windows_acl(path: &Path, directory: bool) -> Result<(), PrivatePathE
 #[cfg(windows)]
 const fn windows_security_access() -> u32 {
     const WRITE_DAC: u32 = 0x0004_0000;
-    windows_read_acl_access() | WRITE_DAC
+    const WRITE_OWNER: u32 = 0x0008_0000;
+    windows_read_acl_access() | WRITE_DAC | WRITE_OWNER
 }
 
 #[cfg(windows)]
@@ -341,7 +357,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             validate_private_dir(&directory),
-            Err(PrivatePathError::AccessDenied)
+            Err(PrivatePathError::AclTooBroad)
         );
     }
 }
