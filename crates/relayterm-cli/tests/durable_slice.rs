@@ -909,17 +909,17 @@ fn closing_launch_console_keeps_daemon_reachable() {
     let root = scratch.0.join("Console project");
     let private = scratch.0.join("private");
     let ready = scratch.0.join("console-ready");
-    let session = scratch.0.join("session.json");
+    let session = scratch.0.join("session");
     fs::create_dir(&root).unwrap();
     #[cfg(unix)]
     let (script, content) = (
         scratch.0.join("terminal.sh"),
-        "#!/bin/sh\n\"$RT_TEST_BIN\" --workspace \"$RT_TEST_ROOT\" --home \"$RT_TEST_PRIVATE\" --format json daemon start >/dev/null || exit 1\n\"$RT_TEST_BIN\" --workspace \"$RT_TEST_ROOT\" --home \"$RT_TEST_PRIVATE\" --format json session create > \"$RT_TEST_SESSION\" || exit 1\n: > \"$RT_TEST_READY\"\nsleep 300\n",
+        "#!/bin/sh\n\"$RT_TEST_BIN\" --workspace \"$RT_TEST_ROOT\" --home \"$RT_TEST_PRIVATE\" --format json daemon start >/dev/null || exit 1\nfor index in 1 2 3; do\n  \"$RT_TEST_BIN\" --workspace \"$RT_TEST_ROOT\" --home \"$RT_TEST_PRIVATE\" --format json session create > \"$RT_TEST_SESSION.$index\" || exit 1\ndone\n: > \"$RT_TEST_READY\"\nsleep 300\n",
     );
     #[cfg(windows)]
     let (script, content) = (
         scratch.0.join("terminal.ps1"),
-        "& $env:RT_TEST_BIN --workspace $env:RT_TEST_ROOT --home $env:RT_TEST_PRIVATE --format json daemon start\nif ($LASTEXITCODE -ne 0) { exit 1 }\n$sessionOutput = & $env:RT_TEST_BIN --workspace $env:RT_TEST_ROOT --home $env:RT_TEST_PRIVATE --format json session create\nif ($LASTEXITCODE -ne 0) { exit 1 }\n[IO.File]::WriteAllText($env:RT_TEST_SESSION, ($sessionOutput -join [Environment]::NewLine), [Text.UTF8Encoding]::new($false))\nSet-Content -LiteralPath $env:RT_TEST_READY -Value ready\nStart-Sleep -Seconds 300\n",
+        "& $env:RT_TEST_BIN --workspace $env:RT_TEST_ROOT --home $env:RT_TEST_PRIVATE --format json daemon start\nif ($LASTEXITCODE -ne 0) { exit 1 }\nforeach ($index in 1..3) {\n  $sessionOutput = & $env:RT_TEST_BIN --workspace $env:RT_TEST_ROOT --home $env:RT_TEST_PRIVATE --format json session create\n  if ($LASTEXITCODE -ne 0) { exit 1 }\n  [IO.File]::WriteAllText(\"$env:RT_TEST_SESSION.$index\", ($sessionOutput -join [Environment]::NewLine), [Text.UTF8Encoding]::new($false))\n}\nSet-Content -LiteralPath $env:RT_TEST_READY -Value ready\nStart-Sleep -Seconds 300\n",
     );
     fs::write(&script, content).unwrap();
     success(
@@ -949,11 +949,21 @@ fn closing_launch_console_keeps_daemon_reachable() {
     terminal.wait().unwrap();
     let state = success(&root, &private, &["daemon", "status"], None);
     assert_eq!(state["lifecycle"], "ready");
-    let created: Value = serde_json::from_slice(&fs::read(&session).unwrap()).unwrap();
-    let session_id = created["result"]["session_id"].as_str().unwrap();
-    let attached = success(&root, &private, &["session", "attach", session_id], None);
-    assert_eq!(attached["snapshot"]["rows"], 24);
-    assert_eq!(attached["snapshot"]["columns"], 80);
+    let session_ids: Vec<String> = (1..=3)
+        .map(|index| {
+            let created: Value = serde_json::from_slice(
+                &fs::read(session.with_extension(index.to_string())).unwrap(),
+            )
+            .unwrap();
+            created["result"]["session_id"].as_str().unwrap().to_owned()
+        })
+        .collect();
+    assert_eq!(session_ids.len(), 3);
+    for session_id in &session_ids {
+        let attached = success(&root, &private, &["session", "attach", session_id], None);
+        assert_eq!(attached["snapshot"]["rows"], 24);
+        assert_eq!(attached["snapshot"]["columns"], 80);
+    }
     success(
         &root,
         &private,
