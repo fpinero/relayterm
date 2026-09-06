@@ -216,11 +216,16 @@ impl Client {
         params: &Value,
         mutation: bool,
     ) -> Result<Value, ClientError> {
+        if self.visible.lock().await.connection == ConnectionStatus::Disconnected {
+            self.reconnect().await?;
+        }
         let first = self.call_once(operation, params, mutation).await;
+        if matches!(first, Err(ClientError::Transport(_))) {
+            self.visible.lock().await.connection = ConnectionStatus::Disconnected;
+        }
         if mutation || !matches!(first, Err(ClientError::Transport(_))) {
             return first;
         }
-        self.visible.lock().await.connection = ConnectionStatus::Disconnected;
         let mut last = first;
         for delay in RECONNECT_DELAYS {
             tokio::time::sleep(delay).await;
