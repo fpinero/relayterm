@@ -33,6 +33,8 @@ Depends on: M05. Specification phase: 1 exit gate. Coverage: FR-1, FR-5, FR-6, F
 
 Outcome: prove continuity before adding real PTY and TUI complexity.
 
+Execution contract: [M06 detailed plan](docs/M06_details.md). Add its section 10 child tasks before implementation; preserve missing prerequisite evidence as pending.
+
 - M06.01: Build a process-level test harness with isolated data/runtime directories and synthetic instance supervision. Run the real daemon and administrative client against real SQLite and IPC; keep the fake supervisor confined to tests.
 - M06.02: Automate workspace initialization, task creation, exclusive claim, rejected competing claim, progress, structured handover, release, and resume by another synthetic instance. Assert verification and next action remain readable without any private transcript.
 - M06.03: Restart the daemon in that scenario and assert durable entities, claim history, honest lost-session reconciliation, and ordered events survive. Repeat state reads from two clients and check the source tree contains no runtime-private artifacts.
