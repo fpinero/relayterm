@@ -38,6 +38,21 @@ Candidate `9b539b9768d658e55551ff9edd10177e5528d514` passed [Quality run 3402543
 
 Each quality job passed locked dependency fetch, formatting, all-target checks, Clippy, workspace and core-only tests, build, repository contracts, and whitespace validation. Native tests cover private filesystem permissions, Windows protected ACL ownership and broad-access rejection, bundled SQLite requirements, transactional migrations, durable entity reconstruction, conflicting claims, append-only history, consistent event watermarks, backup reopening, and separate-process continuity. Security checks passed dependency, advisory, license, and source auditing, full-history and candidate-source secret scans, and negative controls. This closes the M03 persistence gate. IPC transport, daemon lifecycle, real process supervision, and interactive terminal behavior remain pending.
 
+## M04 local protocol evidence
+
+Candidate `ec1953e` passed [Quality run 34030632309](https://github.com/fpinero/relayterm/actions/runs/34030632309) and [Security run 34030632344](https://github.com/fpinero/relayterm/actions/runs/34030632344) on 2026-09-06.
+
+| Native runner | Toolchain | Result |
+| --- | --- | --- |
+| ubuntu-24.04 | Stable | Passed |
+| ubuntu-24.04 | 1.98.1 | Passed |
+| macos-14 | Stable | Passed |
+| windows-2022 | Stable | Passed |
+
+Each quality job passed locked dependency fetch, formatting, all-target checks, Clippy with denied warnings, workspace and core-only tests, build, repository contracts, and whitespace validation. Native tests cover private Unix sockets, symmetric UID policy, protected Windows named-pipe DACL inspection through actual handles, denied access, endpoint collision and cleanup, strict framing, two-client coordination, ordered durable events, coherent snapshot refresh, read reconnection, mutation uncertainty, and continuity across separate server and client processes. Security checks passed dependency, advisory, license, ban, and source auditing, full-history and candidate-source secret scans, and negative controls.
+
+This closes the M04 local protocol gate. Detached daemon startup, CLI administration, real process supervision, PTY behavior, and the TUI remain pending in M05 and later milestones.
+
 ## Planned shell and terminal matrix
 
 | Platform | Shells | Terminals and connections to verify |
