@@ -4,7 +4,8 @@ use relayterm_application::{
 };
 use relayterm_domain::*;
 use relayterm_persistence_sqlite::{
-    Database, DatabaseKind, OpenMode, PoolSettings, SqliteStore, initialize_workspace,
+    Database, DatabaseKind, OpenMode, PoolSettings, SqliteStore, SqliteTransaction,
+    initialize_workspace,
 };
 use relayterm_platform::{LocationOptions, PrivateLocations};
 use std::{
@@ -40,6 +41,22 @@ struct NoopNotifier;
 impl EventNotifier for NoopNotifier {
     async fn notify(&self, _: WorkspaceId, _: u64) -> Result<()> {
         Ok(())
+    }
+}
+
+#[derive(Clone)]
+struct SynchronizedStore {
+    inner: SqliteStore,
+    barrier: Arc<tokio::sync::Barrier>,
+}
+
+impl Store for SynchronizedStore {
+    type Transaction = SqliteTransaction;
+
+    async fn begin(&self, workspace_id: WorkspaceId) -> Result<Self::Transaction> {
+        let transaction = self.inner.begin(workspace_id).await?;
+        self.barrier.wait().await;
+        Ok(transaction)
     }
 }
 
@@ -615,14 +632,21 @@ fn independent_clients_race_one_claim_without_partial_events() {
             .unwrap();
         drop(setup);
 
+        let barrier = Arc::new(tokio::sync::Barrier::new(2));
         let client_a = Service::new(
-            store.clone(),
+            SynchronizedStore {
+                inner: store.clone(),
+                barrier: barrier.clone(),
+            },
             TestClock(shared_clock.clone()),
             TestIds(AtomicU64::new(2_000)),
             NoopNotifier,
         );
         let client_b = Service::new(
-            store.clone(),
+            SynchronizedStore {
+                inner: store.clone(),
+                barrier,
+            },
             TestClock(shared_clock),
             TestIds(AtomicU64::new(3_000)),
             NoopNotifier,
