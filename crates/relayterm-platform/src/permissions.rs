@@ -32,6 +32,11 @@ pub fn create_private_file(path: &Path) -> Result<File, PrivatePathError> {
         use std::os::unix::fs::OpenOptionsExt;
         options.mode(0o600);
     }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        options.access_mode(windows_private_file_access());
+    }
     let mut file = options.open(path).map_err(map_io)?;
     secure_file(&mut file)?;
     validate_private_file(path)?;
@@ -82,9 +87,11 @@ pub fn secure_generated_file(path: &Path) -> Result<(), PrivatePathError> {
     }
     #[cfg(windows)]
     {
+        use std::os::windows::fs::OpenOptionsExt;
+
         let mut file = OpenOptions::new()
             .read(true)
-            .write(true)
+            .access_mode(windows_private_file_access())
             .open(path)
             .map_err(map_io)?;
         secure_windows_handle(&mut file, false)?;
@@ -163,14 +170,21 @@ fn private_descriptor(
 
 #[cfg(windows)]
 fn secure_windows_handle(file: &mut File, inheritable: bool) -> Result<(), PrivatePathError> {
-    use windows_permissions::WindowsSecure;
+    use windows_permissions::{
+        constants::{SeObjectType, SecurityInformation},
+        wrappers,
+    };
     let descriptor = private_descriptor(inheritable)?;
-    let owner = windows_permissions::utilities::current_process_sid()
-        .map_err(|_| PrivatePathError::AccessDenied)?;
-    file.set_owner(&owner)
-        .map_err(|_| PrivatePathError::AccessDenied)?;
-    file.set_dacl(descriptor.dacl().ok_or(PrivatePathError::AccessDenied)?)
-        .map_err(|_| PrivatePathError::AccessDenied)
+    wrappers::SetSecurityInfo(
+        file,
+        SeObjectType::SE_FILE_OBJECT,
+        SecurityInformation::Dacl | SecurityInformation::ProtectedDacl,
+        None,
+        None,
+        Some(descriptor.dacl().ok_or(PrivatePathError::AccessDenied)?),
+        None,
+    )
+    .map_err(|_| PrivatePathError::AccessDenied)
 }
 
 #[cfg(windows)]
@@ -179,6 +193,7 @@ fn secure_windows_path(path: &Path) -> Result<(), PrivatePathError> {
     const FILE_FLAG_BACKUP_SEMANTICS: u32 = 0x0200_0000;
     let mut file = OpenOptions::new()
         .read(true)
+        .access_mode(windows_security_access())
         .custom_flags(FILE_FLAG_BACKUP_SEMANTICS)
         .open(path)
         .map_err(map_io)?;
@@ -198,6 +213,14 @@ fn validate_windows_acl(path: &Path) -> Result<(), PrivatePathError> {
     if !wrappers::EqualSid(owner, &current) {
         return Err(PrivatePathError::AccessDenied);
     }
+    let sddl = wrappers::ConvertSecurityDescriptorToStringSecurityDescriptor(
+        &descriptor,
+        SecurityInformation::Dacl,
+    )
+    .map_err(|_| PrivatePathError::AccessDenied)?;
+    if !sddl.to_string_lossy().starts_with("D:P") {
+        return Err(PrivatePathError::AccessDenied);
+    }
     let dacl = descriptor.dacl().ok_or(PrivatePathError::AccessDenied)?;
     for sid_text in ["S-1-1-0", "S-1-5-32-545"] {
         let sid = wrappers::ConvertStringSidToSid(std::ffi::OsStr::new(sid_text))
@@ -212,6 +235,20 @@ fn validate_windows_acl(path: &Path) -> Result<(), PrivatePathError> {
         }
     }
     Ok(())
+}
+
+#[cfg(windows)]
+const fn windows_security_access() -> u32 {
+    const READ_CONTROL: u32 = 0x0002_0000;
+    const WRITE_DAC: u32 = 0x0004_0000;
+    READ_CONTROL | WRITE_DAC
+}
+
+#[cfg(windows)]
+const fn windows_private_file_access() -> u32 {
+    const GENERIC_READ: u32 = 0x8000_0000;
+    const GENERIC_WRITE: u32 = 0x4000_0000;
+    GENERIC_READ | GENERIC_WRITE | windows_security_access()
 }
 
 fn map_io(error: io::Error) -> PrivatePathError {
@@ -266,6 +303,7 @@ mod tests {
             .unwrap();
         let mut handle = OpenOptions::new()
             .read(true)
+            .access_mode(windows_security_access())
             .custom_flags(FILE_FLAG_BACKUP_SEMANTICS)
             .open(&directory)
             .unwrap();
