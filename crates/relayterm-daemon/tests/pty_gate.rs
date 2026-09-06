@@ -9,7 +9,11 @@ use serde_json::{Value, json};
 use std::{
     io::{Read as _, Write as _},
     path::Path,
-    sync::mpsc,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+        mpsc,
+    },
     time::{Duration, Instant},
 };
 
@@ -89,6 +93,15 @@ fn interactive_fixture_child() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
+    let scenario_complete = Arc::new(AtomicBool::new(false));
+    let watchdog_state = scenario_complete.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_secs(30));
+        if !watchdog_state.load(Ordering::Acquire) {
+            eprintln!("M07 PTY gate: whole-scenario deadline exceeded");
+            std::process::abort();
+        }
+    });
     let temporary = native_temp();
     let project = temporary.path().join("project with space");
     std::fs::create_dir(&project).unwrap();
@@ -100,7 +113,7 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
     let prepared = prepare_workspace(&project, Some(private.clone()), workspace)
         .await
         .unwrap();
-    let fixture = std::env::current_exe().unwrap();
+    let (fixture, fixture_arguments) = interactive_fixture(&project);
     let outcome = prepared
         .service()
         .execute(
@@ -108,14 +121,8 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
             Actor::LocalUser,
             Request::AddDefinition {
                 display_name: "Neutral interactive fixture".into(),
-                command: fixture.to_string_lossy().into_owned(),
-                arguments: vec![
-                    "interactive_fixture_child".into(),
-                    "--exact".into(),
-                    "--ignored".into(),
-                    "--nocapture".into(),
-                    "--test-threads=1".into(),
-                ],
+                command: fixture,
+                arguments: fixture_arguments,
                 environment_allowlist: Vec::new(),
                 capabilities: vec!["interactive_terminal".into()],
                 enabled: true,
@@ -541,6 +548,7 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
         .unwrap()
         .unwrap();
     assert_private_tree_has_no_terminal_capture(&private);
+    scenario_complete.store(true, Ordering::Release);
     eprintln!("M07 PTY gate: completed");
 }
 
@@ -548,6 +556,68 @@ fn terminal_line(value: &str) -> Vec<u8> {
     let mut bytes = value.as_bytes().to_vec();
     bytes.push(b'\r');
     bytes
+}
+
+#[cfg(not(windows))]
+fn interactive_fixture(_: &Path) -> (String, Vec<String>) {
+    (
+        std::env::current_exe()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned(),
+        vec![
+            "interactive_fixture_child".into(),
+            "--exact".into(),
+            "--ignored".into(),
+            "--nocapture".into(),
+            "--test-threads=1".into(),
+        ],
+    )
+}
+
+#[cfg(windows)]
+fn interactive_fixture(project: &Path) -> (String, Vec<String>) {
+    let script = project.join("interactive-fixture.ps1");
+    let content = r#"$ErrorActionPreference = 'Stop'
+$escape = [char]27
+$wide = [char]0x754c
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+[Console]::Write("$escape[?1049h$escape[2J$escape[2;3Hfixture-ready$wide$escape[?2004h`r`n")
+[Console]::WriteLine("fixture-term:" + (($env:TERM -eq 'xterm-256color').ToString().ToLowerInvariant()))
+[Console]::WriteLine("fixture-private-canary-absent:" + (($null -eq $env:RELAYTERM_PRIVATE_CANARY).ToString().ToLowerInvariant()))
+while (($line = [Console]::ReadLine()) -ne $null) {
+    if ($line -eq 'flood') {
+        [Console]::Write(('0123456789abcdef0123456789abcdef' + "`r`n") * 32768)
+        [Console]::WriteLine('flood-complete')
+        continue
+    }
+    if ($line -eq 'descendant') {
+        $child = Start-Process -PassThru -WindowStyle Hidden -FilePath $env:ComSpec -ArgumentList @('/D', '/C', 'ping -n 300 127.0.0.1 >nul')
+        [Console]::WriteLine("fixture-descendant:" + $child.Id)
+        continue
+    }
+    [Console]::WriteLine("fixture-echo:" + $line)
+    if ($line -eq 'quit') { exit 0 }
+}
+"#;
+    std::fs::write(&script, content).unwrap();
+    let system_root = std::env::var_os("SystemRoot").unwrap();
+    let powershell = Path::new(&system_root)
+        .join("System32")
+        .join("WindowsPowerShell")
+        .join("v1.0")
+        .join("powershell.exe");
+    (
+        powershell.to_string_lossy().into_owned(),
+        vec![
+            "-NoProfile".into(),
+            "-NonInteractive".into(),
+            "-ExecutionPolicy".into(),
+            "Bypass".into(),
+            "-File".into(),
+            script.to_string_lossy().into_owned(),
+        ],
+    )
 }
 
 async fn create_definition_session(
