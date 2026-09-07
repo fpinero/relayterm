@@ -454,15 +454,26 @@ fn visible_session_rows(screen: &str) -> Vec<(bool, String)> {
     screen
         .lines()
         .filter_map(|line| {
-            let line = line.trim_start_matches(|character: char| {
-                character.is_whitespace() || character == '\u{2502}'
-            });
-            let selected = line.starts_with('>');
-            let (_, remainder) = line.split_once("] session ")?;
+            let (prefix, remainder) = line.split_once("] session ")?;
+            let selected = prefix.contains('>');
             let session_id = remainder.split_whitespace().next()?;
             Some((selected, session_id.to_owned()))
         })
         .collect()
+}
+
+#[test]
+fn rendered_session_rows_accept_native_border_prefixes() {
+    let rows = visible_session_rows(
+        "\u{2502}> [running] session selected-id instance one\n|  [exited] session other-id instance two",
+    );
+    assert_eq!(
+        rows,
+        vec![
+            (true, "selected-id".to_owned()),
+            (false, "other-id".to_owned())
+        ]
+    );
 }
 
 fn assert_latency(
