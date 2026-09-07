@@ -29,6 +29,8 @@ Keep task dependencies informational, as defined in the specification and [M02 s
 
 ## M08: Complete TUI workflow [PLAN]
 
+Execution contract: [M08 detailed plan](docs/M08_details.md).
+
 Depends on: M07. Specification phase: 3. Coverage: FR-1 through FR-6, FR-8; NFR-3, NFR-6, NFR-7.
 
 Outcome: the user completes coordination and terminal workflows through `rt` without the administrative CLI.
