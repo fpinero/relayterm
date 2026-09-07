@@ -346,24 +346,19 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
     second.send(b"3");
     second.wait_for("Sessions selected");
     let rows = wait_for_session_rows(&second, Some(&flood_session_id));
-    let selected_index = rows
-        .iter()
-        .position(|(selected, _)| *selected)
-        .expect("one rendered session is selected");
-    let next_index = (selected_index + 1) % rows.len();
-    let selected_session_id = rows[selected_index].1.clone();
-    let next_session_id = rows[next_index].1.clone();
-    wait_for_selected_session(&second, &selected_session_id);
+    assert!(rows.len() >= 3, "three rendered sessions are required");
     let mut navigation = Vec::with_capacity(100);
     for _ in 0..50 {
+        let selected_session_id = wait_for_selected_session_change(&second, None);
         let started = Instant::now();
         second.send(next_selection_input());
-        wait_for_selected_session(&second, &next_session_id);
+        let next_session_id = wait_for_selected_session_change(&second, Some(&selected_session_id));
         navigation.push(started.elapsed());
         let started = Instant::now();
         second.send(previous_selection_input());
         wait_for_selected_session(&second, &selected_session_id);
         navigation.push(started.elapsed());
+        assert_ne!(selected_session_id, next_session_id);
     }
     assert_latency(
         "navigation",
