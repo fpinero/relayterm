@@ -223,7 +223,7 @@ impl Default for App {
 }
 
 impl App {
-    pub fn install_snapshot(&mut self, snapshot: ClientSnapshot) {
+    pub fn install_snapshot(&mut self, mut snapshot: ClientSnapshot) {
         let selected_task = selected_identity(self.collection("tasks"), self.selected_task, "id");
         let selected_session = selected_identity(
             self.collection("instances"),
@@ -232,6 +232,9 @@ impl App {
         );
         let selected_agent =
             selected_identity(self.collection("definitions"), self.selected_agent, "id");
+        sort_collection(&mut snapshot, "tasks", "id");
+        sort_collection(&mut snapshot, "instances", "session_id");
+        sort_collection(&mut snapshot, "definitions", "id");
         self.last_revision = snapshot.revision.clone();
         self.snapshot = Some(snapshot);
         self.freshness = Freshness::Current;
@@ -349,6 +352,16 @@ fn selected_identity(collection: &[Value], selected: usize, field: &str) -> Opti
         .map(str::to_owned)
 }
 
+fn sort_collection(snapshot: &mut ClientSnapshot, collection: &str, field: &str) {
+    if let Some(items) = snapshot.collections.get_mut(collection) {
+        items.sort_by(|left, right| {
+            let left = left.get(field).and_then(Value::as_str).unwrap_or_default();
+            let right = right.get(field).and_then(Value::as_str).unwrap_or_default();
+            left.cmp(right)
+        });
+    }
+}
+
 fn restored_selection(
     collection: &[Value],
     selected: usize,
@@ -412,7 +425,7 @@ mod tests {
 
         app.install_snapshot(snapshot(vec![second, first]));
 
-        assert_eq!(app.selected_session, 0);
+        assert_eq!(app.selected_session, 1);
         assert_eq!(
             app.selected_session()
                 .and_then(|item| item["session_id"].as_str()),
