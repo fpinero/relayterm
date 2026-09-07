@@ -283,9 +283,12 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
     wait_for_task_status(&root, &private, "done");
     first.send(b"q");
     first.wait_exit();
-    let first_output = first.output.lock().unwrap().clone();
-    assert!(first_output.windows(8).any(|part| part == b"\x1b[?1049h"));
-    assert!(first_output.windows(8).any(|part| part == b"\x1b[?1049l"));
+    #[cfg(unix)]
+    {
+        let first_output = first.output.lock().unwrap().clone();
+        assert!(first_output.windows(8).any(|part| part == b"\x1b[?1049h"));
+        assert!(first_output.windows(8).any(|part| part == b"\x1b[?1049l"));
+    }
 
     let sessions = admin(&root, &private, &["session", "list"]);
     assert_eq!(sessions["ok"], true);
