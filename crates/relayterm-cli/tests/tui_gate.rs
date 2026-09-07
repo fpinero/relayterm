@@ -5,6 +5,7 @@ use relayterm_pty::{
 };
 use serde_json::Value;
 use std::{
+    collections::HashSet,
     ffi::OsString,
     fs,
     io::{BufRead, Read, Write},
@@ -422,16 +423,21 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
 }
 
 fn select_session(terminal: &mut OuterTerminal, target_session_id: &str) {
-    let rows = wait_for_session_rows(terminal, Some(target_session_id));
-    for _ in 0..rows.len() {
+    let mut visited = HashSet::new();
+    for _ in 0..relayterm_protocol::MAX_PAGE_SIZE {
         let selected = wait_for_selected_session_change(terminal, None);
         if selected == target_session_id {
             return;
         }
+        if !visited.insert(selected.clone()) {
+            break;
+        }
         terminal.send(next_selection_input());
         wait_for_selected_session_change(terminal, Some(&selected));
     }
-    panic!("target session was not selected after one rendered cycle");
+    panic!(
+        "target session was not selected after one rendered cycle: target={target_session_id} visited={visited:?}"
+    );
 }
 
 fn wait_for_selected_session(terminal: &OuterTerminal, expected: &str) {
