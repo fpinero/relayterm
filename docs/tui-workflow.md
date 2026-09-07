@@ -108,11 +108,11 @@ Local macOS candidate runs on 2026-09-07 used the native PTY harness and a debug
 
 | Measurement | Samples | Median | p95 | Maximum |
 | --- | ---: | ---: | ---: | ---: |
-| Existing-daemon connection to usable overview | 20 after warm-up | 169 ms | 195 ms | 198 ms |
-| Navigation while another session emits output | 100 | 38 ms | 49 ms | 51 ms |
-| Input to parsed rendered echo | 100 | 168 ms | 174 ms | 199 ms |
+| Existing-daemon connection to usable overview | 20 after warm-up | 185 ms | 234 ms | 287 ms |
+| Navigation while another session emits output | 100 | 24 ms | 25 ms | 71 ms |
+| Input to parsed rendered echo | 100 | 140 ms | 147 ms | 177 ms |
 
-The measured fixture output rate was 4,745,853 bytes per second. The TUI polling ceiling is approximately 30 frames per second. Its bounded queues are 64 UI invalidations, 256 protocol events or 1 MiB, 64 KiB pending input per session, 16,000 cells per viewport, 1,000 diagnostics or 1 MiB, and 256 KiB per complete draft.
+The measured fixture output rate was 4,782,762 bytes per second. The outer-terminal observer maintains an incremental VT parser, so latency sampling does not repeatedly parse its bounded two MiB capture. The TUI polling ceiling is approximately 30 frames per second. Its bounded queues are 64 UI invalidations, 256 protocol events or 1 MiB, 64 KiB pending input per session, 16,000 cells per viewport, 1,000 diagnostics or 1 MiB, and 256 KiB per complete draft.
 
 CI run links, runner versions, and both native repetitions are recorded in `docs/supported-platforms.md` after the final candidate passes. Hosted console automation is native PTY or ConPTY evidence, but it is not a claim that Terminal.app, Windows Terminal's graphical interface, xterm, or SSH was manually tested. Those optional named-terminal checks remain explicit gaps unless an authorized environment is available.
 

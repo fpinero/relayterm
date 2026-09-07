@@ -53,8 +53,7 @@ struct OuterTerminal {
     control: NativeControl,
     writer: Box<dyn std::io::Write + Send>,
     output: Arc<Mutex<Vec<u8>>>,
-    rows: u16,
-    columns: u16,
+    screen: Arc<Mutex<vt100::Parser>>,
 }
 
 impl OuterTerminal {
@@ -77,12 +76,15 @@ impl OuterTerminal {
         let (control, writer, mut reader) = session.into_parts();
         let output = Arc::new(Mutex::new(Vec::new()));
         let captured = output.clone();
+        let screen = Arc::new(Mutex::new(vt100::Parser::new(30, 100, 0)));
+        let parsed = screen.clone();
         std::thread::spawn(move || {
             let mut chunk = [0_u8; 4096];
             while let Ok(amount) = reader.read(&mut chunk) {
                 if amount == 0 {
                     break;
                 }
+                parsed.lock().unwrap().process(&chunk[..amount]);
                 let mut output = captured.lock().unwrap();
                 output.extend_from_slice(&chunk[..amount]);
                 if output.len() > OUTPUT_LIMIT {
@@ -95,8 +97,7 @@ impl OuterTerminal {
             control,
             writer,
             output,
-            rows: 30,
-            columns: 100,
+            screen,
         }
     }
 
@@ -106,8 +107,11 @@ impl OuterTerminal {
 
     fn resize(&mut self, rows: u16, columns: u16) {
         self.control.resize(rows, columns).unwrap();
-        self.rows = rows;
-        self.columns = columns;
+        self.screen
+            .lock()
+            .unwrap()
+            .screen_mut()
+            .set_size(rows, columns);
     }
 
     fn wait_for(&self, marker: &str) {
@@ -118,9 +122,13 @@ impl OuterTerminal {
                 if marker.starts_with('\u{1b}') {
                     String::from_utf8_lossy(&output).contains(marker)
                 } else {
-                    let mut parser = vt100::Parser::new(self.rows, self.columns, 0);
-                    parser.process(&output);
-                    parser.screen().contents().contains(marker)
+                    drop(output);
+                    self.screen
+                        .lock()
+                        .unwrap()
+                        .screen()
+                        .contents()
+                        .contains(marker)
                 }
             };
             if present {
@@ -138,10 +146,7 @@ impl OuterTerminal {
     }
 
     fn screen_contents(&self) -> String {
-        let output = self.output.lock().unwrap();
-        let mut parser = vt100::Parser::new(self.rows, self.columns, 0);
-        parser.process(&output);
-        parser.screen().contents()
+        self.screen.lock().unwrap().screen().contents()
     }
 
     fn wait_exit(&mut self) {
