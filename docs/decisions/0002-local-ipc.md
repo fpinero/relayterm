@@ -1,6 +1,6 @@
 # 0002: Local IPC and synchronization
 
-Status: Accepted architecture; implemented by M04 and extended by M05 with native verification recorded separately.
+Status: Accepted architecture; implemented by M04 and extended through M08 with native verification recorded separately.
 Task: M01.02, refined by M04.01.
 Requirements: Sections 6.2, 9.2, 9.5; NFR-2, NFR-4, NFR-8.
 
@@ -28,6 +28,8 @@ Public clients always act as `LocalUser`. They may request a claim for a concret
 
 M05 adds `daemon.status`, generation-targeted `daemon.shutdown`, and `agent.import_definitions` without changing protocol version 1 or envelope shapes. Implemented capability remains advertised in the hello response, so an older version-1 server can reject an unknown additive operation without replacement. A separate 64 KiB, one-exchange bootstrap schema runs only over inherited anonymous process pipes before a workspace endpoint can exist. It is not a public listener and cannot bypass registry or path validation.
 
+M08 uses separate client connections for control calls and event subscription so an idle subscription cannot hold the control stream. Event recovery resumes from the last durable sequence with bounded backoff. Parsed display polling uses the additive `session.read_display` operation and returns no cell payload when terminal revision and scrollback position are unchanged. The operation is advertised during hello and does not reinterpret an older successful request.
+
 ## Alternatives
 
 TCP would expand the trust boundary. Newline-only text framing is unsuitable for opaque terminal bytes. Unbounded queues and blind retries can corrupt perceived state or exhaust memory.
@@ -38,6 +40,6 @@ Clients must handle reconnect and cursor expiry. IPC access protects against oth
 
 ## Verification and ownership
 
-M04: fragmented/coalesced frames, rejected peers, unknown operations, version mismatch, oversized/truncated input, concurrent claims, snapshot/subscription races, expired cursors, uncertain mutation recovery, slow-client isolation, and terminal/control queue fairness. M07 still owns real terminal stream behavior. M01 tests every `u16` version against version 1.
+M04: fragmented/coalesced frames, rejected peers, unknown operations, version mismatch, oversized/truncated input, concurrent claims, snapshot/subscription races, expired cursors, uncertain mutation recovery, slow-client isolation, and terminal/control queue fairness. M07 verifies real terminal streams. M08 verifies independent TUI control and subscription traffic, compact display bounds, reconnect behavior, and native multi-session interaction. M01 tests every `u16` version against version 1.
 
 Reference: [Windows pipe access control](https://learn.microsoft.com/en-us/windows/win32/ipc/named-pipe-security-and-access-rights).

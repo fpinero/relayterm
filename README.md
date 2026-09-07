@@ -85,10 +85,11 @@ The canonical user-facing executable will be `rt`. The reserved `relayterm.com` 
 - [Daemon and administrative CLI](docs/daemon_cli.md) documents the implemented M05 lifecycle and script interface.
 - [First durable slice](docs/first-durable-slice.md) documents the implemented M06 process, restart, continuity, and native verification gate.
 - [PTY supervision and reattachment](docs/pty-supervision.md) documents the M07 real-session lifecycle, limits, administrative surface, and native gate.
+- [TUI workflow and verification](docs/tui-workflow.md) documents the interactive M08 workflow, key map, terminal profile, limits, and native gate.
 
 ## Current status
 
-Relayterm now has a deterministic coordination core, private SQLite persistence, a versioned local protocol, current-user IPC transports, an independent per-workspace daemon, an administrative CLI, and daemon-owned real PTY sessions. The native M07 gate exercises a shell and two neutral interactive fixtures, full-screen state, Unicode, input ownership, resize, client disconnection, reattachment, termination, and bounded in-memory state. The TUI remains M08 work. See the [PTY guide](docs/pty-supervision.md), [first durable slice guide](docs/first-durable-slice.md), and [supported platform evidence](docs/supported-platforms.md).
+Relayterm now has a deterministic coordination core, private SQLite persistence, a versioned local protocol, current-user IPC transports, an independent per-workspace daemon, an administrative CLI, daemon-owned real PTY sessions, and an interactive Ratatui client. The native M08 gate initializes and opens workspaces, coordinates tasks and handovers between real instances, drives three concurrent sessions, releases exclusive input, closes and reopens the client, renders authoritative terminal state, and verifies bounded behavior under output load. See the [TUI guide](docs/tui-workflow.md), [PTY guide](docs/pty-supervision.md), [first durable slice guide](docs/first-durable-slice.md), and [supported platform evidence](docs/supported-platforms.md).
 
 Build with the pinned Rust toolchain:
 
@@ -99,7 +100,7 @@ cargo run -p relayterm-cli --bin rt -- --help
 cargo run -p relayterm-cli --bin rt -- --version
 ```
 
-Running `rt` without a subcommand still reports that the TUI is unavailable and exits with code 1. Use `rt workspace init`, `rt daemon status`, and the administrative command groups before M08. Help/version exit successfully and create no runtime-private state.
+Running `rt` without a subcommand opens the workspace for the current directory, prompts before first initialization, and enters the TUI after connecting to the detached daemon. Use `--workspace PATH` to select another project. Noninteractive no-command use fails before side effects. Administrative commands, help, version, and JSON output remain separate from terminal mode.
 
 See [contributing](CONTRIBUTING.md), [architecture decisions](docs/architecture/README.md), [privacy](docs/privacy.md), and [platform evidence](docs/supported-platforms.md). The [pending queue](TODO.md) distinguishes implemented foundations from the remaining daemon, PTY, TUI, agent-adapter, and worktree milestones.
 

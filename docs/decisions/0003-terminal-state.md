@@ -1,6 +1,6 @@
 # 0003: Terminal state and reattachment
 
-Status: Accepted and implemented by M07; native evidence is tracked in the platform guide.
+Status: Accepted and implemented by M07, with the bounded M08 display adapter; native evidence is tracked in the platform guide.
 Task: M01.03.
 Requirements: Sections 6.3, 8, 14; FR-3, FR-4.
 
@@ -28,6 +28,8 @@ Attachments are read-only by default. One connection owns a generation-scoped in
 
 The session operations activate previously unavailable, capability-negotiated protocol version 1 names. Their strict request bodies were not accepted by a version 1 production server before M07, so adding receipts, leases, attachment identities, snapshots, and output cursors does not reinterpret a formerly successful request. Older servers omit these operations from hello and reject them. New clients require the advertised operation set before use. A protocol version increase remains required if a successful published operation changes incompatibly.
 
+M08 adds a separate `session.read_display` capability. It transfers at most 16,000 authoritative visible or parsed-history cells. Compact cell tuples carry text, two neutral colors, and bit-packed attributes, while the response carries cursor, modes, source dimensions, parser revision, raw retention boundary, and revision-scoped scrollback position. This reduces bandwidth without reconstructing a client parser or exposing child control sequences to the host terminal. A read temporarily selects scrollback under the session lock and restores the live parser view before returning, so attachments do not share a mutable viewing position.
+
 ## Alternatives
 
 Client-only state disappears on detach. A raw ring can begin inside an escape sequence or omit alternate-screen initialization. Provider-specific transcript parsers violate neutrality.
@@ -38,6 +40,6 @@ Terminal parsing introduces compatibility and resource-limit work. No promise of
 
 ## Verification and ownership
 
-Committed parser tests compare cells, cursor, and modes at every split point of representative UTF-8 and CSI input. They verify alternate-screen restoration after raw-history truncation. The native `pty_gate` uses a shell and two test-only interactive children to verify input, resize, full-screen state, exclusive ownership, disconnect, reattachment, termination, and no persistent terminal capture. The console-lifetime gate reconnects to three real shell sessions after their originating console owner closes. CI runs these gates on Linux, macOS, and Windows.
+Committed parser tests compare cells, cursor, and modes at every split point of representative UTF-8 and CSI input. They verify alternate-screen restoration after raw-history truncation and that a parsed scrollback snapshot restores the live view. The native `pty_gate` uses a shell and two test-only interactive children to verify input, resize, full-screen state, exclusive ownership, disconnect, reattachment, termination, and no persistent terminal capture. The M08 `tui_gate` drives the real client through an outer PTY or ConPTY, verifies rendering and focus release, and measures bounded response under output load. CI runs these gates on Linux, macOS, and Windows.
 
 Reference: [vt100 parser documentation](https://docs.rs/vt100/latest/vt100/).
