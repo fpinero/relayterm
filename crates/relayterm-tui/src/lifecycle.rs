@@ -6,7 +6,7 @@ use crossterm::{
 use ratatui::{Terminal, backend::CrosstermBackend};
 use std::{
     fmt,
-    io::{self, Stdout},
+    io::{self, BufWriter, Stdout},
 };
 
 #[derive(Debug)]
@@ -21,7 +21,7 @@ impl fmt::Display for LifecycleError {
 impl std::error::Error for LifecycleError {}
 
 pub struct TerminalGuard {
-    terminal: Terminal<CrosstermBackend<Stdout>>,
+    terminal: Terminal<CrosstermBackend<BufWriter<Stdout>>>,
     raw: bool,
     alternate: bool,
     cursor_hidden: bool,
@@ -30,7 +30,7 @@ pub struct TerminalGuard {
 impl TerminalGuard {
     pub fn enter() -> Result<Self, LifecycleError> {
         let stdout = io::stdout();
-        let backend = CrosstermBackend::new(stdout);
+        let backend = CrosstermBackend::new(BufWriter::new(stdout));
         let terminal = Terminal::new(backend).map_err(|_| LifecycleError)?;
         let mut guard = Self {
             terminal,
@@ -48,7 +48,7 @@ impl TerminalGuard {
         Ok(guard)
     }
 
-    pub fn terminal(&mut self) -> &mut Terminal<CrosstermBackend<Stdout>> {
+    pub fn terminal(&mut self) -> &mut Terminal<CrosstermBackend<BufWriter<Stdout>>> {
         &mut self.terminal
     }
 

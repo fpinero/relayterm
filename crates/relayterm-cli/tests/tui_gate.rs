@@ -19,6 +19,8 @@ use std::{
 
 const DEADLINE: Duration = Duration::from_secs(45);
 const OUTPUT_LIMIT: usize = 2 * 1024 * 1024;
+const FLOOD_CHUNK_REPETITIONS: usize = 2_048;
+const FLOOD_CHUNKS: usize = 80;
 static NATIVE_GATE_LOCK: Mutex<()> = Mutex::new(());
 
 struct Scratch(PathBuf);
@@ -189,8 +191,8 @@ fn interactive_fixture_process() {
         let line = line.unwrap();
         if line == "flood" {
             let started = Instant::now();
-            let chunk = "0123456789abcdef0123456789abcdef\r\n".repeat(1024);
-            for _ in 0..80 {
+            let chunk = format!("{}\r\n", "0123456789abcdef".repeat(FLOOD_CHUNK_REPETITIONS));
+            for _ in 0..FLOOD_CHUNKS {
                 stdout.write_all(chunk.as_bytes()).unwrap();
             }
             stdout.flush().unwrap();
@@ -393,7 +395,7 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
         .and_then(|value| value.split_whitespace().next())
         .and_then(|value| value.parse::<u128>().ok())
         .expect("fixture reported its bounded flood duration");
-    let flood_bytes = 80_u128 * 1024 * 34;
+    let flood_bytes = FLOOD_CHUNKS as u128 * (FLOOD_CHUNK_REPETITIONS as u128 * 16 + 2);
     let bytes_per_second = flood_bytes * 1_000_000 / microseconds.max(1);
     eprintln!("M08 flood throughput_bytes_per_second={bytes_per_second}");
     assert!(
