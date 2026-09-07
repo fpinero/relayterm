@@ -26,3 +26,5 @@ base64.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
+relayterm-pty = { version = "0.1.0", path = "../relayterm-pty" }
+vt100.workspace = true

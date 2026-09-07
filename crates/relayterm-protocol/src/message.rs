@@ -154,6 +154,7 @@ pub enum Operation {
     EventUnsubscribe,
     SessionCreate,
     SessionAttach,
+    SessionReadDisplay,
     SessionInput,
     SessionResize,
     SessionTerminate,
@@ -166,7 +167,7 @@ pub enum Operation {
     Unknown,
 }
 impl Operation {
-    pub const ALL: [Self; 36] = [
+    pub const ALL: [Self; 37] = [
         Self::ProtocolHello,
         Self::ProtocolPing,
         Self::DaemonStatus,
@@ -194,6 +195,7 @@ impl Operation {
         Self::EventUnsubscribe,
         Self::SessionCreate,
         Self::SessionAttach,
+        Self::SessionReadDisplay,
         Self::SessionInput,
         Self::SessionResize,
         Self::SessionTerminate,
@@ -233,6 +235,7 @@ impl Operation {
             Self::EventUnsubscribe => "event.unsubscribe",
             Self::SessionCreate => "session.create",
             Self::SessionAttach => "session.attach",
+            Self::SessionReadDisplay => "session.read_display",
             Self::SessionInput => "session.input",
             Self::SessionResize => "session.resize",
             Self::SessionTerminate => "session.terminate",
@@ -250,6 +253,7 @@ impl Operation {
             self,
             Self::SessionCreate
                 | Self::SessionAttach
+                | Self::SessionReadDisplay
                 | Self::SessionInput
                 | Self::SessionResize
                 | Self::SessionTerminate
@@ -855,6 +859,26 @@ pub struct SessionReadOutputParams {
     pub attachment_id: AttachmentId,
     pub after_offset: DecimalOffset,
 }
+pub const MAX_DISPLAY_CELLS: usize = 16_000;
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SessionReadDisplayParams {
+    pub session_id: SessionId,
+    #[serde(default)]
+    pub attachment_id: Option<AttachmentId>,
+    #[serde(default)]
+    pub after_revision: Option<u64>,
+    #[serde(default)]
+    pub after_scrollback_offset: Option<u16>,
+    #[serde(default)]
+    pub top: u16,
+    #[serde(default)]
+    pub left: u16,
+    #[serde(default)]
+    pub scrollback_rows: u16,
+    pub rows: u16,
+    pub columns: u16,
+}
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SessionCreateResult {
@@ -877,6 +901,53 @@ pub struct TerminalAttachmentDto {
     pub stream_id: DecimalU64,
     pub snapshot: TerminalSnapshotDto,
 }
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TerminalDisplayDto {
+    pub daemon_generation: String,
+    pub attachment_id: AttachmentId,
+    pub stream_id: DecimalU64,
+    pub source_rows: u16,
+    pub source_columns: u16,
+    pub top: u16,
+    pub left: u16,
+    pub scrollback_offset: u16,
+    pub retained_scrollback_rows: u16,
+    pub unchanged: bool,
+    pub snapshot: Option<TerminalViewportDto>,
+}
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TerminalViewportDto {
+    pub schema_version: u8,
+    pub revision: u64,
+    pub raw_offset: u64,
+    pub retained_from_offset: u64,
+    pub rows: u16,
+    pub columns: u16,
+    pub cursor_row: u16,
+    pub cursor_column: u16,
+    pub cursor_hidden: bool,
+    pub alternate_screen: bool,
+    pub application_cursor: bool,
+    pub application_keypad: bool,
+    pub bracketed_paste: bool,
+    pub cells: Vec<TerminalViewportCellDto>,
+}
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct TerminalViewportCellDto(
+    pub String,
+    pub TerminalColorDto,
+    pub TerminalColorDto,
+    pub u8,
+);
+pub const TERMINAL_CELL_BOLD: u8 = 1 << 0;
+pub const TERMINAL_CELL_DIM: u8 = 1 << 1;
+pub const TERMINAL_CELL_ITALIC: u8 = 1 << 2;
+pub const TERMINAL_CELL_UNDERLINE: u8 = 1 << 3;
+pub const TERMINAL_CELL_INVERSE: u8 = 1 << 4;
+pub const TERMINAL_CELL_WIDE: u8 = 1 << 5;
+pub const TERMINAL_CELL_WIDE_CONTINUATION: u8 = 1 << 6;
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TerminalOutputDto {
@@ -1270,6 +1341,46 @@ mod tests {
         for invalid in [r#""""#, r#""00""#, r#""01""#, "0"] {
             assert!(serde_json::from_str::<DecimalOffset>(invalid).is_err());
         }
+    }
+    #[test]
+    fn terminal_viewport_cells_are_compact_strict_and_bounded() {
+        let cell = TerminalViewportCellDto(
+            "x".into(),
+            TerminalColorDto::Indexed(7),
+            TerminalColorDto::Rgb([1, 2, 3]),
+            TERMINAL_CELL_BOLD | TERMINAL_CELL_UNDERLINE,
+        );
+        let viewport = TerminalViewportDto {
+            schema_version: 1,
+            revision: 2,
+            raw_offset: 3,
+            retained_from_offset: 0,
+            rows: 100,
+            columns: 160,
+            cursor_row: 0,
+            cursor_column: 0,
+            cursor_hidden: false,
+            alternate_screen: true,
+            application_cursor: true,
+            application_keypad: false,
+            bracketed_paste: true,
+            cells: vec![cell; MAX_DISPLAY_CELLS],
+        };
+        let encoded = encode_json(&viewport).unwrap();
+        assert!(encoded.len() < crate::JSON_FRAME_LIMIT / 2);
+        let decoded: TerminalViewportDto = decode_json(&encoded, false).unwrap();
+        assert_eq!(decoded.cells.len(), MAX_DISPLAY_CELLS);
+        assert_eq!(
+            decoded.cells[0].3,
+            TERMINAL_CELL_BOLD | TERMINAL_CELL_UNDERLINE
+        );
+        assert!(
+            decode_json::<TerminalViewportCellDto>(
+                br#"["x",{"kind":"default"},{"kind":"default"},0,1]"#,
+                false
+            )
+            .is_err()
+        );
     }
     #[test]
     fn paths_and_pages_are_bounded() {

@@ -280,6 +280,16 @@ impl SessionSupervisor {
         session_id: Uuid,
         connection: Uuid,
     ) -> Result<(Uuid, u64, TerminalSnapshot), SupervisorError> {
+        let (attachment, stream, snapshot, _, _) = self.attach_at(session_id, connection, 0)?;
+        Ok((attachment, stream, snapshot))
+    }
+
+    pub fn attach_at(
+        &self,
+        session_id: Uuid,
+        connection: Uuid,
+        scrollback_rows: usize,
+    ) -> Result<(Uuid, u64, TerminalSnapshot, usize, usize), SupervisorError> {
         let session = self.session(session_id)?;
         let mut attachments = session
             .attachments
@@ -303,9 +313,15 @@ impl SessionSupervisor {
             .terminal
             .lock()
             .map_err(|_| SupervisorError::Io)?
-            .snapshot()
+            .snapshot_with_scrollback(scrollback_rows)
             .map_err(|_| SupervisorError::ResourceLimit)?;
-        Ok((attachment.id, attachment.stream_id, snapshot))
+        Ok((
+            attachment.id,
+            attachment.stream_id,
+            snapshot.0,
+            snapshot.1,
+            snapshot.2,
+        ))
     }
 
     pub fn detach(&self, session_id: Uuid, connection: Uuid) -> Result<(), SupervisorError> {

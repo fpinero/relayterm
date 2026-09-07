@@ -41,7 +41,7 @@ fn command_contracts_have_no_runtime_side_effects() {
         (&["--help"], 0, "Usage: rt"),
         (&["--version"], 0, concat!("rt ", env!("CARGO_PKG_VERSION"))),
         (&["daemon", "--help"], 0, "Usage: rt daemon"),
-        (&[], 1, "The TUI is not implemented yet"),
+        (&[], 1, "requires an interactive input and output terminal"),
         (&["daemon"], 2, "command arguments are invalid"),
         (&["--unknown-option"], 2, "command arguments are invalid"),
     ];

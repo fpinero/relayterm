@@ -150,6 +150,14 @@ impl Client {
         self.deadline = deadline;
         self
     }
+
+    /// Open an independently framed connection for subscriptions or terminal traffic.
+    /// A blocking event read on this peer cannot starve control requests on the caller.
+    pub async fn connect_peer(&self) -> Result<Self, ClientError> {
+        Self::connect(&self.endpoint, self.workspace_id)
+            .await
+            .map(|peer| peer.with_deadline(self.deadline))
+    }
     pub async fn call<P: Serialize, R: DeserializeOwned>(
         &self,
         operation: Operation,
@@ -601,9 +609,13 @@ impl Client {
         }
         loop {
             let mut stream = self.stream.lock().await;
-            let frame = read_frame(&mut *stream, self.deadline)
-                .await
-                .map_err(|_| ClientError::Transport(Delivery::NotSent))?;
+            let frame = match read_frame(&mut *stream, self.deadline).await {
+                Ok(frame) => frame,
+                Err(_) => {
+                    self.visible.lock().await.connection = ConnectionStatus::Disconnected;
+                    return Err(ClientError::Transport(Delivery::NotSent));
+                }
+            };
             drop(stream);
             if frame.kind != FrameKind::Json {
                 return Err(ClientError::Protocol);
@@ -624,6 +636,18 @@ impl Client {
             }
             return self.pop_event().await.ok_or(ClientError::Protocol);
         }
+    }
+
+    pub async fn recover_subscription(&self, after_sequence: u64) -> Result<(), ClientError> {
+        let subscribed = self.events.lock().await.subscribed;
+        if subscribed {
+            let _: Value = self
+                .call(Operation::DaemonStatus, &serde_json::json!({}))
+                .await?;
+        } else {
+            self.subscribe(after_sequence).await?;
+        }
+        Ok(())
     }
     async fn pop_event(&self) -> Option<Value> {
         let mut state = self.events.lock().await;

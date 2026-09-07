@@ -36,15 +36,51 @@ Depends on: M07. Specification phase: 3. Coverage: FR-1 through FR-6, FR-8; NFR-
 Outcome: the user completes coordination and terminal workflows through `rt` without the administrative CLI.
 
 - M08.01: Specify the minimum screen/navigation model, terminal focus escape binding, resize rules, forms, confirmation for session termination, reconnect states, and small-terminal behavior. Reuse M07 terminal semantics and define testable presentation state separate from transport effects.
+  - M08.01a: Finalize the screen, action, focus, small-layout, and coordination operation matrices.
+  - M08.01b: Reproduce inherited client starvation, stale edit, terminal continuity, snapshot size, and history risks.
+  - M08.01c: Decide the bounded TUI architecture, display protocol, dependency versions, and ADR updates.
 - M08.02: Replace the default `rt` placeholder with workspace selection/open/init and daemon discovery/start followed by TUI connection. Test first launch, reconnect, unavailable workspace, and non-interactive/unsupported terminal errors.
+  - M08.02a: Extract shared bootstrap composition and no-command entry while preserving administrative output.
+  - M08.02b: Implement workspace choose, open, initialize, and failure flows.
+  - M08.02c: Reject unsupported and non-interactive terminal modes before side effects.
 - M08.03: Implement raw-mode and alternate-screen lifecycle with restoration on normal exit, errors, and panic. Verify the user's terminal remains usable after every tested exit path.
+  - M08.03a: Implement the idempotent terminal lifecycle and independent event reader.
+  - M08.03b: Restore terminal state on errors, panics, and deliverable signals with bounded teardown.
 - M08.04: Implement workspace overview, task list/board, owner/status indicators, and agent/instance listing from client snapshots and events. Test empty/loading/error states and essential state without color.
+  - M08.04a: Implement the reducer, typed effects, and bounded fair scheduler.
+  - M08.04b: Build overview, tasks, agents, and instances from coherent snapshots.
+  - M08.04c: Apply ordered event invalidations and bounded refresh.
 - M08.05: Implement task create/edit/transition/claim/release forms and claim history. Test invalid transitions and competing claim errors preserve user context and reflect authoritative daemon state.
+  - M08.05a: Implement task create/edit fields and byte-aware validation.
+  - M08.05b: Implement state, claim, release, and claim-history actions.
+  - M08.05c: Protect drafts and stale edits with verified server semantics.
 - M08.06: Implement task detail, progress append, structured handover creation/read, and resume by a different instance. Test required fields, length limits, validation errors, and visible verification/next action.
+  - M08.06a: Implement task detail and bounded ordered history navigation.
+  - M08.06b: Implement progress and structured handover forms.
+  - M08.06c: Implement contextual resume and historical annotations.
 - M08.07: Implement shell/agent launch, attach/detach, terminal switching, input forwarding, resize, and exit reporting. Render provider-neutral terminal state correctly without opening SQLite or owning child processes.
+  - M08.07a: Implement validated launch receipts, session tabs, and lifecycle reporting.
+  - M08.07b: Complete authoritative bounded display transfer and parsed history.
+  - M08.07c: Render neutral terminal cells, cursor, and modes.
+  - M08.07d: Implement key and paste encoding, input leases, and the focus escape.
+  - M08.07e: Implement resize, read-only attach, detach, switching, and confirmed termination.
 - M08.08: Implement reconnect and fresh snapshot/event refresh with explicit disconnected state and safe handling of pending mutations. Test disconnect during editing and active terminal output without accidental duplicate writes.
+  - M08.08a: Implement connection state, bounded backoff, and generation-safe refresh.
+  - M08.08b: Implement pending mutation uncertainty and draft preservation.
+  - M08.08c: Verify reconnect under terminal load and unrecoverable session loss.
 - M08.09: Implement keyboard help, redacted event/diagnostic view, escaped untrusted text outside terminal panes, and minimum-size guidance. Test monochrome rendering, keyboard-only operation, Unicode, and small layouts.
+  - M08.09a: Implement discoverable keyboard help and complete compact navigation.
+  - M08.09b: Implement safe text and bounded redacted diagnostics.
+  - M08.09c: Publish the keyboard, terminal profile, lifecycle, and privacy guide and update public status.
 - M08.10: Verify the TUI gate with the primary shell/agent/task/handover/resume scenario, client close/reopen, and session reattachment on each platform. Measure connection-to-interactive time against the two-second target and input responsiveness under output load; record environment and measurements.
+  - M08.10a: Create the actual `rt` native outer-terminal integration harness.
+  - M08.10b: Automate the complete coordination and three-session TUI journeys.
+  - M08.10c: Verify normal close, terminal destruction, and independent reattachment.
+  - M08.10d: Make CI repetitions independently fail and collect native evidence.
+  - M08.10e: Measure startup, latency, fairness, and resource bounds.
+  - M08.10f: Record available named-terminal and SSH checks with explicit gaps.
+  - M08.10g: Run full verification, audits, and candidate documentation review.
+  - M08.10h: Deliver the implementation PR, required reviews, merge, synchronized main, and post-merge CI.
 
 ## M09: Editable provider templates and generic integration
 

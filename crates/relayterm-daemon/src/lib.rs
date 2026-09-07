@@ -599,6 +599,7 @@ where
                 request.operation,
                 O::SessionCreate
                     | O::SessionAttach
+                    | O::SessionReadDisplay
                     | O::SessionInput
                     | O::SessionResize
                     | O::SessionTerminate
@@ -678,6 +679,10 @@ where
             }
             O::SessionCreate => self.session_create(&request.params).await,
             O::SessionAttach => self.session_attach(&request.params, connection_id).await,
+            O::SessionReadDisplay => {
+                self.session_read_display(&request.params, connection_id)
+                    .await
+            }
             O::SessionDetach => {
                 let params: wire::SessionDetachParams = parameters(&request.params)?;
                 self.supervisor
@@ -1027,6 +1032,85 @@ where
             return Err(resource());
         }
         Ok(value)
+    }
+
+    async fn session_read_display(
+        &self,
+        value: &Value,
+        connection_id: wire::ConnectionId,
+    ) -> Result<Value, wire::ErrorBody> {
+        let params: wire::SessionReadDisplayParams = parameters(value)?;
+        let requested = usize::from(params.rows)
+            .checked_mul(usize::from(params.columns))
+            .ok_or_else(resource)?;
+        if params.rows == 0 || params.columns == 0 || requested > wire::MAX_DISPLAY_CELLS {
+            return Err(resource());
+        }
+        let (attachment_id, stream_id, mut snapshot, scrollback_offset, retained_scrollback_rows) =
+            self.supervisor
+                .as_ref()
+                .ok_or_else(unavailable)?
+                .attach_at(
+                    params.session_id.as_uuid(),
+                    connection_id.as_uuid(),
+                    usize::from(params.scrollback_rows),
+                )
+                .map_err(map_supervisor)?;
+        if params
+            .attachment_id
+            .is_some_and(|expected| expected.as_uuid() != attachment_id)
+        {
+            return Err(map_domain_error(domain::Error::Conflict));
+        }
+        let source_rows = snapshot.rows;
+        let source_columns = snapshot.columns;
+        let top = params.top.min(source_rows);
+        let left = params.left.min(source_columns);
+        let top_end = top.saturating_add(params.rows).min(source_rows);
+        let left_end = left.saturating_add(params.columns).min(source_columns);
+        let rows = top_end.saturating_sub(top);
+        let columns = left_end.saturating_sub(left);
+        let unchanged = params.after_revision == Some(snapshot.revision)
+            && params.after_scrollback_offset == u16::try_from(scrollback_offset).ok();
+        if !unchanged {
+            let mut cells = Vec::with_capacity(usize::from(rows) * usize::from(columns));
+            for row in top..top_end {
+                let start = usize::from(row) * usize::from(source_columns) + usize::from(left);
+                let end = start + usize::from(columns);
+                cells.extend_from_slice(&snapshot.cells[start..end]);
+            }
+            let cursor_visible = snapshot.cursor_row >= top
+                && snapshot.cursor_row < top_end
+                && snapshot.cursor_column >= left
+                && snapshot.cursor_column < left_end;
+            snapshot.cursor_hidden |= !cursor_visible;
+            snapshot.cursor_row = snapshot.cursor_row.saturating_sub(top);
+            snapshot.cursor_column = snapshot.cursor_column.saturating_sub(left);
+            snapshot.rows = rows;
+            snapshot.columns = columns;
+            snapshot.cells = cells;
+        }
+        let generation = self
+            .lifecycle
+            .as_ref()
+            .ok_or_else(unavailable)?
+            .generation();
+        let snapshot = (!unchanged).then(|| display_snapshot(snapshot));
+        serde_json::to_value(wire::TerminalDisplayDto {
+            daemon_generation: generation.to_owned(),
+            attachment_id: wire::AttachmentId::from_uuid(attachment_id),
+            stream_id: wire::DecimalU64::new(stream_id).map_err(|_| resource())?,
+            source_rows,
+            source_columns,
+            top,
+            left,
+            scrollback_offset: u16::try_from(scrollback_offset).map_err(|_| resource())?,
+            retained_scrollback_rows: u16::try_from(retained_scrollback_rows)
+                .map_err(|_| resource())?,
+            unchanged,
+            snapshot,
+        })
+        .map_err(|_| resource())
     }
 
     fn session_read_output(
@@ -1784,6 +1868,17 @@ fn validate_reserved(operation: wire::Operation, value: &Value) -> Result<(), wi
         O::SessionAttach => {
             let _: wire::SessionAttachParams = parameters(value)?;
         }
+        O::SessionReadDisplay => {
+            let params: wire::SessionReadDisplayParams = parameters(value)?;
+            if params.rows == 0
+                || params.columns == 0
+                || usize::from(params.rows)
+                    .checked_mul(usize::from(params.columns))
+                    .is_none_or(|cells| cells > wire::MAX_DISPLAY_CELLS)
+            {
+                return Err(resource());
+            }
+        }
         O::SessionReadOutput => {
             let _: wire::SessionReadOutputParams = parameters(value)?;
         }
@@ -1951,6 +2046,61 @@ fn actor(value: domain::Actor) -> Value {
         domain::Actor::LocalUser => json!({"kind":"local_user"}),
         domain::Actor::System => json!({"kind":"system"}),
         domain::Actor::Instance(id) => json!({"kind":"instance","instance_id":id.to_string()}),
+    }
+}
+fn display_snapshot(snapshot: relayterm_terminal::TerminalSnapshot) -> wire::TerminalViewportDto {
+    let cells = snapshot
+        .cells
+        .into_iter()
+        .map(|cell| {
+            let mut flags = 0_u8;
+            for (enabled, flag) in [
+                (cell.bold, wire::TERMINAL_CELL_BOLD),
+                (cell.dim, wire::TERMINAL_CELL_DIM),
+                (cell.italic, wire::TERMINAL_CELL_ITALIC),
+                (cell.underline, wire::TERMINAL_CELL_UNDERLINE),
+                (cell.inverse, wire::TERMINAL_CELL_INVERSE),
+                (cell.wide, wire::TERMINAL_CELL_WIDE),
+                (
+                    cell.wide_continuation,
+                    wire::TERMINAL_CELL_WIDE_CONTINUATION,
+                ),
+            ] {
+                if enabled {
+                    flags |= flag;
+                }
+            }
+            wire::TerminalViewportCellDto(
+                cell.contents,
+                display_color(cell.foreground),
+                display_color(cell.background),
+                flags,
+            )
+        })
+        .collect();
+    wire::TerminalViewportDto {
+        schema_version: snapshot.schema_version,
+        revision: snapshot.revision,
+        raw_offset: snapshot.raw_offset,
+        retained_from_offset: snapshot.retained_from_offset,
+        rows: snapshot.rows,
+        columns: snapshot.columns,
+        cursor_row: snapshot.cursor_row,
+        cursor_column: snapshot.cursor_column,
+        cursor_hidden: snapshot.cursor_hidden,
+        alternate_screen: snapshot.alternate_screen,
+        application_cursor: snapshot.application_cursor,
+        application_keypad: snapshot.application_keypad,
+        bracketed_paste: snapshot.bracketed_paste,
+        cells,
+    }
+}
+
+fn display_color(color: relayterm_terminal::Color) -> wire::TerminalColorDto {
+    match color {
+        relayterm_terminal::Color::Default => wire::TerminalColorDto::Default,
+        relayterm_terminal::Color::Indexed(value) => wire::TerminalColorDto::Indexed(value),
+        relayterm_terminal::Color::Rgb(value) => wire::TerminalColorDto::Rgb(value),
     }
 }
 fn event_dto(event: &domain::WorkspaceEvent) -> Value {

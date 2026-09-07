@@ -193,6 +193,24 @@ impl TerminalState {
         })
     }
 
+    pub fn snapshot_with_scrollback(
+        &mut self,
+        requested_rows: usize,
+    ) -> Result<(TerminalSnapshot, usize, usize), TerminalError> {
+        self.parser.screen_mut().set_scrollback(usize::MAX);
+        let retained_rows = self.parser.screen().scrollback();
+        let effective_rows = requested_rows.min(retained_rows);
+        self.parser.screen_mut().set_scrollback(effective_rows);
+        let mut snapshot = self.snapshot();
+        self.parser.screen_mut().set_scrollback(0);
+        if let Ok(value) = snapshot.as_mut()
+            && effective_rows != 0
+        {
+            value.cursor_hidden = true;
+        }
+        snapshot.map(|value| (value, effective_rows, retained_rows))
+    }
+
     pub fn retained_bytes(&self) -> Vec<u8> {
         self.retained.iter().copied().collect()
     }
@@ -337,5 +355,18 @@ mod tests {
         );
         assert_eq!(terminal.output_since(2, 2).unwrap(), (4, b"cd".to_vec()));
         assert_eq!(terminal.output_since(6, 2).unwrap(), (6, Vec::new()));
+    }
+
+    #[test]
+    fn parsed_scrollback_snapshot_does_not_change_live_view() {
+        let mut state = TerminalState::new(2, 8, 1024).unwrap();
+        state.process(b"one\r\ntwo\r\nthree\r\nfour").unwrap();
+        let live = state.snapshot().unwrap();
+        let (history, offset, retained) = state.snapshot_with_scrollback(2).unwrap();
+        assert_eq!(offset, 2.min(retained));
+        assert!(retained >= 2);
+        assert!(history.cursor_hidden);
+        assert_ne!(history.cells, live.cells);
+        assert_eq!(state.snapshot().unwrap(), live);
     }
 }
