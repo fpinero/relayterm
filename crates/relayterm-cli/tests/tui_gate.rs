@@ -217,6 +217,10 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
     let root = scratch.0.join("project with space λ");
     let private = scratch.0.join("private");
     fs::create_dir(&root).unwrap();
+    let _cleanup = DaemonCleanup {
+        root: root.clone(),
+        private: private.clone(),
+    };
 
     let mut first = OuterTerminal::spawn(&root, &private);
     first.wait_for("Initialize it?");
@@ -224,10 +228,6 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
     first.wait_for("\x1b[6n");
     first.send(b"\x1b[30;100R");
     first.wait_for("Workspace overview");
-    let _cleanup = DaemonCleanup {
-        root: root.clone(),
-        private: private.clone(),
-    };
     register_fixture(&root, &private);
     first.send(b"R4aa3s");
     wait_for_session_count(&root, &private, 3);
@@ -425,11 +425,11 @@ fn existing_daemon_reaches_usable_screen_within_budget() {
     let root = scratch.0.join("representative project λ");
     let private = scratch.0.join("private");
     fs::create_dir(&root).unwrap();
-    create_representative_workspace(&root, &private);
     let _cleanup = DaemonCleanup {
         root: root.clone(),
         private: private.clone(),
     };
+    create_representative_workspace(&root, &private);
 
     let mut samples = Vec::with_capacity(20);
     for sample in 0..=20 {
