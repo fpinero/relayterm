@@ -345,6 +345,7 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
     second.wait_for("Keyboard help");
     second.send(b"3");
     second.wait_for("s shell, a agent");
+    second.wait_for("> [");
     let rendered_sessions = second.screen_contents();
     let rows = visible_session_rows(&rendered_sessions);
     let selected_index = rows
@@ -430,6 +431,10 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
 
 fn select_session(terminal: &mut OuterTerminal, target_session_id: &str) {
     terminal.wait_for(&format!("session {target_session_id}"));
+    // ConPTY may expose the row text before the console diff containing the
+    // selection marker. Synchronize on a complete selected row before using
+    // the rendered order to calculate navigation.
+    terminal.wait_for("> [");
     let rows = visible_session_rows(&terminal.screen_contents());
     let selected = rows
         .iter()
