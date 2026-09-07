@@ -29,8 +29,10 @@ use tokio::sync::mpsc;
 
 const INPUT_LIMIT: usize = 64 * 1024;
 const REFRESH_INTERVAL: Duration = Duration::from_millis(500);
+const REFRESH_IDLE_INTERVAL: Duration = Duration::from_millis(100);
 const TERMINAL_REFRESH_INTERVAL: Duration = Duration::from_millis(33);
-const INPUT_POLL_INTERVAL: Duration = Duration::from_millis(20);
+const INPUT_POLL_INTERVAL: Duration = Duration::from_millis(5);
+const UI_TICK_INTERVAL: Duration = Duration::from_millis(33);
 
 struct InputWorker {
     stop: Arc<AtomicBool>,
@@ -233,6 +235,7 @@ async fn run_loop(
         }
     });
     let mut last_refresh = Instant::now();
+    let mut last_input = Instant::now() - REFRESH_IDLE_INTERVAL;
     let mut last_terminal_refresh = Instant::now() - TERMINAL_REFRESH_INTERVAL;
     loop {
         let size = terminal.terminal().size().map_err(|_| TuiError::Runtime)?;
@@ -271,23 +274,28 @@ async fn run_loop(
         {
             refresh_terminal(client, &mut app).await;
             last_terminal_refresh = Instant::now();
-        } else if app.terminal.is_none() && last_refresh.elapsed() >= REFRESH_INTERVAL {
+        } else if app.terminal.is_none()
+            && last_refresh.elapsed() >= REFRESH_INTERVAL
+            && last_input.elapsed() >= REFRESH_IDLE_INTERVAL
+        {
             if let Err(error) = refresh(client, &mut app).await {
                 app.record_client_error(error);
             }
             last_refresh = Instant::now();
         }
 
-        let input = tokio::time::timeout(INPUT_POLL_INTERVAL, input_rx.recv())
+        let input = tokio::time::timeout(UI_TICK_INTERVAL, input_rx.recv())
             .await
             .ok()
             .flatten();
         if let Some(input) = input {
+            last_input = Instant::now();
             handle_event(client, &mut app, input).await;
             for _ in 0..63 {
                 let Ok(input) = input_rx.try_recv() else {
                     break;
                 };
+                last_input = Instant::now();
                 handle_event(client, &mut app, input).await;
             }
         }
