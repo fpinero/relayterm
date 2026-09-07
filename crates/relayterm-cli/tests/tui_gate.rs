@@ -346,7 +346,7 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
     second.wait_for("Keyboard help");
     second.send(b"3");
     second.wait_for("Sessions selected");
-    wait_for_session_rows(&second, Some(&flood_session_id));
+    wait_for_selected_session(&second, &flood_session_id);
     let mut navigation = Vec::with_capacity(100);
     for _ in 0..50 {
         let selected_session_id = wait_for_selected_session_change(&second, None);
@@ -472,34 +472,6 @@ fn wait_for_selected_session_change(terminal: &OuterTerminal, previous: Option<&
             Instant::now() < deadline,
             "rendered session selection did not become coherent"
         );
-        std::thread::sleep(Duration::from_millis(20));
-    }
-}
-
-fn wait_for_session_rows(
-    terminal: &OuterTerminal,
-    target_session_id: Option<&str>,
-) -> Vec<(bool, String)> {
-    let deadline = Instant::now() + DEADLINE;
-    loop {
-        let screen = terminal.screen_contents();
-        let rows = visible_session_rows(&screen);
-        let selected = rows.iter().filter(|(selected, _)| *selected).count();
-        let target_present = target_session_id
-            .is_none_or(|target| rows.iter().any(|(_, session_id)| session_id == target));
-        if selected == 1 && target_present {
-            return rows;
-        }
-        if Instant::now() >= deadline {
-            let selected_session_id = rendered_selected_session_id(&screen);
-            let row_ids = rows
-                .iter()
-                .map(|(_, session_id)| session_id.as_str())
-                .collect::<Vec<_>>();
-            panic!(
-                "complete rendered session rows did not arrive: target={target_session_id:?} selected={selected_session_id:?} rows={row_ids:?}"
-            );
-        }
         std::thread::sleep(Duration::from_millis(20));
     }
 }
