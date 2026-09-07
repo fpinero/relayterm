@@ -345,9 +345,7 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
     second.wait_for("Keyboard help");
     second.send(b"3");
     second.wait_for("s shell, a agent");
-    second.wait_for("> [");
-    let rendered_sessions = second.screen_contents();
-    let rows = visible_session_rows(&rendered_sessions);
+    let rows = wait_for_session_rows(&second, Some(&flood_session_id));
     let selected_index = rows
         .iter()
         .position(|(selected, _)| *selected)
@@ -430,12 +428,7 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
 }
 
 fn select_session(terminal: &mut OuterTerminal, target_session_id: &str) {
-    terminal.wait_for(&format!("session {target_session_id}"));
-    // ConPTY may expose the row text before the console diff containing the
-    // selection marker. Synchronize on a complete selected row before using
-    // the rendered order to calculate navigation.
-    terminal.wait_for("> [");
-    let rows = visible_session_rows(&terminal.screen_contents());
+    let rows = wait_for_session_rows(terminal, Some(target_session_id));
     let selected = rows
         .iter()
         .position(|(selected, _)| *selected)
@@ -448,6 +441,27 @@ fn select_session(terminal: &mut OuterTerminal, target_session_id: &str) {
         terminal.send(b"j");
     }
     terminal.wait_for(&format!("> [running] session {target_session_id}"));
+}
+
+fn wait_for_session_rows(
+    terminal: &OuterTerminal,
+    target_session_id: Option<&str>,
+) -> Vec<(bool, String)> {
+    let deadline = Instant::now() + DEADLINE;
+    loop {
+        let rows = visible_session_rows(&terminal.screen_contents());
+        let selected = rows.iter().filter(|(selected, _)| *selected).count();
+        let target_present = target_session_id
+            .is_none_or(|target| rows.iter().any(|(_, session_id)| session_id == target));
+        if selected == 1 && target_present {
+            return rows;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "complete rendered session rows did not arrive"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    }
 }
 
 fn visible_session_rows(screen: &str) -> Vec<(bool, String)> {
