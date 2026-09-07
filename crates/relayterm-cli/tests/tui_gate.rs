@@ -357,11 +357,11 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
     let mut navigation = Vec::with_capacity(100);
     for _ in 0..50 {
         let started = Instant::now();
-        second.send(b"j");
+        second.send(next_selection_input());
         wait_for_selected_session(&second, &next_session_id);
         navigation.push(started.elapsed());
         let started = Instant::now();
-        second.send(b"k");
+        second.send(previous_selection_input());
         wait_for_selected_session(&second, &selected_session_id);
         navigation.push(started.elapsed());
     }
@@ -434,7 +434,7 @@ fn select_session(terminal: &mut OuterTerminal, target_session_id: &str) {
         if selected == target_session_id {
             return;
         }
-        terminal.send(b"j");
+        terminal.send(next_selection_input());
         wait_for_selected_session_change(terminal, Some(&selected));
     }
     panic!("target session was not selected after one rendered cycle");
@@ -522,6 +522,14 @@ fn rendered_selected_session_id(screen: &str) -> Option<&str> {
             .map_or(0, |(index, character)| index + character.len_utf8());
         (length != 0).then_some(&value[..length])
     })
+}
+
+fn next_selection_input() -> &'static [u8] {
+    if cfg!(windows) { b"\x1b[B" } else { b"j" }
+}
+
+fn previous_selection_input() -> &'static [u8] {
+    if cfg!(windows) { b"\x1b[A" } else { b"k" }
 }
 
 #[test]
