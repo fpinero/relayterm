@@ -578,7 +578,6 @@ fn terminal_line(value: &str) -> Vec<u8> {
     bytes
 }
 
-#[cfg(not(windows))]
 fn interactive_fixture(_: &Path) -> (String, Vec<String>) {
     (
         std::env::current_exe()
@@ -591,72 +590,6 @@ fn interactive_fixture(_: &Path) -> (String, Vec<String>) {
             "--ignored".into(),
             "--nocapture".into(),
             "--test-threads=1".into(),
-        ],
-    )
-}
-
-#[cfg(windows)]
-fn interactive_fixture(project: &Path) -> (String, Vec<String>) {
-    let script = project.join("interactive-fixture.ps1");
-    let content = r#"$ErrorActionPreference = 'Stop'
-Add-Type @'
-using System;
-using System.Runtime.InteropServices;
-public static class RelaytermConsoleMode {
-    [DllImport("kernel32.dll")] public static extern IntPtr GetStdHandle(int value);
-    [DllImport("kernel32.dll")] public static extern bool GetConsoleMode(IntPtr handle, out uint mode);
-    [DllImport("kernel32.dll")] public static extern bool SetConsoleMode(IntPtr handle, uint mode);
-}
-'@
-$stdout = [RelaytermConsoleMode]::GetStdHandle(-11)
-$mode = [uint32]0
-if (-not [RelaytermConsoleMode]::GetConsoleMode($stdout, [ref]$mode)) { throw 'stdout console mode unavailable' }
-if (-not [RelaytermConsoleMode]::SetConsoleMode($stdout, $mode -bor 4)) { throw 'VT output mode unavailable' }
-$escape = [char]27
-$wide = [char]0x754c
-[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
-[Console]::Write("$escape[?1049h$escape[2J$escape[2;3Hfixture-ready$wide$escape[?2004h`r`n")
-[Console]::WriteLine("fixture-term:" + (($env:TERM -eq 'xterm-256color').ToString().ToLowerInvariant()))
-[Console]::WriteLine("fixture-private-canary-absent:" + (($null -eq $env:RELAYTERM_PRIVATE_CANARY).ToString().ToLowerInvariant()))
-while (($line = [Console]::ReadLine()) -ne $null) {
-    if ($line -eq 'flood') {
-        [Console]::Write("$escape[?1049h")
-        [Console]::Write(('0123456789abcdef0123456789abcdef' + "`r`n") * 32768)
-        [Console]::WriteLine('flood-complete')
-        continue
-    }
-    if ($line -eq 'descendant') {
-        $start = [Diagnostics.ProcessStartInfo]::new()
-        $start.FileName = $env:ComSpec
-        $start.Arguments = '/D /C ping -n 300 127.0.0.1 >nul'
-        $start.UseShellExecute = $false
-        $start.CreateNoWindow = $true
-        $child = [Diagnostics.Process]::Start($start)
-        [Console]::Write("$escape[?1049h")
-        [Console]::WriteLine("fixture-descendant:" + $child.Id)
-        continue
-    }
-    [Console]::Write("$escape[?1049h")
-    [Console]::WriteLine("fixture-echo:" + $line)
-    if ($line -eq 'quit') { exit 0 }
-}
-"#;
-    std::fs::write(&script, content).unwrap();
-    let system_root = std::env::var_os("SystemRoot").unwrap();
-    let powershell = Path::new(&system_root)
-        .join("System32")
-        .join("WindowsPowerShell")
-        .join("v1.0")
-        .join("powershell.exe");
-    (
-        powershell.to_string_lossy().into_owned(),
-        vec![
-            "-NoProfile".into(),
-            "-NonInteractive".into(),
-            "-ExecutionPolicy".into(),
-            "Bypass".into(),
-            "-File".into(),
-            script.to_string_lossy().into_owned(),
         ],
     )
 }
