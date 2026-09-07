@@ -351,18 +351,18 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
         .position(|(selected, _)| *selected)
         .expect("one rendered session is selected");
     let next_index = (selected_index + 1) % rows.len();
-    let selected_marker = format!("> [running] session {}", rows[selected_index].1);
-    let next_marker = format!("> [running] session {}", rows[next_index].1);
-    second.wait_for(&selected_marker);
+    let selected_session_id = rows[selected_index].1.clone();
+    let next_session_id = rows[next_index].1.clone();
+    wait_for_selected_session(&second, &selected_session_id);
     let mut navigation = Vec::with_capacity(100);
     for _ in 0..50 {
         let started = Instant::now();
         second.send(b"j");
-        second.wait_for(&next_marker);
+        wait_for_selected_session(&second, &next_session_id);
         navigation.push(started.elapsed());
         let started = Instant::now();
         second.send(b"k");
-        second.wait_for(&selected_marker);
+        wait_for_selected_session(&second, &selected_session_id);
         navigation.push(started.elapsed());
     }
     assert_latency(
@@ -429,18 +429,56 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
 
 fn select_session(terminal: &mut OuterTerminal, target_session_id: &str) {
     let rows = wait_for_session_rows(terminal, Some(target_session_id));
-    let selected = rows
-        .iter()
-        .position(|(selected, _)| *selected)
-        .expect("one rendered session is selected");
-    let target = rows
-        .iter()
-        .position(|(_, session_id)| session_id == target_session_id)
-        .expect("target session is rendered");
-    for _ in 0..(target + rows.len() - selected) % rows.len() {
+    for _ in 0..rows.len() {
+        let selected = wait_for_selected_session_change(terminal, None);
+        if selected == target_session_id {
+            return;
+        }
         terminal.send(b"j");
+        wait_for_selected_session_change(terminal, Some(&selected));
     }
-    terminal.wait_for(&format!("> [running] session {target_session_id}"));
+    panic!("target session was not selected after one rendered cycle");
+}
+
+fn wait_for_selected_session(terminal: &OuterTerminal, expected: &str) {
+    let selected = wait_for_selected_session_change(terminal, None);
+    if selected == expected {
+        return;
+    }
+    let deadline = Instant::now() + DEADLINE;
+    loop {
+        let selected = wait_for_selected_session_change(terminal, None);
+        if selected == expected {
+            return;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "expected rendered session was not selected"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    }
+}
+
+fn wait_for_selected_session_change(terminal: &OuterTerminal, previous: Option<&str>) -> String {
+    let deadline = Instant::now() + DEADLINE;
+    loop {
+        let rows = visible_session_rows(&terminal.screen_contents());
+        let selected = rows
+            .iter()
+            .filter(|(selected, _)| *selected)
+            .map(|(_, session_id)| session_id)
+            .collect::<Vec<_>>();
+        if let [selected] = selected.as_slice()
+            && previous.is_none_or(|previous| previous != selected.as_str())
+        {
+            return (*selected).clone();
+        }
+        assert!(
+            Instant::now() < deadline,
+            "rendered session selection did not become coherent"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    }
 }
 
 fn wait_for_session_rows(
