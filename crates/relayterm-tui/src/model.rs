@@ -224,10 +224,36 @@ impl Default for App {
 
 impl App {
     pub fn install_snapshot(&mut self, snapshot: ClientSnapshot) {
+        let selected_task = selected_identity(self.collection("tasks"), self.selected_task, "id");
+        let selected_session = selected_identity(
+            self.collection("instances"),
+            self.selected_session,
+            "session_id",
+        );
+        let selected_agent =
+            selected_identity(self.collection("definitions"), self.selected_agent, "id");
         self.last_revision = snapshot.revision.clone();
         self.snapshot = Some(snapshot);
         self.freshness = Freshness::Current;
         self.clamp_selections();
+        self.selected_task = restored_selection(
+            self.collection("tasks"),
+            self.selected_task,
+            selected_task.as_deref(),
+            "id",
+        );
+        self.selected_session = restored_selection(
+            self.collection("instances"),
+            self.selected_session,
+            selected_session.as_deref(),
+            "session_id",
+        );
+        self.selected_agent = restored_selection(
+            self.collection("definitions"),
+            self.selected_agent,
+            selected_agent.as_deref(),
+            "id",
+        );
     }
 
     pub fn collection(&self, name: &str) -> &[Value] {
@@ -315,9 +341,43 @@ fn clamp(value: usize, len: usize) -> usize {
     value.min(len.saturating_sub(1))
 }
 
+fn selected_identity(collection: &[Value], selected: usize, field: &str) -> Option<String> {
+    collection
+        .get(selected)
+        .and_then(|item| item.get(field))
+        .and_then(Value::as_str)
+        .map(str::to_owned)
+}
+
+fn restored_selection(
+    collection: &[Value],
+    selected: usize,
+    identity: Option<&str>,
+    field: &str,
+) -> usize {
+    identity
+        .and_then(|identity| {
+            collection
+                .iter()
+                .position(|item| item.get(field).and_then(Value::as_str) == Some(identity))
+        })
+        .unwrap_or(selected)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
+    use std::collections::BTreeMap;
+
+    fn snapshot(instances: Vec<Value>) -> ClientSnapshot {
+        ClientSnapshot {
+            revision: "1".into(),
+            last_sequence: 0,
+            retained_from_sequence: 0,
+            collections: BTreeMap::from([("instances".into(), instances)]),
+        }
+    }
 
     #[test]
     fn diagnostics_are_bounded_and_safe() {
@@ -340,5 +400,23 @@ mod tests {
         let handover = Form::handover();
         assert_eq!(handover.fields.len(), 6);
         assert!(handover.bytes() <= MAX_DRAFT_BYTES);
+    }
+
+    #[test]
+    fn snapshot_refresh_preserves_selected_session_identity() {
+        let first = json!({"session_id":"first"});
+        let second = json!({"session_id":"second"});
+        let mut app = App::default();
+        app.install_snapshot(snapshot(vec![first.clone(), second.clone()]));
+        app.selected_session = 1;
+
+        app.install_snapshot(snapshot(vec![second, first]));
+
+        assert_eq!(app.selected_session, 0);
+        assert_eq!(
+            app.selected_session()
+                .and_then(|item| item["session_id"].as_str()),
+            Some("second")
+        );
     }
 }
