@@ -19,6 +19,7 @@ use std::{
 
 const DEADLINE: Duration = Duration::from_secs(45);
 const OUTPUT_LIMIT: usize = 2 * 1024 * 1024;
+static NATIVE_GATE_LOCK: Mutex<()> = Mutex::new(());
 
 struct Scratch(PathBuf);
 
@@ -227,6 +228,9 @@ impl Drop for DaemonCleanup {
 
 #[test]
 fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
+    let _serial = NATIVE_GATE_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let scratch = Scratch::new();
     let root = scratch.0.join("project with space λ");
     let private = scratch.0.join("private");
@@ -431,6 +435,9 @@ fn assert_latency(label: &str, samples: &mut [Duration], limit: Duration) {
 
 #[test]
 fn existing_daemon_reaches_usable_screen_within_budget() {
+    let _serial = NATIVE_GATE_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let scratch = Scratch::new();
     let root = scratch.0.join("representative project λ");
     let private = scratch.0.join("private");
