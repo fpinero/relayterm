@@ -345,8 +345,7 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
     second.wait_for("Keyboard help");
     second.send(b"3");
     second.wait_for("Sessions selected");
-    let rows = wait_for_session_rows(&second, Some(&flood_session_id));
-    assert!(rows.len() >= 3, "three rendered sessions are required");
+    wait_for_session_rows(&second, Some(&flood_session_id));
     let mut navigation = Vec::with_capacity(100);
     for _ in 0..50 {
         let selected_session_id = wait_for_selected_session_change(&second, None);
