@@ -312,7 +312,6 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
         .map(|(index, _)| index)
         .collect::<Vec<_>>();
     assert_eq!(fixture_indices.len(), 2);
-    let session_count = session_items.len();
     let flood_session_id = session_items[fixture_indices[0]]["session_id"]
         .as_str()
         .unwrap()
@@ -325,7 +324,7 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
     let mut second = OuterTerminal::spawn(&root, &private);
     second.finish_startup();
     second.send(b"3");
-    send_down(&mut second, fixture_indices[0]);
+    select_session(&mut second, &flood_session_id);
     second.wait_for("running");
     second.send(b"\r");
     second.wait_for("Terminal");
@@ -345,18 +344,16 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
     second.send(b"?");
     second.wait_for("Keyboard help");
     second.send(b"3");
-    let selected_index = fixture_indices[0];
-    let next_index = (selected_index + 1) % session_count;
-    let selected_marker = format!(
-        "> [running] session {}",
-        session_items[selected_index]["session_id"]
-            .as_str()
-            .unwrap()
-    );
-    let next_marker = format!(
-        "> [running] session {}",
-        session_items[next_index]["session_id"].as_str().unwrap()
-    );
+    second.wait_for("s shell, a agent");
+    let rendered_sessions = second.screen_contents();
+    let rows = visible_session_rows(&rendered_sessions);
+    let selected_index = rows
+        .iter()
+        .position(|(selected, _)| *selected)
+        .expect("one rendered session is selected");
+    let next_index = (selected_index + 1) % rows.len();
+    let selected_marker = format!("> [running] session {}", rows[selected_index].1);
+    let next_marker = format!("> [running] session {}", rows[next_index].1);
     second.wait_for(&selected_marker);
     let mut navigation = Vec::with_capacity(100);
     for _ in 0..50 {
@@ -371,11 +368,7 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
     }
     assert_latency("navigation", &mut navigation, Duration::from_millis(100));
 
-    second.send(b"3");
-    send_down(
-        &mut second,
-        (fixture_indices[1] + session_count - fixture_indices[0]) % session_count,
-    );
+    select_session(&mut second, &quiet_session_id);
     second.send(b"\r");
     second.wait_for("Terminal");
     second.send(b"i");
@@ -398,10 +391,8 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
     second.send(&[0x1d]);
     second.wait_for("READ ONLY");
     second.send(b"\x1b");
-    send_down(
-        &mut second,
-        (fixture_indices[0] + session_count - fixture_indices[1]) % session_count,
-    );
+    second.wait_for("s shell, a agent");
+    select_session(&mut second, &flood_session_id);
     second.send(b"\r");
     second.wait_for("flood-complete-us-");
     let screen = second.screen_contents();
@@ -431,10 +422,36 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
     assert_eq!(stopped["ok"], true);
 }
 
-fn send_down(terminal: &mut OuterTerminal, count: usize) {
-    for _ in 0..count {
+fn select_session(terminal: &mut OuterTerminal, target_session_id: &str) {
+    terminal.wait_for(&format!("session {target_session_id}"));
+    let rows = visible_session_rows(&terminal.screen_contents());
+    let selected = rows
+        .iter()
+        .position(|(selected, _)| *selected)
+        .expect("one rendered session is selected");
+    let target = rows
+        .iter()
+        .position(|(_, session_id)| session_id == target_session_id)
+        .expect("target session is rendered");
+    for _ in 0..(target + rows.len() - selected) % rows.len() {
         terminal.send(b"j");
     }
+    terminal.wait_for(&format!("> [running] session {target_session_id}"));
+}
+
+fn visible_session_rows(screen: &str) -> Vec<(bool, String)> {
+    screen
+        .lines()
+        .filter_map(|line| {
+            let line = line.trim_start_matches(|character: char| {
+                character.is_whitespace() || character == '\u{2502}'
+            });
+            let selected = line.starts_with('>');
+            let (_, remainder) = line.split_once("] session ")?;
+            let session_id = remainder.split_whitespace().next()?;
+            Some((selected, session_id.to_owned()))
+        })
+        .collect()
 }
 
 fn assert_latency(label: &str, samples: &mut [Duration], limit: Duration) {
