@@ -105,6 +105,15 @@ impl OuterTerminal {
         write_input(&mut *self.writer, bytes).unwrap();
     }
 
+    fn finish_startup(&mut self) {
+        #[cfg(unix)]
+        {
+            self.wait_for("\x1b[6n");
+            self.send(b"\x1b[30;100R");
+        }
+        self.wait_for("Workspace overview");
+    }
+
     fn resize(&mut self, rows: u16, columns: u16) {
         self.control.resize(rows, columns).unwrap();
         self.screen
@@ -230,9 +239,7 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
     let mut first = OuterTerminal::spawn(&root, &private);
     first.wait_for("Initialize it?");
     first.send(b"y\r");
-    first.wait_for("\x1b[6n");
-    first.send(b"\x1b[30;100R");
-    first.wait_for("Workspace overview");
+    first.finish_startup();
     register_fixture(&root, &private);
     first.send(b"R4aa3s");
     wait_for_session_count(&root, &private, 3);
@@ -309,9 +316,7 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
         .to_owned();
 
     let mut second = OuterTerminal::spawn(&root, &private);
-    second.wait_for("\x1b[6n");
-    second.send(b"\x1b[30;100R");
-    second.wait_for("Workspace overview");
+    second.finish_startup();
     second.send(b"3");
     send_down(&mut second, fixture_indices[0]);
     second.wait_for("running");
@@ -440,9 +445,7 @@ fn existing_daemon_reaches_usable_screen_within_budget() {
     for sample in 0..=20 {
         let started = Instant::now();
         let mut terminal = OuterTerminal::spawn(&root, &private);
-        terminal.wait_for("\x1b[6n");
-        terminal.send(b"\x1b[30;100R");
-        terminal.wait_for("Workspace overview");
+        terminal.finish_startup();
         let elapsed = started.elapsed();
         terminal.send(b"q");
         terminal.wait_exit();
