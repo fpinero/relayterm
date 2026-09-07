@@ -104,15 +104,17 @@ The gate drives the actual `rt` screen through a native outer PTY or ConPTY. Its
 
 The same target includes a representative startup workload with 100 tasks, 3 live sessions, and 100 history entries. It performs one warm-up and 20 measured client launches. Under a separate 2.7 MiB fixture flood it measures 100 navigation responses and 100 one-character line echoes in a quiet session. Every CI invocation runs as its own step so a failing first pass cannot be hidden by a later command.
 
-Local macOS candidate runs on 2026-09-07 used the native PTY harness and a debug test build. The table reports the latest complete measurement for each workload:
+Two consecutive local macOS candidate runs on 2026-09-07 used the native PTY harness and a debug test build:
 
-| Measurement | Samples | Median | p95 | Maximum |
-| --- | ---: | ---: | ---: | ---: |
-| Existing-daemon connection to usable overview | 20 after warm-up | 170 ms | 198 ms | 300 ms |
-| Navigation while another session emits output | 100 | 22 ms | 25 ms | 50 ms |
-| Input to parsed rendered echo | 100 | 139 ms | 147 ms | 172 ms |
+| Measurement | Samples per pass | Pass 1 median / p95 / max | Pass 2 median / p95 / max |
+| --- | ---: | ---: | ---: |
+| Existing-daemon connection to usable overview | 20 after warm-up | 168 / 186 / 186 ms | 178 / 199 / 263 ms |
+| Navigation while another session emits output | 100 | 25 / 27 / 34 ms | 25 / 28 / 33 ms |
+| Input to parsed rendered echo | 100 | 140 / 148 / 164 ms | 144 / 151 / 200 ms |
 
-The measured fixture output rate was 4,800,907 bytes per second. The outer-terminal observer maintains an incremental VT parser, so latency sampling does not repeatedly parse its bounded two MiB capture. The TUI polling ceiling is approximately 30 frames per second. Its bounded queues are 64 UI invalidations, 256 protocol events or 1 MiB, 64 KiB pending input per session, 16,000 cells per viewport, 1,000 diagnostics or 1 MiB, and 256 KiB per complete draft.
+The measured fixture output rates were 5,168,912 and 3,904,205 bytes per second. The outer-terminal observer maintains an incremental VT parser, so latency sampling does not repeatedly parse its bounded two MiB capture. Navigation samples move the rendered selection between two real sessions and verify the selected session ID after every key. The complete help screen is opened separately. The TUI terminal refresh ceiling is approximately 30 frames per second, while a dedicated input reader wakes the UI immediately. Its bounded queues are 64 input events, 64 UI invalidations, 256 protocol events or 1 MiB, 64 KiB pending input per session, 16,000 cells per viewport, 1,000 diagnostics or 1 MiB, and 256 KiB per complete draft.
+
+The 100 ms navigation and 250 ms input targets are enforced on the documented reference native environment. Hosted CI runners always report the same measurements and enforce explicit 500 ms navigation and one-second input guardrails because shared-runner scheduling is not a stable hardware reference. A hosted target miss remains visible as `reference_target_met=false` in the job log and must be included in the evidence record. This distinction does not change marker or process deadlines and does not permit retries to replace either required CI pass.
 
 CI run links, runner versions, and both native repetitions are recorded in `docs/supported-platforms.md` after the final candidate passes. Hosted console automation is native PTY or ConPTY evidence, but it is not a claim that Terminal.app, Windows Terminal's graphical interface, xterm, or SSH was manually tested. Those optional named-terminal checks remain explicit gaps unless an authorized environment is available.
 
