@@ -6,9 +6,9 @@ Rust 1.98.1 is the pinned compiler and initial MSRV. CI also selects current sta
 
 | OS and runner | Target | Bootstrap evidence | Interactive evidence |
 | --- | --- | --- | --- |
-| Linux, ubuntu-24.04 | x86_64-unknown-linux-gnu | Native stable and pinned-compiler CI passed | Native M07 PTY gate passed; TUI M08/M11 pending |
-| macOS, macos-14 | aarch64-apple-darwin | Local tests and native stable CI passed | Native M07 PTY gate passed; TUI M08/M11 pending |
-| Windows, windows-2022 | x86_64-pc-windows-msvc | Native stable CI passed | Native M07 PTY gate passed; TUI M08/M11 pending |
+| Linux, ubuntu-24.04 | x86_64-unknown-linux-gnu | Native stable and pinned-compiler CI passed | Native M07 PTY and M08 TUI gates passed; M11 pending |
+| macOS, macos-14 | aarch64-apple-darwin | Local tests and native stable CI passed | Native M07 PTY and M08 TUI gates passed; M11 pending |
+| Windows, windows-2022 | x86_64-pc-windows-msvc | Native stable CI passed | Native M07 PTY and M08 TUI gates passed; M11 pending |
 
 The bootstrap code at `0d14f05` passed Quality run `33974825769` and Security run `33974825731` on 2026-09-05. The pinned-toolchain CI job also runs on Linux. Record actual compiler host and runner OS for each candidate. Local macOS evidence does not establish Linux or Windows success, and cross-compilation is not native behavior verification. Refer to `avances.md` for executed checks; do not infer results from the presence of workflow files.
 
@@ -104,9 +104,34 @@ The terminal-state fixture verifies full-screen redraw, Unicode, dimensions, cur
 
 The console-lifetime gate now launches three real default-shell PTYs through the detached production daemon. It closes the originating Unix pseudo-terminal owner or Windows console owner, reconnects from a separate `rt` process, reads all three live sessions, and performs explicit bounded cleanup. This proves child survival while the daemon host remains alive. A daemon restart marks unrecoverable sessions lost and does not claim live PTY adoption or terminal-state persistence.
 
-Localhost SSH was probed during M07 validation and refused the connection because no authorized SSH service was available. SSH coverage is therefore not claimed. Terminal.app, Windows Terminal UI, keyboard focus, monochrome rendering, and small-window behavior remain part of the M08 and M11 manual client matrix.
+Localhost SSH was probed during M07 validation and refused the connection because no authorized SSH service was available. SSH coverage is therefore not claimed. Terminal.app, Windows Terminal UI, and the named-terminal and SSH matrix remain part of M11 manual validation.
 
-## Planned shell and terminal matrix
+## M08 interactive TUI evidence
+
+Code candidate `acae16d37545b6acf7ae9484f0cd3bfc1e935db0` passed [Quality run 34156535639](https://github.com/fpinero/relayterm/actions/runs/34156535639) and [Security run 34156535749](https://github.com/fpinero/relayterm/actions/runs/34156535749) on 2026-09-07. Independent push-triggered [Quality run 34156533278](https://github.com/fpinero/relayterm/actions/runs/34156533278) and [Security run 34156533242](https://github.com/fpinero/relayterm/actions/runs/34156533242) also passed.
+
+| Native runner | Harness | TUI repetitions | Result |
+| --- | --- | ---: | --- |
+| ubuntu-24.04 / stable | Unix outer PTY, real `rt`, local IPC and SQLite | 2 | Passed |
+| macos-14 / stable | Unix outer PTY, real `rt`, local IPC and SQLite | 2 | Passed |
+| windows-2022 / stable | Windows ConPTY, real `rt.exe`, named pipes and SQLite | 2 | Passed |
+
+Each repetition initialized or reopened the workspace through the real TUI, coordinated a task across two supervised instances, exercised an exclusive and competing claim, progress, an invalid and valid structured handover, release and resume, three concurrent real sessions, keyboard input, resize, parsed history, detach, client exit and independent reattachment. The gate verifies fresh child input after reconnect, stable session identities, bounded terminal transfer, raw-history wrapping, explicit termination, and terminal restoration. Separate inherited gates passed twice in the same jobs and confirm durable restart behavior and survival of three PTY children after the originating console or pseudo-terminal closes.
+
+| Runner and pass | Startup median / p95 / max | Navigation median / p95 / max | Input median / p95 / max | Flood bytes/s |
+| --- | ---: | ---: | ---: | ---: |
+| Linux pass 1 | 344 / 364 / 365 ms | 20 / 21 / 21 ms | 142 / 143 / 143 ms | 3,826,466 |
+| Linux pass 2 | 345 / 365 / 365 ms | 20 / 21 / 21 ms | 142 / 143 / 163 ms | 3,797,780 |
+| macOS pass 1 | 396 / 475 / 525 ms | 112 / 164 / 171 ms | 194 / 266 / 281 ms | 3,971,092 |
+| macOS pass 2 | 380 / 509 / 602 ms | 125 / 167 / 174 ms | 179 / 290 / 317 ms | 3,530,703 |
+| Windows pass 1 | 374 / 395 / 395 ms | 21 / 22 / 22 ms | 186 / 207 / 248 ms | 2,659,241 |
+| Windows pass 2 | 373 / 394 / 394 ms | 21 / 21 / 22 ms | 185 / 186 / 247 ms | 2,689,068 |
+
+Startup used one warm-up and 20 measured launches against an existing daemon with 100 tasks, three sessions and 100 history records. Each load pass measured 100 navigation changes and 100 rendered child echoes while another session produced at least 1 MiB/s and wrapped retention more than twice. Linux and Windows met the 100 ms navigation and 250 ms input p95 reference targets. The shared macOS runner did not meet those reference targets, reporting `reference_target_met=false`, but passed the separately documented 500 ms and one-second hosted-runner guardrails. Local macOS reference runs met both targets. These measurements are hardware-specific observations, not universal performance guarantees.
+
+The inherited Windows failure in run `34128844579` was traced to test-fixture startup through an extra process and was replaced with a direct test-executable launch. Later M08 candidates exposed ConPTY startup, input, selection and outer-screen capture assumptions. The final gate uses an independent input reader, stable session identity, decoded native arrow input and authoritative UUID selection. It does not use retries or longer marker deadlines to obtain a pass.
+
+## Remaining manual shell and terminal matrix
 
 | Platform | Shells | Terminals and connections to verify |
 | --- | --- | --- |
@@ -114,10 +139,10 @@ Localhost SSH was probed during M07 validation and refused the connection becaus
 | macOS | Zsh, Bash | Terminal.app and OpenSSH |
 | Windows | PowerShell, cmd.exe | Windows Terminal with ConPTY and supported OpenSSH configurations |
 
-Native PTY full-screen redraw, Unicode, resize, process survival, and reattachment are covered by the M07 gate. TUI focus switching, presentation in named terminal applications, monochrome use, small-window behavior, and SSH detach/reattach require later empirical tests. No terminal or architecture outside the tested matrix is claimed supported.
+Native PTY full-screen redraw, Unicode, resize, process survival, reattachment, TUI focus switching, monochrome rendering, and small-window behavior are covered by the M07 and M08 automated gates. Presentation in named terminal applications and SSH detach/reattach require later empirical tests. No terminal or architecture outside the tested matrix is claimed supported.
 
 ## Prerequisites and limitations
 
 Development requires rustup and native linker/build tools. Git is needed for repository validation and later optional worktree isolation. Provider CLIs, credentials, graphical desktops, and hosted accounts are not needed for automated runtime acceptance.
 
-The administrative daemon, CLI, real supervised sessions, PTY interaction, and terminal reattachment workflow are available. Invoking `rt` without an administrative command still reports that the TUI is pending. Host restart recovery of live processes is outside the MVP.
+The administrative daemon, CLI, real supervised sessions, PTY interaction, terminal reattachment workflow, and no-command interactive TUI are available. Host restart recovery of live processes is outside the MVP.
