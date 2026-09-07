@@ -341,16 +341,32 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
     second.send(&[0x1d]);
     second.wait_for("READ ONLY");
     second.send(b"\x1b");
-    second.send(b"1");
+    second.wait_for("s shell, a agent");
+    second.send(b"?");
+    second.wait_for("Keyboard help");
+    second.send(b"3");
+    let selected_index = fixture_indices[0];
+    let next_index = (selected_index + 1) % session_count;
+    let selected_marker = format!(
+        "> [running] session {}",
+        session_items[selected_index]["session_id"]
+            .as_str()
+            .unwrap()
+    );
+    let next_marker = format!(
+        "> [running] session {}",
+        session_items[next_index]["session_id"].as_str().unwrap()
+    );
+    second.wait_for(&selected_marker);
     let mut navigation = Vec::with_capacity(100);
     for _ in 0..50 {
         let started = Instant::now();
-        second.send(b"?");
-        second.wait_for("Keyboard help");
+        second.send(b"j");
+        second.wait_for(&next_marker);
         navigation.push(started.elapsed());
         let started = Instant::now();
-        second.send(b"1");
-        second.wait_for("Workspace overview");
+        second.send(b"k");
+        second.wait_for(&selected_marker);
         navigation.push(started.elapsed());
     }
     assert_latency("navigation", &mut navigation, Duration::from_millis(100));
