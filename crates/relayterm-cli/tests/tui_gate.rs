@@ -482,17 +482,24 @@ fn wait_for_session_rows(
 ) -> Vec<(bool, String)> {
     let deadline = Instant::now() + DEADLINE;
     loop {
-        let rows = visible_session_rows(&terminal.screen_contents());
+        let screen = terminal.screen_contents();
+        let rows = visible_session_rows(&screen);
         let selected = rows.iter().filter(|(selected, _)| *selected).count();
         let target_present = target_session_id
             .is_none_or(|target| rows.iter().any(|(_, session_id)| session_id == target));
         if selected == 1 && target_present {
             return rows;
         }
-        assert!(
-            Instant::now() < deadline,
-            "complete rendered session rows did not arrive"
-        );
+        if Instant::now() >= deadline {
+            let selected_session_id = rendered_selected_session_id(&screen);
+            let row_ids = rows
+                .iter()
+                .map(|(_, session_id)| session_id.as_str())
+                .collect::<Vec<_>>();
+            panic!(
+                "complete rendered session rows did not arrive: target={target_session_id:?} selected={selected_session_id:?} rows={row_ids:?}"
+            );
+        }
         std::thread::sleep(Duration::from_millis(20));
     }
 }
