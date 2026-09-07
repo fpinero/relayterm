@@ -462,16 +462,11 @@ fn wait_for_selected_session(terminal: &OuterTerminal, expected: &str) {
 fn wait_for_selected_session_change(terminal: &OuterTerminal, previous: Option<&str>) -> String {
     let deadline = Instant::now() + DEADLINE;
     loop {
-        let rows = visible_session_rows(&terminal.screen_contents());
-        let selected = rows
-            .iter()
-            .filter(|(selected, _)| *selected)
-            .map(|(_, session_id)| session_id)
-            .collect::<Vec<_>>();
-        if let [selected] = selected.as_slice()
-            && previous.is_none_or(|previous| previous != selected.as_str())
+        let screen = terminal.screen_contents();
+        if let Some(selected) = rendered_selected_session_id(&screen)
+            && previous.is_none_or(|previous| previous != selected)
         {
-            return (*selected).clone();
+            return selected.to_owned();
         }
         assert!(
             Instant::now() < deadline,
@@ -503,21 +498,31 @@ fn wait_for_session_rows(
 }
 
 fn visible_session_rows(screen: &str) -> Vec<(bool, String)> {
+    let selected_session_id = rendered_selected_session_id(screen);
     screen
         .lines()
         .filter_map(|line| {
-            let (prefix, remainder) = line.split_once("] session ")?;
-            let selected = prefix.contains('>');
+            let (_, remainder) = line.split_once("] session ")?;
             let session_id = remainder.split_whitespace().next()?;
-            Some((selected, session_id.to_owned()))
+            Some((
+                selected_session_id == Some(session_id),
+                session_id.to_owned(),
+            ))
         })
         .collect()
+}
+
+fn rendered_selected_session_id(screen: &str) -> Option<&str> {
+    screen.lines().find_map(|line| {
+        line.split_once("Selected session: ")
+            .and_then(|(_, value)| value.split_whitespace().next())
+    })
 }
 
 #[test]
 fn rendered_session_rows_accept_native_border_prefixes() {
     let rows = visible_session_rows(
-        "\u{2502}> [running] session selected-id instance one\n|  [exited] session other-id instance two",
+        "\u{2502}> [running] session selected-id instance one\n|  [exited] session other-id instance two\nSelected session: selected-id",
     );
     assert_eq!(
         rows,

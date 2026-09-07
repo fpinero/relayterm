@@ -328,13 +328,28 @@ fn draw_sessions(frame: &mut Frame<'_>, app: &App, area: Rect) {
                 512,
             ))
         });
+    let rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(3), Constraint::Length(1)])
+        .split(area);
     frame.render_widget(
         List::new(items).block(
             Block::default()
                 .borders(Borders::ALL)
                 .title("Sessions, Enter attach, s shell, a agent, t terminate"),
         ),
-        area,
+        rows[0],
+    );
+    let selected = app.selected_session().map_or_else(
+        || "none".to_owned(),
+        |session| field(session, "session_id").to_owned(),
+    );
+    frame.render_widget(
+        Paragraph::new(safe_text::single_line(
+            &format!("Selected session: {selected}"),
+            128,
+        )),
+        rows[1],
     );
 }
 
