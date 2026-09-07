@@ -252,9 +252,7 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
     first.send(b"rc");
     wait_for_task_status(&root, &private, "active");
     let mut competitor = OuterTerminal::spawn(&root, &private);
-    competitor.wait_for("\x1b[6n");
-    competitor.send(b"\x1b[30;100R");
-    competitor.wait_for("Workspace overview");
+    competitor.finish_startup();
     competitor.send(b"2c5");
     competitor.wait_for("Redacted diagnostics");
     let diagnostic = competitor.screen_contents();
