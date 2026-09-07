@@ -324,7 +324,7 @@ Minimum operations:
 - `worktree.list`
 - `event.subscribe`
 
-The initial protocol also provides `protocol.hello`, `protocol.ping`, `daemon.status`, `daemon.shutdown`, `agent.register_definition`, `agent.update_definition`, `agent.import_definitions`, `task.get`, `task.transition`, `handover.get`, `task.get_history`, `task.get_claim_history`, `session.list`, `event.list`, and `event.unsubscribe`. M07 activates session creation with bounded generation-local receipts, attachment, detach, input lease acquisition and release, sequenced bounded input, resize, termination, authoritative snapshots, and offset-checked binary output continuation. These additions are backward-compatible protocol version 1 operations advertised during hello because no prior production server accepted the reserved session operations. Worktree operations retain versioned payload definitions but return `operation_unavailable` until M10.
+The initial protocol also provides `protocol.hello`, `protocol.ping`, `daemon.status`, `daemon.shutdown`, `agent.register_definition`, `agent.update_definition`, `agent.import_definitions`, `task.get`, `task.transition`, `handover.get`, `task.get_history`, `task.get_claim_history`, `session.list`, `event.list`, and `event.unsubscribe`. M07 activates session creation with bounded generation-local receipts, attachment, detach, input lease acquisition and release, sequenced bounded input, resize, termination, authoritative snapshots, and offset-checked binary output continuation. M08 adds `session.read_display`, a capability-negotiated bounded parsed viewport with compact neutral cells, revision checks, parsed scrollback offsets, and unchanged responses. These additions are backward-compatible protocol version 1 operations advertised during hello because no prior production server accepted these reserved or new operation names. Worktree operations retain versioned payload definitions but return `operation_unavailable` until M10.
 
 Protocol version 1 permits these additive lifecycle and configuration operations. Clients inspect advertised operations and treat an older server's rejection as an unsupported capability. Shutdown targets an opaque runtime generation so a delayed request cannot stop a replacement daemon. Configuration import sends bounded contents, never a source path, and preserves revision-based atomic semantics.
 
@@ -398,6 +398,10 @@ Minimum interactions:
 - Display keyboard help and actionable errors.
 
 The TUI MUST contain presentation logic only. It MUST NOT open SQLite directly or own child processes.
+
+M08 implements these views and interactions in `relayterm-tui`, with `rt` providing only bootstrap and client composition. Stdin and stdout must both be terminals before bootstrap begins. Forms remain in bounded memory, use byte-aware limits, preserve rejected or uncertain submissions, and require explicit discard. The client uses independent control and event connections, bounded reconnect delays, and no automatic retry for uncertain mutations or input.
+
+Terminal panes render only daemon-parsed replacement viewports. They map neutral colors, attributes, cursor and wide-cell state into Ratatui and sanitize unexpected controls. Page-based terminal history uses revision-scoped parsed scrollback offsets without changing another attachment's viewport. One generation-scoped input lease permits key, paste, and resize operations; `Ctrl-]` releases it. Client close and detach leave sessions running. The complete key map, limits, and evidence procedure are defined in [the TUI workflow guide](docs/tui-workflow.md).
 
 ### 6.7 Git worktree adapter
 

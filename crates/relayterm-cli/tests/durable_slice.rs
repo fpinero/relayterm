@@ -263,7 +263,7 @@ fn start_host(
     definitions: &[String],
     ready: &Path,
 ) -> (Host, Vec<String>) {
-    let child = Command::new(std::env::current_exe().unwrap())
+    let mut child = Command::new(std::env::current_exe().unwrap())
         .args([
             "synthetic_lifecycle_host",
             "--ignored",
@@ -282,12 +282,19 @@ fn start_host(
         .spawn()
         .unwrap();
     let deadline = Instant::now() + HOST_TIMEOUT;
-    while !ready.exists() {
+    let ids = loop {
+        if let Ok(bytes) = fs::read(ready)
+            && let Ok(ids) = serde_json::from_slice::<Vec<String>>(&bytes)
+            && ids.len() == 2
+        {
+            break ids;
+        }
+        if let Some(status) = child.try_wait().unwrap() {
+            panic!("synthetic host exited before readiness: {status}");
+        }
         assert!(Instant::now() < deadline, "synthetic host was not ready");
         thread::sleep(Duration::from_millis(10));
-    }
-    let ids: Vec<String> = serde_json::from_slice(&fs::read(ready).unwrap()).unwrap();
-    assert_eq!(ids.len(), 2);
+    };
     (Host(child), ids)
 }
 

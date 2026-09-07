@@ -29,6 +29,8 @@ base64 = "0.22.1"
 widestring = "1.2.1"
 portable-pty = { package = "portable-pty-psmux", version = "0.9.7" }
 vt100 = "0.16.2"
+crossterm = "0.29.0"
+ratatui = { version = "0.30.0", default-features = false, features = ["crossterm"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

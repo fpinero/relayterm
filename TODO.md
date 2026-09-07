@@ -8,7 +8,7 @@ Keep the daemon responsible for durable state and supervised processes. Keep dom
 
 ### How to execute this queue
 
-- Start with M08. Follow milestone dependencies and the task order within each milestone; consult `avances.md` for fulfilled dependencies.
+- Start with M09. Follow milestone dependencies and the task order within each milestone; consult `avances.md` for fulfilled dependencies.
 - Treat each task ID as one reviewable outcome, including its relevant tests and documentation. Split a task before coding if its implementation cannot be reviewed coherently in one session. Preserve its ID as a prefix for new child tasks.
 - For a milestone ending in `[PLAN]`, complete its first planning task before implementation. Record the named decisions, contracts, failure cases, and test design, then refine the remaining tasks in this file. The marker identifies unresolved engineering details, not permission to expand MVP scope.
 - At each session start, read repository instructions, check the branch and working tree, and consult `avances.md` for satisfied dependencies. Continue the earliest unblocked task. Work on a feature or fix branch, never directly on `main` or `master`.
@@ -21,30 +21,11 @@ Keep the daemon responsible for durable state and supervised processes. Keep dom
 
 Use the specification's recommended Rust stack and the pinned bootstrap toolchain. Verify support when adding dependencies; avoid unused dependencies and empty adapter crates until needed. Follow the eight [architecture decisions](docs/architecture/README.md), refining the risky ones at their implementation gates.
 
-The durable first-slice and real PTY gates are complete. M08 adds the TUI; M09 and M10 add templates and explicit worktree isolation; M11 and M12 validate and prepare the release candidate. After M08, M09 and M10 may proceed independently.
+The durable first-slice, real PTY, and TUI gates are complete. M09 and M10 add templates and explicit worktree isolation; M11 and M12 validate and prepare the release candidate. M09 and M10 may proceed independently.
 
 Public export and disk-backed scrollback are optional and are deferred from this roadmap. Keep scrollback bounded in daemon memory. Do not add transcript ingestion, provider APIs, automatic task mutation from agent prose, autonomous orchestration, TCP listeners, hosted dependencies, telemetry, graphical clients, or automatic Git commits, merges, rebases, or deletion. Any later export proposal must first add exact-content preview, redaction, and destination confirmation as required by FR-10.
 
 Keep task dependencies informational, as defined in the specification and [M02 storage contract](docs/M02_storage_contract.md); do not introduce a scheduler. Git worktree creation is included because AC-10 requires it, even though several related requirements use SHOULD.
-
-## M08: Complete TUI workflow [PLAN]
-
-Execution contract: [M08 detailed plan](docs/M08_details.md).
-
-Depends on: M07. Specification phase: 3. Coverage: FR-1 through FR-6, FR-8; NFR-3, NFR-6, NFR-7.
-
-Outcome: the user completes coordination and terminal workflows through `rt` without the administrative CLI.
-
-- M08.01: Specify the minimum screen/navigation model, terminal focus escape binding, resize rules, forms, confirmation for session termination, reconnect states, and small-terminal behavior. Reuse M07 terminal semantics and define testable presentation state separate from transport effects.
-- M08.02: Replace the default `rt` placeholder with workspace selection/open/init and daemon discovery/start followed by TUI connection. Test first launch, reconnect, unavailable workspace, and non-interactive/unsupported terminal errors.
-- M08.03: Implement raw-mode and alternate-screen lifecycle with restoration on normal exit, errors, and panic. Verify the user's terminal remains usable after every tested exit path.
-- M08.04: Implement workspace overview, task list/board, owner/status indicators, and agent/instance listing from client snapshots and events. Test empty/loading/error states and essential state without color.
-- M08.05: Implement task create/edit/transition/claim/release forms and claim history. Test invalid transitions and competing claim errors preserve user context and reflect authoritative daemon state.
-- M08.06: Implement task detail, progress append, structured handover creation/read, and resume by a different instance. Test required fields, length limits, validation errors, and visible verification/next action.
-- M08.07: Implement shell/agent launch, attach/detach, terminal switching, input forwarding, resize, and exit reporting. Render provider-neutral terminal state correctly without opening SQLite or owning child processes.
-- M08.08: Implement reconnect and fresh snapshot/event refresh with explicit disconnected state and safe handling of pending mutations. Test disconnect during editing and active terminal output without accidental duplicate writes.
-- M08.09: Implement keyboard help, redacted event/diagnostic view, escaped untrusted text outside terminal panes, and minimum-size guidance. Test monochrome rendering, keyboard-only operation, Unicode, and small layouts.
-- M08.10: Verify the TUI gate with the primary shell/agent/task/handover/resume scenario, client close/reopen, and session reattachment on each platform. Measure connection-to-interactive time against the two-second target and input responsiveness under output load; record environment and measurements.
 
 ## M09: Editable provider templates and generic integration
 

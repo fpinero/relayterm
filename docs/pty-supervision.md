@@ -1,6 +1,6 @@
 # PTY supervision and reattachment
 
-Relayterm M07 adds daemon-owned real pseudo-terminals for generic shells and neutral configured commands. The TUI remains M08 work. Administrative session commands and the shared client library provide the current diagnostic surface.
+Relayterm uses daemon-owned real pseudo-terminals for generic shells and neutral configured commands. M08 adds the interactive TUI while preserving the administrative session commands and shared client library.
 
 ## Ownership model
 
@@ -33,7 +33,8 @@ ConPTY interprets application VT output before emitting the host-side stream. On
 | Retained raw output | 1 MiB by default, 8 MiB implementation ceiling |
 | Input frame | 64 KiB |
 | Pending input | 64 KiB per session |
-| Snapshot | Half the negotiated JSON frame limit at the diagnostic boundary |
+| Attach snapshot | Half the negotiated JSON frame limit at the diagnostic boundary |
+| Interactive display viewport | 16,000 compact parsed cells |
 | Attached clients | 8 per session, also bounded by the daemon connection limit |
 
 Input uses a bounded nonblocking queue. PTY reading and writing run on owned blocking threads rather than Tokio workers. Slow or absent clients do not stop PTY drainage. An oversized snapshot fails with `resource_limit` instead of sending an incomplete frame.
@@ -52,7 +53,7 @@ rt session terminate SESSION_ID
 rt daemon stop --terminate-sessions
 ```
 
-Input bytes come from a bounded file or standard input so they do not appear in process arguments. Human and JSON diagnostics never print input data. `session attach` returns the neutral state snapshot and continuation identity for diagnostics and future clients. The shared client exposes bounded binary continuation reads. M08 owns interactive rendering, focus, keyboard translation, pane switching, and the continuous user-facing read loop.
+Input bytes come from a bounded file or standard input so they do not appear in process arguments. Human and JSON diagnostics never print input data. `session attach` returns the neutral state snapshot and continuation identity for diagnostics and future clients. The shared client exposes bounded binary continuation reads. The M08 TUI uses `session.read_display` for bounded authoritative replacement viewports, including parsed in-memory history. It owns only interactive rendering, focus, keyboard translation, pane switching, and the continuous user-facing read loop.
 
 ## Verification
 

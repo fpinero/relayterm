@@ -273,7 +273,7 @@ struct InternalDaemon {
 
 #[derive(Debug)]
 enum CliError {
-    Tui,
+    Tui(relayterm_tui::TuiError),
     Usage(&'static str),
     Runtime(RuntimeError),
     Client(ClientError),
@@ -285,7 +285,7 @@ enum CliError {
 impl CliError {
     fn code(&self) -> u8 {
         match self {
-            Self::Tui => 1,
+            Self::Tui(_) => 1,
             Self::Usage(_) | Self::InvalidInput => 2,
             Self::Interrupted => 130,
             Self::Runtime(RuntimeError::WorkspaceNotInitialized) => 3,
@@ -315,7 +315,8 @@ impl CliError {
     }
     fn machine_code(&self) -> &'static str {
         match self {
-            Self::Tui => "tui_unavailable",
+            Self::Tui(relayterm_tui::TuiError::UnsupportedTerminal) => "unsupported_terminal",
+            Self::Tui(_) => "tui_error",
             Self::Usage(_) => "invalid_usage",
             Self::InvalidInput => "invalid_input",
             Self::Io => "input_unavailable",
@@ -348,7 +349,7 @@ impl CliError {
     }
     fn message(&self) -> String {
         match self {
-            Self::Tui => "The TUI is not implemented yet.".into(),
+            Self::Tui(value) => value.to_string(),
             Self::Usage(v) => (*v).into(),
             Self::InvalidInput => "The command input is invalid.".into(),
             Self::Io => "The command input could not be read.".into(),
@@ -393,7 +394,9 @@ fn main() -> ExitCode {
         .and_then(|runtime| runtime.block_on(run(&cli)));
     match result {
         Ok(value) => {
-            render_success(cli.format, command_name(cli.command.as_ref()), &value);
+            if cli.command.is_some() {
+                render_success(cli.format, command_name(cli.command.as_ref()), &value);
+            }
             ExitCode::SUCCESS
         }
         Err(error) => {
@@ -405,9 +408,26 @@ fn main() -> ExitCode {
 
 async fn run(cli: &Cli) -> Result<Value, CliError> {
     let Some(command) = &cli.command else {
-        return relayterm_tui::run()
-            .map(|_| json!({}))
-            .map_err(|_| CliError::Tui);
+        if !matches!(cli.format, OutputFormat::Human) || !relayterm_tui::interactive_terminal() {
+            return Err(CliError::Tui(relayterm_tui::TuiError::UnsupportedTerminal));
+        }
+        let root = cli
+            .workspace
+            .clone()
+            .map_or_else(|| std::env::current_dir().map_err(|_| CliError::Io), Ok)?;
+        let route = match invoke_bootstrap("open", &root, cli.home.as_deref(), None, cli.timeout) {
+            Ok(route) => route,
+            Err(CliError::Runtime(RuntimeError::WorkspaceNotInitialized)) => {
+                if !relayterm_tui::confirm_initialize(&root).map_err(CliError::Tui)? {
+                    return Err(CliError::Runtime(RuntimeError::WorkspaceNotInitialized));
+                }
+                invoke_bootstrap("initialize", &root, cli.home.as_deref(), None, cli.timeout)?
+            }
+            Err(error) => return Err(error),
+        };
+        let client = relayterm_daemon::connect_route(&route, cli.home.clone()).await?;
+        relayterm_tui::run(client).await.map_err(CliError::Tui)?;
+        return Ok(json!({}));
     };
     if let TopCommand::InternalBootstrap = command {
         let input: BootstrapRequest =

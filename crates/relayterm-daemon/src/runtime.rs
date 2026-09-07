@@ -311,15 +311,36 @@ pub async fn bootstrap(
         route.already_running = true;
         return Ok(route);
     }
-    spawn_detached(executable, root, home.as_deref(), id)?;
+    let mut launched = spawn_detached(executable, root, home.as_deref(), id)?;
     while startup_started.elapsed() < timeout {
-        if probe(&endpoint, id).await? {
-            route.started = true;
-            return Ok(route);
+        match probe(&endpoint, id).await {
+            Ok(true) => {
+                route.started = true;
+                return Ok(route);
+            }
+            Ok(false) => {}
+            Err(error) => {
+                stop_failed_launch(&mut launched);
+                return Err(error);
+            }
+        }
+        match launched.try_wait() {
+            Ok(Some(_)) => return Err(RuntimeError::Spawn),
+            Ok(None) => {}
+            Err(_) => {
+                stop_failed_launch(&mut launched);
+                return Err(RuntimeError::Spawn);
+            }
         }
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
+    stop_failed_launch(&mut launched);
     Err(RuntimeError::Timeout)
+}
+
+fn stop_failed_launch(child: &mut std::process::Child) {
+    let _ = child.kill();
+    let _ = child.wait();
 }
 
 pub async fn connect_route(
@@ -570,7 +591,7 @@ fn spawn_detached(
     root: &Path,
     home: Option<&Path>,
     id: WorkspaceId,
-) -> Result<(), RuntimeError> {
+) -> Result<std::process::Child, RuntimeError> {
     let mut arguments = vec![
         OsString::from("__daemon-run"),
         OsString::from("--root"),
