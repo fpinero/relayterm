@@ -18,6 +18,11 @@ use std::{
     fmt,
     io::{IsTerminal, Write},
     path::Path,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    thread,
     time::{Duration, Instant},
 };
 use tokio::sync::mpsc;
@@ -25,6 +30,59 @@ use tokio::sync::mpsc;
 const INPUT_LIMIT: usize = 64 * 1024;
 const REFRESH_INTERVAL: Duration = Duration::from_millis(500);
 const TERMINAL_REFRESH_INTERVAL: Duration = Duration::from_millis(33);
+const INPUT_POLL_INTERVAL: Duration = Duration::from_millis(20);
+
+struct InputWorker {
+    stop: Arc<AtomicBool>,
+    thread: Option<thread::JoinHandle<()>>,
+}
+
+impl InputWorker {
+    fn start() -> (Self, mpsc::Receiver<Event>) {
+        let (sender, receiver) = mpsc::channel(64);
+        let stop = Arc::new(AtomicBool::new(false));
+        let worker_stop = Arc::clone(&stop);
+        let thread = thread::spawn(move || {
+            while !worker_stop.load(Ordering::Acquire) {
+                if !event::poll(INPUT_POLL_INTERVAL).unwrap_or(false) {
+                    continue;
+                }
+                let Ok(mut input) = event::read() else {
+                    continue;
+                };
+                loop {
+                    match sender.try_send(input) {
+                        Ok(()) => break,
+                        Err(mpsc::error::TrySendError::Full(returned)) => {
+                            input = returned;
+                            if worker_stop.load(Ordering::Acquire) {
+                                return;
+                            }
+                            thread::sleep(Duration::from_millis(1));
+                        }
+                        Err(mpsc::error::TrySendError::Closed(_)) => return,
+                    }
+                }
+            }
+        });
+        (
+            Self {
+                stop,
+                thread: Some(thread),
+            },
+            receiver,
+        )
+    }
+}
+
+impl Drop for InputWorker {
+    fn drop(&mut self) {
+        self.stop.store(true, Ordering::Release);
+        if let Some(thread) = self.thread.take() {
+            let _ = thread.join();
+        }
+    }
+}
 
 #[derive(Debug)]
 pub enum TuiError {
@@ -114,6 +172,7 @@ async fn run_loop(
 ) -> Result<(), TuiError> {
     let mut app = App::default();
     refresh(client, &mut app).await?;
+    let (_input_worker, mut input_rx) = InputWorker::start();
     let (event_tx, mut event_rx) = mpsc::channel::<Result<Value, ClientError>>(64);
     let event_client = client.connect_peer().await?;
     let mut event_cursor = app
@@ -219,24 +278,14 @@ async fn run_loop(
             last_refresh = Instant::now();
         }
 
-        let input = tokio::task::spawn_blocking(|| {
-            if event::poll(Duration::from_millis(34)).unwrap_or(false) {
-                event::read().ok()
-            } else {
-                None
-            }
-        })
-        .await
-        .map_err(|_| TuiError::Runtime)?;
+        let input = tokio::time::timeout(INPUT_POLL_INTERVAL, input_rx.recv())
+            .await
+            .ok()
+            .flatten();
         if let Some(input) = input {
             handle_event(client, &mut app, input).await;
             for _ in 0..63 {
-                let available = if event::poll(Duration::ZERO).unwrap_or(false) {
-                    event::read().ok()
-                } else {
-                    None
-                };
-                let Some(input) = available else {
+                let Ok(input) = input_rx.try_recv() else {
                     break;
                 };
                 handle_event(client, &mut app, input).await;
