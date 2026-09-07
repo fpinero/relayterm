@@ -340,11 +340,11 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
     second.send(&[0x1d]);
     second.wait_for("READ ONLY");
     second.send(b"\x1b");
-    second.wait_for("s shell, a agent");
+    second.wait_for("Sessions selected");
     second.send(b"?");
     second.wait_for("Keyboard help");
     second.send(b"3");
-    second.wait_for("s shell, a agent");
+    second.wait_for("Sessions selected");
     let rows = wait_for_session_rows(&second, Some(&flood_session_id));
     let selected_index = rows
         .iter()
@@ -396,7 +396,7 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
     second.send(&[0x1d]);
     second.wait_for("READ ONLY");
     second.send(b"\x1b");
-    second.wait_for("s shell, a agent");
+    second.wait_for("Sessions selected");
     select_session(&mut second, &flood_session_id);
     second.send(b"\r");
     second.wait_for("flood-complete-us-");
@@ -514,15 +514,20 @@ fn visible_session_rows(screen: &str) -> Vec<(bool, String)> {
 
 fn rendered_selected_session_id(screen: &str) -> Option<&str> {
     screen.lines().find_map(|line| {
-        line.split_once("Selected session: ")
-            .and_then(|(_, value)| value.split_whitespace().next())
+        let (_, value) = line.split_once("Sessions selected ")?;
+        let length = value
+            .char_indices()
+            .take_while(|(_, character)| character.is_ascii_alphanumeric() || *character == '-')
+            .last()
+            .map_or(0, |(index, character)| index + character.len_utf8());
+        (length != 0).then_some(&value[..length])
     })
 }
 
 #[test]
 fn rendered_session_rows_accept_native_border_prefixes() {
     let rows = visible_session_rows(
-        "\u{2502}> [running] session selected-id instance one\n|  [exited] session other-id instance two\nSelected session: selected-id",
+        "\u{250c}Sessions selected selected-id\u{2500}\u{2500}\n\u{2502}> [running] session selected-id instance one\n|  [exited] session other-id instance two",
     );
     assert_eq!(
         rows,
