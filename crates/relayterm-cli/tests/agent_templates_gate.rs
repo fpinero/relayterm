@@ -334,8 +334,21 @@ fn fill_agent_form(
     terminal.send(b"\t");
     terminal.send(capabilities.as_bytes());
     terminal.send(b"\t");
+    wait_until(
+        || form_field_selected(terminal, "Enabled"),
+        "enabled field selection",
+    );
     terminal.send(b"\x15");
-    terminal.send(if enabled { b"true" } else { b"false" });
+    wait_until(
+        || form_field_length(terminal, "Enabled (true/false)", 0, 5),
+        "enabled field clearing",
+    );
+    let enabled_value: &[u8] = if enabled { b"true" } else { b"false" };
+    terminal.send(enabled_value);
+    wait_until(
+        || form_field_length(terminal, "Enabled (true/false)", enabled_value.len(), 5),
+        "enabled field value",
+    );
     terminal.send(b"\x13");
 }
 
@@ -387,6 +400,13 @@ fn form_field_selected(terminal: &OuterTerminal, label: &str) -> bool {
         .screen_contents()
         .lines()
         .any(|line| line.contains(&format!("> {label} (")))
+}
+
+fn form_field_length(terminal: &OuterTerminal, label: &str, length: usize, limit: usize) -> bool {
+    terminal
+        .screen_contents()
+        .lines()
+        .any(|line| line.contains(&format!("> {label} ({length}/{limit})")))
 }
 
 fn session_items(root: &std::path::Path, private: &std::path::Path) -> Vec<Value> {
