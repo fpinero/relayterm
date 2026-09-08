@@ -4,6 +4,7 @@ use relayterm_application::{
 use relayterm_client::Client;
 use relayterm_daemon::{
     DaemonControl, RuntimeError, WorkspaceServer, initialize, prepare_workspace, serve_workspace,
+    wait_for_workspace_release,
 };
 use relayterm_domain::{
     Actor, InstanceStatus, Observation, Priority, TaskContent, TaskStatus, TerminalSize,
@@ -193,6 +194,12 @@ async fn runtime_ownership_precedes_recovery_and_rejects_a_contender() {
         .await
         .unwrap();
     server.await.unwrap().unwrap();
+    wait_for_workspace_release(
+        Some(temporary.path().join("private")),
+        workspace,
+        Duration::from_millis(20),
+    )
+    .unwrap();
 }
 
 #[cfg(not(unix))]

@@ -751,19 +751,17 @@ async fn stop(cli: &Cli, root: &Path, terminate_sessions: bool) -> Result<Value,
             &json!({"generation":generation,"terminate_sessions":terminate_sessions}),
         )
         .await?;
-    let deadline = Instant::now() + Duration::from_secs(cli.timeout);
-    while Instant::now() < deadline {
-        if relayterm_daemon::connect_route(&route, cli.home.clone())
-            .await
-            .is_err()
-        {
-            return Ok(
-                json!({"workspace_id":route.workspace_id,"generation":generation,"lifecycle":"stopped"}),
-            );
-        }
-        tokio::time::sleep(Duration::from_millis(50)).await;
+    match relayterm_daemon::wait_for_workspace_release(
+        cli.home.clone(),
+        route.domain_id()?,
+        Duration::from_secs(cli.timeout),
+    ) {
+        Ok(()) => Ok(
+            json!({"workspace_id":route.workspace_id,"generation":generation,"lifecycle":"stopped"}),
+        ),
+        Err(RuntimeError::Busy) => Err(RuntimeError::Timeout.into()),
+        Err(error) => Err(error.into()),
     }
-    Err(RuntimeError::Timeout.into())
 }
 
 async fn dispatch_admin(cli: &Cli, root: &Path, command: &TopCommand) -> Result<Value, CliError> {
