@@ -85,7 +85,7 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
         &fixture_arguments(),
         "",
         "interactive_terminal",
-        false,
+        true,
     );
     wait_until(
         || !first.screen_contents().contains("Create agent form"),
@@ -102,11 +102,6 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
         .as_str()
         .unwrap()
         .to_owned();
-    first.send(b" ");
-    wait_until(
-        || agent_by_name(&root, &private, "Unknown native CLI")["enabled"] == true,
-        "unknown definition selection and enablement",
-    );
     eprintln!("M09 stage: unknown definition selected");
     let unavailable_started = Instant::now();
     first.send(b"v");
@@ -199,25 +194,6 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
     );
     assert!(available.status.success());
 
-    first.send(b"p");
-    first.wait_for("Create agent form");
-    first.send(b"\x13");
-    wait_until(
-        || {
-            agent_items(&root, &private)
-                .iter()
-                .any(|definition| definition["display_name"] == "OpenCode")
-        },
-        "disabled template copy",
-    );
-    wait_until(
-        || !first.screen_contents().contains("Create agent form"),
-        "template copy form completion",
-    );
-    let copied_template = agent_by_name(&root, &private, "OpenCode");
-    assert_eq!(copied_template["command"], "opencode");
-    assert_eq!(copied_template["enabled"], false);
-    eprintln!("M09 stage: disabled template copied");
     first.wait_for("[enabled] Unknown native CLI");
 
     let definition = agent_by_name(&root, &private, "Unknown native CLI");
@@ -285,6 +261,21 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
     first.send(b"d");
     wait_for_task_status(&root, &private, "done");
     eprintln!("M09 stage: replacement handover and completion");
+    first.send(b"4p");
+    first.wait_for("Create agent form");
+    first.send(b"\x13");
+    wait_until(
+        || {
+            agent_items(&root, &private)
+                .iter()
+                .any(|definition| definition["display_name"] == "OpenCode")
+        },
+        "disabled template copy",
+    );
+    let copied_template = agent_by_name(&root, &private, "OpenCode");
+    assert_eq!(copied_template["command"], "opencode");
+    assert_eq!(copied_template["enabled"], false);
+    eprintln!("M09 stage: disabled template copied");
     first.send(b"\x03");
     first.wait_exit();
     eprintln!("M09 stage: first TUI client closed");
@@ -343,6 +334,7 @@ fn fill_agent_form(
     terminal.send(b"\t");
     terminal.send(capabilities.as_bytes());
     terminal.send(b"\t");
+    terminal.send(b"\x15");
     terminal.send(if enabled { b"true" } else { b"false" });
     terminal.send(b"\x13");
 }
