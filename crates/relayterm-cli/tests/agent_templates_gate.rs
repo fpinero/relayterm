@@ -174,6 +174,16 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
     });
     first.send(b"\x13");
     eprintln!("M09 stage: command edit submitted");
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    let edit_screen = first.screen_contents();
+    eprintln!(
+        "M09 edit observation form={} committed={} conflict={} validation={} unavailable={}",
+        edit_screen.contains("Enabled (true/false)"),
+        edit_screen.contains("Operation committed."),
+        edit_screen.contains("conflict"),
+        edit_screen.contains("validation"),
+        edit_screen.contains("unavailable")
+    );
     wait_until(
         || agent_by_name(&root, &private, "Unknown native CLI")["command"] == fixture_command,
         "confirmed command edit",
