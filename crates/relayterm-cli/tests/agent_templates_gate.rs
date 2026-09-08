@@ -167,12 +167,16 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
         "command field clearing",
     );
     send_form_text(&mut first, &fixture_command);
-    first.wait_for("unknown fixture");
+    first.wait_for(if cfg!(windows) {
+        "fixture λ.exe"
+    } else {
+        "fixture λ"
+    });
     first.send(b"\x13");
     eprintln!("M09 stage: command edit submitted");
     wait_until(
-        || !first.screen_contents().contains("┌Form"),
-        "command edit form completion",
+        || agent_by_name(&root, &private, "Unknown native CLI")["command"] == fixture_command,
+        "confirmed command edit",
     );
     let edited = agent_by_name(&root, &private, "Unknown native CLI");
     assert_eq!(edited["id"], definition_id);
