@@ -408,7 +408,7 @@ impl PreparedWorkspace {
     where
         F: FnOnce(),
     {
-        let (control, shutdown) = DaemonControl::new(
+        let (control, mut shutdown) = DaemonControl::new(
             RandomIdGenerator::default()
                 .next()
                 .map_err(|_| RuntimeError::Spawn)?
@@ -437,9 +437,12 @@ impl PreparedWorkspace {
                 signal_control.request_shutdown();
             }
         });
-        let result = server.run(shutdown).await;
+        // Keep the listener owner alive while supervised children are terminated and their final
+        // observations are committed. A new runtime must not enter recovery against the database
+        // while the previous generation is still completing orderly shutdown.
+        let server_ownership = server.run_retaining_listener(&mut shutdown).await;
         signal.abort();
-        result.map_err(|_| RuntimeError::Transport)?;
+        let server_ownership = server_ownership.map_err(|_| RuntimeError::Transport)?;
         supervisor.terminate_all();
         let cleanup_deadline = tokio::time::Instant::now() + Duration::from_secs(5);
         while supervisor.live_count() != 0 {
@@ -475,6 +478,7 @@ impl PreparedWorkspace {
             Some(control.generation()),
         );
         drop(self.database);
+        drop(server_ownership);
         Ok(())
     }
 }

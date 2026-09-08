@@ -287,6 +287,12 @@ where
         self.faults.clone()
     }
     pub async fn run(self, mut shutdown: watch::Receiver<bool>) -> Result<(), ServerError> {
+        self.run_retaining_listener(&mut shutdown).await.map(drop)
+    }
+    pub(crate) async fn run_retaining_listener(
+        self,
+        shutdown: &mut watch::Receiver<bool>,
+    ) -> Result<Self, ServerError> {
         let shared = Arc::new(self);
         let mut connections = JoinSet::new();
         loop {
@@ -300,7 +306,7 @@ where
         if let Some(control) = &shared.lifecycle {
             control.state.store(2, Ordering::Release);
         }
-        Ok(())
+        Arc::try_unwrap(shared).map_err(|_| ServerError::ResourceLimit)
     }
     async fn connection(
         self: Arc<Self>,
