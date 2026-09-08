@@ -166,10 +166,7 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
         || !first.screen_contents().contains("relayterm-m09-missing"),
         "command field clearing",
     );
-    let mut paste = b"\x1b[200~".to_vec();
-    paste.extend_from_slice(fixture_command.as_bytes());
-    paste.extend_from_slice(b"\x1b[201~");
-    first.send(&paste);
+    send_form_text(&mut first, &fixture_command);
     first.wait_for("unknown fixture");
     first.send(b"\x13");
     eprintln!("M09 stage: command edit submitted");
@@ -357,6 +354,18 @@ fn agent_by_name(root: &std::path::Path, private: &std::path::Path, name: &str) 
         .into_iter()
         .find(|definition| definition["display_name"] == name)
         .unwrap()
+}
+
+fn send_form_text(terminal: &mut OuterTerminal, value: &str) {
+    #[cfg(unix)]
+    {
+        let mut paste = b"\x1b[200~".to_vec();
+        paste.extend_from_slice(value.as_bytes());
+        paste.extend_from_slice(b"\x1b[201~");
+        terminal.send(&paste);
+    }
+    #[cfg(windows)]
+    terminal.send(value.as_bytes());
 }
 
 fn agent_selected(terminal: &OuterTerminal, name: &str) -> bool {
