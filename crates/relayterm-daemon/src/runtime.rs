@@ -477,6 +477,7 @@ impl PreparedWorkspace {
             self.expected,
             Some(control.generation()),
         );
+        self.database.pool().close().await;
         drop(self.database);
         drop(server_ownership);
         Ok(())
