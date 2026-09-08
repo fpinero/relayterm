@@ -2,8 +2,7 @@
 mod native;
 
 use native::{
-    DaemonCleanup, OuterTerminal, Scratch, admin, admin_output, next_selection_input,
-    previous_selection_input, wait_until,
+    DaemonCleanup, OuterTerminal, Scratch, admin, admin_output, next_selection_input, wait_until,
 };
 use serde_json::Value;
 use std::{
@@ -123,13 +122,8 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
         .as_str()
         .unwrap()
         .to_owned();
-    if !agent_selected(&first, "Unknown native CLI") {
-        first.send(previous_selection_input());
-        wait_until(
-            || agent_selected(&first, "Unknown native CLI"),
-            "unknown definition selection",
-        );
-    }
+    first.send(next_selection_input());
+    first.wait_for(&format!("Agent definitions selected {definition_id}"));
     eprintln!("M09 stage: unknown definition selected");
     let unavailable_started = Instant::now();
     first.send(b"v");
@@ -391,13 +385,6 @@ fn send_form_text(terminal: &mut OuterTerminal, value: &str) {
     }
     #[cfg(windows)]
     terminal.send(value.as_bytes());
-}
-
-fn agent_selected(terminal: &OuterTerminal, name: &str) -> bool {
-    terminal
-        .screen_contents()
-        .lines()
-        .any(|line| line.contains('>') && line.contains(name))
 }
 
 fn form_field_selected(terminal: &OuterTerminal, label: &str) -> bool {
