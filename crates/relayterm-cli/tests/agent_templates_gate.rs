@@ -81,6 +81,10 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
         },
         "disabled template copy",
     );
+    wait_until(
+        || !first.screen_contents().contains("┌Form"),
+        "template copy form completion",
+    );
     let copied_template = agent_by_name(&root, &private, "OpenCode");
     assert_eq!(copied_template["command"], "opencode");
     assert_eq!(copied_template["enabled"], false);
@@ -96,6 +100,10 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
         "",
         "interactive_terminal",
         false,
+    );
+    wait_until(
+        || !first.screen_contents().contains("┌Form"),
+        "custom definition form completion",
     );
     first.wait_for("Unknown native CLI");
     if !agent_selected(&first, "Unknown native CLI") {
