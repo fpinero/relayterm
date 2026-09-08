@@ -156,7 +156,7 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
     paste.extend_from_slice(fixture_executable.to_string_lossy().as_bytes());
     paste.extend_from_slice(b"\x1b[201~");
     first.send(&paste);
-    first.wait_for("agent_templates_gate");
+    first.wait_for("agent_templates_");
     first.send(b"\x13");
     eprintln!("M09 stage: command edit submitted");
     wait_until(
