@@ -29,6 +29,8 @@ Keep task dependencies informational, as defined in the specification and [M02 s
 
 ## M09: Editable provider templates and generic integration
 
+Execution contract: [M09 details](docs/M09_details.md).
+
 Depends on: M08. Specification phase: 4. Coverage: FR-2, FR-8; AC-14, AC-15.
 
 Outcome: built-in providers and an unknown custom CLI use equivalent public configuration and lifecycle paths.
