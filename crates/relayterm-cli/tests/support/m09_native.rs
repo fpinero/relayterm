@@ -51,6 +51,7 @@ impl Drop for Scratch {
 pub struct OuterTerminal {
     control: NativeControl,
     writer: Box<dyn std::io::Write + Send>,
+    #[cfg(unix)]
     output: Arc<Mutex<Vec<u8>>>,
     screen: Arc<Mutex<vt100::Parser>>,
 }
@@ -95,6 +96,7 @@ impl OuterTerminal {
         Self {
             control,
             writer,
+            #[cfg(unix)]
             output,
             screen,
         }
@@ -125,6 +127,7 @@ impl OuterTerminal {
         }
     }
 
+    #[cfg(unix)]
     fn wait_for_raw(&self, marker: &str) {
         wait_until(
             || String::from_utf8_lossy(&self.output.lock().unwrap()).contains(marker),
