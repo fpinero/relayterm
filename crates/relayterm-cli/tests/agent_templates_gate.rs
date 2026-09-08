@@ -365,7 +365,7 @@ fn agent_selected(terminal: &OuterTerminal, name: &str) -> bool {
     terminal
         .screen_contents()
         .lines()
-        .any(|line| line.starts_with("│>") && line.contains(name))
+        .any(|line| line.contains('>') && line.contains(name))
 }
 
 fn form_field_selected(terminal: &OuterTerminal, label: &str) -> bool {
