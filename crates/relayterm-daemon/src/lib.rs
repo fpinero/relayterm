@@ -30,6 +30,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use std::{
     fmt,
+    path::PathBuf,
     str::FromStr,
     sync::{
         Arc,
@@ -222,6 +223,8 @@ pub struct WorkspaceServer<S, C, I, N> {
     event_wakeups: Option<watch::Receiver<u64>>,
     lifecycle: Option<DaemonControl>,
     supervisor: Option<Arc<supervisor::SessionSupervisor>>,
+    resolver_admissions: Arc<Semaphore>,
+    resolver_jobs: Arc<Semaphore>,
 }
 impl<S, C, I, N> WorkspaceServer<S, C, I, N>
 where
@@ -261,6 +264,8 @@ where
             event_wakeups: None,
             lifecycle: None,
             supervisor: None,
+            resolver_admissions: Arc::new(Semaphore::new(20)),
+            resolver_jobs: Arc::new(Semaphore::new(4)),
         }
     }
     pub fn with_event_wakeups(mut self, receiver: watch::Receiver<u64>) -> Self {
@@ -775,6 +780,8 @@ where
                 self.snapshot_page(&request.params, Some(Collection::Definitions))
                     .await
             }
+            O::AgentListTemplates => self.agent_templates(&request.params),
+            O::AgentCheckDefinition => self.check_definition(&request.params).await,
             O::TaskList => {
                 self.snapshot_page(&request.params, Some(Collection::Tasks))
                     .await
@@ -874,8 +881,15 @@ where
                 if !record.enabled {
                     return Err(unavailable());
                 }
+                let resolved = self
+                    .resolve_program(
+                        record.command.clone(),
+                        root.clone(),
+                        working_directory.clone(),
+                    )
+                    .await?;
                 (
-                    record.command.clone().into(),
+                    resolved.into(),
                     record.arguments.iter().map(Into::into).collect(),
                     record.environment_allowlist.clone(),
                 )
@@ -908,14 +922,9 @@ where
                 return Err(map_supervisor(supervisor::SupervisorError::Io));
             }
         }
-        let previous: std::collections::HashSet<_> = state
-            .instances()
-            .iter()
-            .map(|instance| instance.record().id)
-            .collect();
         let registered = self
             .service
-            .register_instance(
+            .register_instance_at_revision(
                 self.workspace_id,
                 relayterm_application::LaunchContext {
                     agent_definition_id: definition_id,
@@ -924,6 +933,7 @@ where
                     terminal_size: domain::TerminalSize::new(params.rows, params.columns)
                         .map_err(map_domain_error)?,
                 },
+                Some(before.snapshot.revision()),
             )
             .await;
         let registered = match registered {
@@ -933,21 +943,16 @@ where
                 return Err(map_domain_error(error));
             }
         };
-        let instance = registered
-            .committed
-            .snapshot
-            .state()
-            .map_err(map_domain_error)?
-            .instances()
-            .iter()
-            .find(|instance| !previous.contains(&instance.record().id))
-            .ok_or_else(|| map_domain_error(domain::Error::State))?;
-        let instance_id = instance.record().id;
-        let session_id = instance.record().session_id;
-        let environment = relayterm_pty::terminal_environment(relayterm_pty::approved_environment(
-            &allowed,
-            std::env::vars_os(),
-        ));
+        let instance_id = registered.instance_id;
+        let session_id = registered.session_id;
+        if let Some(snapshot) = &registered.launch_definition {
+            debug_assert_eq!(snapshot.arguments.len(), arguments.len());
+            debug_assert_eq!(snapshot.environment_allowlist, allowed);
+        }
+        let environment = relayterm_pty::checked_terminal_environment(
+            relayterm_pty::approved_environment(&allowed, std::env::vars_os()),
+        )
+        .map_err(|_| resource())?;
         let spawned = supervisor.launch(
             session_id.as_uuid(),
             instance_id.as_uuid(),
@@ -1003,6 +1008,119 @@ where
             "session_id": session_id.to_string(),
             "status": "running"
         }))
+    }
+
+    fn agent_templates(&self, value: &Value) -> Result<Value, wire::ErrorBody> {
+        let _: wire::AgentListTemplatesParams = parameters(value)?;
+        let templates = relayterm_config::agent_templates()
+            .map_err(|_| unavailable())?
+            .into_iter()
+            .map(|template| wire::AgentTemplateDto {
+                key: template.key.to_owned(),
+                display_name: template.display_name,
+                command: template.command,
+                arguments: template.arguments,
+                environment_allowlist: template.environment_allowlist,
+                capabilities: template.capabilities,
+                enabled: template.enabled,
+            })
+            .collect();
+        serde_json::to_value(wire::AgentTemplateCatalogDto {
+            catalog_version: relayterm_config::TEMPLATE_CATALOG_VERSION,
+            templates,
+        })
+        .map_err(|_| invalid())
+    }
+
+    async fn check_definition(&self, value: &Value) -> Result<Value, wire::ErrorBody> {
+        let params: wire::AgentCheckDefinitionParams = parameters(value)?;
+        let snapshot = self
+            .reads
+            .consistent_snapshot(self.workspace_id)
+            .await
+            .map_err(map_domain_error)?;
+        if snapshot.snapshot.revision() != params.expected_revision.get() {
+            return Err(map_domain_error(domain::Error::Conflict));
+        }
+        let id = domain::AgentDefinitionId::from_uuid(params.definition_id.as_uuid());
+        let state = snapshot.snapshot.state().map_err(map_domain_error)?;
+        let definition = state
+            .definitions()
+            .iter()
+            .find(|candidate| candidate.record().id == id)
+            .ok_or_else(|| map_domain_error(domain::Error::Reference))?;
+        let record = definition.record();
+        let root = state.workspace().record().project_root.clone();
+        let resolution = self
+            .resolve_executable(record.command.clone(), root.clone(), root)
+            .await?;
+        let status = availability_status(resolution.status);
+        let guidance_code = match status {
+            wire::AgentAvailabilityStatus::Available => "available",
+            wire::AgentAvailabilityStatus::NotFound => "check_daemon_path_or_command",
+            wire::AgentAvailabilityStatus::NotExecutable => "select_executable_file",
+            wire::AgentAvailabilityStatus::UnsupportedLauncher => {
+                "configure_native_executable_or_interpreter"
+            }
+            wire::AgentAvailabilityStatus::InvalidCommand => "edit_invalid_command",
+            wire::AgentAvailabilityStatus::Unavailable => "check_resource_limit",
+        };
+        serde_json::to_value(wire::AgentCheckDefinitionResult {
+            definition_id: params.definition_id,
+            observed_revision: params.expected_revision,
+            enabled: record.enabled,
+            status,
+            guidance_code: guidance_code.to_owned(),
+        })
+        .map_err(|_| invalid())
+    }
+
+    async fn resolve_program(
+        &self,
+        command: String,
+        workspace_root: PathBuf,
+        working_directory: PathBuf,
+    ) -> Result<PathBuf, wire::ErrorBody> {
+        let resolution = self
+            .resolve_executable(command, workspace_root, working_directory)
+            .await?;
+        resolution
+            .executable
+            .map(|value| value.path)
+            .ok_or_else(unavailable)
+    }
+
+    async fn resolve_executable(
+        &self,
+        command: String,
+        workspace_root: PathBuf,
+        working_directory: PathBuf,
+    ) -> Result<relayterm_platform::ExecutableResolution, wire::ErrorBody> {
+        let admission = self
+            .resolver_admissions
+            .clone()
+            .try_acquire_owned()
+            .map_err(|_| resource())?;
+        let jobs = self.resolver_jobs.clone();
+        let search_path = std::env::var_os("PATH");
+        let task = async move {
+            let job = jobs.acquire_owned().await.map_err(|_| unavailable())?;
+            tokio::task::spawn_blocking(move || {
+                let _admission = admission;
+                let _job = job;
+                relayterm_platform::resolve_executable(
+                    &command,
+                    &workspace_root,
+                    &working_directory,
+                    search_path.as_deref(),
+                )
+            })
+            .await
+            .map_err(|_| unavailable())
+        };
+        tokio::time::timeout(Duration::from_secs(2), task)
+            .await
+            .map_err(|_| unavailable())?
     }
 
     async fn session_attach(
@@ -1340,7 +1458,12 @@ where
         .map_err(map_domain_error)?;
         let outcome = self
             .service
-            .import_definitions(self.workspace_id, expected, vec![definition])
+            .execute_at_revision(
+                self.workspace_id,
+                domain::Actor::LocalUser,
+                Request::UpdateDefinition(definition),
+                expected,
+            )
             .await
             .map_err(map_domain_error)?;
         Ok(receipt(&outcome))
@@ -1837,6 +1960,27 @@ struct Handover {
 fn parameters<T: for<'de> Deserialize<'de>>(value: &Value) -> Result<T, wire::ErrorBody> {
     serde_json::from_value(value.clone()).map_err(|_| invalid())
 }
+
+fn availability_status(
+    status: relayterm_platform::ExecutableStatus,
+) -> wire::AgentAvailabilityStatus {
+    match status {
+        relayterm_platform::ExecutableStatus::Available => wire::AgentAvailabilityStatus::Available,
+        relayterm_platform::ExecutableStatus::NotFound => wire::AgentAvailabilityStatus::NotFound,
+        relayterm_platform::ExecutableStatus::NotExecutable => {
+            wire::AgentAvailabilityStatus::NotExecutable
+        }
+        relayterm_platform::ExecutableStatus::UnsupportedLauncher => {
+            wire::AgentAvailabilityStatus::UnsupportedLauncher
+        }
+        relayterm_platform::ExecutableStatus::InvalidCommand => {
+            wire::AgentAvailabilityStatus::InvalidCommand
+        }
+        relayterm_platform::ExecutableStatus::Unavailable => {
+            wire::AgentAvailabilityStatus::Unavailable
+        }
+    }
+}
 fn empty(value: &Value) -> Result<(), wire::ErrorBody> {
     let map = value.as_object().ok_or_else(invalid)?;
     if map.is_empty() {
@@ -2132,7 +2276,18 @@ fn instance_dto(value: &domain::AgentInstance) -> Value {
         .ok()
         .and_then(|x| serde_json::to_value(x).ok())
         .unwrap_or(Value::Null);
-    json!({"id":r.id.to_string(),"session_id":r.session_id.to_string(),"workspace_id":r.workspace_id.to_string(),"agent_definition_id":r.agent_definition_id.map(|x|x.to_string()),"task_id":r.task_id.map(|x|x.to_string()),"working_directory":path,"status":r.status,"started_at":timestamp(r.started_at),"last_observed_at":timestamp(r.last_observed_at),"ended_at":r.ended_at.map(timestamp),"exit_code":r.exit_code,"terminal_size":{"rows":r.terminal_size.rows(),"columns":r.terminal_size.columns()}})
+    let launch_definition = r.launch_definition.as_ref().map(|snapshot| {
+        json!({
+            "definition_id":snapshot.definition_id.to_string(),
+            "display_name":snapshot.display_name,
+            "command":snapshot.command,
+            "arguments":snapshot.arguments,
+            "environment_allowlist":snapshot.environment_allowlist,
+            "capabilities":snapshot.capabilities,
+            "enabled":snapshot.enabled
+        })
+    });
+    json!({"id":r.id.to_string(),"session_id":r.session_id.to_string(),"workspace_id":r.workspace_id.to_string(),"agent_definition_id":r.agent_definition_id.map(|x|x.to_string()),"task_id":r.task_id.map(|x|x.to_string()),"launch_definition":launch_definition,"working_directory":path,"status":r.status,"started_at":timestamp(r.started_at),"last_observed_at":timestamp(r.last_observed_at),"ended_at":r.ended_at.map(timestamp),"exit_code":r.exit_code,"terminal_size":{"rows":r.terminal_size.rows(),"columns":r.terminal_size.columns()}})
 }
 fn claim_dto(value: &domain::Claim) -> Value {
     let r = value.record();

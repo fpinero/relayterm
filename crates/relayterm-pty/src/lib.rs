@@ -205,6 +205,17 @@ pub fn terminal_environment(
     environment
 }
 
+pub fn checked_terminal_environment(
+    environment: Vec<(OsString, OsString)>,
+) -> Result<Vec<(OsString, OsString)>, PtyError> {
+    let environment = terminal_environment(environment);
+    if environment.len() > 128 {
+        Err(PtyError::InvalidRequest)
+    } else {
+        Ok(environment)
+    }
+}
+
 fn approved_name(name: &OsStr, additional: &[String]) -> bool {
     let Some(name) = name.to_str() else {
         return false;
@@ -275,6 +286,22 @@ mod tests {
         assert_eq!(
             PtyError::Spawn.to_string(),
             "The supervised terminal operation failed."
+        );
+    }
+
+    #[test]
+    fn final_terminal_environment_rejects_overflow_without_truncation() {
+        let values = (0..128)
+            .map(|index| {
+                (
+                    OsString::from(format!("NAME_{index}")),
+                    OsString::from("value"),
+                )
+            })
+            .collect();
+        assert_eq!(
+            checked_terminal_environment(values),
+            Err(PtyError::InvalidRequest)
         );
     }
 

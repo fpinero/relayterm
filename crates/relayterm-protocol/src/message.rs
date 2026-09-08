@@ -133,6 +133,8 @@ pub enum Operation {
     DaemonShutdown,
     WorkspaceGetSnapshot,
     AgentListDefinitions,
+    AgentListTemplates,
+    AgentCheckDefinition,
     AgentRegisterDefinition,
     AgentUpdateDefinition,
     AgentImportDefinitions,
@@ -167,13 +169,15 @@ pub enum Operation {
     Unknown,
 }
 impl Operation {
-    pub const ALL: [Self; 37] = [
+    pub const ALL: [Self; 39] = [
         Self::ProtocolHello,
         Self::ProtocolPing,
         Self::DaemonStatus,
         Self::DaemonShutdown,
         Self::WorkspaceGetSnapshot,
         Self::AgentListDefinitions,
+        Self::AgentListTemplates,
+        Self::AgentCheckDefinition,
         Self::AgentRegisterDefinition,
         Self::AgentUpdateDefinition,
         Self::AgentImportDefinitions,
@@ -214,6 +218,8 @@ impl Operation {
             Self::DaemonShutdown => "daemon.shutdown",
             Self::WorkspaceGetSnapshot => "workspace.get_snapshot",
             Self::AgentListDefinitions => "agent.list_definitions",
+            Self::AgentListTemplates => "agent.list_templates",
+            Self::AgentCheckDefinition => "agent.check_definition",
             Self::AgentRegisterDefinition => "agent.register_definition",
             Self::AgentUpdateDefinition => "agent.update_definition",
             Self::AgentImportDefinitions => "agent.import_definitions",
@@ -703,6 +709,71 @@ pub struct AgentDefinitionDto {
     pub environment_allowlist: Vec<String>,
     pub capabilities: Vec<String>,
     pub enabled: bool,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AgentListTemplatesParams {}
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AgentTemplateDto {
+    pub key: String,
+    pub display_name: String,
+    pub command: String,
+    pub arguments: Vec<String>,
+    pub environment_allowlist: Vec<String>,
+    pub capabilities: Vec<String>,
+    pub enabled: bool,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AgentTemplateCatalogDto {
+    pub catalog_version: u8,
+    pub templates: Vec<AgentTemplateDto>,
+}
+impl AgentTemplateCatalogDto {
+    pub fn validate(&self) -> Result<(), MessageError> {
+        if self.catalog_version != 1 || self.templates.len() > 3 {
+            return Err(MessageError::InvalidScalar);
+        }
+        let mut keys = HashSet::new();
+        if self.templates.iter().any(|template| {
+            template.key.is_empty()
+                || template.key.len() > 64
+                || !template
+                    .key
+                    .bytes()
+                    .all(|byte| byte.is_ascii_lowercase() || byte == b'_')
+                || !keys.insert(template.key.as_str())
+        }) {
+            return Err(MessageError::InvalidScalar);
+        }
+        Ok(())
+    }
+}
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AgentCheckDefinitionParams {
+    pub definition_id: AgentDefinitionId,
+    pub expected_revision: DecimalU64,
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentAvailabilityStatus {
+    Available,
+    NotFound,
+    NotExecutable,
+    UnsupportedLauncher,
+    InvalidCommand,
+    Unavailable,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AgentCheckDefinitionResult {
+    pub definition_id: AgentDefinitionId,
+    pub observed_revision: DecimalU64,
+    pub enabled: bool,
+    pub status: AgentAvailabilityStatus,
+    pub guidance_code: String,
 }
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -1442,6 +1513,43 @@ mod tests {
         assert_eq!(
             decode_json::<Value>(&[0xff], false).err(),
             Some(MessageError::InvalidJson)
+        );
+    }
+
+    #[test]
+    fn template_catalog_version_and_keys_are_strict() {
+        let candidate = AgentTemplateDto {
+            key: "neutral_cli".into(),
+            display_name: "Neutral CLI".into(),
+            command: "neutral".into(),
+            arguments: vec![String::new(), "repeated".into(), "repeated".into()],
+            environment_allowlist: vec![],
+            capabilities: vec!["terminal".into()],
+            enabled: false,
+        };
+        let valid = AgentTemplateCatalogDto {
+            catalog_version: 1,
+            templates: vec![candidate.clone()],
+        };
+        valid.validate().unwrap();
+        let bytes = encode_json(&valid).unwrap();
+        let decoded: AgentTemplateCatalogDto = decode_json(&bytes, false).unwrap();
+        decoded.validate().unwrap();
+        assert!(
+            AgentTemplateCatalogDto {
+                catalog_version: 2,
+                templates: vec![candidate.clone()]
+            }
+            .validate()
+            .is_err()
+        );
+        assert!(
+            AgentTemplateCatalogDto {
+                catalog_version: 1,
+                templates: vec![candidate.clone(), candidate]
+            }
+            .validate()
+            .is_err()
         );
     }
 }

@@ -6,6 +6,54 @@ use std::{collections::HashSet, fs::File, io::Read, path::Path, str::FromStr, ti
 
 pub const MAX_CONFIG_BYTES: usize = 1024 * 1024;
 pub const MAX_DEFINITIONS: usize = 128;
+pub const TEMPLATE_CATALOG_VERSION: u8 = 1;
+
+const CLAUDE_CODE_TEMPLATE: &str = include_str!("../../../templates/agents/claude-code.toml");
+const CODEX_TEMPLATE: &str = include_str!("../../../templates/agents/codex.toml");
+const OPENCODE_TEMPLATE: &str = include_str!("../../../templates/agents/opencode.toml");
+
+#[derive(Clone, Eq, PartialEq)]
+pub struct AgentTemplate {
+    pub key: &'static str,
+    pub display_name: String,
+    pub command: String,
+    pub arguments: Vec<String>,
+    pub environment_allowlist: Vec<String>,
+    pub capabilities: Vec<String>,
+    pub enabled: bool,
+    pub document: &'static str,
+}
+
+/// Return the small built-in catalog after validating every document through the public parser.
+pub fn agent_templates() -> Result<Vec<AgentTemplate>, ConfigError> {
+    [
+        ("claude_code", CLAUDE_CODE_TEMPLATE),
+        ("codex", CODEX_TEMPLATE),
+        ("opencode", OPENCODE_TEMPLATE),
+    ]
+    .into_iter()
+    .map(|(key, document)| {
+        let parsed = parse(document.as_bytes())?;
+        let definition = parsed
+            .definitions
+            .first()
+            .ok_or(ConfigError::InvalidField("definitions"))?;
+        if parsed.definitions.len() != 1 {
+            return Err(ConfigError::InvalidField("definitions"));
+        }
+        Ok(AgentTemplate {
+            key,
+            display_name: definition.display_name.clone(),
+            command: definition.command.clone(),
+            arguments: definition.arguments.clone(),
+            environment_allowlist: definition.environment_allowlist.clone(),
+            capabilities: definition.capabilities.clone(),
+            enabled: definition.enabled,
+            document,
+        })
+    })
+    .collect()
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ConfigError {
@@ -310,6 +358,38 @@ mod tests {
     use super::*;
 
     const ID: &str = "00000000-0000-4000-8000-000000000001";
+
+    #[test]
+    fn built_in_templates_are_minimal_valid_and_stable() {
+        let templates = agent_templates().unwrap();
+        assert_eq!(templates.len(), 3);
+        assert_eq!(
+            templates.iter().map(|item| item.key).collect::<Vec<_>>(),
+            ["claude_code", "codex", "opencode"]
+        );
+        assert_eq!(
+            templates
+                .iter()
+                .map(|item| item.command.as_str())
+                .collect::<Vec<_>>(),
+            ["claude", "codex", "opencode"]
+        );
+        for template in templates {
+            assert!(!template.enabled);
+            assert!(template.arguments.is_empty());
+            assert!(template.environment_allowlist.is_empty());
+            assert_eq!(template.capabilities, ["terminal"]);
+            assert_eq!(
+                parse(template.document.as_bytes())
+                    .unwrap()
+                    .definitions
+                    .len(),
+                1
+            );
+            assert!(!template.document.to_ascii_lowercase().contains("token"));
+            assert!(!template.document.to_ascii_lowercase().contains("password"));
+        }
+    }
 
     #[test]
     fn parses_valid_candidate_and_validates_domain_fields() {

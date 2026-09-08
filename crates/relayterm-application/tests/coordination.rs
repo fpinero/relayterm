@@ -929,3 +929,67 @@ fn generic_transitions_cannot_bypass_claim_or_handover_and_disabled_definitions_
         Err(Error::Unavailable)
     ));
 }
+
+#[test]
+fn definition_update_requires_existing_id_and_launch_pins_revision_and_snapshot() {
+    let f = Fixture::new();
+    let added = f
+        .run(
+            Actor::LocalUser,
+            Request::AddDefinition {
+                display_name: "Original".into(),
+                command: "neutral".into(),
+                arguments: vec!["first".into(), String::new(), "first".into()],
+                environment_allowlist: vec![],
+                capabilities: vec!["terminal".into()],
+                enabled: true,
+            },
+        )
+        .unwrap();
+    let state = f.state();
+    let revision = added.committed.snapshot.revision();
+    let original = state.definitions()[0].record().clone();
+    let missing = AgentDefinition::restore(AgentDefinitionRecord {
+        id: "00000000-0000-4000-8000-000000009999".parse().unwrap(),
+        ..original.clone()
+    })
+    .unwrap();
+    assert!(matches!(
+        block_on(f.service.execute_at_revision(
+            f.workspace,
+            Actor::LocalUser,
+            Request::UpdateDefinition(missing),
+            revision,
+        )),
+        Err(Error::Reference)
+    ));
+    assert_eq!(f.state().definitions().len(), 1);
+    let registered = block_on(f.service.register_instance_at_revision(
+        f.workspace,
+        LaunchContext {
+            agent_definition_id: Some(original.id),
+            task_id: None,
+            working_directory: "project".into(),
+            terminal_size: TerminalSize::new(24, 80).unwrap(),
+        },
+        Some(revision),
+    ))
+    .unwrap();
+    assert_eq!(
+        registered.launch_definition.unwrap().arguments,
+        ["first", "", "first"]
+    );
+    assert!(matches!(
+        block_on(f.service.register_instance_at_revision(
+            f.workspace,
+            LaunchContext {
+                agent_definition_id: Some(original.id),
+                task_id: None,
+                working_directory: "project".into(),
+                terminal_size: TerminalSize::new(24, 80).unwrap(),
+            },
+            Some(revision),
+        )),
+        Err(Error::Conflict)
+    ));
+}

@@ -170,6 +170,11 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
     ready_rx.recv_timeout(Duration::from_secs(5)).unwrap();
 
     let client = connect_route(&route, Some(private.clone())).await.unwrap();
+    let instances_before_missing: Value = client
+        .call(Operation::SessionList, &json!({"limit":50}))
+        .await
+        .unwrap();
+    let instance_count_before_missing = instances_before_missing["items"].as_array().unwrap().len();
     let bad_receipt = uuid::Uuid::new_v4().to_string();
     assert!(
         client
@@ -188,12 +193,10 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
         .call(Operation::SessionList, &json!({"limit":50}))
         .await
         .unwrap();
-    assert!(
-        failed_instances["items"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|instance| instance["status"] == "failed" && instance["exit_code"].is_null())
+    assert_eq!(
+        failed_instances["items"].as_array().unwrap().len(),
+        instance_count_before_missing,
+        "resolution failure before admission must not create an instance"
     );
     let failed_count = failed_instances["items"].as_array().unwrap().len();
     assert!(
