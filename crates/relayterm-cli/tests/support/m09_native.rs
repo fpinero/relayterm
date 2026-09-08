@@ -188,7 +188,7 @@ pub fn admin(root: &Path, private: &Path, args: &[&str]) -> Value {
 }
 
 pub fn admin_output(root: &Path, private: &Path, args: &[&str]) -> std::process::Output {
-    Command::new(env!("CARGO_BIN_EXE_rt"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_rt"))
         .arg("--workspace")
         .arg(root)
         .arg("--home")
@@ -196,9 +196,41 @@ pub fn admin_output(root: &Path, private: &Path, args: &[&str]) -> std::process:
         .args(["--format", "json"])
         .args(args)
         .stdin(Stdio::null())
+        .stdout(Stdio::piped())
         .stderr(Stdio::null())
-        .output()
-        .unwrap()
+        .spawn()
+        .unwrap();
+    let mut stdout = child.stdout.take().unwrap();
+    let reader = std::thread::spawn(move || {
+        let mut bytes = Vec::new();
+        stdout
+            .by_ref()
+            .take((OUTPUT_LIMIT + 1) as u64)
+            .read_to_end(&mut bytes)
+            .unwrap();
+        bytes
+    });
+    let deadline = Instant::now() + DEADLINE;
+    let status = loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            break status;
+        }
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            break child.wait().unwrap();
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    };
+    let stdout = reader.join().unwrap();
+    assert!(
+        stdout.len() <= OUTPUT_LIMIT,
+        "administrative output exceeded its bound"
+    );
+    std::process::Output {
+        status,
+        stdout,
+        stderr: Vec::new(),
+    }
 }
 
 pub fn wait_until(mut condition: impl FnMut() -> bool, label: &str) {
