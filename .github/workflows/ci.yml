@@ -65,6 +65,12 @@ jobs:
       - name: Test TUI workflow, pass 2
         timeout-minutes: 10
         run: cargo test -p relayterm-cli --test tui_gate --locked -- --nocapture --test-threads=1
+      - name: Test agent templates, pass 1
+        timeout-minutes: 10
+        run: cargo test -p relayterm-cli --test agent_templates_gate --locked -- --nocapture --test-threads=1
+      - name: Test agent templates, pass 2
+        timeout-minutes: 10
+        run: cargo test -p relayterm-cli --test agent_templates_gate --locked -- --nocapture --test-threads=1
       - name: Test workspace and CLI contracts
         timeout-minutes: 5
         run: cargo test --workspace --locked

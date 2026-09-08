@@ -11,7 +11,7 @@ pub use model::{App, Form, FormKind, Freshness, Screen};
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use relayterm_client::{Client, ClientError};
+use relayterm_client::{Client, ClientError, Delivery};
 use relayterm_protocol::Operation;
 use serde_json::{Value, json};
 use std::{
@@ -413,13 +413,41 @@ async fn handle_key(client: &Client, app: &mut App, key: KeyEvent) {
                 .and_then(|value| value.get("id"))
                 .and_then(Value::as_str)
                 .map(str::to_owned);
-            launch(client, app, definition).await;
+            if definition.is_some() {
+                launch(client, app, definition).await;
+            } else {
+                app.add_diagnostic(
+                    "invalid_reference",
+                    "Select an agent definition before launching.",
+                );
+            }
         }
+        KeyCode::Char('n') if app.screen == Screen::Agents => open_agent_create(app),
+        KeyCode::Char('e') if app.screen == Screen::Agents => edit_agent(app),
+        KeyCode::Char('p') if app.screen == Screen::Agents => open_selected_template(app),
+        KeyCode::Char('[') if app.screen == Screen::Agents => move_template(app, -1),
+        KeyCode::Char(']') if app.screen == Screen::Agents => move_template(app, 1),
+        KeyCode::Char('v') if app.screen == Screen::Agents => check_agent(client, app).await,
+        KeyCode::Char(' ') if app.screen == Screen::Agents => toggle_agent(client, app).await,
         KeyCode::Char('t') if app.screen == Screen::Sessions => confirm_termination(app),
-        KeyCode::Char('n') if app.screen == Screen::Tasks => app.form = Some(Form::task_create()),
+        KeyCode::Char('n') if app.screen == Screen::Tasks => {
+            let mut form = Form::task_create();
+            form.base_revision = app.last_revision.clone();
+            app.form = Some(form);
+        }
         KeyCode::Char('e') if app.screen == Screen::Tasks => edit_task(app),
-        KeyCode::Char('p') if app.screen == Screen::Tasks => app.form = Some(Form::progress()),
-        KeyCode::Char('h') if app.screen == Screen::Tasks => app.form = Some(Form::handover()),
+        KeyCode::Char('p') if app.screen == Screen::Tasks => {
+            let mut form = Form::progress();
+            form.target_id = selected_task_id(app);
+            form.base_revision = app.last_revision.clone();
+            app.form = Some(form);
+        }
+        KeyCode::Char('h') if app.screen == Screen::Tasks => {
+            let mut form = Form::handover();
+            form.target_id = selected_task_id(app);
+            form.base_revision = app.last_revision.clone();
+            app.form = Some(form);
+        }
         KeyCode::Char('r') if app.screen == Screen::Tasks => ready_or_release(client, app).await,
         KeyCode::Char('c') if app.screen == Screen::Tasks => claim(client, app).await,
         KeyCode::Char('b') if app.screen == Screen::Tasks => {
@@ -439,7 +467,25 @@ fn release_input_chord(key: KeyEvent) -> bool {
 }
 
 async fn handle_form_key(client: &Client, app: &mut App, key: KeyEvent) {
+    if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('r') {
+        if let Err(error) = refresh(client, app).await {
+            app.record_client_error(error);
+        } else if let Some(form) = app.form.as_mut() {
+            form.uncertain = false;
+            form.error =
+                Some("State refreshed. Review the draft before an explicit resubmission.".into());
+        }
+        return;
+    }
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('s') {
+        if app.form.as_ref().is_some_and(|form| form.uncertain) {
+            if let Some(form) = app.form.as_mut() {
+                form.error = Some(
+                    "Result is uncertain. Press Ctrl-R and review before resubmitting.".into(),
+                );
+            }
+            return;
+        }
         submit_form(client, app).await;
         return;
     }
@@ -556,6 +602,19 @@ async fn refresh(client: &Client, app: &mut App) -> Result<(), ClientError> {
     app.freshness = Freshness::Loading;
     let snapshot = client.refresh_snapshot().await?;
     app.install_snapshot(snapshot);
+    if let Ok(catalog) = client
+        .call::<_, Value>(Operation::AgentListTemplates, &json!({}))
+        .await
+    {
+        app.templates = catalog
+            .get("templates")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        app.selected_template = app
+            .selected_template
+            .min(app.templates.len().saturating_sub(1));
+    }
     Ok(())
 }
 
@@ -588,7 +647,7 @@ async fn submit_form(client: &Client, app: &mut App) {
             app.form = Some(form);
             return;
         }
-        let Some(session_id) = selected_session_id(app) else {
+        let Some(session_id) = form.target_id.clone() else {
             app.form = Some(form);
             return;
         };
@@ -601,9 +660,9 @@ async fn submit_form(client: &Client, app: &mut App) {
         .await;
         return;
     }
-    let task_id = match selected_task_id(app) {
+    let task_id = match form.target_id.clone().or_else(|| selected_task_id(app)) {
         Some(task_id) => task_id,
-        None if form.kind == FormKind::TaskCreate => String::new(),
+        None if matches!(form.kind, FormKind::TaskCreate | FormKind::AgentCreate) => String::new(),
         None => {
             form.error = Some("Select a task first.".into());
             app.form = Some(form);
@@ -629,6 +688,11 @@ async fn submit_form(client: &Client, app: &mut App) {
         }
         Err(error) => {
             form.pending = false;
+            form.uncertain = matches!(
+                error,
+                ClientError::Transport(Delivery::Unknown)
+                    | ClientError::Cancelled(Delivery::Unknown)
+            );
             form.error = Some(error.to_string());
             app.record_client_error(error);
             let _ = refresh(client, app).await;
@@ -637,7 +701,7 @@ async fn submit_form(client: &Client, app: &mut App) {
     }
 }
 
-fn form_params(app: &App, form: &Form, task_id: &str) -> Result<(Operation, Value), String> {
+fn form_params(_app: &App, form: &Form, task_id: &str) -> Result<(Operation, Value), String> {
     let value = |index: usize| form.fields[index].value.clone();
     let list = |index: usize| -> Vec<String> {
         form.fields[index]
@@ -648,6 +712,49 @@ fn form_params(app: &App, form: &Form, task_id: &str) -> Result<(Operation, Valu
             .collect()
     };
     match form.kind {
+        FormKind::AgentCreate | FormKind::AgentEdit => {
+            if value(0).is_empty() || value(1).is_empty() {
+                return Err("Display name and command are required.".into());
+            }
+            let enabled = match value(5).as_str() {
+                "true" => true,
+                "false" => false,
+                _ => return Err("Enabled must be true or false.".into()),
+            };
+            let items = |index: usize, empty_marker: bool| -> Vec<String> {
+                if form.fields[index].value.is_empty() {
+                    Vec::new()
+                } else {
+                    form.fields[index]
+                        .value
+                        .split('\n')
+                        .map(|item| {
+                            if empty_marker && item == "<empty>" {
+                                String::new()
+                            } else {
+                                item.to_owned()
+                            }
+                        })
+                        .collect()
+                }
+            };
+            let mut params = json!({
+                "expected_revision":form.base_revision,
+                "display_name":value(0),"command":value(1),"arguments":items(2, true),
+                "environment_allowlist":items(3, false),"capabilities":items(4, false),"enabled":enabled
+            });
+            let operation = if form.kind == FormKind::AgentEdit {
+                params["definition_id"] = Value::String(
+                    form.target_id
+                        .clone()
+                        .ok_or("The definition target is missing.")?,
+                );
+                Operation::AgentUpdateDefinition
+            } else {
+                Operation::AgentRegisterDefinition
+            };
+            Ok((operation, params))
+        }
         FormKind::TaskCreate | FormKind::TaskEdit => {
             if value(0).is_empty() {
                 return Err("Title is required.".into());
@@ -661,7 +768,7 @@ fn form_params(app: &App, form: &Form, task_id: &str) -> Result<(Operation, Valu
                 return Err("Priority must be low, normal, high, or urgent.".into());
             }
             let mut params = json!({
-                "expected_revision":app.last_revision,"title":value(0),"description":value(1),"priority":priority,
+                "expected_revision":form.base_revision,"title":value(0),"description":value(1),"priority":priority,
                 "scope_paths":list(3),"acceptance_notes":value(4),"dependency_ids":list(5)
             });
             let operation = if form.kind == FormKind::TaskEdit {
@@ -688,7 +795,7 @@ fn form_params(app: &App, form: &Form, task_id: &str) -> Result<(Operation, Valu
             Ok((
                 Operation::HandoverCreate,
                 json!({
-                    "task_id":task_id,"expected_revision":app.last_revision,"summary":value(0),"decisions":value(1),
+                    "task_id":task_id,"expected_revision":form.base_revision,"summary":value(0),"decisions":value(1),
                     "changed_paths":list(2),"verification_performed":value(3),"open_questions":value(4),
                     "recommended_next_action":value(5)
                 }),
@@ -711,6 +818,8 @@ fn edit_task(app: &mut App) {
     }
     let mut form = Form::task_create();
     form.kind = FormKind::TaskEdit;
+    form.target_id = task.get("id").and_then(Value::as_str).map(str::to_owned);
+    form.base_revision = app.last_revision.clone();
     let content = task.get("content").unwrap_or(&Value::Null);
     form.fields[0].value = string(content, "title");
     form.fields[1].value = string(content, "description");
@@ -722,6 +831,153 @@ fn edit_task(app: &mut App) {
         field.cursor = field.value.len();
     }
     app.form = Some(form);
+}
+
+fn open_agent_create(app: &mut App) {
+    let mut form = Form::agent_create();
+    form.base_revision = app.last_revision.clone();
+    form.fields[5].value = "false".into();
+    form.fields[5].cursor = 5;
+    app.form = Some(form);
+}
+
+fn open_selected_template(app: &mut App) {
+    let Some(template) = app.templates.get(app.selected_template).cloned() else {
+        app.add_diagnostic(
+            "unavailable",
+            "No built-in template is available from this daemon.",
+        );
+        return;
+    };
+    let mut form = Form::agent_create();
+    form.base_revision = app.last_revision.clone();
+    fill_agent_form(&mut form, &template);
+    app.form = Some(form);
+}
+
+fn edit_agent(app: &mut App) {
+    let Some(definition) = app.selected_agent().cloned() else {
+        app.add_diagnostic(
+            "invalid_reference",
+            "Select an agent definition before editing.",
+        );
+        return;
+    };
+    let mut form = Form::agent_create();
+    form.kind = FormKind::AgentEdit;
+    form.target_id = definition
+        .get("id")
+        .and_then(Value::as_str)
+        .map(str::to_owned);
+    form.base_revision = app.last_revision.clone();
+    fill_agent_form(&mut form, &definition);
+    app.form = Some(form);
+}
+
+fn fill_agent_form(form: &mut Form, value: &Value) {
+    form.fields[0].value = string(value, "display_name");
+    form.fields[1].value = string(value, "command");
+    form.fields[2].value = encoded_items(value, "arguments", true);
+    form.fields[3].value = encoded_items(value, "environment_allowlist", false);
+    form.fields[4].value = encoded_items(value, "capabilities", false);
+    form.fields[5].value = value
+        .get("enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+        .to_string();
+    for field in &mut form.fields {
+        field.cursor = field.value.len();
+    }
+}
+
+fn encoded_items(value: &Value, name: &str, empty_marker: bool) -> String {
+    value
+        .get(name)
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(|item| {
+                    if empty_marker && item.is_empty() {
+                        "<empty>"
+                    } else {
+                        item
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join("\n")
+        })
+        .unwrap_or_default()
+}
+
+fn move_template(app: &mut App, amount: isize) {
+    let len = app.templates.len();
+    if len == 0 {
+        app.selected_template = 0;
+    } else if amount < 0 {
+        app.selected_template = app
+            .selected_template
+            .checked_sub(amount.unsigned_abs())
+            .unwrap_or(len - 1);
+    } else {
+        app.selected_template = (app.selected_template + amount as usize) % len;
+    }
+}
+
+async fn check_agent(client: &Client, app: &mut App) {
+    let Some(id) = app
+        .selected_agent()
+        .and_then(|value| value.get("id"))
+        .and_then(Value::as_str)
+        .map(str::to_owned)
+    else {
+        app.add_diagnostic(
+            "invalid_reference",
+            "Select an agent definition before checking it.",
+        );
+        return;
+    };
+    match client
+        .call::<_, Value>(
+            Operation::AgentCheckDefinition,
+            &json!({"definition_id":id,"expected_revision":app.last_revision}),
+        )
+        .await
+    {
+        Ok(value) => {
+            app.agent_availability = Some((
+                id,
+                string(&value, "status"),
+                string(&value, "guidance_code"),
+                app.last_revision.clone(),
+                Instant::now(),
+            ));
+        }
+        Err(error) => app.record_client_error(error),
+    }
+}
+
+async fn toggle_agent(client: &Client, app: &mut App) {
+    let Some(definition) = app.selected_agent().cloned() else {
+        app.add_diagnostic(
+            "invalid_reference",
+            "Select an agent definition before changing it.",
+        );
+        return;
+    };
+    let Some(id) = definition.get("id").and_then(Value::as_str) else {
+        return;
+    };
+    let params = json!({
+        "definition_id":id,"expected_revision":app.last_revision,
+        "display_name":string(&definition,"display_name"),"command":string(&definition,"command"),
+        "arguments":definition.get("arguments").cloned().unwrap_or_else(||json!([])),
+        "environment_allowlist":definition.get("environment_allowlist").cloned().unwrap_or_else(||json!([])),
+        "capabilities":definition.get("capabilities").cloned().unwrap_or_else(||json!([])),
+        "enabled":!definition.get("enabled").and_then(Value::as_bool).unwrap_or(false)
+    });
+    mutate(client, app, Operation::AgentUpdateDefinition, params).await;
 }
 
 async fn ready_or_release(client: &Client, app: &mut App) {
@@ -1009,6 +1265,9 @@ fn confirm_termination(app: &mut App) {
             safe_text::single_line(&session_id, 64)
         )),
         pending: false,
+        uncertain: false,
+        target_id: Some(session_id),
+        base_revision: app.last_revision.clone(),
     });
 }
 
@@ -1176,6 +1435,36 @@ mod tests {
         let app = App::default();
         assert!(form_params(&app, &Form::task_create(), "").is_err());
         assert!(form_params(&app, &Form::handover(), "task").is_err());
+    }
+
+    #[test]
+    fn agent_form_preserves_argument_items_and_pinned_revision() {
+        let mut app = App {
+            last_revision: "12".into(),
+            ..App::default()
+        };
+        let definition = json!({
+            "id":"00000000-0000-4000-8000-000000000901",
+            "display_name":"Unknown CLI","command":"neutral-cli",
+            "arguments":["with space","", "same", "same"],
+            "environment_allowlist":["EXTRA_NAME"],"capabilities":["terminal"],"enabled":true
+        });
+        let mut form = Form::agent_create();
+        form.kind = FormKind::AgentEdit;
+        form.target_id = definition
+            .get("id")
+            .and_then(Value::as_str)
+            .map(str::to_owned);
+        form.base_revision = app.last_revision.clone();
+        fill_agent_form(&mut form, &definition);
+        app.last_revision = "13".into();
+        let (operation, params) = form_params(&app, &form, "").unwrap();
+        assert_eq!(operation, Operation::AgentUpdateDefinition);
+        assert_eq!(params["expected_revision"], "12");
+        assert_eq!(
+            params["arguments"],
+            json!(["with space", "", "same", "same"])
+        );
     }
 
     #[test]

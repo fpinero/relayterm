@@ -83,6 +83,16 @@ rt --workspace ./example agent import --file ./agents.toml --expected-revision 2
 
 Source edits have no effect until another explicit import. Imports are atomic, preserve omitted definitions, never rewrite the source, and reject a stale expected revision even when values match. The daemon stores environment variable names only. It does not store their values.
 
+The embedded catalog is read-only and never imports definitions automatically. The TUI copies a template into a new definition with a fresh ID, while explicit TOML import creates or updates the stable ID in that file. See [agent templates and custom CLIs](agent-templates.md).
+
+Check one saved definition without executing it or inspecting provider credentials:
+
+```text
+rt --workspace ./example agent check 00000000-0000-4000-8000-000000000950 --expected-revision 4
+```
+
+The result separates enabled state from the bounded availability status. It contains no resolved path, PATH value, argument content, environment value, or native error text. Availability does not prove authentication or provider health. A launch always resolves again against the admitted definition revision.
+
 Task lifecycle, claim, progress, handover, history, session metadata, and event commands are visible under `rt <group> --help`. M05 does not fabricate running instances, so a production claim that targets no real running instance fails honestly until M07 provides launch operations. Test fixtures may create synthetic lifecycle records without adding a production control.
 
 Progress input records an attributed summary and explicit verification:
@@ -117,4 +127,4 @@ An optional private `config/config.toml` is read at daemon startup. Its validate
 
 ## Complete command groups
 
-The M05 surface comprises `workspace init/open/status`, `daemon start/status/stop`, `agent list/register/update/import`, `task create/list/get/update/transition/claim/release/history/claims`, `progress append`, `handover create/get`, `session list`, and `event list/watch`. Pagination defaults to 50 and rejects zero or values above 200. Use each command's help for exact arguments.
+The administrative surface comprises `workspace init/open/status`, `daemon start/status/stop`, `agent list/register/update/import/check`, `task create/list/get/update/transition/claim/release/history/claims`, `progress append`, `handover create/get`, `session list`, and `event list/watch`. Pagination defaults to 50 and rejects zero or values above 200. Use each command's help for exact arguments.

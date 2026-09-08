@@ -34,6 +34,8 @@ Essential state always has a text label. Color is supplementary.
 | Tasks | `p`, `h` | Append progress or prepare an atomic structured handover |
 | Task detail | PageUp, PageDown | Read ordered claim, progress, and handover history |
 | Sessions | `s`, `a` | Launch the default shell or selected enabled definition |
+| Agents | `n`, `e`, Space, `v`, `a` | Create, edit, enable or disable, check, and launch one neutral definition |
+| Agents | `[`, `]`, `p` | Select an embedded template and copy it into a new editable disabled definition |
 | Sessions | Enter, Escape | Attach read-only or detach |
 | Terminal navigation | PageUp, PageDown | Browse the daemon's parsed, bounded in-memory history and return toward live output |
 | Terminal navigation | `i` | Acquire the exclusive input lease and return to live output |
@@ -43,6 +45,7 @@ Essential state always has a text label. Color is supplementary.
 | Forms | Left, Right, Home, End, Backspace, Delete | Edit at UTF-8 character boundaries |
 | Multiline forms | Enter | Insert a newline |
 | Forms | `Ctrl-S` | Submit exactly once |
+| Forms | `Ctrl-R` | Reconcile an uncertain result, then require review before explicit resubmission |
 | Forms | Escape, `Ctrl-C` | Ask before discarding the in-memory draft |
 
 Task claims use the instance represented by the selected session. Launch context does not claim a task. Task dependencies remain informational. A release blocks active work; making it available again is a separate ready action. Task detail exposes immutable claim attribution and close reasons, progress verification, and every structured handover field, including verification and recommended next action.

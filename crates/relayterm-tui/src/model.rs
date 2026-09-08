@@ -1,6 +1,6 @@
 use relayterm_client::{ClientError, ClientSnapshot, Delivery};
 use serde_json::Value;
-use std::collections::VecDeque;
+use std::{collections::VecDeque, time::Instant};
 
 pub const MIN_COLUMNS: u16 = 80;
 pub const MIN_ROWS: u16 = 24;
@@ -69,6 +69,8 @@ impl Freshness {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum FormKind {
+    AgentCreate,
+    AgentEdit,
     TaskCreate,
     TaskEdit,
     Progress,
@@ -76,7 +78,7 @@ pub enum FormKind {
     ConfirmTerminate,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct FormField {
     pub label: &'static str,
     pub value: String,
@@ -85,13 +87,16 @@ pub struct FormField {
     pub limit: usize,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct Form {
     pub kind: FormKind,
     pub fields: Vec<FormField>,
     pub selected: usize,
     pub error: Option<String>,
     pub pending: bool,
+    pub uncertain: bool,
+    pub target_id: Option<String>,
+    pub base_revision: String,
 }
 
 impl Form {
@@ -109,6 +114,33 @@ impl Form {
             selected: 0,
             error: None,
             pending: false,
+            uncertain: false,
+            target_id: None,
+            base_revision: String::new(),
+        }
+    }
+
+    pub fn agent_create() -> Self {
+        Self {
+            kind: FormKind::AgentCreate,
+            fields: vec![
+                field("Display name", false, 256),
+                field("Command", false, 4 * 1024),
+                field(
+                    "Arguments (one per line, <empty> for empty)",
+                    true,
+                    32 * 1024,
+                ),
+                field("Environment names (one per line)", true, 128 * 256),
+                field("Capabilities (one per line)", true, 128 * 256),
+                field("Enabled (true/false)", false, 5),
+            ],
+            selected: 0,
+            error: None,
+            pending: false,
+            uncertain: false,
+            target_id: None,
+            base_revision: String::new(),
         }
     }
 
@@ -122,6 +154,9 @@ impl Form {
             selected: 0,
             error: None,
             pending: false,
+            uncertain: false,
+            target_id: None,
+            base_revision: String::new(),
         }
     }
 
@@ -139,6 +174,9 @@ impl Form {
             selected: 0,
             error: None,
             pending: false,
+            uncertain: false,
+            target_id: None,
+            base_revision: String::new(),
         }
     }
 
@@ -185,6 +223,9 @@ pub struct App {
     pub selected_task: usize,
     pub selected_session: usize,
     pub selected_agent: usize,
+    pub selected_template: usize,
+    pub templates: Vec<Value>,
+    pub agent_availability: Option<(String, String, String, String, Instant)>,
     pub task_scroll: u16,
     pub form: Option<Form>,
     pub terminal: Option<TerminalView>,
@@ -207,6 +248,9 @@ impl Default for App {
             selected_task: 0,
             selected_session: 0,
             selected_agent: 0,
+            selected_template: 0,
+            templates: Vec::new(),
+            agent_availability: None,
             task_scroll: 0,
             form: None,
             terminal: None,
@@ -224,6 +268,9 @@ impl Default for App {
 
 impl App {
     pub fn install_snapshot(&mut self, mut snapshot: ClientSnapshot) {
+        if self.last_revision != snapshot.revision {
+            self.agent_availability = None;
+        }
         let selected_task = selected_identity(self.collection("tasks"), self.selected_task, "id");
         let selected_session = selected_identity(
             self.collection("instances"),
@@ -431,5 +478,22 @@ mod tests {
                 .and_then(|item| item["session_id"].as_str()),
             Some("second")
         );
+    }
+
+    #[test]
+    fn revision_change_invalidates_availability_result() {
+        let mut app = App::default();
+        app.install_snapshot(snapshot(Vec::new()));
+        app.agent_availability = Some((
+            "definition".into(),
+            "available".into(),
+            "available".into(),
+            "1".into(),
+            Instant::now(),
+        ));
+        let mut changed = snapshot(Vec::new());
+        changed.revision = "2".into();
+        app.install_snapshot(changed);
+        assert!(app.agent_availability.is_none());
     }
 }

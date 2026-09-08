@@ -10,6 +10,7 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
 };
 use serde_json::Value;
+use std::time::Duration;
 
 pub fn draw(frame: &mut Frame<'_>, app: &App) {
     let area = frame.area();
@@ -487,10 +488,22 @@ fn terminal_color(value: Option<&Value>) -> Color {
 }
 
 fn draw_agents(frame: &mut Frame<'_>, app: &App, area: Rect) {
+    let rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Min(4),
+            Constraint::Length(5),
+            Constraint::Length(2),
+        ])
+        .split(area);
+    let visible = usize::from(rows[0].height.saturating_sub(2)).max(1);
+    let start = app.selected_agent.saturating_sub(visible / 2);
     let items = app
         .collection("definitions")
         .iter()
         .enumerate()
+        .skip(start)
+        .take(visible)
         .map(|(index, definition)| {
             let marker = if index == app.selected_agent {
                 ">"
@@ -503,9 +516,10 @@ fn draw_agents(frame: &mut Frame<'_>, app: &App, area: Rect) {
                 .unwrap_or(false);
             ListItem::new(safe_text::single_line(
                 &format!(
-                    "{marker} [{}] {}",
+                    "{marker} [{}] {} ({})",
                     if enabled { "enabled" } else { "disabled" },
-                    field(definition, "display_name")
+                    field(definition, "display_name"),
+                    &field(definition, "id")[..field(definition, "id").len().min(8)]
                 ),
                 512,
             ))
@@ -516,8 +530,44 @@ fn draw_agents(frame: &mut Frame<'_>, app: &App, area: Rect) {
                 .borders(Borders::ALL)
                 .title("Agent definitions, a launches selected"),
         ),
-        area,
+        rows[0],
     );
+    let template = app.templates.get(app.selected_template);
+    let template_text = template.map_or_else(
+        || "No template catalog available.".to_owned(),
+        |value| format!(
+            "Template {}/{}: {}\nCommand: {}\nDefaults are disabled; [ / ] selects, p copies into an editable definition.",
+            app.selected_template + 1,
+            app.templates.len(),
+            safe_text::single_line(field(value, "display_name"), 256),
+            safe_text::single_line(field(value, "command"), 4096),
+        ),
+    );
+    frame.render_widget(
+        Paragraph::new(template_text).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Built-in templates"),
+        ),
+        rows[1],
+    );
+    let selected_id = app
+        .selected_agent()
+        .and_then(|value| value.get("id"))
+        .and_then(Value::as_str);
+    let availability = app
+        .agent_availability
+        .as_ref()
+        .filter(|(id, _, _, revision, observed)| {
+            selected_id == Some(id.as_str())
+                && revision == &app.last_revision
+                && observed.elapsed() <= Duration::from_secs(30)
+        })
+        .map_or_else(
+            || "n custom  e edit  Space enable/disable  v check  a launch".to_owned(),
+            |(_, status, guidance, _, _)| format!("Availability: {status} ({guidance})"),
+        );
+    frame.render_widget(Paragraph::new(availability), rows[2]);
 }
 
 fn draw_events(frame: &mut Frame<'_>, app: &App, area: Rect) {
@@ -537,7 +587,7 @@ fn draw_events(frame: &mut Frame<'_>, app: &App, area: Rect) {
 }
 
 fn draw_help(frame: &mut Frame<'_>, area: Rect) {
-    let help = "Global\n  1-6 / Tab: change screen   ?: help   q: quit   R: reconnect\n  j/k or arrows: move selection   Enter: open\n\nTasks\n  n: create   e: edit   r: ready/release   c: claim\n  b: block   d: complete   x: cancel   p: progress   h: handover\n  PageUp/PageDown: task history\n\nSessions\n  s: launch shell   a: launch selected definition   Enter: attach\n  PageUp/PageDown: terminal history   i: acquire input\n  Ctrl-]: return to navigation   Esc: detach   t: terminate\n\nForms\n  Tab/Shift-Tab: field   Ctrl-S: submit   Esc: cancel\n  Enter adds a newline only in multiline fields.\n\nRelayterm does not terminate sessions when the client quits.";
+    let help = "Global\n  1-6 / Tab: change screen   ?: help   q: quit   R: reconnect\n  j/k or arrows: move selection   Enter: open\n\nTasks\n  n: create   e: edit   r: ready/release   c: claim\n  b: block   d: complete   x: cancel   p: progress   h: handover\n  PageUp/PageDown: task history\n\nAgents\n  n: custom   e: edit   Space: enable/disable   v: availability   a: launch\n  [ / ]: select template   p: copy selected template into a new editable definition\n\nSessions\n  s: launch shell   a: launch selected definition   Enter: attach\n  PageUp/PageDown: terminal history   i: acquire input\n  Ctrl-]: return to navigation   Esc: detach   t: terminate\n\nForms\n  Tab/Shift-Tab: field   Ctrl-S: submit   Esc: cancel\n  Ctrl-R: reconcile an uncertain result before explicit resubmission.\n  Enter adds a newline only in multiline fields.\n\nRelayterm does not terminate sessions when the client quits.";
     frame.render_widget(
         Paragraph::new(help).wrap(Wrap { trim: false }).block(
             Block::default()
@@ -570,7 +620,9 @@ fn draw_form(frame: &mut Frame<'_>, form: &crate::model::Form, area: Rect) {
             safe_text::single_line(error, 512)
         )));
     }
-    lines.push(Line::raw("Ctrl-S submit, Esc cancel, Tab next field"));
+    lines.push(Line::raw(
+        "Ctrl-S submit, Esc cancel, Tab next field, Ctrl-R reconcile",
+    ));
     frame.render_widget(
         Paragraph::new(Text::from(lines))
             .wrap(Wrap { trim: false })

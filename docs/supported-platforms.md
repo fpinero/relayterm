@@ -131,6 +131,19 @@ Startup used one warm-up and 20 measured launches against an existing daemon wit
 
 The inherited Windows failure in run `34128844579` was traced to test-fixture startup through an extra process and was replaced with a direct test-executable launch. Later M08 candidates exposed ConPTY startup, input, selection and outer-screen capture assumptions. The final gate uses an independent input reader, stable session identity, decoded native arrow input and authoritative UUID selection. It does not use retries or longer marker deadlines to obtain a pass.
 
+## M09 agent template evidence
+
+Local macOS arm64 validation on 2026-09-08 passed two consecutive invocations of the dedicated account-free gate. Each invocation used the real `rt` executable, SQLite, authenticated Unix IPC, an outer native PTY, and two supervised test CLI processes. It verified all three template previews without automatic registration, generic TUI creation and editing, disabled and executable availability, CLI status codes, exact arguments including space, empty and duplicate values, immutable launch snapshots, explicit task progress and handover, continuation by a second instance, client reconnection, and definition persistence after daemon restart.
+
+| Native runner | Toolchain | Required repetitions | Current result |
+| --- | --- | ---: | --- |
+| Local macOS arm64 | Stable | 2 | Passed |
+| ubuntu-24.04 | Stable | 2 | Pending candidate CI |
+| macos-14 | Stable | 2 | Pending candidate CI |
+| windows-2022 | Stable | 2 | Pending candidate CI |
+
+The same candidate still requires hosted Linux, macOS, and Windows results before M09 can close. Optional provider checks were not run because no provider installation or authenticated account is required for account-free acceptance.
+
 ## Remaining manual shell and terminal matrix
 
 | Platform | Shells | Terminals and connections to verify |

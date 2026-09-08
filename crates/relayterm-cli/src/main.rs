@@ -123,6 +123,11 @@ struct PageArgs {
 #[derive(Subcommand)]
 enum AgentCommand {
     List(PageArgs),
+    Check {
+        definition_id: String,
+        #[arg(long)]
+        expected_revision: String,
+    },
     Register {
         #[arg(long)]
         expected_revision: String,
@@ -397,7 +402,17 @@ fn main() -> ExitCode {
             if cli.command.is_some() {
                 render_success(cli.format, command_name(cli.command.as_ref()), &value);
             }
-            ExitCode::SUCCESS
+            if matches!(
+                cli.command,
+                Some(TopCommand::Agent {
+                    command: AgentCommand::Check { .. }
+                })
+            ) && value.get("status").and_then(Value::as_str) != Some("available")
+            {
+                ExitCode::from(3)
+            } else {
+                ExitCode::SUCCESS
+            }
         }
         Err(error) => {
             render_error(cli.format, command_name(cli.command.as_ref()), &error);
@@ -763,6 +778,16 @@ fn operation_and_params(command: &TopCommand) -> Result<(Operation, Value), CliE
         TopCommand::Agent {
             command: AgentCommand::List(page),
         } => (Operation::AgentListDefinitions, page_params(page)),
+        TopCommand::Agent {
+            command:
+                AgentCommand::Check {
+                    definition_id,
+                    expected_revision,
+                },
+        } => (
+            Operation::AgentCheckDefinition,
+            json!({"definition_id":definition_id,"expected_revision":expected_revision}),
+        ),
         TopCommand::Agent {
             command:
                 AgentCommand::Register {
