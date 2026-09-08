@@ -76,26 +76,6 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
     }
     assert_eq!(agent_items(&root, &private).len(), 0);
 
-    first.send(b"p");
-    first.wait_for("Display name");
-    first.send(b"\x13");
-    wait_until(
-        || {
-            agent_items(&root, &private)
-                .iter()
-                .any(|definition| definition["display_name"] == "OpenCode")
-        },
-        "disabled template copy",
-    );
-    wait_until(
-        || !first.screen_contents().contains("Create agent form"),
-        "template copy form completion",
-    );
-    let copied_template = agent_by_name(&root, &private, "OpenCode");
-    assert_eq!(copied_template["command"], "opencode");
-    assert_eq!(copied_template["enabled"], false);
-    eprintln!("M09 stage: disabled template copied");
-
     first.send(b"n");
     first.wait_for("Display name");
     fill_agent_form(
@@ -122,8 +102,6 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
         .as_str()
         .unwrap()
         .to_owned();
-    first.send(next_selection_input());
-    first.wait_for(&format!("Agent definitions selected {definition_id}"));
     first.send(b" ");
     wait_until(
         || agent_by_name(&root, &private, "Unknown native CLI")["enabled"] == true,
@@ -220,6 +198,26 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
         ],
     );
     assert!(available.status.success());
+
+    first.send(b"p");
+    first.wait_for("Create agent form");
+    first.send(b"\x13");
+    wait_until(
+        || {
+            agent_items(&root, &private)
+                .iter()
+                .any(|definition| definition["display_name"] == "OpenCode")
+        },
+        "disabled template copy",
+    );
+    wait_until(
+        || !first.screen_contents().contains("Create agent form"),
+        "template copy form completion",
+    );
+    let copied_template = agent_by_name(&root, &private, "OpenCode");
+    assert_eq!(copied_template["command"], "opencode");
+    assert_eq!(copied_template["enabled"], false);
+    eprintln!("M09 stage: disabled template copied");
     first.wait_for("[enabled] Unknown native CLI");
 
     let definition = agent_by_name(&root, &private, "Unknown native CLI");
