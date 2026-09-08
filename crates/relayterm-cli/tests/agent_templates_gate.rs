@@ -43,6 +43,13 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
     let root = scratch.0.join("unknown project λ");
     let private = scratch.0.join("private");
     fs::create_dir(&root).unwrap();
+    let fixture_name = if cfg!(windows) {
+        "unknown fixture λ.exe"
+    } else {
+        "unknown fixture λ"
+    };
+    fs::copy(std::env::current_exe().unwrap(), root.join(fixture_name)).unwrap();
+    let fixture_command = format!("./{fixture_name}");
     let _cleanup = DaemonCleanup::new(&root, &private);
 
     let mut first = OuterTerminal::spawn(&root, &private);
@@ -159,28 +166,25 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
         || !first.screen_contents().contains("relayterm-m09-missing"),
         "command field clearing",
     );
-    let fixture_executable = std::env::current_exe().unwrap();
     let mut paste = b"\x1b[200~".to_vec();
-    paste.extend_from_slice(fixture_executable.to_string_lossy().as_bytes());
+    paste.extend_from_slice(fixture_command.as_bytes());
     paste.extend_from_slice(b"\x1b[201~");
     first.send(&paste);
-    first.wait_for("agent_templates_");
+    first.wait_for("unknown fixture");
     first.send(b"\x13");
     eprintln!("M09 stage: command edit submitted");
+    wait_until(
+        || !first.screen_contents().contains("┌Form"),
+        "command edit form completion",
+    );
     wait_until(
         || {
             agent_items(&root, &private)
                 .iter()
                 .find(|definition| definition["id"] == definition_id)
-                .is_some_and(|definition| {
-                    definition["command"] == fixture_executable.to_string_lossy().as_ref()
-                })
+                .is_some_and(|definition| definition["command"] == fixture_command)
         },
         "edited executable",
-    );
-    wait_until(
-        || !first.screen_contents().contains("┌Form"),
-        "command edit form completion",
     );
     let available_started = Instant::now();
     first.send(b"v");
