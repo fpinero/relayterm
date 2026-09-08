@@ -113,19 +113,6 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
         "custom definition form completion",
     );
     first.wait_for("Unknown native CLI");
-    if !agent_selected(&first, "Unknown native CLI") {
-        first.send(previous_selection_input());
-        wait_until(
-            || agent_selected(&first, "Unknown native CLI"),
-            "unknown definition selection",
-        );
-    }
-    eprintln!("M09 stage: unknown definition selected");
-    let unavailable_started = Instant::now();
-    first.send(b"v");
-    first.wait_for("Availability: not_found");
-    eprintln!("M09 stage: unavailable definition checked");
-    let unavailable_latency = unavailable_started.elapsed();
     let listed = admin(&root, &private, &["agent", "list"]);
     let definition_id = listed["result"]["items"]
         .as_array()
@@ -136,6 +123,17 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
         .as_str()
         .unwrap()
         .to_owned();
+    let selected_definition = format!("Agent definitions selected {definition_id}");
+    if !first.screen_contents().contains(&selected_definition) {
+        first.send(previous_selection_input());
+        first.wait_for(&selected_definition);
+    }
+    eprintln!("M09 stage: unknown definition selected");
+    let unavailable_started = Instant::now();
+    first.send(b"v");
+    first.wait_for("Availability: not_found");
+    eprintln!("M09 stage: unavailable definition checked");
+    let unavailable_latency = unavailable_started.elapsed();
     let revision = listed["result"]["revision"].as_str().unwrap();
     let unavailable = admin_output(
         &root,
@@ -380,13 +378,6 @@ fn send_form_text(terminal: &mut OuterTerminal, value: &str) {
     }
     #[cfg(windows)]
     terminal.send(value.as_bytes());
-}
-
-fn agent_selected(terminal: &OuterTerminal, name: &str) -> bool {
-    terminal
-        .screen_contents()
-        .lines()
-        .any(|line| line.contains('>') && line.contains(name))
 }
 
 fn form_field_selected(terminal: &OuterTerminal, label: &str) -> bool {

@@ -524,11 +524,16 @@ fn draw_agents(frame: &mut Frame<'_>, app: &App, area: Rect) {
                 512,
             ))
         });
+    let selected = app
+        .selected_agent()
+        .and_then(|value| value.get("id"))
+        .and_then(Value::as_str)
+        .unwrap_or("none");
     frame.render_widget(
         List::new(items).block(
             Block::default()
                 .borders(Borders::ALL)
-                .title("Agent definitions, a launches selected"),
+                .title(format!("Agent definitions selected {selected}")),
         ),
         rows[0],
     );
