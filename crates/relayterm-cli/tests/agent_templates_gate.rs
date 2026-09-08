@@ -174,10 +174,31 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
     });
     first.send(b"\x13");
     eprintln!("M09 stage: command edit submitted");
-    wait_until(
-        || agent_by_name(&root, &private, "Unknown native CLI")["command"] == fixture_command,
-        "confirmed command edit",
-    );
+    let edit_deadline = Instant::now() + std::time::Duration::from_secs(2);
+    loop {
+        let definitions = agent_items(&root, &private);
+        if definitions.iter().any(|definition| {
+            definition["id"] == definition_id && definition["command"] == fixture_command
+        }) {
+            break;
+        }
+        if Instant::now() >= edit_deadline {
+            let changed_definition = definitions
+                .iter()
+                .find(|definition| definition["command"] == fixture_command)
+                .and_then(|definition| definition["display_name"].as_str())
+                .unwrap_or("none");
+            let screen = first.screen_contents();
+            let form_error = screen
+                .lines()
+                .find(|line| line.contains("Error:"))
+                .unwrap_or("none");
+            panic!(
+                "command edit was not confirmed for its stable ID; changed_definition={changed_definition:?}; form_error={form_error:?}"
+            );
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
     let edited = agent_by_name(&root, &private, "Unknown native CLI");
     assert_eq!(edited["id"], definition_id);
     assert_eq!(edited["command"], fixture_command);
