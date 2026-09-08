@@ -123,14 +123,19 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
         .unwrap()
         .to_owned();
     first.send(next_selection_input());
-    first.wait_for(&format!("Agent definitions selected {definition_id}"));
+    first.send(b" ");
+    wait_until(
+        || agent_by_name(&root, &private, "Unknown native CLI")["enabled"] == true,
+        "unknown definition selection and enablement",
+    );
     eprintln!("M09 stage: unknown definition selected");
     let unavailable_started = Instant::now();
     first.send(b"v");
     first.wait_for("Availability: not_found");
     eprintln!("M09 stage: unavailable definition checked");
     let unavailable_latency = unavailable_started.elapsed();
-    let revision = listed["result"]["revision"].as_str().unwrap();
+    let checked = admin(&root, &private, &["agent", "list"]);
+    let revision = checked["result"]["revision"].as_str().unwrap();
     let unavailable = admin_output(
         &root,
         &private,
@@ -214,7 +219,6 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
         ],
     );
     assert!(available.status.success());
-    first.send(b" ");
     first.wait_for("[enabled] Unknown native CLI");
 
     let definition = agent_by_name(&root, &private, "Unknown native CLI");
