@@ -587,7 +587,7 @@ fn draw_events(frame: &mut Frame<'_>, app: &App, area: Rect) {
 }
 
 fn draw_help(frame: &mut Frame<'_>, area: Rect) {
-    let help = "Global\n  1-6 / Tab: change screen   ?: help   q: quit   R: reconnect\n  j/k or arrows: move selection   Enter: open\n\nTasks\n  n: create   e: edit   r: ready/release   c: claim\n  b: block   d: complete   x: cancel   p: progress   h: handover\n  PageUp/PageDown: task history\n\nAgents\n  n: custom   e: edit   Space: enable/disable   v: availability   a: launch\n  [ / ]: select template   p: copy selected template into a new editable definition\n\nSessions\n  s: launch shell   a: launch selected definition   Enter: attach\n  PageUp/PageDown: terminal history   i: acquire input\n  Ctrl-]: return to navigation   Esc: detach   t: terminate\n\nForms\n  Tab/Shift-Tab: field   Ctrl-S: submit   Esc: cancel\n  Ctrl-R: reconcile an uncertain result before explicit resubmission.\n  Enter adds a newline only in multiline fields.\n\nRelayterm does not terminate sessions when the client quits.";
+    let help = "Global\n  1-6 / Tab: change screen   ?: help   q: quit   R: reconnect\n  j/k or arrows: move selection   Enter: open\n\nTasks\n  n: create   e: edit   r: ready/release   c: claim\n  b: block   d: complete   x: cancel   p: progress   h: handover\n  PageUp/PageDown: task history\n\nAgents\n  n: custom   e: edit   Space: enable/disable   v: availability   a: launch\n  [ / ]: select template   p: copy selected template into a new editable definition\n\nSessions\n  s: launch shell   a: launch selected definition   Enter: attach\n  PageUp/PageDown: terminal history   i: acquire input\n  Ctrl-]: return to navigation   Esc: detach   t: terminate\n\nForms\n  Tab/Shift-Tab: field   Ctrl-U: clear field   Ctrl-S: submit   Esc: cancel\n  Ctrl-R: reconcile an uncertain result before explicit resubmission.\n  Enter adds a newline only in multiline fields.\n\nRelayterm does not terminate sessions when the client quits.";
     frame.render_widget(
         Paragraph::new(help).wrap(Wrap { trim: false }).block(
             Block::default()
@@ -621,7 +621,7 @@ fn draw_form(frame: &mut Frame<'_>, form: &crate::model::Form, area: Rect) {
         )));
     }
     lines.push(Line::raw(
-        "Ctrl-S submit, Esc cancel, Tab next field, Ctrl-R reconcile",
+        "Ctrl-S submit, Ctrl-U clear field, Esc cancel, Tab next field, Ctrl-R reconcile",
     ));
     frame.render_widget(
         Paragraph::new(Text::from(lines))

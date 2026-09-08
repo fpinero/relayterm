@@ -35,7 +35,7 @@ capabilities = ["terminal"]
 enabled = false
 ```
 
-`command` is one executable name or path. Relayterm never splits it as a shell command. `arguments` is an ordered array. Spaces, commas, duplicate values, and empty values are preserved. In the TUI argument editor, enter one argument per line and use the literal marker `<empty>` for an empty argument. Environment entries are names only, without assignments or values. Capabilities are neutral informational names. Relayterm does not interpret a provider name or capability as permission to mutate tasks.
+`command` is one executable name or path. Relayterm never splits it as a shell command. `arguments` is an ordered array. Spaces, commas, duplicate values, and empty values are preserved. In the TUI argument editor, enter one argument per line and use the literal marker `<empty>` for an empty argument. Ctrl-U clears the active field before replacement. Environment entries are names only, without assignments or values. Capabilities are neutral informational names. Relayterm does not interpret a provider name or capability as permission to mutate tasks.
 
 The active definition lives in SQLite. TUI edits use authenticated local IPC and do not rewrite TOML. A form captures its target and workspace revision when opened. Concurrent edits cause a conflict and require review. If delivery becomes uncertain, Relayterm does not resubmit automatically. Press Ctrl-R to reconcile state, review the retained draft, and decide explicitly whether another submission is appropriate.
 
