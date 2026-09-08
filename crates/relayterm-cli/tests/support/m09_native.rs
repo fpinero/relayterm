@@ -6,7 +6,7 @@ use serde_json::Value;
 use std::{
     ffi::OsString,
     fs,
-    io::Read,
+    io::{BufRead, Read},
     path::{Path, PathBuf},
     process::{Command, Stdio},
     sync::{
@@ -200,13 +200,12 @@ pub fn admin_output(root: &Path, private: &Path, args: &[&str]) -> std::process:
         .stderr(Stdio::null())
         .spawn()
         .unwrap();
-    let mut stdout = child.stdout.take().unwrap();
+    let stdout = child.stdout.take().unwrap();
     let reader = std::thread::spawn(move || {
         let mut bytes = Vec::new();
-        stdout
-            .by_ref()
+        std::io::BufReader::new(stdout)
             .take((OUTPUT_LIMIT + 1) as u64)
-            .read_to_end(&mut bytes)
+            .read_until(b'\n', &mut bytes)
             .unwrap();
         bytes
     });
