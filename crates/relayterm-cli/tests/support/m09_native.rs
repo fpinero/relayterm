@@ -214,5 +214,5 @@ pub fn next_selection_input() -> &'static [u8] {
 }
 
 pub fn previous_selection_input() -> &'static [u8] {
-    if cfg!(windows) { b"\x1b[A" } else { b"k" }
+    b"k"
 }
