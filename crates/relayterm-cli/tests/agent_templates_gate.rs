@@ -177,15 +177,9 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
         || !first.screen_contents().contains("┌Form"),
         "command edit form completion",
     );
-    wait_until(
-        || {
-            agent_items(&root, &private)
-                .iter()
-                .find(|definition| definition["id"] == definition_id)
-                .is_some_and(|definition| definition["command"] == fixture_command)
-        },
-        "edited executable",
-    );
+    let edited = agent_by_name(&root, &private, "Unknown native CLI");
+    assert_eq!(edited["id"], definition_id);
+    assert_eq!(edited["command"], fixture_command);
     let available_started = Instant::now();
     first.send(b"v");
     first.wait_for("Availability: available");
