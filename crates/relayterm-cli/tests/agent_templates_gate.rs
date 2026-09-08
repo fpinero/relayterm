@@ -84,6 +84,7 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
     let copied_template = agent_by_name(&root, &private, "OpenCode");
     assert_eq!(copied_template["command"], "opencode");
     assert_eq!(copied_template["enabled"], false);
+    eprintln!("M09 stage: disabled template copied");
 
     first.send(b"n");
     first.wait_for("Display name");
@@ -97,10 +98,18 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
         false,
     );
     first.wait_for("Unknown native CLI");
-    first.send(previous_selection_input());
+    if !agent_selected(&first, "Unknown native CLI") {
+        first.send(previous_selection_input());
+        wait_until(
+            || agent_selected(&first, "Unknown native CLI"),
+            "unknown definition selection",
+        );
+    }
+    eprintln!("M09 stage: unknown definition selected");
     let unavailable_started = Instant::now();
     first.send(b"v");
     first.wait_for("Availability: not_found");
+    eprintln!("M09 stage: unavailable definition checked");
     let unavailable_latency = unavailable_started.elapsed();
     let listed = admin(&root, &private, &["agent", "list"]);
     let definition_id = listed["result"]["items"]
@@ -131,10 +140,25 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
 
     first.send(b"e");
     first.wait_for("Enabled (true/false)");
-    first.send(b"\t\x15");
+    eprintln!("M09 stage: command edit form opened");
+    first.send(b"\t");
+    wait_until(
+        || form_field_selected(&first, "Command"),
+        "command field selection",
+    );
+    first.send(b"\x15");
+    wait_until(
+        || !first.screen_contents().contains("relayterm-m09-missing"),
+        "command field clearing",
+    );
     let fixture_executable = std::env::current_exe().unwrap();
-    first.send(fixture_executable.to_string_lossy().as_bytes());
+    let mut paste = b"\x1b[200~".to_vec();
+    paste.extend_from_slice(fixture_executable.to_string_lossy().as_bytes());
+    paste.extend_from_slice(b"\x1b[201~");
+    first.send(&paste);
+    first.wait_for("agent_templates_gate");
     first.send(b"\x13");
+    eprintln!("M09 stage: command edit submitted");
     wait_until(
         || {
             agent_items(&root, &private)
@@ -322,6 +346,20 @@ fn agent_by_name(root: &std::path::Path, private: &std::path::Path, name: &str) 
         .into_iter()
         .find(|definition| definition["display_name"] == name)
         .unwrap()
+}
+
+fn agent_selected(terminal: &OuterTerminal, name: &str) -> bool {
+    terminal
+        .screen_contents()
+        .lines()
+        .any(|line| line.starts_with("│>") && line.contains(name))
+}
+
+fn form_field_selected(terminal: &OuterTerminal, label: &str) -> bool {
+    terminal
+        .screen_contents()
+        .lines()
+        .any(|line| line.contains(&format!("> {label} (")))
 }
 
 fn session_items(root: &std::path::Path, private: &std::path::Path) -> Vec<Value> {
