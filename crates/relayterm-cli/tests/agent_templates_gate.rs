@@ -123,6 +123,7 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
         .unwrap()
         .to_owned();
     first.send(next_selection_input());
+    first.wait_for(&format!("Agent definitions selected {definition_id}"));
     first.send(b" ");
     wait_until(
         || agent_by_name(&root, &private, "Unknown native CLI")["enabled"] == true,
