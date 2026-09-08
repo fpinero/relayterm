@@ -89,7 +89,7 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
         "disabled template copy",
     );
     wait_until(
-        || !first.screen_contents().contains("┌Form"),
+        || !first.screen_contents().contains("Create agent form"),
         "template copy form completion",
     );
     let copied_template = agent_by_name(&root, &private, "OpenCode");
@@ -109,7 +109,7 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
         false,
     );
     wait_until(
-        || !first.screen_contents().contains("┌Form"),
+        || !first.screen_contents().contains("Create agent form"),
         "custom definition form completion",
     );
     first.wait_for("Unknown native CLI");
@@ -123,10 +123,12 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
         .as_str()
         .unwrap()
         .to_owned();
-    let selected_definition = format!("Agent definitions selected {definition_id}");
-    if !first.screen_contents().contains(&selected_definition) {
+    if !agent_selected(&first, "Unknown native CLI") {
         first.send(previous_selection_input());
-        first.wait_for(&selected_definition);
+        wait_until(
+            || agent_selected(&first, "Unknown native CLI"),
+            "unknown definition selection",
+        );
     }
     eprintln!("M09 stage: unknown definition selected");
     let unavailable_started = Instant::now();
@@ -152,7 +154,7 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
     assert!(!String::from_utf8_lossy(&unavailable.stdout).contains("relayterm-m09-missing"));
 
     first.send(b"e");
-    first.wait_for("Enabled (true/false)");
+    first.wait_for("Edit agent form");
     eprintln!("M09 stage: command edit form opened");
     first.send(b"\t");
     wait_until(
@@ -172,16 +174,6 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
     });
     first.send(b"\x13");
     eprintln!("M09 stage: command edit submitted");
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    let edit_screen = first.screen_contents();
-    eprintln!(
-        "M09 edit observation form={} committed={} conflict={} validation={} unavailable={}",
-        edit_screen.contains("Enabled (true/false)"),
-        edit_screen.contains("Operation committed."),
-        edit_screen.contains("conflict"),
-        edit_screen.contains("validation"),
-        edit_screen.contains("unavailable")
-    );
     wait_until(
         || agent_by_name(&root, &private, "Unknown native CLI")["command"] == fixture_command,
         "confirmed command edit",
@@ -378,6 +370,13 @@ fn send_form_text(terminal: &mut OuterTerminal, value: &str) {
     }
     #[cfg(windows)]
     terminal.send(value.as_bytes());
+}
+
+fn agent_selected(terminal: &OuterTerminal, name: &str) -> bool {
+    terminal
+        .screen_contents()
+        .lines()
+        .any(|line| line.contains('>') && line.contains(name))
 }
 
 fn form_field_selected(terminal: &OuterTerminal, label: &str) -> bool {

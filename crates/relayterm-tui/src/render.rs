@@ -631,9 +631,26 @@ fn draw_form(frame: &mut Frame<'_>, form: &crate::model::Form, area: Rect) {
     frame.render_widget(
         Paragraph::new(Text::from(lines))
             .wrap(Wrap { trim: false })
-            .block(Block::default().borders(Borders::ALL).title("Form")),
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(form_title(form.kind)),
+            ),
         area,
     );
+}
+
+fn form_title(kind: crate::model::FormKind) -> &'static str {
+    use crate::model::FormKind;
+    match kind {
+        FormKind::AgentCreate => "Create agent form",
+        FormKind::AgentEdit => "Edit agent form",
+        FormKind::TaskCreate => "Create task form",
+        FormKind::TaskEdit => "Edit task form",
+        FormKind::Progress => "Progress form",
+        FormKind::Handover => "Handover form",
+        FormKind::ConfirmTerminate => "Terminate session form",
+    }
 }
 
 fn field<'a>(value: &'a Value, name: &str) -> &'a str {
