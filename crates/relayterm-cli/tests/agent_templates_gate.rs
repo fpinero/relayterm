@@ -212,18 +212,23 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
     eprintln!("M09 stage: replacement handover and completion");
     first.send(b"q");
     first.wait_exit();
+    eprintln!("M09 stage: first TUI client closed");
 
     let mut second = OuterTerminal::spawn(&root, &private);
     second.finish_startup();
+    eprintln!("M09 stage: second TUI client reconnected");
     second.send(b"3");
     second.wait_for("Sessions selected");
     assert_eq!(agent_items(&root, &private).len(), 1);
     assert_eq!(session_items(&root, &private).len(), 2);
     second.send(b"q");
     second.wait_exit();
+    eprintln!("M09 stage: second TUI client closed");
 
+    eprintln!("M09 stage: stopping daemon and sessions");
     let stopped = admin(&root, &private, &["daemon", "stop", "--terminate-sessions"]);
     assert_eq!(stopped["ok"], true);
+    eprintln!("M09 stage: restarting daemon");
     let restarted = admin(&root, &private, &["daemon", "start"]);
     assert_eq!(restarted["ok"], true);
     let persisted = agent_items(&root, &private).pop().unwrap();
