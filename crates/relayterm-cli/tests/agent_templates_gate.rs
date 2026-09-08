@@ -129,10 +129,9 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
     assert_eq!(unavailable_json["result"]["status"], "not_found");
     assert!(!String::from_utf8_lossy(&unavailable.stdout).contains("relayterm-m09-missing"));
 
-    first.send(b"e\t\x1b[H");
-    for _ in 0.."relayterm-m09-missing".len() {
-        first.send(b"\x1b[3~");
-    }
+    first.send(b"e");
+    first.wait_for("Enabled (true/false)");
+    first.send(b"\t\x15");
     let fixture_executable = std::env::current_exe().unwrap();
     first.send(fixture_executable.to_string_lossy().as_bytes());
     first.send(b"\x13");

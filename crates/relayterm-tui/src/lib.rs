@@ -500,6 +500,11 @@ async fn handle_form_key(client: &Client, app: &mut App, key: KeyEvent) {
         KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             app.confirm_discard = true
         }
+        KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            let field = &mut form.fields[form.selected];
+            field.value.clear();
+            field.cursor = 0;
+        }
         KeyCode::Tab => form.selected = (form.selected + 1) % form.fields.len(),
         KeyCode::BackTab => {
             form.selected = form
