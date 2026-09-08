@@ -2,7 +2,8 @@
 mod native;
 
 use native::{
-    DaemonCleanup, OuterTerminal, Scratch, admin, admin_output, next_selection_input, wait_until,
+    DaemonCleanup, OuterTerminal, Scratch, admin, admin_output, next_selection_input,
+    previous_selection_input, wait_until,
 };
 use serde_json::Value;
 use std::{
@@ -69,6 +70,21 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
     }
     assert_eq!(agent_items(&root, &private).len(), 0);
 
+    first.send(b"p");
+    first.wait_for("Display name");
+    first.send(b"\x13");
+    wait_until(
+        || {
+            agent_items(&root, &private)
+                .iter()
+                .any(|definition| definition["display_name"] == "OpenCode")
+        },
+        "disabled template copy",
+    );
+    let copied_template = agent_by_name(&root, &private, "OpenCode");
+    assert_eq!(copied_template["command"], "opencode");
+    assert_eq!(copied_template["enabled"], false);
+
     first.send(b"n");
     first.wait_for("Display name");
     fill_agent_form(
@@ -81,12 +97,18 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
         false,
     );
     first.wait_for("Unknown native CLI");
+    first.send(previous_selection_input());
     let unavailable_started = Instant::now();
     first.send(b"v");
     first.wait_for("Availability: not_found");
     let unavailable_latency = unavailable_started.elapsed();
     let listed = admin(&root, &private, &["agent", "list"]);
-    let definition_id = listed["result"]["items"][0]["id"]
+    let definition_id = listed["result"]["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|definition| definition["display_name"] == "Unknown native CLI")
+        .unwrap()["id"]
         .as_str()
         .unwrap()
         .to_owned();
@@ -145,7 +167,7 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
     first.send(b" ");
     first.wait_for("[enabled] Unknown native CLI");
 
-    let definition = agent_items(&root, &private).pop().unwrap();
+    let definition = agent_by_name(&root, &private, "Unknown native CLI");
     assert_eq!(definition["id"], definition_id);
     assert_eq!(
         definition["arguments"],
@@ -210,7 +232,7 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
     first.send(b"d");
     wait_for_task_status(&root, &private, "done");
     eprintln!("M09 stage: replacement handover and completion");
-    first.send(b"q");
+    first.send(b"\x03");
     first.wait_exit();
     eprintln!("M09 stage: first TUI client closed");
 
@@ -219,9 +241,9 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
     eprintln!("M09 stage: second TUI client reconnected");
     second.send(b"3");
     second.wait_for("Sessions selected");
-    assert_eq!(agent_items(&root, &private).len(), 1);
+    assert_eq!(agent_items(&root, &private).len(), 2);
     assert_eq!(session_items(&root, &private).len(), 2);
-    second.send(b"q");
+    second.send(b"\x03");
     second.wait_exit();
     eprintln!("M09 stage: second TUI client closed");
 
@@ -231,11 +253,11 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
     eprintln!("M09 stage: restarting daemon");
     let restarted = admin(&root, &private, &["daemon", "start"]);
     assert_eq!(restarted["ok"], true);
-    let persisted = agent_items(&root, &private).pop().unwrap();
+    let persisted = agent_by_name(&root, &private, "Unknown native CLI");
     assert_eq!(persisted["id"], definition_id);
     assert_eq!(persisted["enabled"], true);
     eprintln!(
-        "M09 native gate definitions=1 sessions=2 arguments={} unavailable_check_ms={} available_check_ms={} credentials=not_required providers=not_run",
+        "M09 native gate definitions=2 sessions=2 arguments={} unavailable_check_ms={} available_check_ms={} credentials=not_required providers=not_run",
         fixture_arguments().len(),
         unavailable_latency.as_millis(),
         available_latency.as_millis()
@@ -294,6 +316,13 @@ fn agent_items(root: &std::path::Path, private: &std::path::Path) -> Vec<Value> 
         .as_array()
         .unwrap()
         .clone()
+}
+
+fn agent_by_name(root: &std::path::Path, private: &std::path::Path, name: &str) -> Value {
+    agent_items(root, private)
+        .into_iter()
+        .find(|definition| definition["display_name"] == name)
+        .unwrap()
 }
 
 fn session_items(root: &std::path::Path, private: &std::path::Path) -> Vec<Value> {
