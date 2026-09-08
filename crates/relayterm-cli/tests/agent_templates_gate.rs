@@ -162,12 +162,17 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
     wait_until(
         || {
             agent_items(&root, &private)
-                .first()
+                .iter()
+                .find(|definition| definition["id"] == definition_id)
                 .is_some_and(|definition| {
                     definition["command"] == fixture_executable.to_string_lossy().as_ref()
                 })
         },
         "edited executable",
+    );
+    wait_until(
+        || !first.screen_contents().contains("┌Form"),
+        "command edit form completion",
     );
     let available_started = Instant::now();
     first.send(b"v");
