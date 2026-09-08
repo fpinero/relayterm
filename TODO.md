@@ -36,10 +36,40 @@ Depends on: M08. Specification phase: 4. Coverage: FR-2, FR-8; AC-14, AC-15.
 Outcome: built-in providers and an unknown custom CLI use equivalent public configuration and lifecycle paths.
 
 - M09.01: Add editable Claude Code, Codex, and OpenCode templates using the generic definition schema. Verify current executable names and supported arguments against official provider documentation during implementation; avoid automatic authentication, installation, or credential access.
+  - M09.01a: Recheck the baseline, official sources, architecture, and inherited risks; reproduce or dismiss each suspected defect with focused evidence.
+  - M09.01b: Add three minimal version-1 TOML templates with stable import IDs and verify them through the real parser.
+  - M09.01c: Embed the templates and expose a bounded authenticated catalog with capability negotiation and older-daemon fallback.
+  - M09.01d: Define and verify copy-versus-import identity, disabled defaults, catalog versioning, and upgrade behavior in ADR 0006.
 - M09.02: Expose definition registration/editing/enabling through the TUI and existing neutral IPC/configuration contract. Test custom commands and built-in templates have the same editable fields and no privileged domain branches.
+  - M09.02a: Add Agents actions, stable ID selection, paging, scrolling, duplicate-label disambiguation, and safe empty-selection behavior.
+  - M09.02b: Implement lossless custom/template forms and an ordered array item editor that preserves empty, duplicate, quoted, and Unicode arguments.
+  - M09.02c: Capture the definition target, base revision, and original values when a form opens; reject stale writes without retargeting.
+  - M09.02d: Implement single-submit effects, explicit conflict review, and uncertain-delivery reconciliation without automatic resubmission.
+  - M09.02e: Wire generic create, update, enable, and disable mutations while requiring update targets to exist.
+  - M09.02f: Verify explicit TOML import parity, stable-ID upsert behavior, rollback, source-file immutability, and restart persistence.
+  - M09.02g: Make admitted launch snapshots and returned instance/session IDs consistent across edit, disable, and concurrent registration races.
 - M09.03: Add credential-free executable availability checks and actionable missing-command guidance. Test missing, disabled, and invalid commands without logging environment values or sensitive arguments.
+  - M09.03a: Prototype native executable resolution and document Unix, Windows, PATH, suffix, shim, and interpreter compatibility decisions.
+  - M09.03b: Implement one neutral resolver shared by availability checks and supervised spawn, without shell interpolation.
+  - M09.03c: Add the bounded revision-aware availability operation, typed statuses, admission limits, timeouts, and capability negotiation.
+  - M09.03d: Add TUI availability display and the administrative `agent check` command with safe text/JSON output and documented exit codes.
+  - M09.03e: Preserve honest launch-failure recording, exact snapshot arguments, and final environment bounds across check/spawn races.
+  - M09.03f: Prove checks are credential-free, side-effect-free, and free of injected values in diagnostics or events.
 - M09.04: Document how to add an arbitrary interactive CLI, configure capabilities and environment variable names, and authenticate within the provider's own tool. State that output does not automatically mutate tasks and no provider key is stored by Relayterm.
+  - M09.04a: Write and execute the account-free template and arbitrary-CLI setup, editing, enabling, and checking guide.
+  - M09.04b: Document environment-name handling, provider-owned authentication, resolver behavior, and native Windows launcher limitations.
+  - M09.04c: Update README, TUI, daemon, protocol, and ADR references while retaining architectural boundaries and excluding M10.
+  - M09.04d: Publish the native test method and sanitized results, separating mandatory automated evidence from optional provider observations.
 - M09.05: Verify an unfamiliar synthetic CLI can be registered, launched, assigned a task, detached, and replaced for handover without domain/TUI code changes. Run optional manual smoke checks for installed, already authenticated provider CLIs; unavailable providers must not block account-free automated acceptance.
+  - M09.05a: Build the real test-only unknown interactive executable and deterministic native gate harness with bounded cleanup.
+  - M09.05b: Gate template/custom registration, editing, availability, enablement, launch, and exact argv through the real TUI.
+  - M09.05c: Gate claim, progress, detach, edited replacement, atomic handover, continuation, and explicit completion with real SQLite and IPC.
+  - M09.05d: Gate concurrent edits, uncertain delivery, immutable snapshots, and durable definition restart behavior.
+  - M09.05e: Add two independently failing native gate repetitions on Linux, macOS, and Windows.
+  - M09.05f: Run all inherited regression, formatting, lint, build, audit, privacy, secret, and repository controls.
+  - M09.05g: Record optional real-provider/manual observations honestly without making an account mandatory.
+  - M09.05h: Audit all M09 acceptance evidence, close only verified queue items, and append exact evidence to the logbook.
+  - M09.05i: Deliver the verified implementation by PR and merge, synchronize main, and monitor post-merge Quality and Security.
 
 ## M10: Explicit Git worktree isolation [PLAN]
 
