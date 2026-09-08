@@ -133,16 +133,18 @@ The inherited Windows failure in run `34128844579` was traced to test-fixture st
 
 ## M09 agent template evidence
 
-Local macOS arm64 validation on 2026-09-08 passed two consecutive invocations of the dedicated account-free gate. Each invocation used the real `rt` executable, SQLite, authenticated Unix IPC, an outer native PTY, and two supervised test CLI processes. It verified all three template previews without automatic registration, generic TUI creation and editing, disabled and executable availability, CLI status codes, exact arguments including space, empty and duplicate values, immutable launch snapshots, explicit task progress and handover, continuation by a second instance, client reconnection, and definition persistence after daemon restart.
+Candidate `b0e8bf622c7c9c28ecfdcdba35d04e1fdbb262ca` passed [Quality run 34247393166](https://github.com/fpinero/relayterm/actions/runs/34247393166) and [Security run 34247393116](https://github.com/fpinero/relayterm/actions/runs/34247393116) on 2026-09-08. Local macOS arm64 validation also passed two consecutive invocations of the dedicated account-free gate. Each invocation used the real `rt` executable, SQLite, authenticated native IPC, an outer native PTY or ConPTY, and two supervised test CLI processes. It verified all three template previews without automatic registration, generic TUI creation and editing, disabled and executable availability, CLI status codes, exact arguments including space, empty and duplicate values, immutable launch snapshots, explicit task progress and handover, continuation by a second instance, client reconnection, and definition persistence after daemon restart.
 
-| Native runner | Toolchain | Required repetitions | Current result |
+| Native runner | Toolchain | Required repetitions | Result |
 | --- | --- | ---: | --- |
 | Local macOS arm64 | Stable | 2 | Passed |
-| ubuntu-24.04 | Stable | 2 | Pending candidate CI |
-| macos-14 | Stable | 2 | Pending candidate CI |
-| windows-2022 | Stable | 2 | Pending candidate CI |
+| ubuntu-24.04 | Stable | 2 | Passed |
+| macos-14 | Stable | 2 | Passed |
+| windows-2022 | Stable | 2 | Passed |
 
-The same candidate still requires hosted Linux, macOS, and Windows results before M09 can close. Optional provider checks were not run because no provider installation or authenticated account is required for account-free acceptance.
+Earlier Windows candidates exposed two separate restart problems. The stop command first treated a failed handshake as proof that daemon lifetime ownership had ended, allowing a successor to race pending PTY cleanup and SQLite closure. The runtime now acquires a private per-workspace lifetime lock before storage and recovery, retains endpoint ownership through child cleanup, explicitly closes the database pool, and makes the stop command wait for lifetime-lock release. The native gate then exposed that reading CLI output to EOF could wait on a pipe handle retained during detached Windows launch even after the complete JSON response and command exit. The harness now reads one bounded newline-terminated response, preserves its monotonic deadline and output limit, and propagates the command status. No failed repetition was retried into a pass or hidden by a longer deadline.
+
+The final local gate passes reported unavailable checks of 20 to 30 ms and available checks of 30 ms. These are observations from one machine, not universal performance guarantees. Optional provider checks were not run because no provider installation or authenticated account is required for account-free acceptance.
 
 ## Remaining manual shell and terminal matrix
 

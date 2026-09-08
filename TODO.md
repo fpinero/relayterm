@@ -8,7 +8,7 @@ Keep the daemon responsible for durable state and supervised processes. Keep dom
 
 ### How to execute this queue
 
-- Start with M09. Follow milestone dependencies and the task order within each milestone; consult `avances.md` for fulfilled dependencies.
+- Start with M10. Follow milestone dependencies and the task order within each milestone; consult `avances.md` for fulfilled dependencies.
 - Treat each task ID as one reviewable outcome, including its relevant tests and documentation. Split a task before coding if its implementation cannot be reviewed coherently in one session. Preserve its ID as a prefix for new child tasks.
 - For a milestone ending in `[PLAN]`, complete its first planning task before implementation. Record the named decisions, contracts, failure cases, and test design, then refine the remaining tasks in this file. The marker identifies unresolved engineering details, not permission to expand MVP scope.
 - At each session start, read repository instructions, check the branch and working tree, and consult `avances.md` for satisfied dependencies. Continue the earliest unblocked task. Work on a feature or fix branch, never directly on `main` or `master`.
@@ -21,55 +21,11 @@ Keep the daemon responsible for durable state and supervised processes. Keep dom
 
 Use the specification's recommended Rust stack and the pinned bootstrap toolchain. Verify support when adding dependencies; avoid unused dependencies and empty adapter crates until needed. Follow the eight [architecture decisions](docs/architecture/README.md), refining the risky ones at their implementation gates.
 
-The durable first-slice, real PTY, and TUI gates are complete. M09 and M10 add templates and explicit worktree isolation; M11 and M12 validate and prepare the release candidate. M09 and M10 may proceed independently.
+The durable first-slice, real PTY, TUI, and editable agent-template gates are complete. M10 adds explicit worktree isolation; M11 and M12 validate and prepare the release candidate.
 
 Public export and disk-backed scrollback are optional and are deferred from this roadmap. Keep scrollback bounded in daemon memory. Do not add transcript ingestion, provider APIs, automatic task mutation from agent prose, autonomous orchestration, TCP listeners, hosted dependencies, telemetry, graphical clients, or automatic Git commits, merges, rebases, or deletion. Any later export proposal must first add exact-content preview, redaction, and destination confirmation as required by FR-10.
 
 Keep task dependencies informational, as defined in the specification and [M02 storage contract](docs/M02_storage_contract.md); do not introduce a scheduler. Git worktree creation is included because AC-10 requires it, even though several related requirements use SHOULD.
-
-## M09: Editable provider templates and generic integration
-
-Execution contract: [M09 details](docs/M09_details.md).
-
-Depends on: M08. Specification phase: 4. Coverage: FR-2, FR-8; AC-14, AC-15.
-
-Outcome: built-in providers and an unknown custom CLI use equivalent public configuration and lifecycle paths.
-
-- M09.01: Add editable Claude Code, Codex, and OpenCode templates using the generic definition schema. Verify current executable names and supported arguments against official provider documentation during implementation; avoid automatic authentication, installation, or credential access.
-  - M09.01a: Recheck the baseline, official sources, architecture, and inherited risks; reproduce or dismiss each suspected defect with focused evidence.
-  - M09.01b: Add three minimal version-1 TOML templates with stable import IDs and verify them through the real parser.
-  - M09.01c: Embed the templates and expose a bounded authenticated catalog with capability negotiation and older-daemon fallback.
-  - M09.01d: Define and verify copy-versus-import identity, disabled defaults, catalog versioning, and upgrade behavior in ADR 0006.
-- M09.02: Expose definition registration/editing/enabling through the TUI and existing neutral IPC/configuration contract. Test custom commands and built-in templates have the same editable fields and no privileged domain branches.
-  - M09.02a: Add Agents actions, stable ID selection, paging, scrolling, duplicate-label disambiguation, and safe empty-selection behavior.
-  - M09.02b: Implement lossless custom/template forms and an ordered array item editor that preserves empty, duplicate, quoted, and Unicode arguments.
-  - M09.02c: Capture the definition target, base revision, and original values when a form opens; reject stale writes without retargeting.
-  - M09.02d: Implement single-submit effects, explicit conflict review, and uncertain-delivery reconciliation without automatic resubmission.
-  - M09.02e: Wire generic create, update, enable, and disable mutations while requiring update targets to exist.
-  - M09.02f: Verify explicit TOML import parity, stable-ID upsert behavior, rollback, source-file immutability, and restart persistence.
-  - M09.02g: Make admitted launch snapshots and returned instance/session IDs consistent across edit, disable, and concurrent registration races.
-- M09.03: Add credential-free executable availability checks and actionable missing-command guidance. Test missing, disabled, and invalid commands without logging environment values or sensitive arguments.
-  - M09.03a: Prototype native executable resolution and document Unix, Windows, PATH, suffix, shim, and interpreter compatibility decisions.
-  - M09.03b: Implement one neutral resolver shared by availability checks and supervised spawn, without shell interpolation.
-  - M09.03c: Add the bounded revision-aware availability operation, typed statuses, admission limits, timeouts, and capability negotiation.
-  - M09.03d: Add TUI availability display and the administrative `agent check` command with safe text/JSON output and documented exit codes.
-  - M09.03e: Preserve honest launch-failure recording, exact snapshot arguments, and final environment bounds across check/spawn races.
-  - M09.03f: Prove checks are credential-free, side-effect-free, and free of injected values in diagnostics or events.
-- M09.04: Document how to add an arbitrary interactive CLI, configure capabilities and environment variable names, and authenticate within the provider's own tool. State that output does not automatically mutate tasks and no provider key is stored by Relayterm.
-  - M09.04a: Write and execute the account-free template and arbitrary-CLI setup, editing, enabling, and checking guide.
-  - M09.04b: Document environment-name handling, provider-owned authentication, resolver behavior, and native Windows launcher limitations.
-  - M09.04c: Update README, TUI, daemon, protocol, and ADR references while retaining architectural boundaries and excluding M10.
-  - M09.04d: Publish the native test method and sanitized results, separating mandatory automated evidence from optional provider observations.
-- M09.05: Verify an unfamiliar synthetic CLI can be registered, launched, assigned a task, detached, and replaced for handover without domain/TUI code changes. Run optional manual smoke checks for installed, already authenticated provider CLIs; unavailable providers must not block account-free automated acceptance.
-  - M09.05a: Build the real test-only unknown interactive executable and deterministic native gate harness with bounded cleanup.
-  - M09.05b: Gate template/custom registration, editing, availability, enablement, launch, and exact argv through the real TUI.
-  - M09.05c: Gate claim, progress, detach, edited replacement, atomic handover, continuation, and explicit completion with real SQLite and IPC.
-  - M09.05d: Gate concurrent edits, uncertain delivery, immutable snapshots, and durable definition restart behavior.
-  - M09.05e: Add two independently failing native gate repetitions on Linux, macOS, and Windows.
-  - M09.05f: Run all inherited regression, formatting, lint, build, audit, privacy, secret, and repository controls.
-  - M09.05g: Record optional real-provider/manual observations honestly without making an account mandatory.
-  - M09.05h: Audit all M09 acceptance evidence, close only verified queue items, and append exact evidence to the logbook.
-  - M09.05i: Deliver the verified implementation by PR and merge, synchronize main, and monitor post-merge Quality and Security.
 
 ## M10: Explicit Git worktree isolation [PLAN]
 
