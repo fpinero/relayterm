@@ -1,7 +1,9 @@
 #[path = "support/m09_native.rs"]
 mod native;
 
-use native::{DaemonCleanup, OuterTerminal, Scratch, admin, admin_output, wait_until};
+use native::{
+    DaemonCleanup, OuterTerminal, Scratch, admin, admin_output, next_selection_input, wait_until,
+};
 use serde_json::Value;
 use std::{
     fs,
@@ -48,6 +50,7 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
     first.finish_startup();
     first.send(b"4");
     first.wait_for("Agent definitions");
+    eprintln!("M09 stage: empty workspace and template previews");
     assert_eq!(agent_items(&root, &private).len(), 0);
     first.send(b"a");
     std::thread::sleep(std::time::Duration::from_millis(100));
@@ -124,6 +127,7 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
     let available_started = Instant::now();
     first.send(b"v");
     first.wait_for("Availability: available");
+    eprintln!("M09 stage: custom definition and availability");
     let available_latency = available_started.elapsed();
     let listed = admin(&root, &private, &["agent", "list"]);
     let available = admin_output(
@@ -157,6 +161,7 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
     first.wait_for("unknown-argument-0:<value with space>");
     first.wait_for("unknown-argument-1:<>");
     first.wait_for("unknown-argument-3:<repeat>");
+    eprintln!("M09 stage: first argv and terminal input");
 
     let first_session = session_items(&root, &private).pop().unwrap();
     let first_session_id = first_session["session_id"].as_str().unwrap().to_owned();
@@ -177,6 +182,7 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
     wait_for_task_status(&root, &private, "active");
     first.send(b"pFirst instance progress\tReal TUI and PTY verified\x13");
     wait_for_progress(&root, &private, "First instance progress");
+    eprintln!("M09 stage: first claim and progress");
 
     first.send(b"4e\t\t\x1b[F\rreplacement\x13");
     first.wait_for("Unknown native CLI");
@@ -196,10 +202,14 @@ fn unknown_cli_is_configured_and_continued_through_the_real_tui() {
 
     first.send(b"2hContinue with replacement\tDefinition edited while running\t\tNative gate\t\tClaim and complete\x13");
     wait_for_task_status(&root, &private, "handover_ready");
-    first.send(b"3j2c");
+    first.send(b"3");
+    first.wait_for("Sessions selected");
+    first.send(next_selection_input());
+    first.send(b"2c");
     wait_for_task_status(&root, &private, "active");
     first.send(b"d");
     wait_for_task_status(&root, &private, "done");
+    eprintln!("M09 stage: replacement handover and completion");
     first.send(b"q");
     first.wait_exit();
 

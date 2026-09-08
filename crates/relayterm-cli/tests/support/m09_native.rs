@@ -208,3 +208,7 @@ pub fn wait_until(mut condition: impl FnMut() -> bool, label: &str) {
         std::thread::sleep(Duration::from_millis(20));
     }
 }
+
+pub fn next_selection_input() -> &'static [u8] {
+    if cfg!(windows) { b"\x1b[B" } else { b"j" }
+}
