@@ -24,6 +24,7 @@ pub struct WorkspaceRows {
 /// User-facing intent cannot carry the internal System actor.
 pub enum Command {
     AddDefinition(AgentDefinition),
+    UpdateDefinition(AgentDefinition),
     ImportDefinitions(Vec<AgentDefinition>),
     CreateTask {
         id: TaskId,
@@ -257,6 +258,43 @@ impl WorkspaceState {
                     id: definition.0.id,
                 });
                 self.definitions.push(definition);
+            }
+            Command::UpdateDefinition(definition) => {
+                actor.user()?;
+                if definition.0.workspace_id != workspace_id {
+                    return Err(Error::Reference);
+                }
+                let current = self
+                    .definitions
+                    .iter_mut()
+                    .find(|current| current.0.id == definition.0.id)
+                    .ok_or(Error::Reference)?;
+                let old = current.record();
+                let new = definition.record();
+                let mut fields = Vec::new();
+                if old.display_name != new.display_name {
+                    fields.push(DefinitionField::DisplayName);
+                }
+                if old.command != new.command {
+                    fields.push(DefinitionField::Command);
+                }
+                if old.arguments != new.arguments {
+                    fields.push(DefinitionField::Arguments);
+                }
+                if old.environment_allowlist != new.environment_allowlist {
+                    fields.push(DefinitionField::EnvironmentAllowlist);
+                }
+                if old.capabilities != new.capabilities {
+                    fields.push(DefinitionField::Capabilities);
+                }
+                if old.enabled != new.enabled {
+                    fields.push(DefinitionField::Enabled);
+                }
+                if !fields.is_empty() {
+                    let id = new.id;
+                    *current = definition;
+                    events.push(EventPayload::DefinitionUpdated { id, fields });
+                }
             }
             Command::ImportDefinitions(definitions) => {
                 actor.user()?;

@@ -25,6 +25,10 @@ Clear inherited environment before assembling the approved map. Unknown configur
 
 Configuration values and child bytes may exist transiently in launch/supervision memory. Diagnostic serializers accept only safe fields: stable event name, severity, opaque entity IDs, typed error category, and path aliases. Do not Debug-log full definitions, requests, argument arrays, text bodies, or environments. Escape untrusted content outside terminal panes. Reject recognized credential-shaped input at coordination boundaries and explain that heuristic detection cannot identify every arbitrary secret.
 
+Availability and launch share one neutral executable resolver. It reads only the configured command, validated working directory, daemon PATH, and target metadata. It never runs a command, invokes a shell, reads login files, or probes provider authentication. Bare names search bounded absolute PATH entries. Unix requires an executable regular file. Windows accepts native executable suffixes and does not silently wrap command or PowerShell scripts. Results expose a typed status and guidance code, never the resolved path, PATH contents, arguments, environment values, or raw operating-system error.
+
+Actual launch constructs the baseline plus explicitly named environment and validates the final 128-entry bound after deriving TERM. Overflow fails without silently dropping a requested value. Availability does not read environment values beyond PATH; other allowlisted values are resolved transiently only after launch admission.
+
 ## Alternatives
 
 Inheriting everything silently propagates unrelated credentials. Serializing everything and redacting later is fragile. A complete credential detector is not a credible guarantee.

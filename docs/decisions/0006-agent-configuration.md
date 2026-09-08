@@ -20,6 +20,10 @@ M03 resolves reload conflicts with a workspace revision captured after complete 
 
 Resolve a validated executable path or search permitted PATH at launch. An existing instance retains an immutable snapshot of the accepted definition fields; edits affect subsequent launches only. Disabled definitions retain identity and historical attribution but cannot launch. Unknown non-security fields produce bounded structural warnings; security-shaped unknown fields and recognized credential patterns fail closed. Store variable names, never environment values. No provider-specific domain branches or automatic authentication.
 
+The version-1 embedded catalog contains three disabled, minimal TOML candidates. Opening or upgrading Relayterm never imports them. Selecting a template in the TUI copies editable values into a registration with a fresh ID. Explicit TOML import instead uses the file's stable ID and keeps the established atomic upsert behavior. Catalog keys are presentation metadata and never enter domain launch decisions.
+
+Definition forms capture the entity ID and workspace revision when opened. Background refresh cannot retarget or rebase a draft. A stale write conflicts; an uncertain delivery is reconciled by a fresh read and explicit review before any resubmission. Update requires an existing ID, while import remains the only upsert operation.
+
 ## Alternatives
 
 Automatic bidirectional file/database synchronization creates hidden conflicts. Provider types in the domain make custom adapters second-class. Resolving only at registration misses later missing executables.

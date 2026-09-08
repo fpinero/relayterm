@@ -1,0 +1,10 @@
+format_version = 1
+
+[[definitions]]
+id = "00000000-0000-4000-8000-000000000902"
+display_name = "Codex"
+command = "codex"
+arguments = []
+environment_allowlist = []
+capabilities = ["terminal"]
+enabled = false

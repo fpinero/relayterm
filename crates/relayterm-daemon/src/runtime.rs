@@ -389,6 +389,7 @@ pub struct PreparedWorkspace {
     service: Arc<Service<SqliteStore, SystemClock, RandomIdGenerator, RuntimeNotifier>>,
     notify_rx: watch::Receiver<u64>,
     listener: LocalListener,
+    runtime_lock: PrivateLock,
 }
 
 impl PreparedWorkspace {
@@ -408,7 +409,7 @@ impl PreparedWorkspace {
     where
         F: FnOnce(),
     {
-        let (control, shutdown) = DaemonControl::new(
+        let (control, mut shutdown) = DaemonControl::new(
             RandomIdGenerator::default()
                 .next()
                 .map_err(|_| RuntimeError::Spawn)?
@@ -437,9 +438,12 @@ impl PreparedWorkspace {
                 signal_control.request_shutdown();
             }
         });
-        let result = server.run(shutdown).await;
+        // Keep the listener owner alive while supervised children are terminated and their final
+        // observations are committed. A new runtime must not enter recovery against the database
+        // while the previous generation is still completing orderly shutdown.
+        let server_ownership = server.run_retaining_listener(&mut shutdown).await;
         signal.abort();
-        result.map_err(|_| RuntimeError::Transport)?;
+        let server_ownership = server_ownership.map_err(|_| RuntimeError::Transport)?;
         supervisor.terminate_all();
         let cleanup_deadline = tokio::time::Instant::now() + Duration::from_secs(5);
         while supervisor.live_count() != 0 {
@@ -474,7 +478,10 @@ impl PreparedWorkspace {
             self.expected,
             Some(control.generation()),
         );
+        self.database.pool().close().await;
         drop(self.database);
+        drop(server_ownership);
+        drop(self.runtime_lock);
         Ok(())
     }
 }
@@ -489,6 +496,7 @@ pub async fn prepare_workspace(
     if route.domain_id()? != expected {
         return Err(RuntimeError::InvalidWorkspace);
     }
+    let runtime_lock = acquire_runtime_lock(&locations, expected, Duration::from_millis(100))?;
     let endpoint = endpoint(&locations, expected)?;
     let listener = LocalListener::bind(&endpoint)
         .await
@@ -540,6 +548,35 @@ pub async fn prepare_workspace(
         service,
         notify_rx,
         listener,
+        runtime_lock,
+    })
+}
+
+pub fn wait_for_workspace_release(
+    home: Option<PathBuf>,
+    expected: WorkspaceId,
+    timeout: Duration,
+) -> Result<(), RuntimeError> {
+    let locations = locations(home)?;
+    drop(acquire_runtime_lock(&locations, expected, timeout)?);
+    Ok(())
+}
+
+fn acquire_runtime_lock(
+    locations: &PrivateLocations,
+    expected: WorkspaceId,
+    timeout: Duration,
+) -> Result<PrivateLock, RuntimeError> {
+    PrivateLock::acquire(
+        &locations
+            .runtime()
+            .join(format!("workspace-{expected}.runtime.lock")),
+        timeout,
+    )
+    .map_err(|error| match error {
+        relayterm_platform::LockError::Busy => RuntimeError::Busy,
+        relayterm_platform::LockError::AccessDenied => RuntimeError::AccessDenied,
+        relayterm_platform::LockError::Unavailable => RuntimeError::Transport,
     })
 }
 

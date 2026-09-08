@@ -1,5 +1,6 @@
 use crossterm::{
     cursor::{Hide, Show},
+    event::{DisableBracketedPaste, EnableBracketedPaste},
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
@@ -25,6 +26,7 @@ pub struct TerminalGuard {
     raw: bool,
     alternate: bool,
     cursor_hidden: bool,
+    bracketed_paste: bool,
 }
 
 impl TerminalGuard {
@@ -37,6 +39,7 @@ impl TerminalGuard {
             raw: false,
             alternate: false,
             cursor_hidden: false,
+            bracketed_paste: false,
         };
         enable_raw_mode().map_err(|_| LifecycleError)?;
         guard.raw = true;
@@ -44,6 +47,8 @@ impl TerminalGuard {
         guard.alternate = true;
         execute!(guard.terminal.backend_mut(), Hide).map_err(|_| LifecycleError)?;
         guard.cursor_hidden = true;
+        execute!(guard.terminal.backend_mut(), EnableBracketedPaste).map_err(|_| LifecycleError)?;
+        guard.bracketed_paste = true;
         guard.terminal.clear().map_err(|_| LifecycleError)?;
         Ok(guard)
     }
@@ -54,6 +59,10 @@ impl TerminalGuard {
 
     pub fn restore(&mut self) -> Result<(), LifecycleError> {
         let mut failed = false;
+        if self.bracketed_paste {
+            failed |= execute!(self.terminal.backend_mut(), DisableBracketedPaste).is_err();
+            self.bracketed_paste = false;
+        }
         if self.cursor_hidden {
             failed |= execute!(self.terminal.backend_mut(), Show).is_err();
             self.cursor_hidden = false;

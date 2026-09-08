@@ -204,6 +204,7 @@ pub enum Request {
         capabilities: Vec<String>,
         enabled: bool,
     },
+    UpdateDefinition(AgentDefinition),
     CreateTask(TaskContent),
     EditTask {
         id: TaskId,
@@ -236,6 +237,12 @@ pub struct LaunchContext {
     pub task_id: Option<TaskId>,
     pub working_directory: PathBuf,
     pub terminal_size: TerminalSize,
+}
+pub struct RegisteredInstance {
+    pub outcome: Outcome,
+    pub instance_id: AgentInstanceId,
+    pub session_id: TerminalSessionId,
+    pub launch_definition: Option<LaunchDefinitionSnapshot>,
 }
 pub struct Service<S, C, I, N> {
     store: S,
@@ -357,6 +364,7 @@ impl<S: Store, C: Clock, I: IdGenerator, N: EventNotifier> Service<S, C, I, N> {
                 capabilities,
                 enabled,
             })?),
+            Request::UpdateDefinition(definition) => Command::UpdateDefinition(definition),
             Request::CreateTask(content) => Command::CreateTask {
                 id: TaskId::from_uuid(self.ids.next()?.as_uuid()),
                 content,
@@ -404,27 +412,47 @@ impl<S: Store, C: Clock, I: IdGenerator, N: EventNotifier> Service<S, C, I, N> {
         workspace_id: WorkspaceId,
         context: LaunchContext,
     ) -> Result<Outcome> {
+        Ok(self
+            .register_instance_at_revision(workspace_id, context, None)
+            .await?
+            .outcome)
+    }
+    pub async fn register_instance_at_revision(
+        &self,
+        workspace_id: WorkspaceId,
+        context: LaunchContext,
+        expected_revision: Option<u64>,
+    ) -> Result<RegisteredInstance> {
         let at = self.clock.now()?;
         let transaction = self.store.begin(workspace_id).await?;
+        if expected_revision.is_some_and(|revision| transaction.snapshot().revision() != revision) {
+            return Err(Error::Conflict);
+        }
         let launch_definition = match context.agent_definition_id {
-            Some(id) => Some(LaunchDefinitionSnapshot::from_definition(
-                transaction
+            Some(id) => {
+                let definition = transaction
                     .snapshot()
                     .state()?
                     .definitions()
                     .iter()
                     .find(|definition| definition.record().id == id)
-                    .ok_or(Error::Reference)?,
-            )),
+                    .ok_or(Error::Reference)?;
+                if !definition.record().enabled {
+                    return Err(Error::Unavailable);
+                }
+                Some(LaunchDefinitionSnapshot::from_definition(definition))
+            }
             None => None,
         };
+        let instance_id = AgentInstanceId::from_uuid(self.ids.next()?.as_uuid());
+        let session_id = TerminalSessionId::from_uuid(self.ids.next()?.as_uuid());
         let instance = AgentInstance::restore(AgentInstanceRecord {
-            id: AgentInstanceId::from_uuid(self.ids.next()?.as_uuid()),
-            session_id: TerminalSessionId::from_uuid(self.ids.next()?.as_uuid()),
+            id: instance_id,
+            session_id,
             workspace_id,
             agent_definition_id: context.agent_definition_id,
             task_id: context.task_id,
-            launch_definition,
+            launch_definition: launch_definition.clone(),
             working_directory: context.working_directory,
             status: InstanceStatus::Starting,
             started_at: at,
@@ -437,7 +465,13 @@ impl<S: Store, C: Clock, I: IdGenerator, N: EventNotifier> Service<S, C, I, N> {
             .snapshot()
             .state()?
             .observe(Observation::Register(Box::new(instance)), at)?;
-        self.commit_changes(transaction, changes).await
+        let outcome = self.commit_changes(transaction, changes).await?;
+        Ok(RegisteredInstance {
+            outcome,
+            instance_id,
+            session_id,
+            launch_definition,
+        })
     }
     pub async fn observe(
         &self,

@@ -102,7 +102,7 @@ cargo run -p relayterm-cli --bin rt -- --version
 
 Running `rt` without a subcommand opens the workspace for the current directory, prompts before first initialization, and enters the TUI after connecting to the detached daemon. Use `--workspace PATH` to select another project. Noninteractive no-command use fails before side effects. Administrative commands, help, version, and JSON output remain separate from terminal mode.
 
-See [contributing](CONTRIBUTING.md), [architecture decisions](docs/architecture/README.md), [privacy](docs/privacy.md), and [platform evidence](docs/supported-platforms.md). The [pending queue](TODO.md) distinguishes implemented foundations from the remaining daemon, PTY, TUI, agent-adapter, and worktree milestones.
+See [contributing](CONTRIBUTING.md), [agent templates and custom CLIs](docs/agent-templates.md), [architecture decisions](docs/architecture/README.md), [privacy](docs/privacy.md), and [platform evidence](docs/supported-platforms.md). The [pending queue](TODO.md) distinguishes implemented foundations from the remaining agent-adapter, worktree, hardening, and release milestones.
 
 Contributions and technical discussion are welcome, but interfaces and behavior should be considered unstable until the first working release and stable protocol are defined.
 

@@ -123,6 +123,11 @@ struct PageArgs {
 #[derive(Subcommand)]
 enum AgentCommand {
     List(PageArgs),
+    Check {
+        definition_id: String,
+        #[arg(long)]
+        expected_revision: String,
+    },
     Register {
         #[arg(long)]
         expected_revision: String,
@@ -397,7 +402,17 @@ fn main() -> ExitCode {
             if cli.command.is_some() {
                 render_success(cli.format, command_name(cli.command.as_ref()), &value);
             }
-            ExitCode::SUCCESS
+            if matches!(
+                cli.command,
+                Some(TopCommand::Agent {
+                    command: AgentCommand::Check { .. }
+                })
+            ) && value.get("status").and_then(Value::as_str) != Some("available")
+            {
+                ExitCode::from(3)
+            } else {
+                ExitCode::SUCCESS
+            }
         }
         Err(error) => {
             render_error(cli.format, command_name(cli.command.as_ref()), &error);
@@ -736,19 +751,17 @@ async fn stop(cli: &Cli, root: &Path, terminate_sessions: bool) -> Result<Value,
             &json!({"generation":generation,"terminate_sessions":terminate_sessions}),
         )
         .await?;
-    let deadline = Instant::now() + Duration::from_secs(cli.timeout);
-    while Instant::now() < deadline {
-        if relayterm_daemon::connect_route(&route, cli.home.clone())
-            .await
-            .is_err()
-        {
-            return Ok(
-                json!({"workspace_id":route.workspace_id,"generation":generation,"lifecycle":"stopped"}),
-            );
-        }
-        tokio::time::sleep(Duration::from_millis(50)).await;
+    match relayterm_daemon::wait_for_workspace_release(
+        cli.home.clone(),
+        route.domain_id()?,
+        Duration::from_secs(cli.timeout),
+    ) {
+        Ok(()) => Ok(
+            json!({"workspace_id":route.workspace_id,"generation":generation,"lifecycle":"stopped"}),
+        ),
+        Err(RuntimeError::Busy) => Err(RuntimeError::Timeout.into()),
+        Err(error) => Err(error.into()),
     }
-    Err(RuntimeError::Timeout.into())
 }
 
 async fn dispatch_admin(cli: &Cli, root: &Path, command: &TopCommand) -> Result<Value, CliError> {
@@ -763,6 +776,16 @@ fn operation_and_params(command: &TopCommand) -> Result<(Operation, Value), CliE
         TopCommand::Agent {
             command: AgentCommand::List(page),
         } => (Operation::AgentListDefinitions, page_params(page)),
+        TopCommand::Agent {
+            command:
+                AgentCommand::Check {
+                    definition_id,
+                    expected_revision,
+                },
+        } => (
+            Operation::AgentCheckDefinition,
+            json!({"definition_id":definition_id,"expected_revision":expected_revision}),
+        ),
         TopCommand::Agent {
             command:
                 AgentCommand::Register {

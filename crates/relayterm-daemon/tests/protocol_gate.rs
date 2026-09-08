@@ -341,6 +341,25 @@ async fn two_clients_complete_a_durable_handover_journey() {
     let b = Client::connect(&endpoint, WireWorkspaceId::from_uuid(workspace.as_uuid()))
         .await
         .unwrap();
+    let catalog: Value = a
+        .call(Operation::AgentListTemplates, &json!({}))
+        .await
+        .unwrap();
+    assert_eq!(catalog["catalog_version"], 1);
+    assert_eq!(catalog["templates"].as_array().unwrap().len(), 3);
+    assert!(
+        catalog["templates"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|template| {
+                template["enabled"] == false
+                    && template["arguments"].as_array().is_some_and(Vec::is_empty)
+                    && template["environment_allowlist"]
+                        .as_array()
+                        .is_some_and(Vec::is_empty)
+            })
+    );
     let (_cancel_tx, mut already_cancelled) = watch::channel(true);
     let cancelled_before_delivery = b
         .call_cancellable::<_, Value>(Operation::ProtocolPing, &json!({}), &mut already_cancelled)
@@ -371,6 +390,30 @@ async fn two_clients_complete_a_durable_handover_journey() {
         .await
         .unwrap();
     revision = definition["revision"].as_str().unwrap().to_owned();
+    let definition_id = entity_id(&definition);
+    let unavailable: Value = a
+        .call(
+            Operation::AgentCheckDefinition,
+            &json!({"definition_id":definition_id,"expected_revision":revision}),
+        )
+        .await
+        .unwrap();
+    assert_eq!(unavailable["status"], "not_found");
+    assert_eq!(unavailable["guidance_code"], "check_daemon_path_or_command");
+    let missing_update = a
+        .call::<_, Value>(
+            Operation::AgentUpdateDefinition,
+            &json!({
+                "definition_id":"00000000-0000-4000-8000-000000009999",
+                "expected_revision":revision,"display_name":"Missing","command":"missing",
+                "arguments":[],"environment_allowlist":[],"capabilities":[],"enabled":false
+            }),
+        )
+        .await;
+    assert!(matches!(
+        missing_update,
+        Err(ClientError::Rejected(ErrorCode::InvalidReference))
+    ));
     b.subscribe(subscription_start).await.unwrap();
     let replayed = b.next_event().await.unwrap();
     assert_eq!(
