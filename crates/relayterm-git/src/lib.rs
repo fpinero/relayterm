@@ -413,13 +413,20 @@ fn git_argument_path(path: &Path) -> OsString {
 
 #[cfg(windows)]
 fn git_argument_path(path: &Path) -> OsString {
-    if let Ok(relative) = path.strip_prefix(Path::new(r"\\?\UNC")) {
-        return Path::new(r"\\").join(relative).into_os_string();
+    use std::os::windows::ffi::{OsStrExt, OsStringExt};
+
+    let units = path.as_os_str().encode_wide().collect::<Vec<_>>();
+    let verbatim_unc = r"\\?\UNC\".encode_utf16().collect::<Vec<_>>();
+    if units.starts_with(&verbatim_unc) {
+        let mut native = r"\\".encode_utf16().collect::<Vec<_>>();
+        native.extend_from_slice(&units[verbatim_unc.len()..]);
+        return OsString::from_wide(&native);
     }
-    if let Ok(relative) = path.strip_prefix(Path::new(r"\\?\")) {
-        return relative.as_os_str().to_owned();
+    let verbatim = r"\\?\".encode_utf16().collect::<Vec<_>>();
+    if units.starts_with(&verbatim) {
+        return OsString::from_wide(&units[verbatim.len()..]);
     }
-    path.as_os_str().to_owned()
+    OsString::from_wide(&units)
 }
 
 pub fn validate_branch(value: &str) -> Result<()> {
