@@ -31,7 +31,7 @@ rt --workspace /path/to/project backup restore \
   --destination /private/restored-relayterm-home
 ```
 
-Relayterm validates the private directory, exact member inventory, bounded versioned manifest, checksum, SQLite schema, workspace identity, revision and event watermark before creating the destination. It copies into a fresh private home, opens the copy using embedded migrations and creates the minimal registry entry. Source backup and original home are never moved or overwritten.
+Relayterm validates the private directory, exact member inventory, bounded versioned manifest, checksum, SQLite schema, workspace identity, revision and event watermark before publishing the destination. It builds and validates the database and minimal registry in a uniquely owned private staging directory beside the requested home, closes their SQLite pools, then publishes the directory with a native no-replace rename. A failed validation removes only that unpublished staging directory. The source backup, original home and any path that appears at the requested destination are never moved or overwritten.
 
 Start the restored workspace explicitly:
 

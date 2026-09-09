@@ -1454,9 +1454,11 @@ name = "relayterm-cli"
 version = "0.1.0"
 dependencies = [
  "base64",
+ "blake3",
  "clap",
  "relayterm-client",
  "relayterm-daemon",
+ "relayterm-platform",
  "relayterm-protocol",
  "relayterm-pty",
  "relayterm-tui",

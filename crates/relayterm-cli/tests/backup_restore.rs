@@ -125,7 +125,9 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
     let scratch = Scratch::new();
     let root = scratch.0.join("synthetic project λ");
     let home = scratch.0.join("private");
-    let restored = scratch.0.join("restored-private");
+    let recovery = scratch.0.join("r");
+    relayterm_platform::create_private_dir(&recovery).unwrap();
+    let restored = recovery.join("h");
     fs::create_dir(&root).unwrap();
     let _cleanup = DaemonCleanup {
         root: root.clone(),
@@ -230,7 +232,7 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
         ],
     );
     fs::write(unexpected.join("unexpected.txt"), b"synthetic member").unwrap();
-    let unexpected_home = scratch.0.join("unexpected-member-restore");
+    let unexpected_home = recovery.join("u");
     let unexpected_result = bounded_output(
         Command::new(env!("CARGO_BIN_EXE_rt"))
             .arg("--workspace")
@@ -259,7 +261,7 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
         serde_json::to_vec(&newer_manifest).unwrap(),
     )
     .unwrap();
-    let newer_home = scratch.0.join("newer-manifest-restore");
+    let newer_home = recovery.join("n");
     let newer_result = bounded_output(
         Command::new(env!("CARGO_BIN_EXE_rt"))
             .arg("--workspace")
@@ -285,7 +287,7 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
             corrupt.to_str().unwrap(),
         ],
     );
-    let rejected_home = scratch.0.join("rejected-private");
+    let rejected_home = recovery.join("c");
     let mut database = fs::OpenOptions::new()
         .append(true)
         .open(corrupt.join("workspace.sqlite3"))
@@ -306,6 +308,50 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
     );
     assert!(!rejected.status.success());
     assert!(!rejected_home.exists());
+
+    let corrupt_structure = home.join("data").join("corrupt-structure-backup");
+    success(
+        &root,
+        &home,
+        &[
+            "backup",
+            "create",
+            "--destination",
+            corrupt_structure.to_str().unwrap(),
+        ],
+    );
+    let corrupt_database = corrupt_structure.join("workspace.sqlite3");
+    let mut corrupt_bytes = fs::read(&corrupt_database).unwrap();
+    corrupt_bytes[..16].copy_from_slice(b"invalid sqlite!!");
+    fs::write(&corrupt_database, &corrupt_bytes).unwrap();
+    let mut corrupt_manifest: Value =
+        serde_json::from_slice(&fs::read(corrupt_structure.join("manifest.json")).unwrap())
+            .unwrap();
+    corrupt_manifest["blake3"] = Value::String(blake3::hash(&corrupt_bytes).to_hex().to_string());
+    fs::write(
+        corrupt_structure.join("manifest.json"),
+        serde_json::to_vec(&corrupt_manifest).unwrap(),
+    )
+    .unwrap();
+    let corrupt_structure_home = recovery.join("s");
+    let corrupt_structure_result = bounded_output(
+        Command::new(env!("CARGO_BIN_EXE_rt"))
+            .arg("--workspace")
+            .arg(&root)
+            .args(["--format", "json", "backup", "restore", "--source"])
+            .arg(&corrupt_structure)
+            .arg("--destination")
+            .arg(&corrupt_structure_home)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null()),
+    );
+    assert!(!corrupt_structure_result.status.success());
+    assert!(!corrupt_structure_home.exists());
+    assert_eq!(fs::read(&corrupt_database).unwrap(), corrupt_bytes);
+    assert_eq!(
+        fs::read(corrupt_structure.join("manifest.json")).unwrap(),
+        serde_json::to_vec(&corrupt_manifest).unwrap()
+    );
     assert_eq!(
         fs::read(backup.join("workspace.sqlite3")).unwrap(),
         original_database

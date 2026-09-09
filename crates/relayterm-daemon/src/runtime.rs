@@ -15,8 +15,8 @@ use relayterm_persistence_sqlite::{
 use relayterm_platform::{
     LocationAlias, LocationOptions, PrivateLocations, PrivateLock, RandomIdGenerator, SystemClock,
     WorkspaceRootIdentity, create_private_dir, create_private_file, decode_native_path,
-    detach_current_process, encode_native_path, spawn_detached as spawn_detached_process,
-    validate_private_dir, validate_private_file,
+    detach_current_process, encode_native_path, publish_private_dir,
+    spawn_detached as spawn_detached_process, validate_private_dir, validate_private_file,
 };
 use relayterm_protocol::{NativePathDto, WorkspaceId as WireWorkspaceId};
 use serde::{Deserialize, Serialize};
@@ -700,6 +700,19 @@ pub async fn restore_workspace(
     if destination_home.exists() || !destination_home.is_absolute() {
         return Err(RuntimeError::InvalidLocation);
     }
+    let destination_parent = destination_home
+        .parent()
+        .ok_or(RuntimeError::InvalidLocation)?;
+    validate_private_dir(destination_parent).map_err(|_| RuntimeError::AccessDenied)?;
+    let source_identity = source
+        .canonicalize()
+        .map_err(|_| RuntimeError::InvalidLocation)?;
+    let parent_identity = destination_parent
+        .canonicalize()
+        .map_err(|_| RuntimeError::InvalidLocation)?;
+    if parent_identity.starts_with(&source_identity) {
+        return Err(RuntimeError::InvalidLocation);
+    }
     let manifest = read_backup_manifest(source)?;
     if manifest.format_version != 1
         || !manifest.complete
@@ -718,7 +731,16 @@ pub async fn restore_workspace(
     if hash_private_file(&backup_database)? != manifest.blake3 {
         return Err(RuntimeError::RecoveryRequired);
     }
-    let locations = locations(Some(destination_home.to_path_buf()))?;
+    let destination_name = destination_home
+        .file_name()
+        .ok_or(RuntimeError::InvalidLocation)?
+        .to_string_lossy();
+    let staging_home = destination_parent.join(format!(
+        ".{destination_name}.relayterm-restore-{}",
+        uuid::Uuid::new_v4()
+    ));
+    let staging = RestoreStaging::new(staging_home)?;
+    let locations = locations(Some(staging.path().to_path_buf()))?;
     for alias in [LocationAlias::Data, LocationAlias::Runtime] {
         create_private_dir(locations.path(alias)).map_err(|_| RuntimeError::AccessDenied)?;
     }
@@ -766,14 +788,53 @@ pub async fn restore_workspace(
         .mark_ready(workspace_id, now)
         .await
         .map_err(map_storage)?;
-    Ok(BackupReport {
+    registry.close().await;
+    let report = BackupReport {
         format_version: manifest.format_version,
         application_version: manifest.application_version,
         workspace_schema_version: manifest.workspace_schema_version,
         workspace_id: manifest.workspace_id,
         workspace_revision: manifest.workspace_revision,
         last_event_sequence: manifest.last_event_sequence,
-    })
+    };
+    staging.publish(destination_home)?;
+    Ok(report)
+}
+
+struct RestoreStaging {
+    path: PathBuf,
+    published: bool,
+}
+
+impl RestoreStaging {
+    fn new(path: PathBuf) -> Result<Self, RuntimeError> {
+        if std::fs::symlink_metadata(&path).is_ok() {
+            return Err(RuntimeError::InvalidLocation);
+        }
+        create_private_dir(&path).map_err(|_| RuntimeError::AccessDenied)?;
+        Ok(Self {
+            path,
+            published: false,
+        })
+    }
+
+    fn path(&self) -> &Path {
+        &self.path
+    }
+
+    fn publish(mut self, destination: &Path) -> Result<(), RuntimeError> {
+        publish_private_dir(&self.path, destination).map_err(|_| RuntimeError::InvalidLocation)?;
+        self.published = true;
+        Ok(())
+    }
+}
+
+impl Drop for RestoreStaging {
+    fn drop(&mut self) {
+        if !self.published {
+            let _ = std::fs::remove_dir_all(&self.path);
+        }
+    }
 }
 
 fn validate_backup_members(directory: &Path) -> Result<(), RuntimeError> {
