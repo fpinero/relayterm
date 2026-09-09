@@ -354,3 +354,9 @@ Local verification on native macOS aarch64 with Rust 1.98.1 and Git 2.53.0:
 - `cargo deny check advisories licenses bans sources`, `python3 scripts/check_repository.py`, `python3 scripts/check_audit_controls.py`, `python3 scripts/check_secrets.py`, `gitleaks git --redact --no-banner --exit-code 1`, and `git diff --check` passed. Cargo Deny retained its existing non-failing duplicate-package and unused-license-allowance warnings.
 
 M10 implementation and mandatory native acceptance are complete. Automatic worktree cleanup, destructive Git automation, persistent terminal recordings, live PTY adoption after daemon restart, and the manual named-terminal and SSH matrix remain outside M10. No M11 implementation was started.
+
+## 2026-09-09: Deliver M10 to main
+
+Completed M10.06g. PR [#19](https://github.com/fpinero/relayterm/pull/19) merged the verified worktree implementation into `main` as commit `c4af056898449f32a4e2347f771922a62847e031`. Local `main` was fast-forwarded to that commit and matched `origin/main` byte for byte before this append-only delivery record was prepared.
+
+The post-merge [Quality run 34352914098](https://github.com/fpinero/relayterm/actions/runs/34352914098) passed on native `ubuntu-24.04 / stable`, `ubuntu-24.04 / 1.98.1`, `macos-14 / stable`, and `windows-2022 / stable`. It retained two independent stable-runner repetitions of the M06 durable slice, M07 real PTY supervision, M08 TUI workflow, M09 agent-template journey, and M10 Git worktree isolation, followed by the complete workspace, core, build, repository, and whitespace checks. The post-merge [Security run 34352914181](https://github.com/fpinero/relayterm/actions/runs/34352914181) passed dependency, advisory, license, source, secret, and negative controls. M10 is closed, and the next pending milestone is M11.
