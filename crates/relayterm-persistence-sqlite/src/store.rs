@@ -60,6 +60,18 @@ impl Store for SqliteStore {
             before_commit: self.before_commit.clone(),
         })
     }
+
+    async fn begin_mutation(&self, workspace_id: WorkspaceId) -> Result<SqliteTransaction> {
+        let mut connection = self.pool.acquire().await.map_err(domain_storage)?;
+        let snapshot = load_operational_snapshot(&mut connection, workspace_id).await?;
+        Ok(SqliteTransaction {
+            pool: self.pool.clone(),
+            workspace_id,
+            snapshot,
+            #[cfg(feature = "test-hooks")]
+            before_commit: self.before_commit.clone(),
+        })
+    }
 }
 
 impl DurableReadStore for SqliteStore {
@@ -734,7 +746,7 @@ async fn commit_locked(
     workspace_id: WorkspaceId,
     batch: &WriteBatch,
 ) -> Result<Committed> {
-    let current = load_snapshot(connection, workspace_id).await?;
+    let current = load_operational_snapshot(connection, workspace_id).await?;
     batch.validate(&current)?;
     if batch.events().is_empty() {
         return Ok(Committed {
@@ -785,6 +797,21 @@ async fn load_snapshot(
     connection: &mut SqliteConnection,
     expected: WorkspaceId,
 ) -> Result<Snapshot> {
+    load_snapshot_kind(connection, expected, true).await
+}
+
+async fn load_operational_snapshot(
+    connection: &mut SqliteConnection,
+    expected: WorkspaceId,
+) -> Result<Snapshot> {
+    load_snapshot_kind(connection, expected, false).await
+}
+
+async fn load_snapshot_kind(
+    connection: &mut SqliteConnection,
+    expected: WorkspaceId,
+    include_immutable_history: bool,
+) -> Result<Snapshot> {
     let meta = sqlx::query("SELECT workspace_id, revision FROM workspace_meta WHERE singleton = 1")
         .fetch_optional(&mut *connection)
         .await
@@ -827,7 +854,7 @@ async fn load_snapshot(
             .ok_or(Error::Storage)?,
     })?;
     let definitions = load_definitions(connection, expected).await?;
-    let claims = load_claims(connection, expected).await?;
+    let claims = load_claims(connection, expected, include_immutable_history).await?;
     let owners: HashMap<TaskId, AgentInstanceId> = claims
         .iter()
         .filter_map(|claim| {
@@ -840,8 +867,12 @@ async fn load_snapshot(
         .collect();
     let tasks = load_tasks(connection, expected, &owners).await?;
     let instances = load_instances(connection, expected).await?;
-    let progress = load_progress(connection, expected).await?;
-    let handovers = load_handovers(connection, expected).await?;
+    let progress = if include_immutable_history {
+        load_progress(connection, expected).await?
+    } else {
+        Vec::new()
+    };
+    let handovers = load_handovers(connection, expected, include_immutable_history).await?;
     let (approved_roots, worktree_intents, worktrees) =
         load_worktree_state(connection, expected).await?;
     let state = WorkspaceState::restore(
@@ -1263,13 +1294,18 @@ async fn load_launch_snapshot(
 async fn load_claims(
     connection: &mut SqliteConnection,
     workspace_id: WorkspaceId,
+    include_closed: bool,
 ) -> Result<Vec<Claim>> {
-    let rows =
-        sqlx::query("SELECT * FROM claims WHERE workspace_id=? ORDER BY opening_event_sequence")
-            .bind(id_bytes(workspace_id.as_uuid()))
-            .fetch_all(&mut *connection)
-            .await
-            .map_err(domain_storage)?;
+    let query = if include_closed {
+        "SELECT * FROM claims WHERE workspace_id=? ORDER BY opening_event_sequence"
+    } else {
+        "SELECT * FROM (SELECT claims.*,ROW_NUMBER() OVER (PARTITION BY task_id ORDER BY opening_event_sequence DESC) AS claim_rank FROM claims WHERE workspace_id=?) WHERE claim_rank=1 ORDER BY opening_event_sequence"
+    };
+    let rows = sqlx::query(query)
+        .bind(id_bytes(workspace_id.as_uuid()))
+        .fetch_all(&mut *connection)
+        .await
+        .map_err(domain_storage)?;
     rows.into_iter()
         .map(|row| decode_claim(row, workspace_id))
         .collect()
@@ -1391,14 +1427,18 @@ async fn load_progress_entry(
 async fn load_handovers(
     connection: &mut SqliteConnection,
     workspace_id: WorkspaceId,
+    include_all: bool,
 ) -> Result<Vec<Handover>> {
-    let rows = sqlx::query(
-        "SELECT * FROM handovers WHERE workspace_id=? ORDER BY creation_event_sequence",
-    )
-    .bind(id_bytes(workspace_id.as_uuid()))
-    .fetch_all(&mut *connection)
-    .await
-    .map_err(domain_storage)?;
+    let query = if include_all {
+        "SELECT * FROM handovers WHERE workspace_id=? ORDER BY creation_event_sequence"
+    } else {
+        "SELECT handovers.* FROM handovers JOIN (SELECT task_id,closed_seconds,closed_nanoseconds,close_reason,ROW_NUMBER() OVER (PARTITION BY task_id ORDER BY opening_event_sequence DESC) AS claim_rank FROM claims WHERE workspace_id=?) AS latest_claim ON latest_claim.task_id=handovers.task_id AND latest_claim.closed_seconds=handovers.created_seconds AND latest_claim.closed_nanoseconds=handovers.created_nanoseconds WHERE latest_claim.claim_rank=1 AND latest_claim.close_reason='handover' ORDER BY handovers.creation_event_sequence"
+    };
+    let rows = sqlx::query(query)
+        .bind(id_bytes(workspace_id.as_uuid()))
+        .fetch_all(&mut *connection)
+        .await
+        .map_err(domain_storage)?;
     let mut values = Vec::with_capacity(rows.len());
     for row in rows {
         values.push(decode_handover(connection, row, workspace_id).await?);

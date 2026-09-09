@@ -107,10 +107,10 @@ async fn large_durable_history_is_read_in_sql_bounded_pages() {
                 .push_bind("backlog")
                 .push_bind("Pages remain bounded")
                 .push_bind(Option::<Vec<u8>>::None)
-                .push_bind(1_i64)
                 .push_bind(0_i64)
                 .push_bind(1_i64)
-                .push_bind(0_i64);
+                .push_bind(0_i64)
+                .push_bind(1_i64);
         });
         tasks.build().execute(&mut *transaction).await.unwrap();
 
@@ -126,8 +126,8 @@ async fn large_durable_history_is_read_in_sql_bounded_pages() {
                 .push_bind("task_created")
                 .push_bind("task")
                 .push_bind(task_id.as_uuid().as_bytes().to_vec())
-                .push_bind(1_i64)
                 .push_bind(0_i64)
+                .push_bind(1_i64)
                 .push_bind("local_user")
                 .push_bind(Option::<Vec<u8>>::None)
                 .push_bind(1_i64)
@@ -150,8 +150,8 @@ async fn large_durable_history_is_read_in_sql_bounded_pages() {
                 .push_bind(Option::<Vec<u8>>::None)
                 .push_bind(format!("Scale progress {ordinal:06}"))
                 .push_bind("Synthetic scale verification")
-                .push_bind(1_i64)
                 .push_bind(0_i64)
+                .push_bind(1_i64)
                 .push_bind(encode_counter(batch_sequence + ordinal - first).to_vec());
         });
         progress.build().execute(&mut *transaction).await.unwrap();
@@ -168,8 +168,8 @@ async fn large_durable_history_is_read_in_sql_bounded_pages() {
                 .push_bind("progress_added")
                 .push_bind("progress")
                 .push_bind(progress_id.as_uuid().as_bytes().to_vec())
-                .push_bind(1_i64)
                 .push_bind(0_i64)
+                .push_bind(1_i64)
                 .push_bind("local_user")
                 .push_bind(Option::<Vec<u8>>::None)
                 .push_bind(1_i64)
@@ -322,4 +322,32 @@ async fn large_durable_history_is_read_in_sql_bounded_pages() {
         )
         .await;
     assert_eq!(invalid.err(), Some(Error::Conflict));
+
+    let mutation_started = Instant::now();
+    let appended = service
+        .execute(
+            workspace_id,
+            Actor::LocalUser,
+            Request::Progress {
+                task_id: anchor,
+                summary: "Mutation after large history".into(),
+                verification: "Operational snapshot remains bounded".into(),
+            },
+        )
+        .await
+        .unwrap();
+    let mutation_duration = mutation_started.elapsed();
+    assert_eq!(appended.committed.snapshot.revision(), revision + 1);
+    let retained_progress: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM progress_entries WHERE workspace_id=?")
+            .bind(workspace_id.as_uuid().as_bytes().to_vec())
+            .fetch_one(database.pool())
+            .await
+            .unwrap();
+    assert_eq!(retained_progress, PROGRESS as i64 + 1);
+    eprintln!(
+        "M11 history mutation tasks={TASKS} retained_progress={retained_progress} duration_ms={}",
+        mutation_duration.as_millis()
+    );
+    assert!(mutation_duration <= Duration::from_secs(10));
 }

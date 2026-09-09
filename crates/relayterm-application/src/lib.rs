@@ -16,6 +16,15 @@ pub trait Store: Sync {
         &self,
         workspace_id: WorkspaceId,
     ) -> impl Future<Output = Result<Self::Transaction>> + Send;
+    /// Open a transaction whose adapter may omit immutable history that no
+    /// domain mutation reads. Adapters without projections may load the full
+    /// snapshot through the default implementation.
+    fn begin_mutation(
+        &self,
+        workspace_id: WorkspaceId,
+    ) -> impl Future<Output = Result<Self::Transaction>> + Send {
+        self.begin(workspace_id)
+    }
 }
 pub trait Transaction: Send {
     fn snapshot(&self) -> &Snapshot;
@@ -350,7 +359,7 @@ impl<S: Store, C: Clock, I: IdGenerator, N: EventNotifier> Service<S, C, I, N> {
             updated_at: at,
             schema_version: 1,
         })?;
-        let transaction = self.store.begin(id).await?;
+        let transaction = self.store.begin_mutation(id).await?;
         let event = PendingEvent {
             event_id: self.ids.next()?,
             workspace_id: id,
@@ -371,7 +380,7 @@ impl<S: Store, C: Clock, I: IdGenerator, N: EventNotifier> Service<S, C, I, N> {
         baseline_revision: u64,
         definitions: Vec<AgentDefinition>,
     ) -> Result<Outcome> {
-        let transaction = self.store.begin(workspace_id).await?;
+        let transaction = self.store.begin_mutation(workspace_id).await?;
         if transaction.snapshot().revision() != baseline_revision {
             return Err(Error::Conflict);
         }
@@ -417,7 +426,7 @@ impl<S: Store, C: Clock, I: IdGenerator, N: EventNotifier> Service<S, C, I, N> {
         if expected_revision == 0 {
             return Err(Error::Validation("expected_revision"));
         }
-        let transaction = self.store.begin(workspace_id).await?;
+        let transaction = self.store.begin_mutation(workspace_id).await?;
         if transaction.snapshot().revision() != expected_revision {
             return Err(Error::Conflict);
         }
@@ -486,7 +495,7 @@ impl<S: Store, C: Clock, I: IdGenerator, N: EventNotifier> Service<S, C, I, N> {
                 content,
             },
         };
-        let transaction = self.store.begin(workspace_id).await?;
+        let transaction = self.store.begin_mutation(workspace_id).await?;
         if expected_revision.is_some_and(|revision| transaction.snapshot().revision() != revision) {
             return Err(Error::Conflict);
         }
@@ -514,7 +523,7 @@ impl<S: Store, C: Clock, I: IdGenerator, N: EventNotifier> Service<S, C, I, N> {
         expected_revision: Option<u64>,
     ) -> Result<RegisteredInstance> {
         let at = self.clock.now()?;
-        let transaction = self.store.begin(workspace_id).await?;
+        let transaction = self.store.begin_mutation(workspace_id).await?;
         if expected_revision.is_some_and(|revision| transaction.snapshot().revision() != revision) {
             return Err(Error::Conflict);
         }
@@ -589,7 +598,7 @@ impl<S: Store, C: Clock, I: IdGenerator, N: EventNotifier> Service<S, C, I, N> {
         observation: Observation,
         at: Timestamp,
     ) -> Result<Outcome> {
-        let transaction = self.store.begin(workspace_id).await?;
+        let transaction = self.store.begin_mutation(workspace_id).await?;
         let changes = transaction.snapshot().state()?.observe(observation, at)?;
         self.commit_changes(transaction, changes).await
     }
