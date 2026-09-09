@@ -5,9 +5,12 @@ use relayterm_protocol::{
 use serde_json::Value;
 use std::{
     fs,
+    io::{BufRead, Read},
     path::{Path, PathBuf},
     process::{Command, Output, Stdio},
     sync::atomic::{AtomicU64, Ordering},
+    thread,
+    time::{Duration, Instant},
 };
 
 struct Scratch(PathBuf);
@@ -55,17 +58,60 @@ impl Drop for DaemonCleanup {
 }
 
 fn invoke(root: &Path, home: &Path, args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_rt"))
-        .arg("--workspace")
-        .arg(root)
-        .arg("--home")
-        .arg(home)
-        .args(["--format", "json", "--timeout", "5"])
-        .args(args)
-        .stdin(Stdio::null())
-        .stderr(Stdio::null())
-        .output()
-        .unwrap()
+    bounded_output(
+        Command::new(env!("CARGO_BIN_EXE_rt"))
+            .arg("--workspace")
+            .arg(root)
+            .arg("--home")
+            .arg(home)
+            .args(["--format", "json", "--timeout", "5"])
+            .args(args)
+            .stdin(Stdio::null())
+            .stderr(Stdio::null())
+            .stdout(Stdio::piped()),
+    )
+}
+
+fn bounded_output(command: &mut Command) -> Output {
+    const DEADLINE: Duration = Duration::from_secs(30);
+    const OUTPUT_LIMIT: usize = 64 * 1024;
+
+    let mut child = command.spawn().unwrap();
+    let stdout = child.stdout.take().unwrap();
+    let (output_tx, output_rx) = std::sync::mpsc::sync_channel(1);
+    thread::spawn(move || {
+        let mut bytes = Vec::new();
+        let result = std::io::BufReader::new(stdout)
+            .take((OUTPUT_LIMIT + 1) as u64)
+            .read_until(b'\n', &mut bytes)
+            .map(|_| bytes);
+        let _ = output_tx.send(result);
+    });
+    let deadline = Instant::now() + DEADLINE;
+    let status = loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            break status;
+        }
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            panic!("M11 CLI command did not terminate before its deadline");
+        }
+        thread::sleep(Duration::from_millis(10));
+    };
+    let stdout = output_rx
+        .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+        .expect("M11 CLI output did not close before its deadline")
+        .expect("M11 CLI output could not be read");
+    assert!(
+        stdout.len() <= OUTPUT_LIMIT,
+        "M11 CLI output exceeded its bound"
+    );
+    Output {
+        status,
+        stdout,
+        stderr: Vec::new(),
+    }
 }
 
 fn success(root: &Path, home: &Path, args: &[&str]) -> Value {
@@ -117,16 +163,18 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
     );
     let workspace_id = initialized["workspace_id"].as_str().unwrap().to_owned();
     let busy_target = home.join("data").join("busy-backup");
-    let busy = Command::new(env!("CARGO_BIN_EXE_rt"))
-        .arg("--workspace")
-        .arg(&root)
-        .arg("--home")
-        .arg(&home)
-        .args(["--format", "json", "--timeout", "1", "backup", "create"])
-        .arg("--destination")
-        .arg(&busy_target)
-        .output()
-        .unwrap();
+    let busy = bounded_output(
+        Command::new(env!("CARGO_BIN_EXE_rt"))
+            .arg("--workspace")
+            .arg(&root)
+            .arg("--home")
+            .arg(&home)
+            .args(["--format", "json", "--timeout", "1", "backup", "create"])
+            .arg("--destination")
+            .arg(&busy_target)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null()),
+    );
     assert!(!busy.status.success());
     assert!(!busy_target.exists());
 
@@ -171,15 +219,17 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
     use std::io::Write as _;
     database.write_all(b"synthetic-corruption").unwrap();
     database.sync_all().unwrap();
-    let rejected = Command::new(env!("CARGO_BIN_EXE_rt"))
-        .arg("--workspace")
-        .arg(&root)
-        .args(["--format", "json", "backup", "restore", "--source"])
-        .arg(&backup)
-        .arg("--destination")
-        .arg(&rejected_home)
-        .output()
-        .unwrap();
+    let rejected = bounded_output(
+        Command::new(env!("CARGO_BIN_EXE_rt"))
+            .arg("--workspace")
+            .arg(&root)
+            .args(["--format", "json", "backup", "restore", "--source"])
+            .arg(&backup)
+            .arg("--destination")
+            .arg(&rejected_home)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null()),
+    );
     assert!(!rejected.status.success());
     assert!(!rejected_home.exists());
 }
