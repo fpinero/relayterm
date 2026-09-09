@@ -8,7 +8,7 @@ Keep the daemon responsible for durable state and supervised processes. Keep dom
 
 ### How to execute this queue
 
-- Start with M10. Follow milestone dependencies and the task order within each milestone; consult `avances.md` for fulfilled dependencies.
+- Start with M11. Follow milestone dependencies and the task order within each milestone; consult `avances.md` for fulfilled dependencies.
 - Treat each task ID as one reviewable outcome, including its relevant tests and documentation. Split a task before coding if its implementation cannot be reviewed coherently in one session. Preserve its ID as a prefix for new child tasks.
 - For a milestone ending in `[PLAN]`, complete its first planning task before implementation. Record the named decisions, contracts, failure cases, and test design, then refine the remaining tasks in this file. The marker identifies unresolved engineering details, not permission to expand MVP scope.
 - At each session start, read repository instructions, check the branch and working tree, and consult `avances.md` for satisfied dependencies. Continue the earliest unblocked task. Work on a feature or fix branch, never directly on `main` or `master`.
@@ -21,22 +21,11 @@ Keep the daemon responsible for durable state and supervised processes. Keep dom
 
 Use the specification's recommended Rust stack and the pinned bootstrap toolchain. Verify support when adding dependencies; avoid unused dependencies and empty adapter crates until needed. Follow the eight [architecture decisions](docs/architecture/README.md), refining the risky ones at their implementation gates.
 
-The durable first-slice, real PTY, TUI, editable agent-template, and explicit worktree-isolation gates are complete. M10 awaits delivery; M11 and M12 validate and prepare the release candidate.
+The durable first-slice, real PTY, TUI, editable agent-template, and explicit worktree-isolation gates are complete. M11 and M12 validate and prepare the release candidate.
 
 Public export and disk-backed scrollback are optional and are deferred from this roadmap. Keep scrollback bounded in daemon memory. Do not add transcript ingestion, provider APIs, automatic task mutation from agent prose, autonomous orchestration, TCP listeners, hosted dependencies, telemetry, graphical clients, or automatic Git commits, merges, rebases, or deletion. Any later export proposal must first add exact-content preview, redaction, and destination confirmation as required by FR-10.
 
 Keep task dependencies informational, as defined in the specification and [M02 storage contract](docs/M02_storage_contract.md); do not introduce a scheduler. Git worktree creation is included because AC-10 requires it, even though several related requirements use SHOULD.
-
-## M10: Explicit Git worktree isolation
-
-Execution contract: [M10 details](docs/M10_details.md).
-
-Depends on: M08. Specification phase: 4. Coverage: FR-7, FR-8; sections 6.7, 9.5; AC-10.
-
-Outcome: two tasks can explicitly use separate working directories without destructive Git automation.
-
-- M10.06: Deliver the verified worktree implementation and its native evidence without advancing into M11.
-  - M10.06g: Deliver the PR, reviews, merge and post-merge verification.
 
 ## M11: Reliability, privacy, and complete acceptance [PLAN]
 
