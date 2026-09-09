@@ -56,6 +56,11 @@ pub trait DurableReadStore: Sync {
         workspace_id: WorkspaceId,
         request: IdPageRequest,
     ) -> impl Future<Output = Result<IdPage<Handover>>> + Send;
+    fn task_page(
+        &self,
+        workspace_id: WorkspaceId,
+        request: IdPageRequest,
+    ) -> impl Future<Output = Result<IdPage<Task>>> + Send;
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

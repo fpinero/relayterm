@@ -350,12 +350,40 @@ fn complete_handover_journey_survives_reopen() {
                 .await
                 .unwrap();
         }
+        service
+            .execute(
+                workspace_id,
+                Actor::LocalUser,
+                Request::CreateTask(task_content("Paged task")),
+            )
+            .await
+            .unwrap();
         let before = service.snapshot(workspace_id).await.unwrap();
         assert_eq!(before.state().unwrap().progress().len(), 3);
         assert_eq!(before.state().unwrap().handovers().len(), 1);
         let revision = before.revision();
         let watermarked = store.consistent_snapshot(workspace_id).await.unwrap();
         assert_eq!(watermarked.snapshot.revision(), revision);
+        let tasks = store
+            .task_page(
+                workspace_id,
+                IdPageRequest::new(None, 1, Some(revision)).unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(tasks.items.len(), 1);
+        assert!(tasks.has_more);
+        let task_after = tasks.items[0].record().id.as_uuid().into_bytes();
+        let task_tail = store
+            .task_page(
+                workspace_id,
+                IdPageRequest::new(Some(task_after), 1, Some(revision)).unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(task_tail.items.len(), 1);
+        assert!(!task_tail.has_more);
+        assert_eq!(task_tail.revision, tasks.revision);
         let progress = store
             .progress_page(
                 workspace_id,

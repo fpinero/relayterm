@@ -1888,8 +1888,11 @@ where
             return Err(invalid_field(wire::ErrorField::PageLimit));
         }
         let collection = forced.unwrap_or(p.collection.unwrap_or(Collection::Workspace));
-        if matches!(collection, Collection::Progress | Collection::Handovers) {
-            return self.history_collection_page(collection, p).await;
+        if matches!(
+            collection,
+            Collection::Tasks | Collection::Progress | Collection::Handovers
+        ) {
+            return self.id_collection_page(collection, p).await;
         }
         let snap = self
             .reads
@@ -1943,7 +1946,7 @@ where
         )
     }
 
-    async fn history_collection_page(
+    async fn id_collection_page(
         &self,
         collection: Collection,
         params: SnapshotParams,
@@ -1965,6 +1968,20 @@ where
                 .map_err(map_domain_error)?;
         let (revision, last_sequence, retained_from_sequence, items, storage_has_more) =
             match collection {
+                Collection::Tasks => {
+                    let page = self
+                        .reads
+                        .task_page(self.workspace_id, request)
+                        .await
+                        .map_err(map_domain_error)?;
+                    (
+                        page.revision,
+                        page.last_sequence,
+                        page.retained_from_sequence,
+                        page.items.iter().map(task_dto).collect::<Vec<_>>(),
+                        page.has_more,
+                    )
+                }
                 Collection::Progress => {
                     let page = self
                         .reads
