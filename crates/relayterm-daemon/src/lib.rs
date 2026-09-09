@@ -154,6 +154,9 @@ pub struct ServerFaults {
     any_response: Arc<AtomicBool>,
     pause_mutation_response: Arc<AtomicBool>,
     fail_worktree_after_git: Arc<AtomicBool>,
+    pause_worktree_after_git: Arc<AtomicBool>,
+    worktree_after_git_paused: Arc<Notify>,
+    release_worktree_after_git: Arc<Notify>,
     mutation_paused: Arc<Notify>,
     release_mutation_response: Arc<Notify>,
     event_wakeup_count: Arc<AtomicU64>,
@@ -184,6 +187,16 @@ impl ServerFaults {
     /// This deterministic fault is exposed only through an in-process test handle.
     pub fn fail_next_worktree_after_git(&self) {
         self.fail_worktree_after_git.store(true, Ordering::Release)
+    }
+    /// Pauses one worktree operation after Git succeeds and before final storage commit.
+    pub fn pause_next_worktree_after_git(&self) {
+        self.pause_worktree_after_git.store(true, Ordering::Release)
+    }
+    pub async fn wait_until_worktree_after_git_paused(&self) {
+        self.worktree_after_git_paused.notified().await;
+    }
+    pub fn release_worktree_after_git(&self) {
+        self.release_worktree_after_git.notify_one();
     }
     pub async fn wait_until_mutation_response_paused(&self) {
         self.mutation_paused.notified().await;
@@ -1238,6 +1251,14 @@ where
                 )
                 .await;
             return Err(map_git_error(error));
+        }
+        if self
+            .faults
+            .pause_worktree_after_git
+            .swap(false, Ordering::AcqRel)
+        {
+            self.faults.worktree_after_git_paused.notify_one();
+            self.faults.release_worktree_after_git.notified().await;
         }
         if self
             .faults

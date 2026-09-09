@@ -65,13 +65,13 @@ The abrupt SQLite gate runs a separate native server process with the production
 cargo test -p relayterm-daemon --test sqlite_kill_gate --features test-hooks --locked -- --nocapture --test-threads=1
 ```
 
-The native Git cancellation gate pauses an admitted worktree operation after all checks and immediately before `git worktree add`. The requesting client is dropped at that exact barrier, then Git is released. A separate authenticated client observes the stable operation receipt, verifies the checkout and task association, and resubmits the same operation ID without repeating the external effect. The adapter and barrier use the production Git argument array, lock and verification path, and the barrier is absent from ordinary builds. Run it twice on each stable native target:
+The native Git cancellation gate pauses one admitted worktree operation after all checks and immediately before `git worktree add`, then pauses another after Git has returned and before the final SQLite commit. In both phases the requesting client is dropped at the exact barrier. A separate authenticated client observes the stable operation receipt, verifies the checkout and task association, and resubmits the same operation ID without repeating the external effect. The adapter and barriers use the production Git argument array, lock and verification path, and the barriers are absent from ordinary builds. Run it twice on each stable native target:
 
 ```text
 cargo test -p relayterm-daemon --test worktree_cancellation_gate --features test-hooks --locked -- --nocapture --test-threads=1
 ```
 
-Remaining required fault work includes cancellation before admission and after Git returns but before the final SQLite commit in one explicit matrix. The existing worktree recovery gate covers a failure after Git and a real final-commit rejection, with conservative explicit reconciliation and no repeated `worktree add`.
+The protocol gate covers cancellation before delivery and after a durable mutation commit. The worktree cancellation gate covers pre-effect and post-effect client loss. The worktree recovery gate covers an injected uncertain result after Git and a real final-commit rejection, with conservative explicit reconciliation and no repeated `worktree add`. Together these tests cover the declared Git phase and request-delivery matrix without a production fault switch.
 
 Every fault test performs an independent healthy request or session action after the failure. A test fails if the daemon crashes, an unrelated session stops, a transaction becomes partial, a result is retried automatically, or a timeout leaves an unbounded reader, task, handle or child.
 

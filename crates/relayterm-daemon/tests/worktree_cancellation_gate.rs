@@ -94,6 +94,7 @@ async fn lost_client_during_git_add_can_query_the_stable_receipt_without_repeati
         .unwrap()
         .with_worktrees(worktrees.clone())
         .with_git(git_adapter);
+    let faults = server.fault_injector();
     let (shutdown, receiver) = watch::channel(false);
     let running = tokio::spawn(server.run(receiver));
     let client = Client::connect(&endpoint, wire_workspace).await.unwrap();
@@ -174,6 +175,95 @@ async fn lost_client_during_git_add_can_query_the_stable_receipt_without_repeati
         relayterm_git::Git::default().list(&project).unwrap().len(),
         2,
         "querying and resubmitting the stable operation ID must not repeat git worktree add"
+    );
+
+    let snapshot: Value = observer
+        .call(
+            Operation::WorkspaceGetSnapshot,
+            &json!({"collection":"tasks","limit":50}),
+        )
+        .await
+        .unwrap();
+    let created: Value = observer
+        .call(
+            Operation::TaskCreate,
+            &json!({"expected_revision":snapshot["revision"],"title":"Cancelled finalization","description":"","priority":"normal","scope_paths":[],"acceptance_notes":"","dependency_ids":[]}),
+        )
+        .await
+        .unwrap();
+    let second_task = created["entity_ids"][0].as_str().unwrap().to_owned();
+    let ready: Value = observer
+        .call(
+            Operation::TaskTransition,
+            &json!({"task_id":second_task,"expected_revision":created["revision"],"status":"ready"}),
+        )
+        .await
+        .unwrap();
+    let second_operation = "00000000-0000-4000-8000-000000001813";
+    let second_request = json!({"payload_version":1,"operation_id":second_operation,"task_id":second_task,"expected_revision":ready["revision"],"base_ref":"HEAD","branch_name":"rt/cancelled-finalization","destination_leaf":"cancelled-finalization","parent":null});
+    faults.pause_next_worktree_after_git();
+    let caller = Client::connect(&endpoint, wire_workspace).await.unwrap();
+    let mutation = tokio::spawn({
+        let request = second_request.clone();
+        async move {
+            caller
+                .call::<_, Value>(Operation::WorktreeCreate, &request)
+                .await
+        }
+    });
+    tokio::time::timeout(
+        Duration::from_secs(30),
+        faults.wait_until_worktree_after_git_paused(),
+    )
+    .await
+    .expect("timed out waiting for the post-Git barrier");
+    assert!(
+        worktrees
+            .join("cancelled-finalization")
+            .join("fixture.txt")
+            .exists(),
+        "the post-Git barrier must acknowledge the completed external effect"
+    );
+    let applying: Value = observer
+        .call(
+            Operation::WorktreeGetOperation,
+            &json!({"operation_id":second_operation}),
+        )
+        .await
+        .unwrap();
+    assert_eq!(applying["phase"], "applying");
+    assert_eq!(applying["selected"], false);
+    mutation.abort();
+    assert!(mutation.await.unwrap_err().is_cancelled());
+    faults.release_worktree_after_git();
+
+    let finalized = tokio::time::timeout(Duration::from_secs(30), async {
+        loop {
+            if let Ok(receipt) = observer
+                .call::<_, Value>(
+                    Operation::WorktreeGetOperation,
+                    &json!({"operation_id":second_operation}),
+                )
+                .await
+                && receipt["phase"] == "ready"
+            {
+                break receipt;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .expect("the post-Git operation did not finalize after client loss");
+    assert_eq!(finalized["selected"], true);
+    let repeated: Value = observer
+        .call(Operation::WorktreeCreate, &second_request)
+        .await
+        .unwrap();
+    assert_eq!(repeated, finalized);
+    assert_eq!(
+        relayterm_git::Git::default().list(&project).unwrap().len(),
+        3,
+        "post-Git recovery must not repeat either worktree creation"
     );
 
     drop(observer);
