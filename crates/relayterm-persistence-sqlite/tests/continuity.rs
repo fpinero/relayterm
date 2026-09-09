@@ -1,6 +1,6 @@
 use relayterm_application::{
-    Clock, DurableReadStore, EventNotifier, EventPageRequest, IdGenerator, LaunchContext, Request,
-    Service, Store, TaskHistoryItem, TaskHistoryPageRequest, Transaction,
+    Clock, DurableReadStore, EventNotifier, EventPageRequest, IdGenerator, IdPageRequest,
+    LaunchContext, Request, Service, Store, TaskHistoryItem, TaskHistoryPageRequest, Transaction,
 };
 use relayterm_domain::*;
 use relayterm_persistence_sqlite::{
@@ -336,12 +336,65 @@ fn complete_handover_journey_survives_reopen() {
             .unwrap();
         assert_eq!(repeated.committed.snapshot.revision(), ended_revision);
         assert!(repeated.committed.events.is_empty());
+        for summary in ["Historical correction one", "Historical correction two"] {
+            service
+                .execute(
+                    workspace_id,
+                    Actor::LocalUser,
+                    Request::Progress {
+                        task_id,
+                        summary: summary.into(),
+                        verification: "Reviewed after completion".into(),
+                    },
+                )
+                .await
+                .unwrap();
+        }
         let before = service.snapshot(workspace_id).await.unwrap();
-        assert_eq!(before.state().unwrap().progress().len(), 1);
+        assert_eq!(before.state().unwrap().progress().len(), 3);
         assert_eq!(before.state().unwrap().handovers().len(), 1);
         let revision = before.revision();
         let watermarked = store.consistent_snapshot(workspace_id).await.unwrap();
         assert_eq!(watermarked.snapshot.revision(), revision);
+        let progress = store
+            .progress_page(
+                workspace_id,
+                IdPageRequest::new(None, 2, Some(revision)).unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(progress.items.len(), 2);
+        assert!(progress.has_more);
+        let after = progress.items[1].record().id.as_uuid().into_bytes();
+        let progress_tail = store
+            .progress_page(
+                workspace_id,
+                IdPageRequest::new(Some(after), 2, Some(revision)).unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(progress_tail.items.len(), 1);
+        assert!(!progress_tail.has_more);
+        assert_eq!(progress_tail.revision, progress.revision);
+        let handovers = store
+            .handover_page(
+                workspace_id,
+                IdPageRequest::new(None, 1, Some(revision)).unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(handovers.items.len(), 1);
+        assert!(!handovers.has_more);
+        assert_eq!(
+            store
+                .progress_page(
+                    workspace_id,
+                    IdPageRequest::new(None, 2, Some(revision - 1)).unwrap(),
+                )
+                .await
+                .err(),
+            Some(Error::Conflict)
+        );
         let history = store
             .task_history_page(
                 workspace_id,

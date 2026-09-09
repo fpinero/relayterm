@@ -16,6 +16,15 @@ The current M11 gate uses the real `rt`, SQLite and authenticated native IPC to 
 
 Do not treat two passing invocations of the current entry point as evidence for the complete M11 journey. Candidate acceptance also requires every mapped retained gate, the fault and resource workloads, native offline observation and the manual matrix. Cleanup must remain bounded and target only fixture-owned children and private scratch paths.
 
+## Current risk investigations
+
+The M11 branch has reproduced two inherited resource concerns:
+
+- R1: a Git child can exit while a descendant retains its stdout handle. On Unix, each Git invocation now runs in an isolated process group, both output readers use nonblocking descriptors, and completion terminates remaining members before joining bounded captures. A regression starts a synthetic descendant that would write a delayed marker and verifies that the command returns promptly and the marker is never created. Native Windows descendant cleanup remains pending, so R1 is not closed.
+- R11: snapshot collection responses previously loaded all progress and handover rows before applying item and byte limits. These two append-only collections now use revision-checked SQLite pages with `LIMIT + 1`, stable opaque-ID cursors and the existing response byte limit. Persistence and real IPC regressions cover the page boundary, next cursor and stale revision. Other collection reads and mutation snapshots still reconstruct larger workspace working sets, so R11 and the 10,000-task or 100,000-history workload remain pending.
+
+These are candidate findings, not milestone completion evidence. Record native OS repetitions and measurements only after the complete candidate is available.
+
 ## Fault injection
 
 Test-only barriers prove admission before triggering a failure. Production CLI and protocol contain no fault switches.

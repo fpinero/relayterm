@@ -46,6 +46,48 @@ pub trait DurableReadStore: Sync {
         task_id: TaskId,
         request: TaskHistoryPageRequest,
     ) -> impl Future<Output = Result<TaskHistoryPage>> + Send;
+    fn progress_page(
+        &self,
+        workspace_id: WorkspaceId,
+        request: IdPageRequest,
+    ) -> impl Future<Output = Result<IdPage<ProgressEntry>>> + Send;
+    fn handover_page(
+        &self,
+        workspace_id: WorkspaceId,
+        request: IdPageRequest,
+    ) -> impl Future<Output = Result<IdPage<Handover>>> + Send;
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct IdPageRequest {
+    pub after_id: Option<[u8; 16]>,
+    pub limit: u16,
+    pub expected_revision: Option<u64>,
+}
+
+impl IdPageRequest {
+    pub fn new(
+        after_id: Option<[u8; 16]>,
+        limit: u16,
+        expected_revision: Option<u64>,
+    ) -> Result<Self> {
+        if limit == 0 || limit > 200 || expected_revision == Some(0) {
+            return Err(Error::Validation("page_limit"));
+        }
+        Ok(Self {
+            after_id,
+            limit,
+            expected_revision,
+        })
+    }
+}
+
+pub struct IdPage<T> {
+    pub revision: u64,
+    pub last_sequence: u64,
+    pub retained_from_sequence: u64,
+    pub items: Vec<T>,
+    pub has_more: bool,
 }
 
 #[derive(Clone)]

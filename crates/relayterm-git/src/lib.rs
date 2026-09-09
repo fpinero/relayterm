@@ -4,7 +4,11 @@ use std::ffi::{OsStr, OsString};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
-use std::sync::mpsc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+    mpsc,
+};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -391,6 +395,7 @@ impl Git {
             .env("GIT_OPTIONAL_LOCKS", "0")
             .env("GIT_NO_LAZY_FETCH", "1")
             .env("GIT_PROTOCOL_FROM_USER", "0");
+        isolate_process_group(&mut command);
         command
     }
 
@@ -405,6 +410,7 @@ impl Git {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
         let mut child = command.spawn().map_err(map_spawn)?;
+        let process_group = child.id();
         let stdout = child
             .stdout
             .take()
@@ -415,15 +421,21 @@ impl Git {
             .ok_or_else(|| Error::new(ErrorKind::Io))?;
         let (stdout_tx, stdout_rx) = mpsc::sync_channel(1);
         let (stderr_tx, stderr_rx) = mpsc::sync_channel(1);
+        let command_finished = Arc::new(AtomicBool::new(false));
+        let stdout_finished = command_finished.clone();
+        let stderr_finished = command_finished.clone();
         thread::spawn(move || {
-            let _ = stdout_tx.send(read_stream_bounded(stdout, MAX_STDOUT));
+            let _ = stdout_tx.send(read_stream_bounded(stdout, MAX_STDOUT, stdout_finished));
         });
         thread::spawn(move || {
-            let _ = stderr_tx.send(read_stream_bounded(stderr, MAX_STDERR));
+            let _ = stderr_tx.send(read_stream_bounded(stderr, MAX_STDERR, stderr_finished));
         });
-        let status = wait_bounded(&mut child, timeout)?;
+        let status = wait_bounded(&mut child, timeout);
+        terminate_process_group(process_group);
+        command_finished.store(true, Ordering::Release);
         let stdout = receive_stream(&stdout_rx, timeout)?;
         let stderr = receive_stream(&stderr_rx, timeout)?;
+        let status = status?;
         if !status.success() {
             let kind = classify_failure(&stderr);
             return Err(Error::new(kind));
@@ -432,7 +444,78 @@ impl Git {
     }
 }
 
-fn read_stream_bounded(mut input: impl Read, limit: usize) -> Result<Vec<u8>> {
+#[cfg(unix)]
+fn isolate_process_group(command: &mut Command) {
+    use std::os::unix::process::CommandExt;
+    command.process_group(0);
+}
+
+#[cfg(windows)]
+fn isolate_process_group(_: &mut Command) {}
+
+#[cfg(unix)]
+fn terminate_process_group(raw_pid: u32) {
+    let Ok(raw_pid) = i32::try_from(raw_pid) else {
+        return;
+    };
+    let Some(group) = rustix::process::Pid::from_raw(raw_pid) else {
+        return;
+    };
+    let _ = rustix::process::kill_process_group(group, rustix::process::Signal::KILL);
+}
+
+#[cfg(windows)]
+fn terminate_process_group(_: u32) {}
+
+#[cfg(unix)]
+fn read_stream_bounded(
+    mut input: impl Read + std::os::fd::AsFd,
+    limit: usize,
+    command_finished: Arc<AtomicBool>,
+) -> Result<Vec<u8>> {
+    use rustix::fs::{OFlags, fcntl_getfl, fcntl_setfl};
+
+    let flags = fcntl_getfl(&input).map_err(|_| Error::new(ErrorKind::Io))?;
+    fcntl_setfl(&input, flags | OFlags::NONBLOCK).map_err(|_| Error::new(ErrorKind::Io))?;
+    read_nonblocking(&mut input, limit, &command_finished)
+}
+
+#[cfg(unix)]
+fn read_nonblocking(
+    input: &mut impl Read,
+    limit: usize,
+    command_finished: &AtomicBool,
+) -> Result<Vec<u8>> {
+    let mut value = Vec::with_capacity(limit.min(64 * 1024));
+    let mut chunk = [0u8; 16 * 1024];
+    loop {
+        let read = match input.read(&mut chunk) {
+            Ok(read) => read,
+            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                if command_finished.load(Ordering::Acquire) {
+                    return Ok(value);
+                }
+                thread::sleep(Duration::from_millis(2));
+                continue;
+            }
+            Err(_) => return Err(Error::new(ErrorKind::Io)),
+        };
+        if read == 0 {
+            return Ok(value);
+        }
+        if value.len().saturating_add(read) > limit {
+            return Err(Error::new(ErrorKind::OutputLimit));
+        }
+        value.extend_from_slice(&chunk[..read]);
+    }
+}
+
+#[cfg(windows)]
+fn read_stream_bounded(
+    mut input: impl Read,
+    limit: usize,
+    _command_finished: Arc<AtomicBool>,
+) -> Result<Vec<u8>> {
     let mut value = Vec::with_capacity(limit.min(64 * 1024));
     let mut chunk = [0u8; 16 * 1024];
     loop {
@@ -1159,17 +1242,50 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
     #[test]
     fn stream_reader_stops_at_the_exact_output_budget() {
         assert_eq!(
-            read_stream_bounded(std::io::Cursor::new(vec![b'x'; 16]), 16).unwrap(),
+            read_nonblocking(
+                &mut std::io::Cursor::new(vec![b'x'; 16]),
+                16,
+                &AtomicBool::new(false),
+            )
+            .unwrap(),
             vec![b'x'; 16]
         );
         assert_eq!(
-            read_stream_bounded(std::io::Cursor::new(vec![b'x'; 17]), 16)
-                .unwrap_err()
-                .kind(),
+            read_nonblocking(
+                &mut std::io::Cursor::new(vec![b'x'; 17]),
+                16,
+                &AtomicBool::new(false),
+            )
+            .unwrap_err()
+            .kind(),
             ErrorKind::OutputLimit
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn completed_git_does_not_wait_for_a_descendant_holding_stdout() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let executable = directory.path().join("git-fixture");
+        std::fs::write(
+            &executable,
+            "#!/bin/sh\n(sleep 0.2; touch \"${0}.marker\") &\nprintf 'git version 2.99.0\\n'\n",
+        )
+        .unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let started = Instant::now();
+        assert_eq!(
+            Git::with_executable(executable).version().unwrap(),
+            "git version 2.99.0\n"
+        );
+        assert!(started.elapsed() < Duration::from_secs(2));
+        thread::sleep(Duration::from_millis(400));
+        assert!(!directory.path().join("git-fixture.marker").exists());
     }
 }

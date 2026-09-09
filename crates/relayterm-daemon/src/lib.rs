@@ -1888,6 +1888,9 @@ where
             return Err(invalid_field(wire::ErrorField::PageLimit));
         }
         let collection = forced.unwrap_or(p.collection.unwrap_or(Collection::Workspace));
+        if matches!(collection, Collection::Progress | Collection::Handovers) {
+            return self.history_collection_page(collection, p).await;
+        }
         let snap = self
             .reads
             .consistent_snapshot(self.workspace_id)
@@ -1938,6 +1941,89 @@ where
         Ok(
             json!({"revision":revision.to_string(),"last_sequence":snap.last_sequence.to_string(),"retained_from_sequence":snap.retained_from_sequence.to_string(),"collection":collection,"items":page,"next_after_id":next_after_id}),
         )
+    }
+
+    async fn history_collection_page(
+        &self,
+        collection: Collection,
+        params: SnapshotParams,
+    ) -> Result<Value, wire::ErrorBody> {
+        let after_id = params
+            .after_id
+            .as_deref()
+            .map(str::parse::<uuid::Uuid>)
+            .transpose()
+            .map_err(|_| invalid())?
+            .map(uuid::Uuid::into_bytes);
+        let expected_revision = params
+            .expected_revision
+            .as_deref()
+            .map(|value| decimal(value, false))
+            .transpose()?;
+        let request =
+            relayterm_application::IdPageRequest::new(after_id, params.limit, expected_revision)
+                .map_err(map_domain_error)?;
+        let (revision, last_sequence, retained_from_sequence, items, storage_has_more) =
+            match collection {
+                Collection::Progress => {
+                    let page = self
+                        .reads
+                        .progress_page(self.workspace_id, request)
+                        .await
+                        .map_err(map_domain_error)?;
+                    (
+                        page.revision,
+                        page.last_sequence,
+                        page.retained_from_sequence,
+                        page.items.iter().map(progress_dto).collect::<Vec<_>>(),
+                        page.has_more,
+                    )
+                }
+                Collection::Handovers => {
+                    let page = self
+                        .reads
+                        .handover_page(self.workspace_id, request)
+                        .await
+                        .map_err(map_domain_error)?;
+                    (
+                        page.revision,
+                        page.last_sequence,
+                        page.retained_from_sequence,
+                        page.items.iter().map(handover_dto).collect::<Vec<_>>(),
+                        page.has_more,
+                    )
+                }
+                _ => return Err(invalid()),
+            };
+        let available = items.len();
+        let mut page = Vec::with_capacity(available);
+        let mut encoded_bytes = 2_usize;
+        for item in items {
+            let item_bytes = serde_json::to_vec(&item).map_err(|_| invalid())?.len();
+            let separator = usize::from(!page.is_empty());
+            let next_bytes = encoded_bytes
+                .checked_add(separator)
+                .and_then(|value| value.checked_add(item_bytes))
+                .ok_or_else(resource)?;
+            if next_bytes > wire::COLLECTION_PAGE_BYTES {
+                break;
+            }
+            encoded_bytes = next_bytes;
+            page.push(item);
+        }
+        if page.is_empty() && available != 0 {
+            return Err(resource());
+        }
+        let has_more = storage_has_more || page.len() < available;
+        let next_after_id = has_more.then(|| page.last().map(entity_sort_key)).flatten();
+        Ok(json!({
+            "revision": revision.to_string(),
+            "last_sequence": last_sequence.to_string(),
+            "retained_from_sequence": retained_from_sequence.to_string(),
+            "collection": collection,
+            "items": page,
+            "next_after_id": next_after_id
+        }))
     }
 
     async fn event_list(&self, params: &Value) -> Result<Value, wire::ErrorBody> {

@@ -1,7 +1,7 @@
 use crate::{decode_counter, decode_timestamp, encode_counter, encode_timestamp, map_sqlx};
 use relayterm_application::{
-    Committed, DurableReadStore, EventPage, EventPageRequest, Snapshot, Store, TaskHistoryEntry,
-    TaskHistoryItem, TaskHistoryPage, TaskHistoryPageRequest,
+    Committed, DurableReadStore, EventPage, EventPageRequest, IdPage, IdPageRequest, Snapshot,
+    Store, TaskHistoryEntry, TaskHistoryItem, TaskHistoryPage, TaskHistoryPageRequest,
     Transaction as ApplicationTransaction, WatermarkedSnapshot, WriteBatch,
 };
 use relayterm_domain::*;
@@ -196,6 +196,137 @@ impl DurableReadStore for SqliteStore {
         let _ = sqlx::query("ROLLBACK").execute(&mut *connection).await;
         result
     }
+
+    async fn progress_page(
+        &self,
+        workspace_id: WorkspaceId,
+        request: IdPageRequest,
+    ) -> Result<IdPage<ProgressEntry>> {
+        let mut connection = self.pool.acquire().await.map_err(domain_storage)?;
+        sqlx::query("BEGIN")
+            .execute(&mut *connection)
+            .await
+            .map_err(domain_storage)?;
+        let result = load_progress_page(&mut connection, workspace_id, request).await;
+        let _ = sqlx::query("ROLLBACK").execute(&mut *connection).await;
+        result
+    }
+
+    async fn handover_page(
+        &self,
+        workspace_id: WorkspaceId,
+        request: IdPageRequest,
+    ) -> Result<IdPage<Handover>> {
+        let mut connection = self.pool.acquire().await.map_err(domain_storage)?;
+        sqlx::query("BEGIN")
+            .execute(&mut *connection)
+            .await
+            .map_err(domain_storage)?;
+        let result = load_handover_page(&mut connection, workspace_id, request).await;
+        let _ = sqlx::query("ROLLBACK").execute(&mut *connection).await;
+        result
+    }
+}
+
+async fn page_metadata(
+    connection: &mut SqliteConnection,
+    workspace_id: WorkspaceId,
+    expected_revision: Option<u64>,
+) -> Result<(u64, u64, u64)> {
+    let revision_bytes: Vec<u8> =
+        sqlx::query_scalar("SELECT revision FROM workspace_meta WHERE workspace_id=?")
+            .bind(id_bytes(workspace_id.as_uuid()))
+            .fetch_optional(&mut *connection)
+            .await
+            .map_err(domain_storage)?
+            .ok_or(Error::Reference)?;
+    let revision = decode_counter(&revision_bytes).map_err(|_| Error::Integrity)?;
+    if expected_revision.is_some_and(|expected| expected != revision) {
+        return Err(Error::Conflict);
+    }
+    let (last_sequence, retained_from_sequence) = load_watermarks(connection, workspace_id).await?;
+    Ok((revision, last_sequence, retained_from_sequence))
+}
+
+async fn load_progress_page(
+    connection: &mut SqliteConnection,
+    workspace_id: WorkspaceId,
+    request: IdPageRequest,
+) -> Result<IdPage<ProgressEntry>> {
+    let (revision, last_sequence, retained_from_sequence) =
+        page_metadata(connection, workspace_id, request.expected_revision).await?;
+    let rows = if let Some(after) = request.after_id {
+        sqlx::query(
+            "SELECT * FROM progress_entries WHERE workspace_id=? AND progress_id>? ORDER BY progress_id LIMIT ?",
+        )
+        .bind(id_bytes(workspace_id.as_uuid()))
+        .bind(after.to_vec())
+        .bind(i64::from(request.limit) + 1)
+        .fetch_all(&mut *connection)
+        .await
+        .map_err(domain_storage)?
+    } else {
+        sqlx::query(
+            "SELECT * FROM progress_entries WHERE workspace_id=? ORDER BY progress_id LIMIT ?",
+        )
+        .bind(id_bytes(workspace_id.as_uuid()))
+        .bind(i64::from(request.limit) + 1)
+        .fetch_all(&mut *connection)
+        .await
+        .map_err(domain_storage)?
+    };
+    let has_more = rows.len() > usize::from(request.limit);
+    let items = rows
+        .into_iter()
+        .take(usize::from(request.limit))
+        .map(|row| decode_progress(row, workspace_id))
+        .collect::<Result<Vec<_>>>()?;
+    Ok(IdPage {
+        revision,
+        last_sequence,
+        retained_from_sequence,
+        items,
+        has_more,
+    })
+}
+
+async fn load_handover_page(
+    connection: &mut SqliteConnection,
+    workspace_id: WorkspaceId,
+    request: IdPageRequest,
+) -> Result<IdPage<Handover>> {
+    let (revision, last_sequence, retained_from_sequence) =
+        page_metadata(connection, workspace_id, request.expected_revision).await?;
+    let rows = if let Some(after) = request.after_id {
+        sqlx::query(
+            "SELECT * FROM handovers WHERE workspace_id=? AND handover_id>? ORDER BY handover_id LIMIT ?",
+        )
+        .bind(id_bytes(workspace_id.as_uuid()))
+        .bind(after.to_vec())
+        .bind(i64::from(request.limit) + 1)
+        .fetch_all(&mut *connection)
+        .await
+        .map_err(domain_storage)?
+    } else {
+        sqlx::query("SELECT * FROM handovers WHERE workspace_id=? ORDER BY handover_id LIMIT ?")
+            .bind(id_bytes(workspace_id.as_uuid()))
+            .bind(i64::from(request.limit) + 1)
+            .fetch_all(&mut *connection)
+            .await
+            .map_err(domain_storage)?
+    };
+    let has_more = rows.len() > usize::from(request.limit);
+    let mut items = Vec::with_capacity(rows.len().min(usize::from(request.limit)));
+    for row in rows.into_iter().take(usize::from(request.limit)) {
+        items.push(decode_handover(connection, row, workspace_id).await?);
+    }
+    Ok(IdPage {
+        revision,
+        last_sequence,
+        retained_from_sequence,
+        items,
+        has_more,
+    })
 }
 
 async fn load_watermarks(
