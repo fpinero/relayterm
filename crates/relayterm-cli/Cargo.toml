@@ -32,3 +32,6 @@ relayterm-pty = { version = "0.1.0", path = "../relayterm-pty" }
 sqlx.workspace = true
 vt100.workspace = true
 tempfile.workspace = true
+
+[target.'cfg(windows)'.dev-dependencies]
+netstat2 = "0.11.2"

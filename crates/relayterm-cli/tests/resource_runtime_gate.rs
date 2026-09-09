@@ -34,7 +34,6 @@ fn synthetic_resource_flood() {
         output.write_all(b"\r\nresource-frame\r\n").unwrap();
         output.flush().unwrap();
         bytes += u64::try_from(chunk.len() + b"\r\nresource-frame\r\n".len()).unwrap();
-        thread::sleep(Duration::from_millis(60));
     }
     fs::write(report, format!("{bytes} {}", started.elapsed().as_millis())).unwrap();
 }
