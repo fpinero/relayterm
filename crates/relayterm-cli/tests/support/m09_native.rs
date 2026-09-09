@@ -211,7 +211,19 @@ pub fn admin_output(root: &Path, private: &Path, args: &[&str]) -> std::process:
         let _ = output_tx.send(result);
     });
     let deadline = Instant::now() + DEADLINE;
+    let mut captured = None;
     let status = loop {
+        if captured.is_none()
+            && let Ok(result) = output_rx.try_recv()
+        {
+            let bytes = result.expect("administrative output could not be read");
+            if bytes.len() > OUTPUT_LIMIT {
+                let _ = child.kill();
+                let _ = child.wait();
+                panic!("administrative output exceeded its bound");
+            }
+            captured = Some(bytes);
+        }
         if let Some(status) = child.try_wait().unwrap() {
             break status;
         }
@@ -221,10 +233,12 @@ pub fn admin_output(root: &Path, private: &Path, args: &[&str]) -> std::process:
         }
         std::thread::sleep(Duration::from_millis(20));
     };
-    let stdout = output_rx
-        .recv_timeout(deadline.saturating_duration_since(Instant::now()))
-        .expect("administrative output did not close before its deadline")
-        .expect("administrative output could not be read");
+    let stdout = captured.unwrap_or_else(|| {
+        output_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("administrative output remained open after the command exited")
+            .expect("administrative output could not be read")
+    });
     assert!(
         stdout.len() <= OUTPUT_LIMIT,
         "administrative output exceeded its bound"
