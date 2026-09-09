@@ -83,6 +83,15 @@ pub struct Git {
     executable: PathBuf,
     read_timeout: Duration,
     create_timeout: Duration,
+    #[cfg(feature = "test-hooks")]
+    add_barrier: Option<AddBarrier>,
+}
+
+#[cfg(feature = "test-hooks")]
+#[derive(Clone, Debug)]
+struct AddBarrier {
+    ready: PathBuf,
+    release: PathBuf,
 }
 
 impl Default for Git {
@@ -91,6 +100,8 @@ impl Default for Git {
             executable: PathBuf::from("git"),
             read_timeout: Duration::from_secs(5),
             create_timeout: Duration::from_secs(60),
+            #[cfg(feature = "test-hooks")]
+            add_barrier: None,
         }
     }
 }
@@ -101,6 +112,13 @@ impl Git {
             executable,
             ..Self::default()
         }
+    }
+
+    /// Installs a deterministic pre-effect barrier for native integration tests.
+    #[cfg(feature = "test-hooks")]
+    pub fn with_add_barrier(mut self, ready: PathBuf, release: PathBuf) -> Self {
+        self.add_barrier = Some(AddBarrier { ready, release });
+        self
     }
 
     pub fn version(&self) -> Result<String> {
@@ -213,6 +231,17 @@ impl Git {
             git_argument_path(destination),
             OsString::from(commit),
         ];
+        #[cfg(feature = "test-hooks")]
+        if let Some(barrier) = &self.add_barrier {
+            std::fs::write(&barrier.ready, b"ready").map_err(|_| Error::new(ErrorKind::Io))?;
+            let deadline = Instant::now() + self.create_timeout;
+            while !barrier.release.exists() {
+                if Instant::now() >= deadline {
+                    return Err(Error::new(ErrorKind::Timeout));
+                }
+                thread::sleep(Duration::from_millis(10));
+            }
+        }
         self.run_quiet(
             root,
             args.iter().map(OsString::as_os_str),

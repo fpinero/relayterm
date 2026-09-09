@@ -12,7 +12,7 @@ Run the M11 gate twice as independent commands on every stable native runner:
 cargo test -p relayterm-cli --test hardening_gate --locked -- --nocapture --test-threads=1
 ```
 
-The M11 gate compiles the retained real TUI and Git worktree scenarios into one candidate-level target, in addition to checking the public resource constants. It therefore uses the real `rt`, SQLite, authenticated native IPC, native PTY or ConPTY sessions, and installed Git. The original M08 and M10 targets remain in CI for focused regression evidence. Private backup and restore has its own required target:
+The M11 gate compiles the retained real TUI and Git worktree scenarios into one candidate-level target, in addition to checking the public resource constants. The worktree scenario now uses one shared durable workspace to create two worktrees through the TUI, launch three real sessions in those worktrees, exercise an exclusive claim, append progress, prepare an atomic handover, resume and complete through another instance, then restart and verify the task and worktrees. It therefore uses the real `rt`, SQLite, authenticated native IPC, native PTY or ConPTY sessions, and installed Git. The original M08 and M10 targets remain in CI for focused regression evidence. Private backup and restore has its own required target:
 
 ```text
 cargo test -p relayterm-cli --test backup_restore --locked -- --nocapture --test-threads=1
@@ -30,7 +30,7 @@ The durable scale gate inserts 10,000 tasks plus 100,000 progress records and th
 cargo test -p relayterm-persistence-sqlite --test resource_gate --locked -- --nocapture --test-threads=1
 ```
 
-The composed scenarios cover the product boundaries but do not yet implement every step as one shared-state journey. The claim race barrier, combined worktree coordination, complete declared load, fault assertions and candidate evidence remain pending.
+The terminal portion of the retained TUI scenario exercises live input, resize, history, detach and reattach with three sessions, while the shared worktree journey exercises task coordination and durable restart. The retained durable slice releases two independent native clients through an explicit barrier to race one ready-task claim and verifies exactly one winner. Combining every terminal action and every fault assertion into the same workspace remains pending, as do the complete declared load and candidate evidence.
 
 Each native CI command and each required gate repetition is a separate workflow step. Compiler installation, compiler reporting and Cargo reporting are also separate steps, so a failed native command on PowerShell cannot be hidden by a later successful command. The repository audit checks this workflow structure as part of candidate review.
 
@@ -65,7 +65,13 @@ The abrupt SQLite gate runs a separate native server process with the production
 cargo test -p relayterm-daemon --test sqlite_kill_gate --features test-hooks --locked -- --nocapture --test-threads=1
 ```
 
-Remaining required fault work includes the complete Git phase cancellation matrix.
+The native Git cancellation gate pauses an admitted worktree operation after all checks and immediately before `git worktree add`. The requesting client is dropped at that exact barrier, then Git is released. A separate authenticated client observes the stable operation receipt, verifies the checkout and task association, and resubmits the same operation ID without repeating the external effect. The adapter and barrier use the production Git argument array, lock and verification path, and the barrier is absent from ordinary builds. Run it twice on each stable native target:
+
+```text
+cargo test -p relayterm-daemon --test worktree_cancellation_gate --features test-hooks --locked -- --nocapture --test-threads=1
+```
+
+Remaining required fault work includes cancellation before admission and after Git returns but before the final SQLite commit in one explicit matrix. The existing worktree recovery gate covers a failure after Git and a real final-commit rejection, with conservative explicit reconciliation and no repeated `worktree add`.
 
 Every fault test performs an independent healthy request or session action after the failure. A test fails if the daemon crashes, an unrelated session stops, a transaction becomes partial, a result is retried automatically, or a timeout leaves an unbounded reader, task, handle or child.
 

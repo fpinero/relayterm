@@ -7,7 +7,7 @@ license.workspace = true
 publish.workspace = true
 
 [features]
-test-hooks = ["relayterm-persistence-sqlite/test-hooks"]
+test-hooks = ["relayterm-git/test-hooks", "relayterm-persistence-sqlite/test-hooks"]
 
 [dependencies]
 relayterm-application = { version = "0.1.0", path = "../relayterm-application" }

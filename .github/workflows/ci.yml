@@ -110,6 +110,14 @@ jobs:
         if: matrix.toolchain == 'stable'
         timeout-minutes: 5
         run: cargo test -p relayterm-daemon --test sqlite_kill_gate --features test-hooks --locked -- --nocapture --test-threads=1
+      - name: Test M11 Git cancellation, pass 1
+        if: matrix.toolchain == 'stable'
+        timeout-minutes: 5
+        run: cargo test -p relayterm-daemon --test worktree_cancellation_gate --features test-hooks --locked -- --nocapture --test-threads=1
+      - name: Test M11 Git cancellation, pass 2
+        if: matrix.toolchain == 'stable'
+        timeout-minutes: 5
+        run: cargo test -p relayterm-daemon --test worktree_cancellation_gate --features test-hooks --locked -- --nocapture --test-threads=1
       - name: Test M11 durable scale, pass 1
         if: matrix.toolchain == 'stable'
         timeout-minutes: 5

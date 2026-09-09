@@ -315,6 +315,7 @@ pub struct WorkspaceServer<S, C, I, N> {
     resolver_jobs: Arc<Semaphore>,
     worktree_parent: Option<PathBuf>,
     git_admissions: Arc<Semaphore>,
+    git: relayterm_git::Git,
 }
 impl<S, C, I, N> WorkspaceServer<S, C, I, N>
 where
@@ -358,6 +359,7 @@ where
             resolver_jobs: Arc::new(Semaphore::new(4)),
             worktree_parent: None,
             git_admissions: Arc::new(Semaphore::new(2)),
+            git: relayterm_git::Git::default(),
         }
     }
     pub fn with_event_wakeups(mut self, receiver: watch::Receiver<u64>) -> Self {
@@ -377,6 +379,12 @@ where
     }
     pub fn with_worktrees(mut self, parent: PathBuf) -> Self {
         self.worktree_parent = Some(parent);
+        self
+    }
+    /// Replaces the Git adapter for deterministic native integration tests.
+    #[cfg(feature = "test-hooks")]
+    pub fn with_git(mut self, git: relayterm_git::Git) -> Self {
+        self.git = git;
         self
     }
     pub fn fault_injector(&self) -> ServerFaults {
@@ -1000,10 +1008,10 @@ where
             .record()
             .project_root
             .clone();
-        let result =
-            tokio::task::spawn_blocking(move || relayterm_git::Git::default().inspect(&root))
-                .await
-                .map_err(|_| unavailable())?;
+        let git = self.git.clone();
+        let result = tokio::task::spawn_blocking(move || git.inspect(&root))
+            .await
+            .map_err(|_| unavailable())?;
         match result {
             Ok(repository) => Ok(
                 json!({"status":"ready","head_commit":repository.head_commit,"default_parent_display":self.worktree_parent.as_ref().map(|path|path.to_string_lossy().into_owned())}),
@@ -1090,8 +1098,8 @@ where
         let discovery_branch = params.branch_name.clone();
         let repository = tokio::task::spawn_blocking({
             let root = project_root.clone();
+            let git = self.git.clone();
             move || {
-                let git = relayterm_git::Git::default();
                 let repository = git.inspect(&root)?;
                 let commit = git.resolve_commit(&root, &discovery_base)?;
                 git.branch_available(&root, &discovery_branch)?;
@@ -1198,8 +1206,8 @@ where
         let add_result = tokio::task::spawn_blocking({
             let root = project_root;
             let destination = destination.clone();
+            let git = self.git.clone();
             move || {
-                let git = relayterm_git::Git::default();
                 git.add(&root, &destination, &add_branch, &add_commit)?;
                 git.verify_created_worktree(
                     &root,
@@ -1365,8 +1373,9 @@ where
             return Err(map_domain_error(domain::Error::State));
         }
         let record = intent.record().clone();
+        let git = self.git.clone();
         tokio::task::spawn_blocking(move || {
-            relayterm_git::Git::default().verify_worktree(
+            git.verify_worktree(
                 &record.repository_identity,
                 &record.destination,
                 &record.branch,
@@ -1484,15 +1493,14 @@ where
                             return Err(unavailable());
                         }
                         let record = worktree.record().clone();
+                        let git = self.git.clone();
                         tokio::task::spawn_blocking(move || {
                             let path = record.checkout_path.canonicalize().map_err(|_| ())?;
-                            let repository = relayterm_git::Git::default()
-                                .inspect(&path)
-                                .map_err(|_| ())?;
+                            let repository = git.inspect(&path).map_err(|_| ())?;
                             if repository.common_directory != record.common_directory_identity {
                                 return Err(());
                             }
-                            let branch = relayterm_git::Git::default()
+                            let branch = git
                                 .list(&path)
                                 .map_err(|_| ())?
                                 .into_iter()

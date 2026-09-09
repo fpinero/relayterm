@@ -255,6 +255,158 @@ fn real_tui_creates_and_launches_two_task_worktrees() {
             .count()
             >= 2
     );
+    let coordinated_task = tasks[0]["id"].as_str().unwrap();
+    let owner = sessions
+        .iter()
+        .find(|instance| instance["task_id"] == coordinated_task)
+        .unwrap()["id"]
+        .as_str()
+        .unwrap();
+    let successor = sessions
+        .iter()
+        .find(|instance| instance["id"] != owner)
+        .unwrap()["id"]
+        .as_str()
+        .unwrap();
+    let revision = command(&repository, &home, &["task", "list"])["revision"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    command(
+        &repository,
+        &home,
+        &[
+            "task",
+            "transition",
+            coordinated_task,
+            "ready",
+            "--expected-revision",
+            &revision,
+        ],
+    );
+    command(
+        &repository,
+        &home,
+        &["task", "claim", coordinated_task, "--instance", owner],
+    );
+    rejected(
+        &repository,
+        &home,
+        &["task", "claim", coordinated_task, "--instance", successor],
+    );
+    let progress = temporary.path().join("integrated-progress.json");
+    std::fs::write(
+        &progress,
+        json!({
+            "summary":"Work continued in the isolated checkout",
+            "verification":"Native M11 integrated journey"
+        })
+        .to_string(),
+    )
+    .unwrap();
+    command(
+        &repository,
+        &home,
+        &[
+            "progress",
+            "append",
+            coordinated_task,
+            "--file",
+            progress.to_str().unwrap(),
+        ],
+    );
+    let revision = command(&repository, &home, &["task", "list"])["revision"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let handover = temporary.path().join("integrated-handover.json");
+    std::fs::write(
+        &handover,
+        json!({
+            "summary":"Resume the isolated task in another session",
+            "decisions":"Keep the selected worktree",
+            "changed_paths":["fixture.txt"],
+            "verification_performed":"Native M11 integrated journey",
+            "open_questions":"None",
+            "recommended_next_action":"Claim and complete"
+        })
+        .to_string(),
+    )
+    .unwrap();
+    command(
+        &repository,
+        &home,
+        &[
+            "handover",
+            "create",
+            coordinated_task,
+            "--expected-revision",
+            &revision,
+            "--file",
+            handover.to_str().unwrap(),
+        ],
+    );
+    command(
+        &repository,
+        &home,
+        &["task", "claim", coordinated_task, "--instance", successor],
+    );
+    let revision = command(&repository, &home, &["task", "list"])["revision"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    command(
+        &repository,
+        &home,
+        &[
+            "task",
+            "transition",
+            coordinated_task,
+            "done",
+            "--expected-revision",
+            &revision,
+        ],
+    );
+    assert_eq!(
+        command(&repository, &home, &["task", "get", coordinated_task])["status"],
+        "done"
+    );
+    let history_revision = command(&repository, &home, &["task", "list"])["revision"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    assert!(
+        command(
+            &repository,
+            &home,
+            &[
+                "task",
+                "history",
+                coordinated_task,
+                "--expected-revision",
+                &history_revision,
+            ],
+        )["entries"]
+            .as_array()
+            .is_some_and(|entries| entries.len() >= 2)
+    );
+    assert_eq!(
+        command(
+            &repository,
+            &home,
+            &[
+                "task",
+                "claims",
+                coordinated_task,
+                "--expected-revision",
+                &history_revision,
+            ],
+        )["entries"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
     assert_eq!(
         std::fs::read_to_string(repository.join("fixture.txt")).unwrap(),
         "source\n"
@@ -266,8 +418,19 @@ fn real_tui_creates_and_launches_two_task_worktrees() {
         &home,
         &["daemon", "stop", "--terminate-sessions"],
     );
+    command(&repository, &home, &["workspace", "open"]);
+    assert_eq!(
+        command(&repository, &home, &["task", "get", coordinated_task])["status"],
+        "done"
+    );
+    assert_eq!(worktree_items(&repository, &home).len(), 2);
+    command(
+        &repository,
+        &home,
+        &["daemon", "stop", "--terminate-sessions"],
+    );
     eprintln!(
-        "M11 TUI worktree gate os={} arch={} elapsed_ms={} tasks=2 worktrees=2 sessions=3",
+        "M11 integrated TUI worktree gate os={} arch={} elapsed_ms={} tasks=2 worktrees=2 sessions=3 claims=2 restart=1",
         std::env::consts::OS,
         std::env::consts::ARCH,
         started.elapsed().as_millis()
