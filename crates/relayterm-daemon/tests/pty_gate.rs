@@ -91,6 +91,12 @@ fn interactive_fixture_child() {
     }
 }
 
+#[test]
+#[ignore]
+fn immediate_exit_child() {
+    std::process::exit(23);
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
     let scenario_complete = Arc::new(AtomicBool::new(false));
@@ -165,6 +171,43 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
         .record()
         .id
         .to_string();
+    let immediate_outcome = prepared
+        .service()
+        .execute(
+            workspace,
+            Actor::LocalUser,
+            Request::AddDefinition {
+                display_name: "Immediate exit fixture".into(),
+                command: std::env::current_exe()
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned(),
+                arguments: vec![
+                    "immediate_exit_child".into(),
+                    "--exact".into(),
+                    "--ignored".into(),
+                    "--nocapture".into(),
+                    "--test-threads=1".into(),
+                ],
+                environment_allowlist: Vec::new(),
+                capabilities: vec!["interactive_terminal".into()],
+                enabled: true,
+            },
+        )
+        .await
+        .unwrap();
+    let immediate_definition = immediate_outcome
+        .committed
+        .snapshot
+        .state()
+        .unwrap()
+        .definitions()
+        .iter()
+        .find(|definition| definition.record().display_name == "Immediate exit fixture")
+        .unwrap()
+        .record()
+        .id
+        .to_string();
     let (ready_tx, ready_rx) = mpsc::channel();
     let server = tokio::spawn(prepared.run_with_ready(move || ready_tx.send(()).unwrap()));
     ready_rx.recv_timeout(Duration::from_secs(5)).unwrap();
@@ -229,6 +272,16 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
     let environment_text = visible_text(&environment);
     assert!(environment_text.contains("fixture-term:true"));
     eprintln!("M07 PTY gate: initial terminal output reconstructed");
+    let immediate = create_definition_session(
+        &client,
+        &immediate_definition,
+        &uuid::Uuid::new_v4().to_string(),
+    )
+    .await;
+    let immediate_state = wait_for_session_status(&client, &immediate, "exited").await;
+    assert_eq!(immediate_state["exit_code"], 23);
+    let first_state = wait_for_session_status(&client, &first, "running").await;
+    assert_eq!(first_state["status"], "running");
     let repeated = create_definition_session(&client, &definition, &first_receipt).await;
     assert_eq!(repeated, first, "a launch receipt must be idempotent");
     assert!(
@@ -630,6 +683,33 @@ async fn wait_for_text(client: &relayterm_client::Client, session: &str, expecte
         assert!(
             Instant::now() < deadline,
             "terminal output marker {expected:?} did not arrive; visible text: {text:?}"
+        );
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+}
+
+async fn wait_for_session_status(
+    client: &relayterm_client::Client,
+    session: &str,
+    expected: &str,
+) -> Value {
+    let deadline = Instant::now() + output_wait_timeout();
+    loop {
+        let value: Value = client
+            .call(Operation::SessionList, &json!({"limit":50}))
+            .await
+            .unwrap();
+        if let Some(item) = value["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|item| item["session_id"] == session && item["status"] == expected)
+        {
+            return item.clone();
+        }
+        assert!(
+            Instant::now() < deadline,
+            "session {session} did not reach {expected}"
         );
         tokio::time::sleep(Duration::from_millis(20)).await;
     }

@@ -55,7 +55,9 @@ The real protocol gate sends partial prefixes and bodies, an oversized length he
 
 The native protocol fault gate also pauses the real connection writer at a deterministic event boundary, fills the item-bounded queue through committed progress operations, and verifies that a nonreading subscriber receives `slow_subscriber` resynchronization after release. An unrelated authenticated client remains responsive while the subscriber is saturated.
 
-Remaining required boundaries include SQLite write and notification loss, immediate child failure after spawn, daemon loss during a transaction, and the complete Git phase cancellation matrix.
+The native PTY gate launches an additional executable that exits with status 23 immediately after spawn. Relayterm records an observed `exited` instance with that exact status, while an already running independent session remains usable. This distinguishes a real child exit from pre-admission resolution failure and supervisor failure.
+
+Remaining required boundaries include SQLite write and notification loss, daemon loss during a transaction, and the complete Git phase cancellation matrix.
 
 Every fault test performs an independent healthy request or session action after the failure. A test fails if the daemon crashes, an unrelated session stops, a transaction becomes partial, a result is retried automatically, or a timeout leaves an unbounded reader, task, handle or child.
 
