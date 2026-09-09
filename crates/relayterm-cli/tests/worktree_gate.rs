@@ -2,15 +2,11 @@
 #[allow(dead_code)]
 mod native;
 
-use native::{OuterTerminal, wait_until};
+use native::{OuterTerminal, admin_output, wait_until};
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Instant;
-
-fn rt() -> PathBuf {
-    PathBuf::from(env!("CARGO_BIN_EXE_rt"))
-}
 
 fn temporary() -> tempfile::TempDir {
     let mut builder = tempfile::Builder::new();
@@ -32,15 +28,7 @@ fn temporary() -> tempfile::TempDir {
 }
 
 fn command(root: &Path, home: &Path, args: &[&str]) -> Value {
-    let output = Command::new(rt())
-        .args(["--workspace"])
-        .arg(root)
-        .args(["--home"])
-        .arg(home)
-        .args(["--format", "json"])
-        .args(args)
-        .output()
-        .unwrap();
+    let output = admin_output(root, home, args);
     let value: Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|_| {
         panic!(
             "rt returned invalid JSON with status {:?}",
@@ -53,15 +41,7 @@ fn command(root: &Path, home: &Path, args: &[&str]) -> Value {
 }
 
 fn rejected(root: &Path, home: &Path, args: &[&str]) {
-    let output = Command::new(rt())
-        .args(["--workspace"])
-        .arg(root)
-        .args(["--home"])
-        .arg(home)
-        .args(["--format", "json"])
-        .args(args)
-        .output()
-        .unwrap();
+    let output = admin_output(root, home, args);
     assert!(
         !output.status.success(),
         "rt unexpectedly succeeded for {args:?}"
