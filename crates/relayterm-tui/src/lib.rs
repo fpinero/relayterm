@@ -860,7 +860,7 @@ fn native_text_path(value: &str) -> Result<relayterm_protocol::NativePathDto, St
     #[cfg(unix)]
     let (encoding, bytes) = ("unix_bytes_v1", value.as_bytes().to_vec());
     #[cfg(windows)]
-    let (encoding, bytes) = (
+    let (encoding, bytes): (&str, Vec<u8>) = (
         "windows_utf16le_v1",
         value.encode_utf16().flat_map(u16::to_le_bytes).collect(),
     );
