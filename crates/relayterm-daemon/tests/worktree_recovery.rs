@@ -170,7 +170,7 @@ async fn explicit_reconciliation_finishes_a_confirmed_add_without_repeating_git(
     let server = WorkspaceServer::bind(workspace, &endpoint, service, store)
         .await
         .unwrap()
-        .with_worktrees(worktrees);
+        .with_worktrees(worktrees.clone());
     let (shutdown, receiver) = watch::channel(false);
     let running = tokio::spawn(server.run(receiver));
     let client = Client::connect(&endpoint, wire_workspace).await.unwrap();
@@ -195,6 +195,87 @@ async fn explicit_reconciliation_finishes_a_confirmed_add_without_repeating_git(
         relayterm_git::Git::default().list(&project).unwrap().len(),
         2,
         "reconciliation must not invoke worktree add again"
+    );
+
+    let current: Value = client
+        .call(
+            Operation::WorkspaceGetSnapshot,
+            &json!({"collection":"tasks","limit":50}),
+        )
+        .await
+        .unwrap();
+    let created: Value = client
+        .call(
+            Operation::TaskCreate,
+            &json!({"expected_revision":current["revision"],"title":"Recover final commit","description":"","priority":"normal","scope_paths":[],"acceptance_notes":"","dependency_ids":[]}),
+        )
+        .await
+        .unwrap();
+    let second_task_id = created["entity_ids"][0].as_str().unwrap();
+    let ready: Value = client
+        .call(
+            Operation::TaskTransition,
+            &json!({"task_id":second_task_id,"expected_revision":created["revision"],"status":"ready"}),
+        )
+        .await
+        .unwrap();
+    sqlx::query(
+        "CREATE TRIGGER inject_worktree_finalize_failure BEFORE INSERT ON worktrees BEGIN SELECT RAISE(ABORT, 'synthetic_worktree_finalize_failure'); END",
+    )
+    .execute(reopened.pool())
+    .await
+    .unwrap();
+    let second_operation_id = "00000000-0000-4000-8000-000000001811";
+    let failed = client
+        .call::<_, Value>(
+            Operation::WorktreeCreate,
+            &json!({"payload_version":1,"operation_id":second_operation_id,"task_id":second_task_id,"expected_revision":ready["revision"],"base_ref":"HEAD","branch_name":"rt/final-commit-recovery","destination_leaf":"final-commit-recovery","parent":null}),
+        )
+        .await;
+    assert!(failed.is_err());
+    let applying: Value = client
+        .call(
+            Operation::WorktreeGetOperation,
+            &json!({"operation_id":second_operation_id}),
+        )
+        .await
+        .unwrap();
+    assert_eq!(applying["phase"], "applying");
+    assert_eq!(applying["selected"], false);
+    assert!(
+        worktrees
+            .join("final-commit-recovery")
+            .join("fixture.txt")
+            .exists()
+    );
+    assert_eq!(
+        relayterm_git::Git::default().list(&project).unwrap().len(),
+        3
+    );
+    sqlx::query("DROP TRIGGER inject_worktree_finalize_failure")
+        .execute(reopened.pool())
+        .await
+        .unwrap();
+    let current: Value = client
+        .call(
+            Operation::WorkspaceGetSnapshot,
+            &json!({"collection":"tasks","limit":50}),
+        )
+        .await
+        .unwrap();
+    let reconciled: Value = client
+        .call(
+            Operation::WorktreeReconcile,
+            &json!({"operation_id":second_operation_id,"expected_revision":current["revision"]}),
+        )
+        .await
+        .unwrap();
+    assert_eq!(reconciled["phase"], "ready");
+    assert_eq!(reconciled["selected"], true);
+    assert_eq!(
+        relayterm_git::Git::default().list(&project).unwrap().len(),
+        3,
+        "final-commit recovery must not invoke worktree add again"
     );
 
     drop(client);
