@@ -260,21 +260,28 @@ fn entity_id(value: &Value) -> String {
 async fn send_fault_and_wait(
     endpoint: &Endpoint,
     faults: &relayterm_daemon::ServerFaults,
+    label: &str,
     bytes: &[u8],
 ) {
-    let previous = faults.connection_failure_count();
+    let previous = faults.connection_accept_count();
     let mut stream = connect(endpoint).await.unwrap();
+    let connection = tokio::time::timeout(
+        Duration::from_secs(2),
+        faults.wait_for_connection_accepted_after(previous),
+    )
+    .await
+    .unwrap();
     stream.write_all(bytes).await.unwrap();
     stream.shutdown().await.unwrap();
     // Windows named pipes do not expose the truncated peer as closed until the
     // client handle itself is released. Unix sockets observe the half-close.
     drop(stream);
     tokio::time::timeout(
-        Duration::from_secs(2),
-        faults.wait_for_connection_failure_after(previous),
+        Duration::from_secs(5),
+        faults.wait_for_connection_completed(connection),
     )
     .await
-    .unwrap();
+    .unwrap_or_else(|_| panic!("server did not reject {label} before the test deadline"));
 }
 
 fn request_bytes(
@@ -299,8 +306,14 @@ async fn duplicate_request_id_and_wait(
     workspace: WireWorkspaceId,
     faults: &relayterm_daemon::ServerFaults,
 ) {
-    let previous = faults.connection_failure_count();
+    let previous = faults.connection_accept_count();
     let mut stream = connect(endpoint).await.unwrap();
+    let connection = tokio::time::timeout(
+        Duration::from_secs(2),
+        faults.wait_for_connection_accepted_after(previous),
+    )
+    .await
+    .unwrap();
     write_frame(
         &mut stream,
         FrameKind::Json,
@@ -336,7 +349,7 @@ async fn duplicate_request_id_and_wait(
     .unwrap();
     tokio::time::timeout(
         Duration::from_secs(2),
-        faults.wait_for_connection_failure_after(previous),
+        faults.wait_for_connection_completed(connection),
     )
     .await
     .unwrap();
@@ -730,16 +743,22 @@ async fn two_clients_complete_a_durable_handover_journey() {
     )
     .unwrap();
     let malformed_cases = [
-        vec![0, 0, 0],
-        partial_body,
-        oversized.to_vec(),
-        encode_frame(FrameKind::Json, &[0xff]).unwrap(),
-        encode_frame(FrameKind::Json, b"{").unwrap(),
-        unknown_field,
-        request_bytes(wire_workspace, 1, Operation::ProtocolHello, 2),
+        ("partial header", vec![0, 0, 0]),
+        ("partial body", partial_body),
+        ("oversized frame", oversized.to_vec()),
+        (
+            "invalid UTF-8",
+            encode_frame(FrameKind::Json, &[0xff]).unwrap(),
+        ),
+        ("invalid JSON", encode_frame(FrameKind::Json, b"{").unwrap()),
+        ("unknown envelope field", unknown_field),
+        (
+            "unsupported version",
+            request_bytes(wire_workspace, 1, Operation::ProtocolHello, 2),
+        ),
     ];
-    for bytes in malformed_cases {
-        send_fault_and_wait(&endpoint, &faults, &bytes).await;
+    for (label, bytes) in malformed_cases {
+        send_fault_and_wait(&endpoint, &faults, label, &bytes).await;
         let healthy: Value = survivor
             .call(Operation::ProtocolPing, &json!({}))
             .await
@@ -759,6 +778,86 @@ async fn two_clients_complete_a_durable_handover_journey() {
         after_faults["last_sequence"],
         before_faults["last_sequence"]
     );
+    let mut slow = connect(&endpoint).await.unwrap();
+    write_frame(
+        &mut slow,
+        FrameKind::Json,
+        &encode_json(&RequestEnvelope {
+            message_type: RequestType::Request,
+            protocol_version: relayterm_protocol::PROTOCOL_VERSION,
+            request_id: DecimalU64::new(1).unwrap(),
+            workspace_id: wire_workspace,
+            operation: Operation::ProtocolHello,
+            params: json!({}),
+        })
+        .unwrap(),
+    )
+    .await
+    .unwrap();
+    read_frame(&mut slow, Duration::from_secs(2)).await.unwrap();
+    write_frame(
+        &mut slow,
+        FrameKind::Json,
+        &encode_json(&RequestEnvelope {
+            message_type: RequestType::Request,
+            protocol_version: relayterm_protocol::PROTOCOL_VERSION,
+            request_id: DecimalU64::new(2).unwrap(),
+            workspace_id: wire_workspace,
+            operation: Operation::EventSubscribe,
+            params: json!({"after_sequence":before_faults["last_sequence"]}),
+        })
+        .unwrap(),
+    )
+    .await
+    .unwrap();
+    read_frame(&mut slow, Duration::from_secs(2)).await.unwrap();
+    let slow_before = faults.slow_subscriber_count();
+    faults.pause_next_event_write();
+    let _: Value = survivor
+        .call(
+            Operation::ProgressAppend,
+            &json!({"task_id":task_id,"summary":"Slow subscriber seed","verification":"Deterministic writer barrier"}),
+        )
+        .await
+        .unwrap();
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        faults.wait_until_event_writer_paused(),
+    )
+    .await
+    .unwrap();
+    for index in 0..300 {
+        let _: Value = survivor
+            .call(
+                Operation::ProgressAppend,
+                &json!({"task_id":task_id,"summary":format!("Bounded event {index}"),"verification":"Nonreading subscriber overflow"}),
+            )
+            .await
+            .unwrap();
+    }
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        faults.wait_for_slow_subscriber_after(slow_before),
+    )
+    .await
+    .unwrap();
+    let healthy_during_overflow: Value = survivor
+        .call(Operation::ProtocolPing, &json!({}))
+        .await
+        .unwrap();
+    assert_eq!(healthy_during_overflow["ok"], true);
+    faults.release_paused_event_writer();
+    let mut observed_resnapshot = false;
+    for _ in 0..3 {
+        let frame = read_frame(&mut slow, Duration::from_secs(2)).await.unwrap();
+        let value: Value = serde_json::from_slice(&frame.payload).unwrap();
+        if value["control"] == "resnapshot_required" {
+            assert_eq!(value["reason"], "slow_subscriber");
+            observed_resnapshot = true;
+            break;
+        }
+    }
+    assert!(observed_resnapshot);
     let invalid_subscription = survivor
         .call::<_, Value>(Operation::EventSubscribe, &json!({}))
         .await;

@@ -29,11 +29,12 @@ use relayterm_protocol as wire;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::{
+    collections::BTreeSet,
     fmt,
     path::PathBuf,
     str::FromStr,
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicBool, AtomicU64, Ordering},
     },
     time::Duration,
@@ -159,6 +160,15 @@ pub struct ServerFaults {
     event_wakeup_observed: Arc<Notify>,
     connection_failure_count: Arc<AtomicU64>,
     connection_failure_observed: Arc<Notify>,
+    connection_accept_count: Arc<AtomicU64>,
+    connection_accepted: Arc<Notify>,
+    completed_connections: Arc<Mutex<BTreeSet<u64>>>,
+    connection_completed: Arc<Notify>,
+    pause_event_writer: Arc<AtomicBool>,
+    event_writer_paused: Arc<Notify>,
+    release_event_writer: Arc<Notify>,
+    slow_subscriber_count: Arc<AtomicU64>,
+    slow_subscriber_observed: Arc<Notify>,
 }
 impl ServerFaults {
     pub fn drop_next_mutation_response(&self) {
@@ -197,6 +207,42 @@ impl ServerFaults {
             self.connection_failure_observed.notified().await;
         }
     }
+    pub fn connection_accept_count(&self) -> u64 {
+        self.connection_accept_count.load(Ordering::Acquire)
+    }
+    pub async fn wait_for_connection_accepted_after(&self, previous: u64) -> u64 {
+        while self.connection_accept_count() <= previous {
+            self.connection_accepted.notified().await;
+        }
+        self.connection_accept_count()
+    }
+    pub async fn wait_for_connection_completed(&self, connection: u64) {
+        while !self
+            .completed_connections
+            .lock()
+            .expect("connection completion lock poisoned")
+            .contains(&connection)
+        {
+            self.connection_completed.notified().await;
+        }
+    }
+    pub fn pause_next_event_write(&self) {
+        self.pause_event_writer.store(true, Ordering::Release)
+    }
+    pub async fn wait_until_event_writer_paused(&self) {
+        self.event_writer_paused.notified().await;
+    }
+    pub fn release_paused_event_writer(&self) {
+        self.release_event_writer.notify_one();
+    }
+    pub fn slow_subscriber_count(&self) -> u64 {
+        self.slow_subscriber_count.load(Ordering::Acquire)
+    }
+    pub async fn wait_for_slow_subscriber_after(&self, previous: u64) {
+        while self.slow_subscriber_count() <= previous {
+            self.slow_subscriber_observed.notified().await;
+        }
+    }
     async fn pause_if_requested(&self, mutation: bool) {
         if mutation && self.pause_mutation_response.swap(false, Ordering::AcqRel) {
             self.mutation_paused.notify_one();
@@ -207,9 +253,31 @@ impl ServerFaults {
         self.event_wakeup_count.fetch_add(1, Ordering::AcqRel);
         self.event_wakeup_observed.notify_waiters();
     }
-    fn record_connection_failure(&self) {
-        self.connection_failure_count.fetch_add(1, Ordering::AcqRel);
-        self.connection_failure_observed.notify_waiters();
+    fn record_connection_accepted(&self) -> u64 {
+        let connection = self.connection_accept_count.fetch_add(1, Ordering::AcqRel) + 1;
+        self.connection_accepted.notify_one();
+        connection
+    }
+    fn record_connection_completed(&self, connection: u64, failed: bool) {
+        if failed {
+            self.connection_failure_count.fetch_add(1, Ordering::AcqRel);
+            self.connection_failure_observed.notify_waiters();
+        }
+        self.completed_connections
+            .lock()
+            .expect("connection completion lock poisoned")
+            .insert(connection);
+        self.connection_completed.notify_one();
+    }
+    async fn pause_event_write_if_requested(&self) {
+        if self.pause_event_writer.swap(false, Ordering::AcqRel) {
+            self.event_writer_paused.notify_one();
+            self.release_event_writer.notified().await;
+        }
+    }
+    fn record_slow_subscriber(&self) {
+        self.slow_subscriber_count.fetch_add(1, Ordering::AcqRel);
+        self.slow_subscriber_observed.notify_waiters();
     }
     fn take_drop(&self, mutation: bool) -> bool {
         self.any_response.swap(false, Ordering::AcqRel)
@@ -327,7 +395,22 @@ where
             tokio::select! {biased;
                 changed=shutdown.changed()=>{if changed.is_err()||*shutdown.borrow(){break}}
                 joined=connections.join_next(),if !connections.is_empty()=>{let _=joined;}
-                accepted=shared.listener.accept()=>{let Ok(stream)=accepted else{continue};let Ok(permit)=shared.connections.clone().try_acquire_owned()else{drop(stream);continue};let server=shared.clone();let child_shutdown=shutdown.clone();connections.spawn(async move{let _permit=permit;if server.clone().connection(stream,child_shutdown).await.is_err(){server.faults.record_connection_failure();}});}
+                accepted=shared.listener.accept()=>{
+                    let Ok(stream)=accepted else{continue};
+                    let connection=shared.faults.record_connection_accepted();
+                    let Ok(permit)=shared.connections.clone().try_acquire_owned()else{
+                        drop(stream);
+                        shared.faults.record_connection_completed(connection,false);
+                        continue
+                    };
+                    let server=shared.clone();
+                    let child_shutdown=shutdown.clone();
+                    connections.spawn(async move{
+                        let failed=server.clone().connection(stream,child_shutdown).await.is_err();
+                        drop(permit);
+                        server.faults.record_connection_completed(connection,failed);
+                    });
+                }
             }
         }
         while connections.join_next().await.is_some() {}
@@ -431,8 +514,12 @@ where
         let (event_tx, event_rx) = mpsc::channel(EVENT_QUEUE_ITEMS);
         let event_budget = Arc::new(Semaphore::new(EVENT_QUEUE_BYTES));
         let (writer_failed_tx, mut writer_failed_rx) = mpsc::channel(1);
+        let writer_faults = self.faults.clone();
         let writer_task = tokio::spawn(async move {
-            if writer_loop(writer, control_rx, event_rx).await.is_err() {
+            if writer_loop(writer, control_rx, event_rx, writer_faults)
+                .await
+                .is_err()
+            {
                 let _ = writer_failed_tx.send(()).await;
             }
         });
@@ -567,6 +654,7 @@ where
             let permit_count =
                 u32::try_from(bytes.len()).map_err(|_| ServerError::ResourceLimit)?;
             if !try_queue_event(event_tx, budget, bytes, permit_count) {
+                self.faults.record_slow_subscriber();
                 queue_synchronization(
                     control_tx,
                     self.wire_workspace_id,
@@ -2374,6 +2462,7 @@ async fn writer_loop<W: AsyncWrite + Unpin>(
     mut writer: W,
     mut controls: mpsc::Receiver<WriterControl>,
     mut events: mpsc::Receiver<QueuedEvent>,
+    faults: ServerFaults,
 ) -> Result<(), ServerError> {
     loop {
         tokio::select! {biased;
@@ -2397,7 +2486,10 @@ async fn writer_loop<W: AsyncWrite + Unpin>(
             }
             event=events.recv()=>{
                 match event {
-                    Some(event)=>write_frame(&mut writer,wire::FrameKind::Json,&event.bytes).await.map_err(|_|ServerError::Transport)?,
+                    Some(event)=>{
+                        faults.pause_event_write_if_requested().await;
+                        write_frame(&mut writer,wire::FrameKind::Json,&event.bytes).await.map_err(|_|ServerError::Transport)?
+                    },
                     None=>return Ok(()),
                 }
             }
@@ -3151,7 +3243,12 @@ mod tests {
             .send(WriterControl::ResetSubscription(vec![42]))
             .await
             .unwrap();
-        let writer = tokio::spawn(writer_loop(server, control_rx, event_rx));
+        let writer = tokio::spawn(writer_loop(
+            server,
+            control_rx,
+            event_rx,
+            ServerFaults::default(),
+        ));
         let frame = read_frame(&mut client, Duration::from_secs(1))
             .await
             .unwrap();
