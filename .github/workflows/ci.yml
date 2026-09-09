@@ -37,11 +37,12 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - name: Install compiler and report host
-        run: |
-          rustup toolchain install ${{ matrix.toolchain }} --profile minimal --component rustfmt --component clippy
-          rustc --version --verbose
-          cargo --version
+      - name: Install compiler
+        run: rustup toolchain install ${{ matrix.toolchain }} --profile minimal --component rustfmt --component clippy
+      - name: Report compiler
+        run: rustc --version --verbose
+      - name: Report Cargo
+        run: cargo --version
       - name: Fetch complete locked graph
         run: cargo fetch --locked
       - name: Check formatting

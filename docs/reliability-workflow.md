@@ -20,6 +20,8 @@ cargo test -p relayterm-cli --test backup_restore --locked -- --nocapture --test
 
 The composed scenarios cover the product boundaries but do not yet implement every step as one shared-state journey. The claim race barrier, combined worktree coordination, complete declared load, fault assertions and candidate evidence remain pending.
 
+Each native CI command and each required gate repetition is a separate workflow step. Compiler installation, compiler reporting and Cargo reporting are also separate steps, so a failed native command on PowerShell cannot be hidden by a later successful command. The repository audit checks this workflow structure as part of candidate review.
+
 Do not treat two passing invocations of the current entry point as evidence for the complete M11 journey. Candidate acceptance also requires every mapped retained gate, the fault and resource workloads, native offline observation and the manual matrix. Cleanup must remain bounded and target only fixture-owned children and private scratch paths.
 
 ## Current risk investigations
