@@ -19,6 +19,7 @@ fn allowed_dependencies(name: &str) -> Option<&'static [&'static str]> {
         "relayterm-protocol" => Some(&[]),
         "relayterm-terminal" => Some(&[]),
         "relayterm-pty" => Some(&[]),
+        "relayterm-git" => Some(&[]),
         "relayterm-ipc" => Some(&["relayterm-platform", "relayterm-protocol"]),
         "relayterm-client" => Some(&["relayterm-ipc", "relayterm-protocol"]),
         "relayterm-daemon" => Some(&[
@@ -32,6 +33,7 @@ fn allowed_dependencies(name: &str) -> Option<&'static [&'static str]> {
             "relayterm-protocol",
             "relayterm-pty",
             "relayterm-terminal",
+            "relayterm-git",
         ]),
         "relayterm-tui" => Some(&["relayterm-client", "relayterm-protocol"]),
         "relayterm-cli" => Some(&[

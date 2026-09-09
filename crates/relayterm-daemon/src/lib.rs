@@ -152,6 +152,7 @@ pub struct ServerFaults {
     mutation_response: Arc<AtomicBool>,
     any_response: Arc<AtomicBool>,
     pause_mutation_response: Arc<AtomicBool>,
+    fail_worktree_after_git: Arc<AtomicBool>,
     mutation_paused: Arc<Notify>,
     release_mutation_response: Arc<Notify>,
     event_wakeup_count: Arc<AtomicU64>,
@@ -166,6 +167,11 @@ impl ServerFaults {
     }
     pub fn pause_next_mutation_response(&self) {
         self.pause_mutation_response.store(true, Ordering::Release)
+    }
+    /// Stops one worktree operation after Git succeeds and before final storage commit.
+    /// This deterministic fault is exposed only through an in-process test handle.
+    pub fn fail_next_worktree_after_git(&self) {
+        self.fail_worktree_after_git.store(true, Ordering::Release)
     }
     pub async fn wait_until_mutation_response_paused(&self) {
         self.mutation_paused.notified().await;
@@ -225,6 +231,8 @@ pub struct WorkspaceServer<S, C, I, N> {
     supervisor: Option<Arc<supervisor::SessionSupervisor>>,
     resolver_admissions: Arc<Semaphore>,
     resolver_jobs: Arc<Semaphore>,
+    worktree_parent: Option<PathBuf>,
+    git_admissions: Arc<Semaphore>,
 }
 impl<S, C, I, N> WorkspaceServer<S, C, I, N>
 where
@@ -266,6 +274,8 @@ where
             supervisor: None,
             resolver_admissions: Arc::new(Semaphore::new(20)),
             resolver_jobs: Arc::new(Semaphore::new(4)),
+            worktree_parent: None,
+            git_admissions: Arc::new(Semaphore::new(2)),
         }
     }
     pub fn with_event_wakeups(mut self, receiver: watch::Receiver<u64>) -> Self {
@@ -281,6 +291,10 @@ where
         supervisor: Arc<supervisor::SessionSupervisor>,
     ) -> Self {
         self.supervisor = Some(supervisor);
+        self
+    }
+    pub fn with_worktrees(mut self, parent: PathBuf) -> Self {
+        self.worktree_parent = Some(parent);
         self
     }
     pub fn fault_injector(&self) -> ServerFaults {
@@ -370,7 +384,8 @@ where
             })
             .collect();
         let hello = wire::HelloResult::new(connection_id, self.wire_workspace_id, operations)
-            .with_terminal(self.supervisor.is_some());
+            .with_terminal(self.supervisor.is_some())
+            .with_worktrees(self.worktree_parent.is_some());
         send_response(
             &mut stream,
             wire::ResponseEnvelope::success(
@@ -618,6 +633,12 @@ where
                     | O::SessionAcquireInput
                     | O::SessionReleaseInput
                     | O::SessionReadOutput
+                    | O::WorktreeCreate
+                    | O::WorktreeList
+                    | O::WorktreeInspectRepository
+                    | O::WorktreeGetOperation
+                    | O::WorktreeSelect
+                    | O::WorktreeReconcile
             )
         {
             validate_reserved(request.operation, &request.params)?;
@@ -840,9 +861,493 @@ where
             O::TaskRelease => self.mutate_release(&request.params).await,
             O::ProgressAppend => self.mutate_progress(&request.params).await,
             O::HandoverCreate => self.mutate_handover(&request.params).await,
+            O::WorktreeInspectRepository => self.worktree_inspect(&request.params).await,
+            O::WorktreeCreate => self.worktree_create(&request.params).await,
+            O::WorktreeGetOperation => self.worktree_operation(&request.params).await,
+            O::WorktreeList => self.worktree_list(&request.params).await,
+            O::WorktreeSelect => self.worktree_select(&request.params).await,
+            O::WorktreeReconcile => self.worktree_reconcile(&request.params).await,
             O::ProtocolHello | O::EventSubscribe | O::EventUnsubscribe => Err(invalid()),
             _ => Err(unavailable()),
         }
+    }
+
+    async fn worktree_inspect(&self, value: &Value) -> Result<Value, wire::ErrorBody> {
+        let params: wire::WorktreeInspectParams = parameters(value)?;
+        let snapshot = self
+            .reads
+            .consistent_snapshot(self.workspace_id)
+            .await
+            .map_err(map_domain_error)?;
+        if params
+            .expected_revision
+            .is_some_and(|expected| expected.get() != snapshot.snapshot.revision())
+        {
+            return Err(map_domain_error(domain::Error::Conflict));
+        }
+        let root = snapshot
+            .snapshot
+            .state()
+            .map_err(map_domain_error)?
+            .workspace()
+            .record()
+            .project_root
+            .clone();
+        let result =
+            tokio::task::spawn_blocking(move || relayterm_git::Git::default().inspect(&root))
+                .await
+                .map_err(|_| unavailable())?;
+        match result {
+            Ok(repository) => Ok(
+                json!({"status":"ready","head_commit":repository.head_commit,"default_parent_display":self.worktree_parent.as_ref().map(|path|path.to_string_lossy().into_owned())}),
+            ),
+            Err(error) => Ok(json!({"status":git_status(error.kind())})),
+        }
+    }
+
+    async fn worktree_create(&self, value: &Value) -> Result<Value, wire::ErrorBody> {
+        let params: wire::WorktreeCreateParams = parameters(value)?;
+        validate_reserved(wire::Operation::WorktreeCreate, value)?;
+        if params.payload_version != 1 {
+            return Err(invalid());
+        }
+        relayterm_git::validate_branch(&params.branch_name).map_err(|_| invalid())?;
+        relayterm_git::validate_base(&params.base_ref).map_err(|_| invalid())?;
+        relayterm_git::validate_destination_leaf(&params.destination_leaf)
+            .map_err(|_| invalid())?;
+        let operation_id = domain::WorktreeOperationId::from_uuid(params.operation_id.as_uuid());
+        let task_id = domain::TaskId::from_uuid(params.task_id.as_uuid());
+        let expected_revision = params.expected_revision.get();
+        let snapshot = self
+            .reads
+            .consistent_snapshot(self.workspace_id)
+            .await
+            .map_err(map_domain_error)?;
+        let state = snapshot.snapshot.state().map_err(map_domain_error)?;
+        let project_root = state.workspace().record().project_root.clone();
+        let custom_parent = params.parent.is_some();
+        let parent = match params.parent {
+            Some(path) => {
+                let bytes = path.decode().map_err(|_| invalid())?;
+                relayterm_platform::decode_native_path(&path.encoding, &bytes)
+                    .map_err(|_| invalid())?
+            }
+            None => self.worktree_parent.clone().ok_or_else(unavailable)?,
+        };
+        let parent = parent.canonicalize().map_err(|_| invalid())?;
+        let destination = parent.join(&params.destination_leaf);
+        let mut fingerprint = blake3::Hasher::new();
+        for bytes in [
+            task_id.to_string().as_bytes(),
+            params.base_ref.as_bytes(),
+            params.branch_name.as_bytes(),
+            params.destination_leaf.as_bytes(),
+        ] {
+            fingerprint.update(bytes);
+            fingerprint.update(&[0]);
+        }
+        let encoded_parent =
+            relayterm_platform::encode_native_path(&parent).map_err(|_| invalid())?;
+        fingerprint.update(encoded_parent.tag.as_bytes());
+        fingerprint.update(&[0]);
+        fingerprint.update(&encoded_parent.bytes);
+        fingerprint.update(&[0]);
+        let fingerprint = *fingerprint.finalize().as_bytes();
+        if let Some(existing) = state
+            .worktree_intents()
+            .iter()
+            .find(|intent| intent.record().id == operation_id)
+        {
+            let record = existing.record();
+            if record.task_id != task_id
+                || record.base_expression != params.base_ref
+                || record.branch != params.branch_name
+                || record.destination != destination
+            {
+                return Err(map_domain_error(domain::Error::Conflict));
+            }
+            existing
+                .matches_fingerprint(fingerprint)
+                .map_err(map_domain_error)?;
+            return Ok(worktree_operation_dto(existing, state));
+        }
+        if snapshot.snapshot.revision() != expected_revision {
+            return Err(map_domain_error(domain::Error::Conflict));
+        }
+        let _permit = self
+            .git_admissions
+            .clone()
+            .try_acquire_owned()
+            .map_err(|_| unavailable())?;
+        let discovery_base = params.base_ref.clone();
+        let discovery_branch = params.branch_name.clone();
+        let repository = tokio::task::spawn_blocking({
+            let root = project_root.clone();
+            move || {
+                let git = relayterm_git::Git::default();
+                let repository = git.inspect(&root)?;
+                let commit = git.resolve_commit(&root, &discovery_base)?;
+                git.branch_available(&root, &discovery_branch)?;
+                Ok::<_, relayterm_git::Error>((repository, commit))
+            }
+        })
+        .await
+        .map_err(|_| unavailable())?
+        .map_err(map_git_error)?;
+        let now = relayterm_platform::SystemClock
+            .now()
+            .map_err(map_domain_error)?;
+        let root_id = state
+            .approved_roots()
+            .iter()
+            .find(|root| root.record().canonical_parent == parent)
+            .map(|root| root.record().id)
+            .unwrap_or_else(|| domain::ApprovedRootId::from_uuid(uuid::Uuid::new_v4()));
+        let worktree_id = domain::WorktreeId::from_uuid(uuid::Uuid::new_v4());
+        let root = domain::ApprovedRoot::restore(domain::ApprovedRootRecord {
+            id: root_id,
+            workspace_id: self.workspace_id,
+            canonical_parent: parent,
+            filesystem_identity: None,
+            private_default: !custom_parent,
+            created_at: now,
+        })
+        .map_err(map_domain_error)?;
+        let intent = domain::WorktreeIntent::restore(domain::WorktreeIntentRecord {
+            id: operation_id,
+            workspace_id: self.workspace_id,
+            task_id,
+            worktree_id,
+            root_id,
+            actor: domain::Actor::LocalUser,
+            schema_version: 1,
+            expected_revision,
+            repository_identity: repository.0.checkout_top.clone(),
+            common_directory_identity: repository.0.common_directory.clone(),
+            destination: destination.clone(),
+            branch: params.branch_name.clone(),
+            base_expression: params.base_ref.clone(),
+            resolved_commit: repository.1.clone(),
+            request_fingerprint: fingerprint,
+            phase: domain::WorktreePhase::Prepared,
+            reason: None,
+            created_at: now,
+            updated_at: now,
+        })
+        .map_err(map_domain_error)?;
+        let accepted = match self
+            .service
+            .execute_domain_command_at_revision(
+                self.workspace_id,
+                domain::Command::AddWorktreeIntent { root, intent },
+                expected_revision,
+            )
+            .await
+        {
+            Ok(outcome) => outcome,
+            Err(domain::Error::Conflict) => {
+                let current = self
+                    .reads
+                    .consistent_snapshot(self.workspace_id)
+                    .await
+                    .map_err(map_domain_error)?;
+                let state = current.snapshot.state().map_err(map_domain_error)?;
+                let existing = state
+                    .worktree_intents()
+                    .iter()
+                    .find(|candidate| candidate.record().id == operation_id)
+                    .ok_or_else(|| map_domain_error(domain::Error::Conflict))?;
+                let record = existing.record();
+                if record.task_id != task_id
+                    || record.base_expression != params.base_ref
+                    || record.branch != params.branch_name
+                    || record.destination != destination
+                {
+                    return Err(map_domain_error(domain::Error::Conflict));
+                }
+                existing
+                    .matches_fingerprint(fingerprint)
+                    .map_err(map_domain_error)?;
+                return Ok(worktree_operation_dto(existing, state));
+            }
+            Err(error) => return Err(map_domain_error(error)),
+        };
+        let revision = accepted.committed.snapshot.revision();
+        let applying = self
+            .service
+            .execute_domain_command_at_revision(
+                self.workspace_id,
+                domain::Command::MarkWorktreeApplying { operation_id },
+                revision,
+            )
+            .await
+            .map_err(map_domain_error)?;
+        let add_branch = params.branch_name.clone();
+        let add_commit = repository.1.clone();
+        let common_for_add = repository.0.common_directory.clone();
+        let add_result = tokio::task::spawn_blocking({
+            let root = project_root;
+            let destination = destination.clone();
+            move || {
+                let git = relayterm_git::Git::default();
+                git.add(&root, &destination, &add_branch, &add_commit)?;
+                git.verify_worktree(
+                    &root,
+                    &destination,
+                    &add_branch,
+                    &common_for_add,
+                    &add_commit,
+                )
+            }
+        })
+        .await
+        .map_err(|_| unavailable())?;
+        if let Err(error) = add_result {
+            let current = applying.committed.snapshot.revision();
+            let needs_attention = matches!(
+                error.kind(),
+                relayterm_git::ErrorKind::Timeout
+                    | relayterm_git::ErrorKind::OutputLimit
+                    | relayterm_git::ErrorKind::CommandFailed
+            );
+            let _ = self
+                .service
+                .execute_domain_command_at_revision(
+                    self.workspace_id,
+                    domain::Command::FailWorktree {
+                        operation_id,
+                        reason: git_reason(error.kind()),
+                        needs_attention,
+                    },
+                    current,
+                )
+                .await;
+            return Err(map_git_error(error));
+        }
+        if self
+            .faults
+            .fail_worktree_after_git
+            .swap(false, Ordering::AcqRel)
+        {
+            return Err(map_domain_error(domain::Error::Uncertain));
+        }
+        let worktree = domain::Worktree::restore(domain::WorktreeRecord {
+            id: worktree_id,
+            workspace_id: self.workspace_id,
+            task_id,
+            operation_id,
+            root_id,
+            checkout_path: destination,
+            common_directory_identity: repository.0.common_directory,
+            branch_ref: format!("refs/heads/{}", params.branch_name),
+            initial_base_commit: repository.1,
+            health: domain::WorktreeHealth::Ready,
+            created_at: now,
+            updated_at: relayterm_platform::SystemClock
+                .now()
+                .map_err(map_domain_error)?,
+        })
+        .map_err(map_domain_error)?;
+        self.finalize_verified_worktree(operation_id, worktree)
+            .await?;
+        self.worktree_operation(
+            &serde_json::to_value(wire::WorktreeOperationParams {
+                operation_id: params.operation_id,
+            })
+            .map_err(|_| invalid())?,
+        )
+        .await
+    }
+
+    async fn worktree_operation(&self, value: &Value) -> Result<Value, wire::ErrorBody> {
+        let params: wire::WorktreeOperationParams = parameters(value)?;
+        let id = domain::WorktreeOperationId::from_uuid(params.operation_id.as_uuid());
+        let snapshot = self
+            .reads
+            .consistent_snapshot(self.workspace_id)
+            .await
+            .map_err(map_domain_error)?;
+        let state = snapshot.snapshot.state().map_err(map_domain_error)?;
+        let intent = state
+            .worktree_intents()
+            .iter()
+            .find(|intent| intent.record().id == id)
+            .ok_or_else(|| map_domain_error(domain::Error::Reference))?;
+        Ok(worktree_operation_dto(intent, state))
+    }
+
+    async fn worktree_list(&self, value: &Value) -> Result<Value, wire::ErrorBody> {
+        let params: wire::WorktreeListParams = parameters(value)?;
+        if params.limit == 0 || params.limit > wire::MAX_PAGE_SIZE {
+            return Err(invalid_field(wire::ErrorField::PageLimit));
+        }
+        let snapshot = self
+            .reads
+            .consistent_snapshot(self.workspace_id)
+            .await
+            .map_err(map_domain_error)?;
+        if params
+            .expected_revision
+            .is_some_and(|expected| expected.get() != snapshot.snapshot.revision())
+        {
+            return Err(map_domain_error(domain::Error::Conflict));
+        }
+        let state = snapshot.snapshot.state().map_err(map_domain_error)?;
+        let task = params
+            .task_id
+            .map(|id| domain::TaskId::from_uuid(id.as_uuid()));
+        let after = params
+            .after_id
+            .map(|id| domain::WorktreeId::from_uuid(id.as_uuid()));
+        let mut owned: Vec<_> = state
+            .worktrees()
+            .iter()
+            .filter(|worktree| task.is_none_or(|id| worktree.record().task_id == id))
+            .collect();
+        owned.sort_by_key(|worktree| worktree.record().id.to_string());
+        let items: Vec<_> = owned
+            .into_iter()
+            .filter(|worktree| {
+                after.is_none_or(|id| worktree.record().id.to_string() > id.to_string())
+            })
+            .take(usize::from(params.limit))
+            .map(worktree_dto)
+            .collect();
+        Ok(
+            json!({"revision":snapshot.snapshot.revision().to_string(),"last_sequence":snapshot.last_sequence.to_string(),"items":items}),
+        )
+    }
+
+    async fn worktree_select(&self, value: &Value) -> Result<Value, wire::ErrorBody> {
+        let params: wire::WorktreeSelectParams = parameters(value)?;
+        let task_id = domain::TaskId::from_uuid(params.task_id.as_uuid());
+        let worktree_id = params
+            .worktree_id
+            .map(|id| domain::WorktreeId::from_uuid(id.as_uuid()));
+        let outcome = self
+            .service
+            .execute_domain_command_at_revision(
+                self.workspace_id,
+                domain::Command::SelectWorktree {
+                    task_id,
+                    worktree_id,
+                },
+                params.expected_revision.get(),
+            )
+            .await
+            .map_err(map_domain_error)?;
+        Ok(receipt(&outcome))
+    }
+
+    async fn worktree_reconcile(&self, value: &Value) -> Result<Value, wire::ErrorBody> {
+        let params: wire::WorktreeReconcileParams = parameters(value)?;
+        let operation_id = domain::WorktreeOperationId::from_uuid(params.operation_id.as_uuid());
+        let snapshot = self
+            .reads
+            .consistent_snapshot(self.workspace_id)
+            .await
+            .map_err(map_domain_error)?;
+        if snapshot.snapshot.revision() != params.expected_revision.get() {
+            return Err(map_domain_error(domain::Error::Conflict));
+        }
+        let state = snapshot.snapshot.state().map_err(map_domain_error)?;
+        let intent = state
+            .worktree_intents()
+            .iter()
+            .find(|intent| intent.record().id == operation_id)
+            .ok_or_else(|| map_domain_error(domain::Error::Reference))?;
+        if intent.record().phase == domain::WorktreePhase::Ready {
+            return Ok(worktree_operation_dto(intent, state));
+        }
+        if !matches!(
+            intent.record().phase,
+            domain::WorktreePhase::Applying | domain::WorktreePhase::NeedsAttention
+        ) {
+            return Err(map_domain_error(domain::Error::State));
+        }
+        let record = intent.record().clone();
+        tokio::task::spawn_blocking(move || {
+            relayterm_git::Git::default().verify_worktree(
+                &record.repository_identity,
+                &record.destination,
+                &record.branch,
+                &record.common_directory_identity,
+                &record.resolved_commit,
+            )
+        })
+        .await
+        .map_err(|_| unavailable())?
+        .map_err(map_git_error)?;
+        let now = relayterm_platform::SystemClock
+            .now()
+            .map_err(map_domain_error)?;
+        let record = intent.record();
+        let worktree = domain::Worktree::restore(domain::WorktreeRecord {
+            id: record.worktree_id,
+            workspace_id: record.workspace_id,
+            task_id: record.task_id,
+            operation_id,
+            root_id: record.root_id,
+            checkout_path: record.destination.clone(),
+            common_directory_identity: record.common_directory_identity.clone(),
+            branch_ref: format!("refs/heads/{}", record.branch),
+            initial_base_commit: record.resolved_commit.clone(),
+            health: domain::WorktreeHealth::Ready,
+            created_at: now,
+            updated_at: now,
+        })
+        .map_err(map_domain_error)?;
+        self.finalize_verified_worktree(operation_id, worktree)
+            .await?;
+        self.worktree_operation(
+            &serde_json::to_value(wire::WorktreeOperationParams {
+                operation_id: params.operation_id,
+            })
+            .map_err(|_| invalid())?,
+        )
+        .await
+    }
+
+    async fn finalize_verified_worktree(
+        &self,
+        operation_id: domain::WorktreeOperationId,
+        worktree: domain::Worktree,
+    ) -> Result<(), wire::ErrorBody> {
+        for _ in 0..8 {
+            let snapshot = self
+                .reads
+                .consistent_snapshot(self.workspace_id)
+                .await
+                .map_err(map_domain_error)?;
+            let state = snapshot.snapshot.state().map_err(map_domain_error)?;
+            let task_id = worktree.record().task_id;
+            let task = state.task(task_id).map_err(map_domain_error)?;
+            let select = !task.record().status.is_final()
+                && task.record().status != domain::TaskStatus::Active
+                && state.current_claim(task_id).is_none()
+                && !state.instances().iter().any(|instance| {
+                    instance.record().task_id == Some(task_id)
+                        && !instance.record().status.is_final()
+                });
+            match self
+                .service
+                .execute_domain_command_at_revision(
+                    self.workspace_id,
+                    domain::Command::FinalizeWorktree {
+                        operation_id,
+                        worktree: worktree.clone(),
+                        select,
+                    },
+                    snapshot.snapshot.revision(),
+                )
+                .await
+            {
+                Ok(_) => return Ok(()),
+                Err(domain::Error::Conflict) => continue,
+                Err(error) => return Err(map_domain_error(error)),
+            }
+        }
+        Err(map_domain_error(domain::Error::Conflict))
     }
 
     async fn session_create(&self, value: &Value) -> Result<Value, wire::ErrorBody> {
@@ -855,7 +1360,61 @@ where
             .await
             .map_err(map_domain_error)?;
         let state = before.snapshot.state().map_err(map_domain_error)?;
-        let root = state.workspace().record().project_root.clone();
+        let definition_id = params
+            .definition_id
+            .map(|id| domain::AgentDefinitionId::from_uuid(id.as_uuid()));
+        let task_id = params
+            .task_id
+            .map(|id| domain::TaskId::from_uuid(id.as_uuid()));
+        let root = match task_id {
+            Some(task_id) => {
+                if state.worktree_intents().iter().any(|intent| {
+                    intent.record().task_id == task_id && !intent.record().phase.is_terminal()
+                }) {
+                    return Err(map_domain_error(domain::Error::State));
+                }
+                let task = state.task(task_id).map_err(map_domain_error)?;
+                match task.record().worktree_id {
+                    Some(id) => {
+                        let worktree = state
+                            .worktrees()
+                            .iter()
+                            .find(|candidate| candidate.record().id == id)
+                            .ok_or_else(|| map_domain_error(domain::Error::Integrity))?;
+                        if worktree.record().health != domain::WorktreeHealth::Ready {
+                            return Err(unavailable());
+                        }
+                        let record = worktree.record().clone();
+                        tokio::task::spawn_blocking(move || {
+                            let path = record.checkout_path.canonicalize().map_err(|_| ())?;
+                            let repository = relayterm_git::Git::default()
+                                .inspect(&path)
+                                .map_err(|_| ())?;
+                            if repository.common_directory != record.common_directory_identity {
+                                return Err(());
+                            }
+                            let branch = relayterm_git::Git::default()
+                                .list(&path)
+                                .map_err(|_| ())?
+                                .into_iter()
+                                .find(|entry| {
+                                    entry.path.canonicalize().ok().as_ref() == Some(&path)
+                                })
+                                .and_then(|entry| entry.branch);
+                            if branch.as_deref() != Some(record.branch_ref.as_str()) {
+                                return Err(());
+                            }
+                            Ok(path)
+                        })
+                        .await
+                        .map_err(|_| unavailable())?
+                        .map_err(|_| unavailable())?
+                    }
+                    None => state.workspace().record().project_root.clone(),
+                }
+            }
+            None => state.workspace().record().project_root.clone(),
+        };
         let requested = match params.working_directory {
             Some(path) => {
                 let bytes = path.decode().map_err(|_| invalid())?;
@@ -866,12 +1425,6 @@ where
         };
         let working_directory =
             relayterm_pty::canonical_working_directory(&root, &requested).map_err(|_| invalid())?;
-        let definition_id = params
-            .definition_id
-            .map(|id| domain::AgentDefinitionId::from_uuid(id.as_uuid()));
-        let task_id = params
-            .task_id
-            .map(|id| domain::TaskId::from_uuid(id.as_uuid()));
         let (program, arguments, allowed) = match params.launch_kind {
             wire::SessionLaunchKind::DefaultShell => {
                 (relayterm_pty::default_shell(), Vec::new(), Vec::new())
@@ -2046,12 +2599,29 @@ fn validate_reserved(operation: wire::Operation, value: &Value) -> Result<(), wi
         }
         O::WorktreeCreate => {
             let params: wire::WorktreeCreateParams = parameters(value)?;
-            if params.base_ref.is_empty()
+            if params.payload_version != 1
+                || params.base_ref.is_empty()
                 || params.branch_name.is_empty()
-                || params.relative_destination.is_empty()
+                || params.destination_leaf.is_empty()
+                || params
+                    .parent
+                    .as_ref()
+                    .is_some_and(|path| path.decode().is_err())
             {
                 return Err(invalid());
             }
+        }
+        O::WorktreeInspectRepository => {
+            let _: wire::WorktreeInspectParams = parameters(value)?;
+        }
+        O::WorktreeGetOperation => {
+            let _: wire::WorktreeOperationParams = parameters(value)?;
+        }
+        O::WorktreeReconcile => {
+            let _: wire::WorktreeReconcileParams = parameters(value)?;
+        }
+        O::WorktreeSelect => {
+            let _: wire::WorktreeSelectParams = parameters(value)?;
         }
         O::WorktreeList => {
             let params: wire::WorktreeListParams = parameters(value)?;
@@ -2176,6 +2746,81 @@ fn receipt(outcome: &relayterm_application::Outcome) -> Value {
         .collect::<Vec<_>>();
     json!({"entity_ids":ids,"revision":outcome.committed.snapshot.revision().to_string(),"changed":!events.is_empty(),"first_sequence":events.first().map(|x|x.record().sequence.to_string()),"last_sequence":events.last().map(|x|x.record().sequence.to_string()),"notification_delivered":outcome.notification_delivered})
 }
+fn worktree_operation_dto(
+    intent: &domain::WorktreeIntent,
+    state: &domain::WorkspaceState,
+) -> Value {
+    let record = intent.record();
+    let selected = state
+        .task(record.task_id)
+        .ok()
+        .is_some_and(|task| task.record().worktree_id == Some(record.worktree_id));
+    json!({"operation_id":record.id.to_string(),"worktree_id":record.worktree_id.to_string(),"task_id":record.task_id.to_string(),"phase":record.phase,"reason":record.reason,"selected":selected})
+}
+fn worktree_dto(worktree: &domain::Worktree) -> Value {
+    let record = worktree.record();
+    let path = relayterm_ipc::encode_native_path(&record.checkout_path)
+        .ok()
+        .and_then(|value| serde_json::to_value(value).ok())
+        .unwrap_or(Value::Null);
+    json!({"id":record.id.to_string(),"task_id":record.task_id.to_string(),"operation_id":record.operation_id.to_string(),"checkout_path":path,"checkout_display":record.checkout_path.to_string_lossy(),"branch_ref":record.branch_ref,"initial_base_commit":record.initial_base_commit,"health":record.health})
+}
+fn git_status(kind: relayterm_git::ErrorKind) -> &'static str {
+    match kind {
+        relayterm_git::ErrorKind::GitMissing => "git_missing",
+        relayterm_git::ErrorKind::NotRepository => "not_repository",
+        relayterm_git::ErrorKind::UnsupportedRoot => "unsupported_root",
+        relayterm_git::ErrorKind::InvalidReference => "invalid_reference",
+        relayterm_git::ErrorKind::BranchConflict => "branch_conflict",
+        relayterm_git::ErrorKind::DestinationConflict => "destination_conflict",
+        relayterm_git::ErrorKind::UnsupportedCheckoutFilter => "unsupported_checkout_filter",
+        relayterm_git::ErrorKind::OutputLimit => "resource_limit",
+        relayterm_git::ErrorKind::Timeout => "needs_attention",
+        relayterm_git::ErrorKind::CommandFailed
+        | relayterm_git::ErrorKind::MalformedOutput
+        | relayterm_git::ErrorKind::Io => "unavailable",
+    }
+}
+fn git_reason(kind: relayterm_git::ErrorKind) -> domain::WorktreeReason {
+    match kind {
+        relayterm_git::ErrorKind::GitMissing => domain::WorktreeReason::GitMissing,
+        relayterm_git::ErrorKind::NotRepository => domain::WorktreeReason::NotRepository,
+        relayterm_git::ErrorKind::UnsupportedRoot => domain::WorktreeReason::UnsupportedRoot,
+        relayterm_git::ErrorKind::InvalidReference => domain::WorktreeReason::InvalidReference,
+        relayterm_git::ErrorKind::BranchConflict => domain::WorktreeReason::BranchConflict,
+        relayterm_git::ErrorKind::DestinationConflict => {
+            domain::WorktreeReason::DestinationConflict
+        }
+        relayterm_git::ErrorKind::UnsupportedCheckoutFilter => {
+            domain::WorktreeReason::UnsupportedCheckoutFilter
+        }
+        relayterm_git::ErrorKind::OutputLimit
+        | relayterm_git::ErrorKind::Timeout
+        | relayterm_git::ErrorKind::CommandFailed
+        | relayterm_git::ErrorKind::MalformedOutput
+        | relayterm_git::ErrorKind::Io => domain::WorktreeReason::OutcomeUncertain,
+    }
+}
+fn map_git_error(error: relayterm_git::Error) -> wire::ErrorBody {
+    match error.kind() {
+        relayterm_git::ErrorKind::OutputLimit => resource(),
+        relayterm_git::ErrorKind::GitMissing => unavailable(),
+        relayterm_git::ErrorKind::Timeout | relayterm_git::ErrorKind::CommandFailed => {
+            wire::ErrorBody {
+                code: wire::ErrorCode::ResultUnknown,
+                field: None,
+                effect: wire::ErrorEffect::Unknown,
+                recovery: wire::Recovery::InspectState,
+                message: None,
+            }
+        }
+        relayterm_git::ErrorKind::BranchConflict
+        | relayterm_git::ErrorKind::DestinationConflict => {
+            map_domain_error(domain::Error::Conflict)
+        }
+        _ => invalid(),
+    }
+}
 fn entity_uuid(id: domain::EntityId) -> uuid::Uuid {
     match id {
         domain::EntityId::Workspace(v) => v.as_uuid(),
@@ -2185,6 +2830,9 @@ fn entity_uuid(id: domain::EntityId) -> uuid::Uuid {
         domain::EntityId::Claim(v) => v.as_uuid(),
         domain::EntityId::Progress(v) => v.as_uuid(),
         domain::EntityId::Handover(v) => v.as_uuid(),
+        domain::EntityId::Worktree(v) => v.as_uuid(),
+        domain::EntityId::WorktreeOperation(v) => v.as_uuid(),
+        domain::EntityId::ApprovedRoot(v) => v.as_uuid(),
     }
 }
 fn timestamp(value: domain::Timestamp) -> Value {
@@ -2293,7 +2941,7 @@ fn instance_dto(value: &domain::AgentInstance) -> Value {
             "enabled":snapshot.enabled
         })
     });
-    json!({"id":r.id.to_string(),"session_id":r.session_id.to_string(),"workspace_id":r.workspace_id.to_string(),"agent_definition_id":r.agent_definition_id.map(|x|x.to_string()),"task_id":r.task_id.map(|x|x.to_string()),"launch_definition":launch_definition,"working_directory":path,"status":r.status,"started_at":timestamp(r.started_at),"last_observed_at":timestamp(r.last_observed_at),"ended_at":r.ended_at.map(timestamp),"exit_code":r.exit_code,"terminal_size":{"rows":r.terminal_size.rows(),"columns":r.terminal_size.columns()}})
+    json!({"id":r.id.to_string(),"session_id":r.session_id.to_string(),"workspace_id":r.workspace_id.to_string(),"agent_definition_id":r.agent_definition_id.map(|x|x.to_string()),"task_id":r.task_id.map(|x|x.to_string()),"worktree_id":r.worktree_id.map(|x|x.to_string()),"launch_definition":launch_definition,"working_directory":path,"status":r.status,"started_at":timestamp(r.started_at),"last_observed_at":timestamp(r.last_observed_at),"ended_at":r.ended_at.map(timestamp),"exit_code":r.exit_code,"terminal_size":{"rows":r.terminal_size.rows(),"columns":r.terminal_size.columns()}})
 }
 fn claim_dto(value: &domain::Claim) -> Value {
     let r = value.record();

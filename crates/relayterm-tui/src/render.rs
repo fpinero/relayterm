@@ -190,7 +190,7 @@ fn task_detail(app: &App, task: &Value) -> String {
     let content = task.get("content").unwrap_or(&Value::Null);
     let task_id = field(task, "id");
     let mut result = format!(
-        "{}\n\nStatus: {}\nPriority: {}\nOwner: {}\nDependencies: {}\nScope paths: {}\n\n{}\n\nAcceptance:\n{}",
+        "{}\n\nStatus: {}\nPriority: {}\nOwner: {}\nSelected worktree: {}\nDependencies: {}\nScope paths: {}\n\n{}\n\nAcceptance:\n{}",
         safe_text::single_line(
             content
                 .get("title")
@@ -203,6 +203,9 @@ fn task_detail(app: &App, task: &Value) -> String {
         task.get("claimed_by_instance_id")
             .and_then(Value::as_str)
             .unwrap_or("unclaimed"),
+        task.get("worktree_id")
+            .and_then(Value::as_str)
+            .unwrap_or("source checkout"),
         safe_list(content, "dependency_ids"),
         safe_list(content, "scope_paths"),
         safe_text::narrative(
@@ -220,6 +223,19 @@ fn task_detail(app: &App, task: &Value) -> String {
             16 * 1024
         )
     );
+    result.push_str("\n\nOwned worktrees:");
+    for worktree in app
+        .worktrees
+        .iter()
+        .filter(|worktree| field(worktree, "task_id") == task_id)
+    {
+        result.push_str(&format!(
+            "\n  [{}] {} at {}",
+            field(worktree, "health"),
+            safe_text::single_line(field(worktree, "branch_ref"), 256),
+            safe_text::single_line(field(worktree, "checkout_display"), 512)
+        ));
+    }
     result.push_str("\n\nClaim history:");
     for claim in app
         .collection("claims")
@@ -266,7 +282,7 @@ fn task_detail(app: &App, task: &Value) -> String {
             safe_text::narrative(field(value, "recommended_next_action"), 8 * 1024),
         ));
     }
-    result.push_str("\n\nPageUp/PageDown: history. Actions: n create, e edit, r ready/release, c claim, b block, d done, x cancel, p progress, h handover");
+    result.push_str("\n\nPageUp/PageDown: history. Actions: n create, e edit, r ready/release, c claim, b block, d done, x cancel, p progress, h handover, w create worktree, o select, u clear, a launch shell");
     result
 }
 
@@ -592,7 +608,7 @@ fn draw_events(frame: &mut Frame<'_>, app: &App, area: Rect) {
 }
 
 fn draw_help(frame: &mut Frame<'_>, area: Rect) {
-    let help = "Global\n  1-6 / Tab: change screen   ?: help   q: quit   R: reconnect\n  j/k or arrows: move selection   Enter: open\n\nTasks\n  n: create   e: edit   r: ready/release   c: claim\n  b: block   d: complete   x: cancel   p: progress   h: handover\n  PageUp/PageDown: task history\n\nAgents\n  n: custom   e: edit   Space: enable/disable   v: availability   a: launch\n  [ / ]: select template   p: copy selected template into a new editable definition\n\nSessions\n  s: launch shell   a: launch selected definition   Enter: attach\n  PageUp/PageDown: terminal history   i: acquire input\n  Ctrl-]: return to navigation   Esc: detach   t: terminate\n\nForms\n  Tab/Shift-Tab: field   Ctrl-U: clear field   Ctrl-S: submit   Esc: cancel\n  Ctrl-R: reconcile an uncertain result before explicit resubmission.\n  Enter adds a newline only in multiline fields.\n\nRelayterm does not terminate sessions when the client quits.";
+    let help = "Global\n  1-6 / Tab: change screen   ?: help   q: quit   R: reconnect\n  j/k or arrows: move selection   Enter: open\n\nTasks\n  n: create   e: edit   r: ready/release   c: claim\n  b: block   d: complete   x: cancel   p: progress   h: handover\n  w: create worktree   o: select next owned worktree   u: clear selection\n  a: launch shell for selected task   PageUp/PageDown: task history\n\nAgents\n  n: custom   e: edit   Space: enable/disable   v: availability   a: launch\n  [ / ]: select template   p: copy selected template into a new editable definition\n\nSessions\n  s: launch shell   a: launch selected definition   Enter: attach\n  PageUp/PageDown: terminal history   i: acquire input\n  Ctrl-]: return to navigation   Esc: detach   t: terminate\n\nForms\n  Tab/Shift-Tab: field   Ctrl-U: clear field   Ctrl-S: submit   Esc: cancel\n  Ctrl-R: reconcile an uncertain result before explicit resubmission.\n  Enter adds a newline only in multiline fields.\n\nRelayterm does not terminate sessions when the client quits.";
     frame.render_widget(
         Paragraph::new(help).wrap(Wrap { trim: false }).block(
             Block::default()
@@ -645,6 +661,7 @@ fn form_title(kind: crate::model::FormKind) -> &'static str {
     match kind {
         FormKind::AgentCreate => "Create agent form",
         FormKind::AgentEdit => "Edit agent form",
+        FormKind::WorktreeCreate => "Create worktree form",
         FormKind::TaskCreate => "Create task form",
         FormKind::TaskEdit => "Edit task form",
         FormKind::Progress => "Progress form",

@@ -1,6 +1,6 @@
 # Daemon and administrative CLI
 
-Relayterm M05 provides one independent local daemon per initialized workspace. The daemon owns SQLite state and serves current-user local IPC. Administrative commands are clients of that daemon. Real process and PTY creation starts in M07, and the default TUI starts in M08.
+Relayterm provides one independent local daemon per initialized workspace. The daemon owns SQLite state, supervised PTY or ConPTY sessions, optional Git worktree operations, and current-user local IPC. The interactive TUI and administrative commands are clients of that daemon.
 
 ## Private state and workspace selection
 
@@ -93,7 +93,7 @@ rt --workspace ./example agent check 00000000-0000-4000-8000-000000000950 --expe
 
 The result separates enabled state from the bounded availability status. It contains no resolved path, PATH value, argument content, environment value, or native error text. Availability does not prove authentication or provider health. A launch always resolves again against the admitted definition revision.
 
-Task lifecycle, claim, progress, handover, history, session metadata, and event commands are visible under `rt <group> --help`. M05 does not fabricate running instances, so a production claim that targets no real running instance fails honestly until M07 provides launch operations. Test fixtures may create synthetic lifecycle records without adding a production control.
+Task lifecycle, claim, progress, handover, history, real session, event, and worktree commands are visible under `rt <group> --help`. Production provides no operation that fabricates a running instance. Claims therefore require an actual supervised running instance. Worktree commands inspect or create through the daemon and never access SQLite directly from the client.
 
 Progress input records an attributed summary and explicit verification:
 
@@ -127,4 +127,4 @@ An optional private `config/config.toml` is read at daemon startup. Its validate
 
 ## Complete command groups
 
-The administrative surface comprises `workspace init/open/status`, `daemon start/status/stop`, `agent list/register/update/import/check`, `task create/list/get/update/transition/claim/release/history/claims`, `progress append`, `handover create/get`, `session list`, and `event list/watch`. Pagination defaults to 50 and rejects zero or values above 200. Use each command's help for exact arguments.
+The administrative surface comprises `workspace init/open/status`, `daemon start/status/stop`, `agent list/register/update/import/check`, `task create/list/get/update/transition/claim/release/history/claims`, `progress append`, `handover create/get`, `session create/list/attach/detach/input/resize/terminate`, `worktree inspect/create/list/operation/select/clear/reconcile`, and `event list/watch`. Pagination defaults to 50 and rejects zero or values above 200. Worktree reconciliation also requires the currently observed workspace revision. Use each command's help for exact arguments.

@@ -86,10 +86,11 @@ The canonical user-facing executable will be `rt`. The reserved `relayterm.com` 
 - [First durable slice](docs/first-durable-slice.md) documents the implemented M06 process, restart, continuity, and native verification gate.
 - [PTY supervision and reattachment](docs/pty-supervision.md) documents the M07 real-session lifecycle, limits, administrative surface, and native gate.
 - [TUI workflow and verification](docs/tui-workflow.md) documents the interactive M08 workflow, key map, terminal profile, limits, and native gate.
+- [Git worktrees](docs/worktrees.md) documents explicit task isolation, durable receipts, conservative recovery, and launch behavior.
 
 ## Current status
 
-Relayterm now has a deterministic coordination core, private SQLite persistence, a versioned local protocol, current-user IPC transports, an independent per-workspace daemon, an administrative CLI, daemon-owned real PTY sessions, and an interactive Ratatui client. The native M08 gate initializes and opens workspaces, coordinates tasks and handovers between real instances, drives three concurrent sessions, releases exclusive input, closes and reopens the client, renders authoritative terminal state, and verifies bounded behavior under output load. See the [TUI guide](docs/tui-workflow.md), [PTY guide](docs/pty-supervision.md), [first durable slice guide](docs/first-durable-slice.md), and [supported platform evidence](docs/supported-platforms.md).
+Relayterm now has a deterministic coordination core, private SQLite persistence, a versioned local protocol, current-user IPC transports, an independent per-workspace daemon, an administrative CLI, daemon-owned real PTY sessions, an interactive Ratatui client, neutral agent templates, and optional explicit Git worktrees for task isolation. Task-context launches validate and capture their selected checkout without changing normal non-Git workflows. See the [TUI guide](docs/tui-workflow.md), [PTY guide](docs/pty-supervision.md), [worktree guide](docs/worktrees.md), and [supported platform evidence](docs/supported-platforms.md).
 
 Build with the pinned Rust toolchain:
 
@@ -102,7 +103,7 @@ cargo run -p relayterm-cli --bin rt -- --version
 
 Running `rt` without a subcommand opens the workspace for the current directory, prompts before first initialization, and enters the TUI after connecting to the detached daemon. Use `--workspace PATH` to select another project. Noninteractive no-command use fails before side effects. Administrative commands, help, version, and JSON output remain separate from terminal mode.
 
-See [contributing](CONTRIBUTING.md), [agent templates and custom CLIs](docs/agent-templates.md), [architecture decisions](docs/architecture/README.md), [privacy](docs/privacy.md), and [platform evidence](docs/supported-platforms.md). The [pending queue](TODO.md) distinguishes implemented foundations from the remaining agent-adapter, worktree, hardening, and release milestones.
+See [contributing](CONTRIBUTING.md), [agent templates and custom CLIs](docs/agent-templates.md), [Git worktrees](docs/worktrees.md), [architecture decisions](docs/architecture/README.md), [privacy](docs/privacy.md), and [platform evidence](docs/supported-platforms.md). The [pending queue](TODO.md) distinguishes implemented foundations from the remaining hardening and release milestones.
 
 Contributions and technical discussion are welcome, but interfaces and behavior should be considered unstable until the first working release and stable protocol are defined.
 

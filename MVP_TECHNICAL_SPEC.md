@@ -185,7 +185,7 @@ Required lifecycle:
 | `running` | `exited`, `failed`, `terminated`, `lost` |
 | `exited`, `failed`, `terminated`, `lost` | None |
 
-An instance and its terminal session share one lifecycle record, with distinct one-to-one `id` and `session_id` identifiers and explicit `workspace_id`. Configured launches capture the accepted definition ID, display name, command, arguments, environment names, capabilities, and enabled state in `launch_definition_snapshot` inside the registration transaction. Generic shells have no definition snapshot. Definition edits affect later attempts and never rewrite existing snapshots. `starting` records a launch attempt. Startup failure is `failed` without an invented exit code. `exited` is an observed exit, including nonzero codes; `terminated` requires confirmed termination. `lost` means the outcome cannot be reconstructed. Unknown exit codes are nullable; final states require `ended_at`. Identical final observations are no-ops; incompatible observations are rejected.
+An instance and its terminal session share one lifecycle record, with distinct one-to-one `id` and `session_id` identifiers and explicit `workspace_id`. Configured launches capture the accepted definition ID, display name, command, arguments, environment names, capabilities, and enabled state in `launch_definition_snapshot` inside the registration transaction. Task launches also capture nullable `worktree_id` and the actual canonical working directory. Generic shells have no definition snapshot. Definition edits or later worktree selections affect later attempts and never rewrite existing snapshots. `starting` records a launch attempt. Startup failure is `failed` without an invented exit code. `exited` is an observed exit, including nonzero codes; `terminated` requires confirmed termination. `lost` means the outcome cannot be reconstructed. Unknown exit codes are nullable; final states require `ended_at`. Identical final observations are no-ops; incompatible observations are rejected.
 
 Finalizing an instance MUST atomically close its open claim and block the active task, if any. Exit never automatically completes work. Optional `task_id` is launch context, not current ownership. Pre-PTY simulation is restricted to tests, including M06; production cannot fabricate running processes.
 
@@ -322,9 +322,13 @@ Minimum operations:
 - `handover.create`
 - `worktree.create`
 - `worktree.list`
+- `worktree.inspect_repository`
+- `worktree.get_operation`
+- `worktree.select`
+- `worktree.reconcile`
 - `event.subscribe`
 
-The initial protocol also provides `protocol.hello`, `protocol.ping`, `daemon.status`, `daemon.shutdown`, `agent.register_definition`, `agent.update_definition`, `agent.import_definitions`, `task.get`, `task.transition`, `handover.get`, `task.get_history`, `task.get_claim_history`, `session.list`, `event.list`, and `event.unsubscribe`. M07 activates session creation with bounded generation-local receipts, attachment, detach, input lease acquisition and release, sequenced bounded input, resize, termination, authoritative snapshots, and offset-checked binary output continuation. M08 adds `session.read_display`, a capability-negotiated bounded parsed viewport with compact neutral cells, revision checks, parsed scrollback offsets, and unchanged responses. These additions are backward-compatible protocol version 1 operations advertised during hello because no prior production server accepted these reserved or new operation names. Worktree operations retain versioned payload definitions but return `operation_unavailable` until M10.
+The initial protocol also provides `protocol.hello`, `protocol.ping`, `daemon.status`, `daemon.shutdown`, `agent.register_definition`, `agent.update_definition`, `agent.import_definitions`, `task.get`, `task.transition`, `handover.get`, `task.get_history`, `task.get_claim_history`, `session.list`, `event.list`, and `event.unsubscribe`. M07 activates session creation with bounded generation-local receipts, attachment, detach, input lease acquisition and release, sequenced bounded input, resize, termination, authoritative snapshots, and offset-checked binary output continuation. M08 adds `session.read_display`, a capability-negotiated bounded parsed viewport with compact neutral cells, revision checks, parsed scrollback offsets, and unchanged responses. These additions are backward-compatible protocol version 1 operations advertised during hello because no prior production server accepted these reserved or new operation names. M10 activates capability-negotiated worktree operations with versioned create payloads, stable operation receipts, bounded lists and explicit reconciliation. Clients may poll a known receipt but never automatically repeat an uncertain creation request.
 
 Protocol version 1 permits these additive lifecycle and configuration operations. Clients inspect advertised operations and treat an older server's rejection as an unsupported capability. Shutdown targets an opaque runtime generation so a delayed request cannot stop a replacement daemon. Configuration import sends bounded contents, never a source path, and preserves revision-based atomic semantics.
 
@@ -405,7 +409,7 @@ Terminal panes render only daemon-parsed replacement viewports. They map neutral
 
 ### 6.7 Git worktree adapter
 
-The adapter SHOULD support:
+The adapter supports:
 
 - Detecting whether the workspace is a Git repository.
 - Listing project-owned worktrees.
@@ -416,6 +420,10 @@ The adapter SHOULD support:
 Deletion of worktrees and branches is excluded from the MVP because it can destroy uncommitted work. The product may display safe manual cleanup guidance.
 
 The adapter MUST validate all generated paths, avoid shell string interpolation, and pass arguments directly to the Git process.
+
+Creation stores a `prepared` intent before external effects and an `applying` dispatch marker before invoking Git. A successful command is verified against the canonical checkout, common Git directory and exact branch before a `ready` record can be associated. Partial or unprovable outcomes remain `needs_attention`; reconciliation inspects them without another add or destructive compensation. New branches and destinations are required. The default destination is under private application data, while another parent requires explicit selection and canonical validation.
+
+Task association changes require a nonfinal, nonactive task without a claim or a starting/running task session. A ready worktree belongs permanently to one task and workspace. A selected task session uses the validated checkout as the root for both CWD containment and relative executable resolution. Missing or mismatched worktrees refuse launch without source-checkout fallback. See [Git worktrees](docs/worktrees.md).
 
 ## 7. Functional requirements
 

@@ -146,6 +146,14 @@ Earlier Windows candidates exposed two separate restart problems. The stop comma
 
 The final local gate passes reported unavailable checks of 20 to 30 ms and available checks of 30 ms. These are observations from one machine, not universal performance guarantees. Optional provider checks were not run because no provider installation or authenticated account is required for account-free acceptance.
 
+## M10 Git worktree evidence
+
+Local development on macOS 26.5.2 arm64 used Rust 1.98.1 and Git 2.53.0. Two consecutive invocations of the native M10 gate passed. Each invocation drove the real TUI to create two tasks and two linked worktrees, launched a real task-context PTY in each selected checkout, and verified the immutable task and worktree identities in SQLite. A separate administrative journey preserved source HEAD and dirty files, wrote independent same-name files, rejected cross-task selection and live-session reassignment, restarted the production daemon, reused a durable operation receipt without another add, and completed a non-Git session.
+
+The focused recovery gate injected a failure after a confirmed real `git worktree add` and before final SQLite registration. After closing and reopening the server and database, explicit authenticated reconciliation verified the recorded destination, common Git directory, branch and pinned commit, finalized the receipt, and confirmed that the Git inventory still contained exactly two entries. Product recovery performed no add, removal or branch mutation.
+
+The Quality workflow runs the complete M10 gate in two independent stable-toolchain steps on Linux, macOS and Windows. Candidate links, runner Git versions and final native results are recorded only after those jobs complete. Existing M06 through M09 repetitions remain in the same jobs.
+
 ## Remaining manual shell and terminal matrix
 
 | Platform | Shells | Terminals and connections to verify |
@@ -158,6 +166,6 @@ Native PTY full-screen redraw, Unicode, resize, process survival, reattachment, 
 
 ## Prerequisites and limitations
 
-Development requires rustup and native linker/build tools. Git is needed for repository validation and later optional worktree isolation. Provider CLIs, credentials, graphical desktops, and hosted accounts are not needed for automated runtime acceptance.
+Development requires rustup and native linker/build tools. Git is needed only for optional worktree inspection and isolation. Provider CLIs, credentials, graphical desktops, and hosted accounts are not needed for automated runtime acceptance.
 
-The administrative daemon, CLI, real supervised sessions, PTY interaction, terminal reattachment workflow, and no-command interactive TUI are available. Host restart recovery of live processes is outside the MVP.
+The administrative daemon, CLI, real supervised sessions, PTY interaction, terminal reattachment workflow, no-command interactive TUI, neutral agent templates, and explicit task worktrees are available. Host restart recovery of live processes and automatic Git cleanup are outside the MVP.

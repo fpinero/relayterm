@@ -10,6 +10,7 @@ pub enum TaskField {
     ScopePaths,
     AcceptanceNotes,
     DependencyIds,
+    WorktreeId,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -31,6 +32,9 @@ pub enum EntityId {
     Claim(ClaimId),
     Progress(ProgressEntryId),
     Handover(HandoverId),
+    Worktree(WorktreeId),
+    WorktreeOperation(WorktreeOperationId),
+    ApprovedRoot(ApprovedRootId),
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -47,6 +51,10 @@ pub enum EventType {
     ClaimClosed,
     ProgressAdded,
     HandoverPrepared,
+    WorktreeIntentCreated,
+    WorktreeIntentChanged,
+    WorktreeRegistered,
+    TaskWorktreeSelected,
 }
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
@@ -101,6 +109,25 @@ pub enum EventPayload {
         id: HandoverId,
         task_id: TaskId,
     },
+    WorktreeIntentCreated {
+        id: WorktreeOperationId,
+        task_id: TaskId,
+        worktree_id: WorktreeId,
+    },
+    WorktreeIntentChanged {
+        id: WorktreeOperationId,
+        from: WorktreePhase,
+        to: WorktreePhase,
+        reason: Option<WorktreeReason>,
+    },
+    WorktreeRegistered {
+        id: WorktreeId,
+        task_id: TaskId,
+    },
+    TaskWorktreeSelected {
+        id: TaskId,
+        worktree_id: Option<WorktreeId>,
+    },
 }
 impl EventPayload {
     pub fn event_type(&self) -> EventType {
@@ -117,6 +144,10 @@ impl EventPayload {
             Self::ClaimClosed { .. } => EventType::ClaimClosed,
             Self::ProgressAdded { .. } => EventType::ProgressAdded,
             Self::HandoverPrepared { .. } => EventType::HandoverPrepared,
+            Self::WorktreeIntentCreated { .. } => EventType::WorktreeIntentCreated,
+            Self::WorktreeIntentChanged { .. } => EventType::WorktreeIntentChanged,
+            Self::WorktreeRegistered { .. } => EventType::WorktreeRegistered,
+            Self::TaskWorktreeSelected { .. } => EventType::TaskWorktreeSelected,
         }
     }
     pub fn entity_id(&self) -> EntityId {
@@ -134,6 +165,11 @@ impl EventPayload {
             Self::ClaimOpened { id, .. } | Self::ClaimClosed { id, .. } => EntityId::Claim(*id),
             Self::ProgressAdded { id, .. } => EntityId::Progress(*id),
             Self::HandoverPrepared { id, .. } => EntityId::Handover(*id),
+            Self::WorktreeIntentCreated { id, .. } | Self::WorktreeIntentChanged { id, .. } => {
+                EntityId::WorktreeOperation(*id)
+            }
+            Self::WorktreeRegistered { id, .. } => EntityId::Worktree(*id),
+            Self::TaskWorktreeSelected { id, .. } => EntityId::Task(*id),
         }
     }
 }

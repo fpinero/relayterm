@@ -76,6 +76,7 @@ pub enum FormKind {
     Progress,
     Handover,
     ConfirmTerminate,
+    WorktreeCreate,
 }
 
 #[derive(Clone, Eq, PartialEq)]
@@ -180,6 +181,25 @@ impl Form {
         }
     }
 
+    pub fn worktree_create() -> Self {
+        Self {
+            kind: FormKind::WorktreeCreate,
+            fields: vec![
+                field("Base reference", false, 256),
+                field("New branch", false, 256),
+                field("Approved parent", false, 8192),
+                field("Destination leaf", false, 128),
+                field("Operation ID", false, 64),
+            ],
+            selected: 0,
+            error: None,
+            pending: false,
+            uncertain: false,
+            target_id: None,
+            base_revision: String::new(),
+        }
+    }
+
     pub fn bytes(&self) -> usize {
         self.fields.iter().map(|field| field.value.len()).sum()
     }
@@ -225,6 +245,7 @@ pub struct App {
     pub selected_agent: usize,
     pub selected_template: usize,
     pub templates: Vec<Value>,
+    pub worktrees: Vec<Value>,
     pub agent_availability: Option<(String, String, String, String, Instant)>,
     pub task_scroll: u16,
     pub form: Option<Form>,
@@ -250,6 +271,7 @@ impl Default for App {
             selected_agent: 0,
             selected_template: 0,
             templates: Vec::new(),
+            worktrees: Vec::new(),
             agent_availability: None,
             task_scroll: 0,
             form: None,

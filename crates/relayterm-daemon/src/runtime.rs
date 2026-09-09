@@ -390,6 +390,7 @@ pub struct PreparedWorkspace {
     notify_rx: watch::Receiver<u64>,
     listener: LocalListener,
     runtime_lock: PrivateLock,
+    worktree_parent: PathBuf,
 }
 
 impl PreparedWorkspace {
@@ -424,7 +425,8 @@ impl PreparedWorkspace {
         )
         .with_event_wakeups(self.notify_rx)
         .with_lifecycle(control.clone())
-        .with_supervisor(supervisor.clone());
+        .with_supervisor(supervisor.clone())
+        .with_worktrees(self.worktree_parent.clone());
         self.diagnostics.write(
             "info",
             "daemon.ready",
@@ -500,7 +502,11 @@ pub async fn prepare_workspace(
     let endpoint = endpoint(&locations, expected)?;
     let listener = LocalListener::bind(&endpoint)
         .await
-        .map_err(|_| RuntimeError::Busy)?;
+        .map_err(|error| match error {
+            relayterm_ipc::IpcError::EndpointInUse => RuntimeError::Busy,
+            relayterm_ipc::IpcError::AccessDenied => RuntimeError::AccessDenied,
+            _ => RuntimeError::Transport,
+        })?;
     let diagnostics =
         DiagnosticLog::open(&locations, expected).map_err(|_| RuntimeError::AccessDenied)?;
     diagnostics.write("info", "daemon.starting", expected, None);
@@ -514,6 +520,16 @@ pub async fn prepare_workspace(
     .await
     .map_err(map_storage)?;
     let store = SqliteStore::new(database.pool().clone());
+    let worktrees = locations.data().join("worktrees");
+    if !worktrees.exists() {
+        relayterm_platform::create_private_dir(&worktrees)
+            .map_err(|_| RuntimeError::AccessDenied)?;
+    }
+    let worktree_parent = worktrees.join(expected.to_string());
+    if !worktree_parent.exists() {
+        relayterm_platform::create_private_dir(&worktree_parent)
+            .map_err(|_| RuntimeError::AccessDenied)?;
+    }
     let (notify_tx, notify_rx) = watch::channel(0);
     let service = Arc::new(Service::new(
         store.clone(),
@@ -549,6 +565,7 @@ pub async fn prepare_workspace(
         notify_rx,
         listener,
         runtime_lock,
+        worktree_parent,
     })
 }
 

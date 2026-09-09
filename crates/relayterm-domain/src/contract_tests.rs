@@ -224,9 +224,9 @@ fn reconstruction_rejects_invalid_records_and_temporal_sequences() {
     let mut bad = task.clone();
     bad.status = TaskStatus::Active;
     assert!(Task::restore(bad).is_err());
-    let mut bad = task.clone();
-    bad.worktree_id = Some(id(3));
-    assert!(Task::restore(bad).is_err());
+    let mut associated = task.clone();
+    associated.worktree_id = Some(id(3));
+    assert!(Task::restore(associated).is_ok());
     let mut bad = task.clone();
     bad.content.dependency_ids = vec![id(2)];
     assert!(Task::restore(bad).is_err());
@@ -336,6 +336,7 @@ fn instance_metadata_and_observation_times_are_validated() {
         agent_definition_id: None,
         task_id: None,
         launch_definition: None,
+        worktree_id: None,
         working_directory: "project".into(),
         status: InstanceStatus::Starting,
         started_at: at(10),

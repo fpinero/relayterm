@@ -10,6 +10,9 @@ use std::{
     time::Duration,
 };
 
+static REGISTRY_MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations/registry");
+static WORKSPACE_MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations/workspace");
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DatabaseKind {
     Registry,
@@ -80,21 +83,11 @@ impl Database {
             }
         }
 
-        let migration_path = match kind {
-            DatabaseKind::Registry => {
-                Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations/registry")
-            }
-            DatabaseKind::Workspace => {
-                Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations/workspace")
-            }
-        };
-        let migrator = sqlx::migrate::Migrator::new(migration_path.as_path())
-            .await
-            .map_err(|_| StorageError::Migration)?;
+        let migrator = migration_for(kind);
         if matches!(mode, OpenMode::Reopen | OpenMode::ReadOnly) {
-            preflight_existing(path, kind, &migrator, mode == OpenMode::ReadOnly).await?;
+            preflight_existing(path, kind, migrator, mode == OpenMode::ReadOnly).await?;
         } else if mode == OpenMode::ResumeInitialization {
-            preflight_initializing(path, kind, &migrator).await?;
+            preflight_initializing(path, kind, migrator).await?;
         }
 
         let options = SqliteConnectOptions::from_str("sqlite:")
@@ -169,26 +162,15 @@ impl Database {
             .await
             .map_err(map_sqlx)?;
         secure_generated_file(destination).map_err(|_| StorageError::AccessDenied)?;
-        preflight_existing(
-            destination,
-            self.kind,
-            &migration_for(self.kind).await?,
-            true,
-        )
-        .await
+        preflight_existing(destination, self.kind, migration_for(self.kind), true).await
     }
 }
 
-async fn migration_for(kind: DatabaseKind) -> Result<sqlx::migrate::Migrator, StorageError> {
-    let path = match kind {
-        DatabaseKind::Registry => Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations/registry"),
-        DatabaseKind::Workspace => {
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations/workspace")
-        }
-    };
-    sqlx::migrate::Migrator::new(path.as_path())
-        .await
-        .map_err(|_| StorageError::Migration)
+fn migration_for(kind: DatabaseKind) -> &'static sqlx::migrate::Migrator {
+    match kind {
+        DatabaseKind::Registry => &REGISTRY_MIGRATOR,
+        DatabaseKind::Workspace => &WORKSPACE_MIGRATOR,
+    }
 }
 
 async fn preflight_existing(
@@ -498,7 +480,7 @@ mod tests {
                 )
                 .await
                 .unwrap();
-                sqlx::query("UPDATE _sqlx_migrations SET version=99")
+                sqlx::query("UPDATE _sqlx_migrations SET version=99 WHERE version=(SELECT max(version) FROM _sqlx_migrations)")
                     .execute(database.pool())
                     .await
                     .unwrap();
@@ -717,7 +699,7 @@ mod tests {
                         .fetch_one(reopened.pool())
                         .await
                         .unwrap();
-                assert_eq!(migrations, 1);
+                assert_eq!(migrations, 2);
             });
     }
 }

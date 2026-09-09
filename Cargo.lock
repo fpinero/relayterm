@@ -111,6 +111,9 @@ name = "bitflags"
 version = "2.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b588b76d00fde79687d7646a9b5bdf3cc0f655e0bbd080335a95d7e96f3587da"
+dependencies = [
+ "serde_core",
+]
 
 [[package]]
 name = "blake3"
@@ -1459,6 +1462,7 @@ dependencies = [
  "relayterm-tui",
  "serde",
  "serde_json",
+ "tempfile",
  "tokio",
  "uuid",
  "vt100",
@@ -1490,10 +1494,12 @@ name = "relayterm-daemon"
 version = "0.1.0"
 dependencies = [
  "base64",
+ "blake3",
  "relayterm-application",
  "relayterm-client",
  "relayterm-config",
  "relayterm-domain",
+ "relayterm-git",
  "relayterm-ipc",
  "relayterm-persistence-sqlite",
  "relayterm-platform",
@@ -1517,6 +1523,13 @@ dependencies = [
  "serde_json",
  "time",
  "uuid",
+]
+
+[[package]]
+name = "relayterm-git"
+version = "0.1.0"
+dependencies = [
+ "tempfile",
 ]
 
 [[package]]
@@ -1809,6 +1822,9 @@ name = "smallvec"
 version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9be42f50aa861c555654aa3a37f52f4b1074bacf4e48fe0ef7fa584e80f1f0f"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "socket2"
@@ -1866,6 +1882,7 @@ dependencies = [
  "memchr",
  "percent-encoding",
  "serde",
+ "serde_json",
  "sha2 0.10.9",
  "smallvec",
  "thiserror 2.0.20",
@@ -1907,6 +1924,7 @@ dependencies = [
  "sqlx-core",
  "sqlx-sqlite",
  "syn 2.0.119",
+ "thiserror 2.0.20",
  "tokio",
  "url",
 ]
@@ -1929,6 +1947,7 @@ dependencies = [
  "generic-array",
  "log",
  "percent-encoding",
+ "serde",
  "sha1",
  "sha2 0.11.0",
  "sqlx-core",
@@ -1960,6 +1979,8 @@ dependencies = [
  "md-5",
  "memchr",
  "rand",
+ "serde",
+ "serde_json",
  "sha2 0.11.0",
  "smallvec",
  "sqlx-core",
