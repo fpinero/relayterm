@@ -197,7 +197,7 @@ impl Git {
             OsString::from(branch),
             OsString::from("--no-track"),
             OsString::from("--"),
-            destination.as_os_str().to_owned(),
+            git_argument_path(destination),
             OsString::from(commit),
         ];
         self.run_quiet(
@@ -406,6 +406,22 @@ fn null_device() -> &'static str {
     if cfg!(windows) { "NUL" } else { "/dev/null" }
 }
 
+#[cfg(not(windows))]
+fn git_argument_path(path: &Path) -> OsString {
+    path.as_os_str().to_owned()
+}
+
+#[cfg(windows)]
+fn git_argument_path(path: &Path) -> OsString {
+    if let Ok(relative) = path.strip_prefix(Path::new(r"\\?\UNC")) {
+        return Path::new(r"\\").join(relative).into_os_string();
+    }
+    if let Ok(relative) = path.strip_prefix(Path::new(r"\\?\")) {
+        return relative.as_os_str().to_owned();
+    }
+    path.as_os_str().to_owned()
+}
+
 pub fn validate_branch(value: &str) -> Result<()> {
     if value.is_empty()
         || value.len() > 256
@@ -588,6 +604,19 @@ mod tests {
             assert!(validate_destination_leaf(leaf).is_err(), "{leaf:?}");
         }
         assert!(validate_destination_leaf("task one-é").is_ok());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn verbatim_native_paths_are_adapted_only_at_the_git_boundary() {
+        assert_eq!(
+            git_argument_path(Path::new(r"\\?\C:\private\worktrees\task")),
+            OsString::from(r"C:\private\worktrees\task")
+        );
+        assert_eq!(
+            git_argument_path(Path::new(r"\\?\UNC\server\share\task")),
+            OsString::from(r"\\server\share\task")
+        );
     }
 
     #[test]
