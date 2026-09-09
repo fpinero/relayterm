@@ -188,6 +188,37 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
     );
     assert_eq!(created["workspace_id"], workspace_id);
     assert_eq!(fs::read_dir(&backup).unwrap().count(), 2);
+    let original_database = fs::read(backup.join("workspace.sqlite3")).unwrap();
+    let original_manifest = fs::read(backup.join("manifest.json")).unwrap();
+
+    let existing_home = scratch.0.join("existing-private");
+    fs::create_dir(&existing_home).unwrap();
+    let sentinel = existing_home.join("preserved.txt");
+    fs::write(&sentinel, b"preserve existing destination").unwrap();
+    let existing_result = bounded_output(
+        Command::new(env!("CARGO_BIN_EXE_rt"))
+            .arg("--workspace")
+            .arg(&root)
+            .args(["--format", "json", "backup", "restore", "--source"])
+            .arg(&backup)
+            .arg("--destination")
+            .arg(&existing_home)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null()),
+    );
+    assert!(!existing_result.status.success());
+    assert_eq!(
+        fs::read(&sentinel).unwrap(),
+        b"preserve existing destination"
+    );
+    assert_eq!(
+        fs::read(backup.join("workspace.sqlite3")).unwrap(),
+        original_database
+    );
+    assert_eq!(
+        fs::read(backup.join("manifest.json")).unwrap(),
+        original_manifest
+    );
 
     let restored_text = restored.to_str().unwrap();
     let restored_result = success(
@@ -211,10 +242,77 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
         &["daemon", "stop", "--terminate-sessions"],
     );
 
+    let unexpected = home.join("data").join("unexpected-member-backup");
+    success(
+        &root,
+        &home,
+        &[
+            "backup",
+            "create",
+            "--destination",
+            unexpected.to_str().unwrap(),
+        ],
+    );
+    fs::write(unexpected.join("unexpected.txt"), b"synthetic member").unwrap();
+    let unexpected_home = scratch.0.join("unexpected-member-restore");
+    let unexpected_result = bounded_output(
+        Command::new(env!("CARGO_BIN_EXE_rt"))
+            .arg("--workspace")
+            .arg(&root)
+            .args(["--format", "json", "backup", "restore", "--source"])
+            .arg(&unexpected)
+            .arg("--destination")
+            .arg(&unexpected_home)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null()),
+    );
+    assert!(!unexpected_result.status.success());
+    assert!(!unexpected_home.exists());
+
+    let newer = home.join("data").join("newer-manifest-backup");
+    success(
+        &root,
+        &home,
+        &["backup", "create", "--destination", newer.to_str().unwrap()],
+    );
+    let mut newer_manifest: Value =
+        serde_json::from_slice(&fs::read(newer.join("manifest.json")).unwrap()).unwrap();
+    newer_manifest["format_version"] = Value::from(2);
+    fs::write(
+        newer.join("manifest.json"),
+        serde_json::to_vec(&newer_manifest).unwrap(),
+    )
+    .unwrap();
+    let newer_home = scratch.0.join("newer-manifest-restore");
+    let newer_result = bounded_output(
+        Command::new(env!("CARGO_BIN_EXE_rt"))
+            .arg("--workspace")
+            .arg(&root)
+            .args(["--format", "json", "backup", "restore", "--source"])
+            .arg(&newer)
+            .arg("--destination")
+            .arg(&newer_home)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null()),
+    );
+    assert!(!newer_result.status.success());
+    assert!(!newer_home.exists());
+
+    let corrupt = home.join("data").join("corrupt-backup");
+    success(
+        &root,
+        &home,
+        &[
+            "backup",
+            "create",
+            "--destination",
+            corrupt.to_str().unwrap(),
+        ],
+    );
     let rejected_home = scratch.0.join("rejected-private");
     let mut database = fs::OpenOptions::new()
         .append(true)
-        .open(backup.join("workspace.sqlite3"))
+        .open(corrupt.join("workspace.sqlite3"))
         .unwrap();
     use std::io::Write as _;
     database.write_all(b"synthetic-corruption").unwrap();
@@ -224,7 +322,7 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
             .arg("--workspace")
             .arg(&root)
             .args(["--format", "json", "backup", "restore", "--source"])
-            .arg(&backup)
+            .arg(&corrupt)
             .arg("--destination")
             .arg(&rejected_home)
             .stdout(Stdio::piped())
@@ -232,4 +330,12 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
     );
     assert!(!rejected.status.success());
     assert!(!rejected_home.exists());
+    assert_eq!(
+        fs::read(backup.join("workspace.sqlite3")).unwrap(),
+        original_database
+    );
+    assert_eq!(
+        fs::read(backup.join("manifest.json")).unwrap(),
+        original_manifest
+    );
 }
