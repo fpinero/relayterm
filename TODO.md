@@ -33,6 +33,8 @@ Depends on: M09 and M10. Specification phase: 5. Coverage: FR-1 through FR-9; NF
 
 Outcome: demonstrated MVP behavior and recovery under faults, with bounded resources and public-safe diagnostics.
 
+Execution contract: [M11 detailed plan](docs/M11_details.md). Add its 50 atomic implementation tasks before coding; the documentary delivery does not complete M11.01-M11.10.
+
 - M11.01: Define a release acceptance matrix mapping each AC to automated tests, required manual observations, OS/shell/terminal combinations, and evidence locations. Define concrete workloads and pass thresholds for memory bounds, input latency, and startup timing before measurement. Treat unsupported required behavior as a blocker, not a documentation-only exemption.
 - M11.02: Run the full daemon/client/real-PTY scenario: initialize, launch three sessions, reject competing claims, append progress, hand over, resume elsewhere, detach/reattach, restart, and use isolated worktrees. Assert durable state and events after each boundary on all three platforms.
 - M11.03: Inject malformed/truncated IPC, request cancellation, client crashes, slow subscribers, child spawn failures/crashes, and daemon termination during writes. Verify transaction atomicity, useful errors, independent session survival, and recoverable reconnect behavior.
