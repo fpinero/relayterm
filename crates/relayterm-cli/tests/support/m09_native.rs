@@ -139,6 +139,7 @@ impl OuterTerminal {
         self.screen.lock().unwrap().screen().contents()
     }
 
+    #[allow(dead_code)]
     pub fn process_id(&self) -> u32 {
         self.control
             .process_id()
