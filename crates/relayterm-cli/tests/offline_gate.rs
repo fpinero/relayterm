@@ -88,6 +88,12 @@ fn daemon_uses_local_ipc_without_network_endpoints() {
     let agent_ready = scratch.0.join("agent.ready");
     let agent_stop = scratch.0.join("agent.stop");
     fs::create_dir(&root).unwrap();
+    run_git(&root, &["init", "-q"]);
+    run_git(&root, &["config", "user.name", "Fixture"]);
+    run_git(&root, &["config", "user.email", "fixture@example.invalid"]);
+    fs::write(root.join("fixture.txt"), b"offline fixture\n").unwrap();
+    run_git(&root, &["add", "fixture.txt"]);
+    run_git(&root, &["commit", "-qm", "offline fixture"]);
     let initialized = successful(command(
         &root,
         &home,
@@ -128,6 +134,66 @@ fn daemon_uses_local_ipc_without_network_endpoints() {
         "foreground daemon readiness",
     );
 
+    let status = successful(command(&root, &home, &["workspace", "status"]));
+    let revision = status["result"]["revision"].as_str().unwrap();
+    let task_file = scratch.0.join("offline-task.json");
+    fs::write(
+        &task_file,
+        serde_json::to_vec(&serde_json::json!({
+            "title":"Offline worktree task",
+            "description":"",
+            "priority":"normal",
+            "scope_paths":[],
+            "acceptance_notes":"",
+            "dependency_ids":[]
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    let task = successful(command(
+        &root,
+        &home,
+        &[
+            "task",
+            "create",
+            "--expected-revision",
+            revision,
+            "--file",
+            task_file.to_str().unwrap(),
+        ],
+    ));
+    let task_id = task["result"]["entity_ids"][0].as_str().unwrap();
+    let ready = successful(command(
+        &root,
+        &home,
+        &[
+            "task",
+            "transition",
+            task_id,
+            "ready",
+            "--expected-revision",
+            task["result"]["revision"].as_str().unwrap(),
+        ],
+    ));
+    let operation_id = "00000000-0000-4000-8000-000000001814";
+    let worktree = successful(command(
+        &root,
+        &home,
+        &[
+            "worktree",
+            "create",
+            task_id,
+            "--expected-revision",
+            ready["result"]["revision"].as_str().unwrap(),
+            "--operation-id",
+            operation_id,
+            "--branch",
+            "rt/offline-gate",
+            "--leaf",
+            "offline-gate",
+        ],
+    ));
+    assert_eq!(worktree["result"]["phase"], "ready");
     let status = successful(command(&root, &home, &["workspace", "status"]));
     let revision = status["result"]["revision"].as_str().unwrap();
     let definition = scratch.0.join("offline-agent.json");
@@ -197,6 +263,52 @@ fn daemon_uses_local_ipc_without_network_endpoints() {
         &["daemon", "stop", "--terminate-sessions"],
     ));
     wait_child(&mut daemon);
+
+    let backup = home.join("data").join("b");
+    let restored = home.join("data").join("r");
+    successful(command(
+        &root,
+        &home,
+        &[
+            "backup",
+            "create",
+            "--destination",
+            backup.to_str().unwrap(),
+        ],
+    ));
+    successful(command(
+        &root,
+        &home,
+        &[
+            "backup",
+            "restore",
+            "--source",
+            backup.to_str().unwrap(),
+            "--destination",
+            restored.to_str().unwrap(),
+        ],
+    ));
+    let restored_status = successful(command(&root, &restored, &["workspace", "open"]));
+    assert_eq!(restored_status["result"]["workspace_id"], workspace_id);
+    successful(command(
+        &root,
+        &restored,
+        &["daemon", "stop", "--terminate-sessions"],
+    ));
+}
+
+fn run_git(root: &Path, arguments: &[&str]) {
+    assert!(
+        Command::new("git")
+            .current_dir(root)
+            .args(arguments)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .unwrap()
+            .success()
+    );
 }
 
 fn command(root: &Path, home: &Path, arguments: &[&str]) -> Output {
