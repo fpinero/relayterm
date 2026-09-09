@@ -18,6 +18,8 @@ def native_ci_commands_are_independent(text):
         "- name: Test M11 protocol faults, pass 2\n",
         "- name: Test M11 durable scale, pass 1\n",
         "- name: Test M11 durable scale, pass 2\n",
+        "- name: Test M11 offline runtime, pass 1\n",
+        "- name: Test M11 offline runtime, pass 2\n",
     ]
     return all(text.count(marker) == 1 for marker in required)
 

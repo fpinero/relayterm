@@ -110,6 +110,14 @@ jobs:
         if: matrix.toolchain == 'stable'
         timeout-minutes: 5
         run: cargo test -p relayterm-persistence-sqlite --test resource_gate --locked -- --nocapture --test-threads=1
+      - name: Test M11 offline runtime, pass 1
+        if: matrix.toolchain == 'stable'
+        timeout-minutes: 5
+        run: cargo test -p relayterm-cli --test offline_gate --locked -- --nocapture --test-threads=1
+      - name: Test M11 offline runtime, pass 2
+        if: matrix.toolchain == 'stable'
+        timeout-minutes: 5
+        run: cargo test -p relayterm-cli --test offline_gate --locked -- --nocapture --test-threads=1
       - name: Test private backup and restore
         if: matrix.toolchain == 'stable'
         timeout-minutes: 5
