@@ -162,6 +162,21 @@ fn sustained_output_memory_and_reconnect_resources_are_bounded() {
         "the ninth session must be rejected before spawn"
     );
     assert_eq!(fs::read_dir(&processes).unwrap().count(), SESSION_COUNT);
+    let listed_sessions = successful(admin(&root, &home, &["session", "list"]))["items"]
+        .as_array()
+        .unwrap()
+        .clone();
+    let running_selection = listed_sessions
+        .iter()
+        .position(|item| item["status"] == "running")
+        .expect("at least one admitted session must remain running");
+    assert_eq!(
+        listed_sessions
+            .iter()
+            .filter(|item| item["status"] == "running")
+            .count(),
+        SESSION_COUNT
+    );
     let child_pids = (0..SESSION_COUNT)
         .map(|index| {
             fs::read_to_string(processes.join(index.to_string()))
@@ -175,6 +190,9 @@ fn sustained_output_memory_and_reconnect_resources_are_bounded() {
     tui.finish_startup();
     tui.send(b"3");
     tui.wait_for("Sessions selected");
+    for _ in 0..running_selection {
+        tui.send(b"j");
+    }
     tui.send(b"\r");
     tui.wait_for("Terminal");
 
