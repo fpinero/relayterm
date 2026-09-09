@@ -256,6 +256,52 @@ impl DurableReadStore for SqliteStore {
         let _ = sqlx::query("ROLLBACK").execute(&mut *connection).await;
         result
     }
+
+    async fn definition_page(
+        &self,
+        workspace_id: WorkspaceId,
+        request: IdPageRequest,
+    ) -> Result<IdPage<AgentDefinition>> {
+        let mut connection = self.pool.acquire().await.map_err(domain_storage)?;
+        sqlx::query("BEGIN")
+            .execute(&mut *connection)
+            .await
+            .map_err(domain_storage)?;
+        let result = load_definition_page(&mut connection, workspace_id, request).await;
+        let _ = sqlx::query("ROLLBACK").execute(&mut *connection).await;
+        result
+    }
+
+    async fn worktree_page(
+        &self,
+        workspace_id: WorkspaceId,
+        task_id: Option<TaskId>,
+        request: IdPageRequest,
+    ) -> Result<IdPage<Worktree>> {
+        let mut connection = self.pool.acquire().await.map_err(domain_storage)?;
+        sqlx::query("BEGIN")
+            .execute(&mut *connection)
+            .await
+            .map_err(domain_storage)?;
+        let result = load_worktree_page(&mut connection, workspace_id, task_id, request).await;
+        let _ = sqlx::query("ROLLBACK").execute(&mut *connection).await;
+        result
+    }
+
+    async fn instance_page(
+        &self,
+        workspace_id: WorkspaceId,
+        request: IdPageRequest,
+    ) -> Result<IdPage<AgentInstance>> {
+        let mut connection = self.pool.acquire().await.map_err(domain_storage)?;
+        sqlx::query("BEGIN")
+            .execute(&mut *connection)
+            .await
+            .map_err(domain_storage)?;
+        let result = load_instance_page(&mut connection, workspace_id, request).await;
+        let _ = sqlx::query("ROLLBACK").execute(&mut *connection).await;
+        result
+    }
 }
 
 async fn page_metadata(
@@ -441,6 +487,116 @@ async fn load_claim_page(
         .take(usize::from(request.limit))
         .map(|row| decode_claim(row, workspace_id))
         .collect::<Result<Vec<_>>>()?;
+    Ok(IdPage {
+        revision,
+        last_sequence,
+        retained_from_sequence,
+        items,
+        has_more,
+    })
+}
+
+async fn load_definition_page(
+    connection: &mut SqliteConnection,
+    workspace_id: WorkspaceId,
+    request: IdPageRequest,
+) -> Result<IdPage<AgentDefinition>> {
+    let (revision, last_sequence, retained_from_sequence) =
+        page_metadata(connection, workspace_id, request.expected_revision).await?;
+    let rows = if let Some(after) = request.after_id {
+        sqlx::query("SELECT definition_id,display_name,command,enabled FROM agent_definitions WHERE workspace_id=? AND definition_id>? ORDER BY definition_id LIMIT ?")
+            .bind(id_bytes(workspace_id.as_uuid()))
+            .bind(after.to_vec())
+            .bind(i64::from(request.limit) + 1)
+            .fetch_all(&mut *connection)
+            .await
+            .map_err(domain_storage)?
+    } else {
+        sqlx::query("SELECT definition_id,display_name,command,enabled FROM agent_definitions WHERE workspace_id=? ORDER BY definition_id LIMIT ?")
+            .bind(id_bytes(workspace_id.as_uuid()))
+            .bind(i64::from(request.limit) + 1)
+            .fetch_all(&mut *connection)
+            .await
+            .map_err(domain_storage)?
+    };
+    let has_more = rows.len() > usize::from(request.limit);
+    let mut items = Vec::with_capacity(rows.len().min(usize::from(request.limit)));
+    for row in rows.into_iter().take(usize::from(request.limit)) {
+        items.push(decode_definition(connection, row, workspace_id).await?);
+    }
+    Ok(IdPage {
+        revision,
+        last_sequence,
+        retained_from_sequence,
+        items,
+        has_more,
+    })
+}
+
+async fn load_worktree_page(
+    connection: &mut SqliteConnection,
+    workspace_id: WorkspaceId,
+    task: Option<TaskId>,
+    request: IdPageRequest,
+) -> Result<IdPage<Worktree>> {
+    let (revision, last_sequence, retained_from_sequence) =
+        page_metadata(connection, workspace_id, request.expected_revision).await?;
+    let rows = match (task, request.after_id) {
+        (Some(task), Some(after)) => sqlx::query("SELECT * FROM worktrees WHERE workspace_id=? AND task_id=? AND worktree_id>? ORDER BY worktree_id LIMIT ?")
+            .bind(id_bytes(workspace_id.as_uuid())).bind(id_bytes(task.as_uuid())).bind(after.to_vec()).bind(i64::from(request.limit) + 1).fetch_all(&mut *connection).await,
+        (Some(task), None) => sqlx::query("SELECT * FROM worktrees WHERE workspace_id=? AND task_id=? ORDER BY worktree_id LIMIT ?")
+            .bind(id_bytes(workspace_id.as_uuid())).bind(id_bytes(task.as_uuid())).bind(i64::from(request.limit) + 1).fetch_all(&mut *connection).await,
+        (None, Some(after)) => sqlx::query("SELECT * FROM worktrees WHERE workspace_id=? AND worktree_id>? ORDER BY worktree_id LIMIT ?")
+            .bind(id_bytes(workspace_id.as_uuid())).bind(after.to_vec()).bind(i64::from(request.limit) + 1).fetch_all(&mut *connection).await,
+        (None, None) => sqlx::query("SELECT * FROM worktrees WHERE workspace_id=? ORDER BY worktree_id LIMIT ?")
+            .bind(id_bytes(workspace_id.as_uuid())).bind(i64::from(request.limit) + 1).fetch_all(&mut *connection).await,
+    }
+    .map_err(domain_storage)?;
+    let has_more = rows.len() > usize::from(request.limit);
+    let items = rows
+        .into_iter()
+        .take(usize::from(request.limit))
+        .map(|row| decode_worktree(row, workspace_id))
+        .collect::<Result<Vec<_>>>()?;
+    Ok(IdPage {
+        revision,
+        last_sequence,
+        retained_from_sequence,
+        items,
+        has_more,
+    })
+}
+
+async fn load_instance_page(
+    connection: &mut SqliteConnection,
+    workspace_id: WorkspaceId,
+    request: IdPageRequest,
+) -> Result<IdPage<AgentInstance>> {
+    let (revision, last_sequence, retained_from_sequence) =
+        page_metadata(connection, workspace_id, request.expected_revision).await?;
+    let rows = if let Some(after) = request.after_id {
+        sqlx::query("SELECT * FROM agent_instances WHERE workspace_id=? AND instance_id>? ORDER BY instance_id LIMIT ?")
+            .bind(id_bytes(workspace_id.as_uuid()))
+            .bind(after.to_vec())
+            .bind(i64::from(request.limit) + 1)
+            .fetch_all(&mut *connection)
+            .await
+            .map_err(domain_storage)?
+    } else {
+        sqlx::query(
+            "SELECT * FROM agent_instances WHERE workspace_id=? ORDER BY instance_id LIMIT ?",
+        )
+        .bind(id_bytes(workspace_id.as_uuid()))
+        .bind(i64::from(request.limit) + 1)
+        .fetch_all(&mut *connection)
+        .await
+        .map_err(domain_storage)?
+    };
+    let has_more = rows.len() > usize::from(request.limit);
+    let mut items = Vec::with_capacity(rows.len().min(usize::from(request.limit)));
+    for row in rows.into_iter().take(usize::from(request.limit)) {
+        items.push(decode_instance(connection, row, workspace_id).await?);
+    }
     Ok(IdPage {
         revision,
         last_sequence,
@@ -787,41 +943,45 @@ async fn load_worktree_state(
         .await
         .map_err(domain_storage)?
     {
-        worktrees.push(Worktree::restore(WorktreeRecord {
-            id: worktree_id(row.try_get("worktree_id").map_err(|_| Error::Storage)?)?,
-            workspace_id,
-            task_id: task_id(row.try_get("task_id").map_err(|_| Error::Storage)?)?,
-            operation_id: worktree_operation_id(
-                row.try_get("operation_id").map_err(|_| Error::Storage)?,
-            )?,
-            root_id: approved_root_id(row.try_get("root_id").map_err(|_| Error::Storage)?)?,
-            checkout_path: decode_native_path(
-                &row.try_get::<String, _>("checkout_codec")
-                    .map_err(|_| Error::Storage)?,
-                &row.try_get::<Vec<u8>, _>("checkout_path")
-                    .map_err(|_| Error::Storage)?,
-            )
-            .map_err(|_| Error::Storage)?,
-            common_directory_identity: decode_native_path(
-                &row.try_get::<String, _>("common_codec")
-                    .map_err(|_| Error::Storage)?,
-                &row.try_get::<Vec<u8>, _>("common_directory_identity")
-                    .map_err(|_| Error::Storage)?,
-            )
-            .map_err(|_| Error::Storage)?,
-            branch_ref: row.try_get("branch_ref").map_err(|_| Error::Storage)?,
-            initial_base_commit: row
-                .try_get("initial_base_commit")
-                .map_err(|_| Error::Storage)?,
-            health: parse_worktree_health(
-                &row.try_get::<String, _>("health")
-                    .map_err(|_| Error::Storage)?,
-            )?,
-            created_at: timestamp_row(&row, "created_seconds", "created_nanoseconds")?,
-            updated_at: timestamp_row(&row, "updated_seconds", "updated_nanoseconds")?,
-        })?);
+        worktrees.push(decode_worktree(row, workspace_id)?);
     }
     Ok((roots, intents, worktrees))
+}
+
+fn decode_worktree(row: sqlx::sqlite::SqliteRow, workspace_id: WorkspaceId) -> Result<Worktree> {
+    Worktree::restore(WorktreeRecord {
+        id: worktree_id(row.try_get("worktree_id").map_err(|_| Error::Storage)?)?,
+        workspace_id,
+        task_id: task_id(row.try_get("task_id").map_err(|_| Error::Storage)?)?,
+        operation_id: worktree_operation_id(
+            row.try_get("operation_id").map_err(|_| Error::Storage)?,
+        )?,
+        root_id: approved_root_id(row.try_get("root_id").map_err(|_| Error::Storage)?)?,
+        checkout_path: decode_native_path(
+            &row.try_get::<String, _>("checkout_codec")
+                .map_err(|_| Error::Storage)?,
+            &row.try_get::<Vec<u8>, _>("checkout_path")
+                .map_err(|_| Error::Storage)?,
+        )
+        .map_err(|_| Error::Storage)?,
+        common_directory_identity: decode_native_path(
+            &row.try_get::<String, _>("common_codec")
+                .map_err(|_| Error::Storage)?,
+            &row.try_get::<Vec<u8>, _>("common_directory_identity")
+                .map_err(|_| Error::Storage)?,
+        )
+        .map_err(|_| Error::Storage)?,
+        branch_ref: row.try_get("branch_ref").map_err(|_| Error::Storage)?,
+        initial_base_commit: row
+            .try_get("initial_base_commit")
+            .map_err(|_| Error::Storage)?,
+        health: parse_worktree_health(
+            &row.try_get::<String, _>("health")
+                .map_err(|_| Error::Storage)?,
+        )?,
+        created_at: timestamp_row(&row, "created_seconds", "created_nanoseconds")?,
+        updated_at: timestamp_row(&row, "updated_seconds", "updated_nanoseconds")?,
+    })
 }
 
 async fn load_definitions(
@@ -832,43 +992,51 @@ async fn load_definitions(
         .bind(id_bytes(workspace_id.as_uuid())).fetch_all(&mut *connection).await.map_err(domain_storage)?;
     let mut values = Vec::with_capacity(rows.len());
     for row in rows {
-        let id = definition_id(
-            row.try_get::<Vec<u8>, _>("definition_id")
-                .map_err(|_| Error::Storage)?,
-        )?;
-        values.push(AgentDefinition::restore(AgentDefinitionRecord {
-            id,
-            workspace_id,
-            display_name: row.try_get("display_name").map_err(|_| Error::Storage)?,
-            command: row.try_get("command").map_err(|_| Error::Storage)?,
-            arguments: load_strings(
-                connection,
-                "definition_arguments",
-                "definition_id",
-                id.as_uuid(),
-                workspace_id,
-            )
-            .await?,
-            environment_allowlist: load_strings(
-                connection,
-                "definition_environment",
-                "definition_id",
-                id.as_uuid(),
-                workspace_id,
-            )
-            .await?,
-            capabilities: load_strings(
-                connection,
-                "definition_capabilities",
-                "definition_id",
-                id.as_uuid(),
-                workspace_id,
-            )
-            .await?,
-            enabled: int_bool(row.try_get("enabled").map_err(|_| Error::Storage)?)?,
-        })?);
+        values.push(decode_definition(connection, row, workspace_id).await?);
     }
     Ok(values)
+}
+
+async fn decode_definition(
+    connection: &mut SqliteConnection,
+    row: sqlx::sqlite::SqliteRow,
+    workspace_id: WorkspaceId,
+) -> Result<AgentDefinition> {
+    let id = definition_id(
+        row.try_get::<Vec<u8>, _>("definition_id")
+            .map_err(|_| Error::Storage)?,
+    )?;
+    AgentDefinition::restore(AgentDefinitionRecord {
+        id,
+        workspace_id,
+        display_name: row.try_get("display_name").map_err(|_| Error::Storage)?,
+        command: row.try_get("command").map_err(|_| Error::Storage)?,
+        arguments: load_strings(
+            connection,
+            "definition_arguments",
+            "definition_id",
+            id.as_uuid(),
+            workspace_id,
+        )
+        .await?,
+        environment_allowlist: load_strings(
+            connection,
+            "definition_environment",
+            "definition_id",
+            id.as_uuid(),
+            workspace_id,
+        )
+        .await?,
+        capabilities: load_strings(
+            connection,
+            "definition_capabilities",
+            "definition_id",
+            id.as_uuid(),
+            workspace_id,
+        )
+        .await?,
+        enabled: int_bool(row.try_get("enabled").map_err(|_| Error::Storage)?)?,
+    })
 }
 
 async fn load_tasks(
@@ -956,65 +1124,73 @@ async fn load_instances(
             .map_err(domain_storage)?;
     let mut values = Vec::with_capacity(rows.len());
     for row in rows {
-        let id = instance_id(
-            row.try_get::<Vec<u8>, _>("instance_id")
+        values.push(decode_instance(connection, row, workspace_id).await?);
+    }
+    Ok(values)
+}
+
+async fn decode_instance(
+    connection: &mut SqliteConnection,
+    row: sqlx::sqlite::SqliteRow,
+    workspace_id: WorkspaceId,
+) -> Result<AgentInstance> {
+    let id = instance_id(
+        row.try_get::<Vec<u8>, _>("instance_id")
+            .map_err(|_| Error::Storage)?,
+    )?;
+    let definition = row
+        .try_get::<Option<Vec<u8>>, _>("definition_id")
+        .map_err(|_| Error::Storage)?
+        .map(definition_id)
+        .transpose()?;
+    let launch_definition = load_launch_snapshot(connection, workspace_id, id).await?;
+    AgentInstance::restore(AgentInstanceRecord {
+        id,
+        session_id: session_id(
+            row.try_get::<Vec<u8>, _>("session_id")
                 .map_err(|_| Error::Storage)?,
-        )?;
-        let definition = row
-            .try_get::<Option<Vec<u8>>, _>("definition_id")
+        )?,
+        workspace_id,
+        agent_definition_id: definition,
+        task_id: row
+            .try_get::<Option<Vec<u8>>, _>("task_id")
             .map_err(|_| Error::Storage)?
-            .map(definition_id)
-            .transpose()?;
-        let launch_definition = load_launch_snapshot(connection, workspace_id, id).await?;
-        values.push(AgentInstance::restore(AgentInstanceRecord {
-            id,
-            session_id: session_id(
-                row.try_get::<Vec<u8>, _>("session_id")
-                    .map_err(|_| Error::Storage)?,
-            )?,
-            workspace_id,
-            agent_definition_id: definition,
-            task_id: row
-                .try_get::<Option<Vec<u8>>, _>("task_id")
-                .map_err(|_| Error::Storage)?
-                .map(task_id)
-                .transpose()?,
-            launch_definition,
-            worktree_id: row
-                .try_get::<Option<Vec<u8>>, _>("worktree_id")
-                .map_err(|_| Error::Storage)?
-                .map(worktree_id)
-                .transpose()?,
-            working_directory: decode_native_path(
-                &row.try_get::<String, _>("working_directory_codec")
-                    .map_err(|_| Error::Storage)?,
-                &row.try_get::<Vec<u8>, _>("working_directory")
+            .map(task_id)
+            .transpose()?,
+        launch_definition,
+        worktree_id: row
+            .try_get::<Option<Vec<u8>>, _>("worktree_id")
+            .map_err(|_| Error::Storage)?
+            .map(worktree_id)
+            .transpose()?,
+        working_directory: decode_native_path(
+            &row.try_get::<String, _>("working_directory_codec")
+                .map_err(|_| Error::Storage)?,
+            &row.try_get::<Vec<u8>, _>("working_directory")
+                .map_err(|_| Error::Storage)?,
+        )
+        .map_err(|_| Error::Storage)?,
+        status: parse_instance_status(
+            &row.try_get::<String, _>("status")
+                .map_err(|_| Error::Storage)?,
+        )?,
+        started_at: timestamp_row(&row, "started_seconds", "started_nanoseconds")?,
+        last_observed_at: timestamp_row(&row, "observed_seconds", "observed_nanoseconds")?,
+        ended_at: optional_timestamp_row(&row, "ended_seconds", "ended_nanoseconds")?,
+        exit_code: row.try_get("exit_code").map_err(|_| Error::Storage)?,
+        terminal_size: TerminalSize::new(
+            u16::try_from(
+                row.try_get::<i64, _>("terminal_rows")
                     .map_err(|_| Error::Storage)?,
             )
             .map_err(|_| Error::Storage)?,
-            status: parse_instance_status(
-                &row.try_get::<String, _>("status")
+            u16::try_from(
+                row.try_get::<i64, _>("terminal_columns")
                     .map_err(|_| Error::Storage)?,
-            )?,
-            started_at: timestamp_row(&row, "started_seconds", "started_nanoseconds")?,
-            last_observed_at: timestamp_row(&row, "observed_seconds", "observed_nanoseconds")?,
-            ended_at: optional_timestamp_row(&row, "ended_seconds", "ended_nanoseconds")?,
-            exit_code: row.try_get("exit_code").map_err(|_| Error::Storage)?,
-            terminal_size: TerminalSize::new(
-                u16::try_from(
-                    row.try_get::<i64, _>("terminal_rows")
-                        .map_err(|_| Error::Storage)?,
-                )
-                .map_err(|_| Error::Storage)?,
-                u16::try_from(
-                    row.try_get::<i64, _>("terminal_columns")
-                        .map_err(|_| Error::Storage)?,
-                )
-                .map_err(|_| Error::Storage)?,
-            )?,
-        })?);
-    }
-    Ok(values)
+            )
+            .map_err(|_| Error::Storage)?,
+        )?,
+    })
 }
 
 async fn load_launch_snapshot(

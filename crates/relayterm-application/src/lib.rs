@@ -66,6 +66,22 @@ pub trait DurableReadStore: Sync {
         workspace_id: WorkspaceId,
         request: IdPageRequest,
     ) -> impl Future<Output = Result<IdPage<Claim>>> + Send;
+    fn definition_page(
+        &self,
+        workspace_id: WorkspaceId,
+        request: IdPageRequest,
+    ) -> impl Future<Output = Result<IdPage<AgentDefinition>>> + Send;
+    fn worktree_page(
+        &self,
+        workspace_id: WorkspaceId,
+        task_id: Option<TaskId>,
+        request: IdPageRequest,
+    ) -> impl Future<Output = Result<IdPage<Worktree>>> + Send;
+    fn instance_page(
+        &self,
+        workspace_id: WorkspaceId,
+        request: IdPageRequest,
+    ) -> impl Future<Output = Result<IdPage<AgentInstance>>> + Send;
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

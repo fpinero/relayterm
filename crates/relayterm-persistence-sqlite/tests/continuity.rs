@@ -364,6 +364,35 @@ fn complete_handover_journey_survives_reopen() {
         let revision = before.revision();
         let watermarked = store.consistent_snapshot(workspace_id).await.unwrap();
         assert_eq!(watermarked.snapshot.revision(), revision);
+        let definitions = store
+            .definition_page(
+                workspace_id,
+                IdPageRequest::new(None, 1, Some(revision)).unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(definitions.items.len(), 1);
+        assert!(!definitions.has_more);
+        let instances = store
+            .instance_page(
+                workspace_id,
+                IdPageRequest::new(None, 1, Some(revision)).unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(instances.items.len(), 1);
+        assert!(instances.has_more);
+        let instance_after = instances.items[0].record().id.as_uuid().into_bytes();
+        let instance_tail = store
+            .instance_page(
+                workspace_id,
+                IdPageRequest::new(Some(instance_after), 1, Some(revision)).unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(instance_tail.items.len(), 1);
+        assert!(!instance_tail.has_more);
+        assert_eq!(instance_tail.revision, instances.revision);
         let tasks = store
             .task_page(
                 workspace_id,

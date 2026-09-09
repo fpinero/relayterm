@@ -1186,40 +1186,27 @@ where
         if params.limit == 0 || params.limit > wire::MAX_PAGE_SIZE {
             return Err(invalid_field(wire::ErrorField::PageLimit));
         }
-        let snapshot = self
-            .reads
-            .consistent_snapshot(self.workspace_id)
-            .await
-            .map_err(map_domain_error)?;
-        if params
-            .expected_revision
-            .is_some_and(|expected| expected.get() != snapshot.snapshot.revision())
-        {
-            return Err(map_domain_error(domain::Error::Conflict));
-        }
-        let state = snapshot.snapshot.state().map_err(map_domain_error)?;
         let task = params
             .task_id
             .map(|id| domain::TaskId::from_uuid(id.as_uuid()));
-        let after = params
-            .after_id
-            .map(|id| domain::WorktreeId::from_uuid(id.as_uuid()));
-        let mut owned: Vec<_> = state
-            .worktrees()
-            .iter()
-            .filter(|worktree| task.is_none_or(|id| worktree.record().task_id == id))
-            .collect();
-        owned.sort_by_key(|worktree| worktree.record().id.to_string());
-        let items: Vec<_> = owned
-            .into_iter()
-            .filter(|worktree| {
-                after.is_none_or(|id| worktree.record().id.to_string() > id.to_string())
-            })
-            .take(usize::from(params.limit))
-            .map(worktree_dto)
-            .collect();
+        let request = relayterm_application::IdPageRequest::new(
+            params.after_id.map(|id| id.as_uuid().into_bytes()),
+            params.limit,
+            params.expected_revision.map(|revision| revision.get()),
+        )
+        .map_err(map_domain_error)?;
+        let page = self
+            .reads
+            .worktree_page(self.workspace_id, task, request)
+            .await
+            .map_err(map_domain_error)?;
+        let items = page.items.iter().map(worktree_dto).collect::<Vec<_>>();
+        let next_after_id = page
+            .has_more
+            .then(|| page.items.last().map(|item| item.record().id.to_string()))
+            .flatten();
         Ok(
-            json!({"revision":snapshot.snapshot.revision().to_string(),"last_sequence":snapshot.last_sequence.to_string(),"items":items}),
+            json!({"revision":page.revision.to_string(),"last_sequence":page.last_sequence.to_string(),"items":items,"next_after_id":next_after_id}),
         )
     }
 
@@ -1890,7 +1877,12 @@ where
         let collection = forced.unwrap_or(p.collection.unwrap_or(Collection::Workspace));
         if matches!(
             collection,
-            Collection::Tasks | Collection::Claims | Collection::Progress | Collection::Handovers
+            Collection::Definitions
+                | Collection::Tasks
+                | Collection::Instances
+                | Collection::Claims
+                | Collection::Progress
+                | Collection::Handovers
         ) {
             return self.id_collection_page(collection, p).await;
         }
@@ -1968,6 +1960,20 @@ where
                 .map_err(map_domain_error)?;
         let (revision, last_sequence, retained_from_sequence, items, storage_has_more) =
             match collection {
+                Collection::Definitions => {
+                    let page = self
+                        .reads
+                        .definition_page(self.workspace_id, request)
+                        .await
+                        .map_err(map_domain_error)?;
+                    (
+                        page.revision,
+                        page.last_sequence,
+                        page.retained_from_sequence,
+                        page.items.iter().map(definition_dto).collect::<Vec<_>>(),
+                        page.has_more,
+                    )
+                }
                 Collection::Tasks => {
                     let page = self
                         .reads
@@ -1979,6 +1985,20 @@ where
                         page.last_sequence,
                         page.retained_from_sequence,
                         page.items.iter().map(task_dto).collect::<Vec<_>>(),
+                        page.has_more,
+                    )
+                }
+                Collection::Instances => {
+                    let page = self
+                        .reads
+                        .instance_page(self.workspace_id, request)
+                        .await
+                        .map_err(map_domain_error)?;
+                    (
+                        page.revision,
+                        page.last_sequence,
+                        page.retained_from_sequence,
+                        page.items.iter().map(instance_dto).collect::<Vec<_>>(),
                         page.has_more,
                     )
                 }
