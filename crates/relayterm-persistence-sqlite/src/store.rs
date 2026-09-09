@@ -241,6 +241,21 @@ impl DurableReadStore for SqliteStore {
         let _ = sqlx::query("ROLLBACK").execute(&mut *connection).await;
         result
     }
+
+    async fn claim_page(
+        &self,
+        workspace_id: WorkspaceId,
+        request: IdPageRequest,
+    ) -> Result<IdPage<Claim>> {
+        let mut connection = self.pool.acquire().await.map_err(domain_storage)?;
+        sqlx::query("BEGIN")
+            .execute(&mut *connection)
+            .await
+            .map_err(domain_storage)?;
+        let result = load_claim_page(&mut connection, workspace_id, request).await;
+        let _ = sqlx::query("ROLLBACK").execute(&mut *connection).await;
+        result
+    }
 }
 
 async fn page_metadata(
@@ -386,6 +401,46 @@ async fn load_task_page(
         .transpose()?;
         items.push(decode_task(connection, row, workspace_id, owner).await?);
     }
+    Ok(IdPage {
+        revision,
+        last_sequence,
+        retained_from_sequence,
+        items,
+        has_more,
+    })
+}
+
+async fn load_claim_page(
+    connection: &mut SqliteConnection,
+    workspace_id: WorkspaceId,
+    request: IdPageRequest,
+) -> Result<IdPage<Claim>> {
+    let (revision, last_sequence, retained_from_sequence) =
+        page_metadata(connection, workspace_id, request.expected_revision).await?;
+    let rows = if let Some(after) = request.after_id {
+        sqlx::query(
+            "SELECT * FROM claims WHERE workspace_id=? AND claim_id>? ORDER BY claim_id LIMIT ?",
+        )
+        .bind(id_bytes(workspace_id.as_uuid()))
+        .bind(after.to_vec())
+        .bind(i64::from(request.limit) + 1)
+        .fetch_all(&mut *connection)
+        .await
+        .map_err(domain_storage)?
+    } else {
+        sqlx::query("SELECT * FROM claims WHERE workspace_id=? ORDER BY claim_id LIMIT ?")
+            .bind(id_bytes(workspace_id.as_uuid()))
+            .bind(i64::from(request.limit) + 1)
+            .fetch_all(&mut *connection)
+            .await
+            .map_err(domain_storage)?
+    };
+    let has_more = rows.len() > usize::from(request.limit);
+    let items = rows
+        .into_iter()
+        .take(usize::from(request.limit))
+        .map(|row| decode_claim(row, workspace_id))
+        .collect::<Result<Vec<_>>>()?;
     Ok(IdPage {
         revision,
         last_sequence,

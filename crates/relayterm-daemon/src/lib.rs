@@ -1890,7 +1890,7 @@ where
         let collection = forced.unwrap_or(p.collection.unwrap_or(Collection::Workspace));
         if matches!(
             collection,
-            Collection::Tasks | Collection::Progress | Collection::Handovers
+            Collection::Tasks | Collection::Claims | Collection::Progress | Collection::Handovers
         ) {
             return self.id_collection_page(collection, p).await;
         }
@@ -1979,6 +1979,20 @@ where
                         page.last_sequence,
                         page.retained_from_sequence,
                         page.items.iter().map(task_dto).collect::<Vec<_>>(),
+                        page.has_more,
+                    )
+                }
+                Collection::Claims => {
+                    let page = self
+                        .reads
+                        .claim_page(self.workspace_id, request)
+                        .await
+                        .map_err(map_domain_error)?;
+                    (
+                        page.revision,
+                        page.last_sequence,
+                        page.retained_from_sequence,
+                        page.items.iter().map(claim_dto).collect::<Vec<_>>(),
                         page.has_more,
                     )
                 }

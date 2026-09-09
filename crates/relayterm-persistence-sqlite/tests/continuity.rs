@@ -384,6 +384,26 @@ fn complete_handover_journey_survives_reopen() {
         assert_eq!(task_tail.items.len(), 1);
         assert!(!task_tail.has_more);
         assert_eq!(task_tail.revision, tasks.revision);
+        let claims = store
+            .claim_page(
+                workspace_id,
+                IdPageRequest::new(None, 1, Some(revision)).unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(claims.items.len(), 1);
+        assert!(claims.has_more);
+        let claim_after = claims.items[0].record().id.as_uuid().into_bytes();
+        let claim_tail = store
+            .claim_page(
+                workspace_id,
+                IdPageRequest::new(Some(claim_after), 1, Some(revision)).unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(claim_tail.items.len(), 1);
+        assert!(!claim_tail.has_more);
+        assert_eq!(claim_tail.revision, claims.revision);
         let progress = store
             .progress_page(
                 workspace_id,
