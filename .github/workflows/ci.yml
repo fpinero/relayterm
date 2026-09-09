@@ -79,6 +79,14 @@ jobs:
         if: matrix.toolchain == 'stable'
         timeout-minutes: 10
         run: cargo test -p relayterm-cli --test worktree_gate --locked -- --nocapture --test-threads=1
+      - name: Test M11 hardening, pass 1
+        if: matrix.toolchain == 'stable'
+        timeout-minutes: 10
+        run: cargo test -p relayterm-cli --test hardening_gate --locked -- --nocapture --test-threads=1
+      - name: Test M11 hardening, pass 2
+        if: matrix.toolchain == 'stable'
+        timeout-minutes: 10
+        run: cargo test -p relayterm-cli --test hardening_gate --locked -- --nocapture --test-threads=1
       - name: Test workspace and CLI contracts
         timeout-minutes: 5
         run: cargo test --workspace --locked

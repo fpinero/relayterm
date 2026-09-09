@@ -52,6 +52,15 @@ def main():
     for path, expected in [(p, 0) for p in ignored] + [(p, 1) for p in visible]:
         result = subprocess.run(["git", "check-ignore", "--no-index", "-q", path], cwd=ROOT)
         assert result.returncode == expected, f"Incorrect ignore policy: {path}"
+    production = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in sorted((ROOT / "crates").glob("*/src/*.rs"))
+    )
+    for forbidden in ["TcpListener", "TcpStream", "UdpSocket", "reqwest::", "hyper::", "ureq::"]:
+        assert forbidden not in production, f"Unexpected product network surface: {forbidden}"
+    cli = (ROOT / "crates/relayterm-cli/src/main.rs").read_text(encoding="utf-8")
+    for forbidden in ["fault-injection", "synthetic-supervisor", "fake-session"]:
+        assert forbidden not in cli, f"Production test capability: {forbidden}"
     print(f"Passed: {count} Markdown files, eight ADRs, style and candidate links, pending queue, and ignore boundaries.")
 
 

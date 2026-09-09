@@ -201,13 +201,14 @@ pub fn admin_output(root: &Path, private: &Path, args: &[&str]) -> std::process:
         .spawn()
         .unwrap();
     let stdout = child.stdout.take().unwrap();
-    let reader = std::thread::spawn(move || {
+    let (output_tx, output_rx) = std::sync::mpsc::sync_channel(1);
+    std::thread::spawn(move || {
         let mut bytes = Vec::new();
-        std::io::BufReader::new(stdout)
+        let result = std::io::BufReader::new(stdout)
             .take((OUTPUT_LIMIT + 1) as u64)
             .read_until(b'\n', &mut bytes)
-            .unwrap();
-        bytes
+            .map(|_| bytes);
+        let _ = output_tx.send(result);
     });
     let deadline = Instant::now() + DEADLINE;
     let status = loop {
@@ -220,7 +221,10 @@ pub fn admin_output(root: &Path, private: &Path, args: &[&str]) -> std::process:
         }
         std::thread::sleep(Duration::from_millis(20));
     };
-    let stdout = reader.join().unwrap();
+    let stdout = output_rx
+        .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+        .expect("administrative output did not close before its deadline")
+        .expect("administrative output could not be read");
     assert!(
         stdout.len() <= OUTPUT_LIMIT,
         "administrative output exceeded its bound"

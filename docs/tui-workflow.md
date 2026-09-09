@@ -119,7 +119,7 @@ The measured fixture output rates were 5,168,912 and 3,904,205 bytes per second.
 
 The 100 ms navigation and 250 ms input targets are enforced on the documented reference native environment. Hosted CI runners always report the same measurements and enforce explicit 500 ms navigation and one-second input guardrails because shared-runner scheduling is not a stable hardware reference. A hosted target miss remains visible as `reference_target_met=false` in the job log and must be included in the evidence record. This distinction does not change marker or process deadlines and does not permit retries to replace either required CI pass.
 
-CI run links, runner versions, and both native repetitions are recorded in `docs/supported-platforms.md` after the final candidate passes. Hosted console automation is native PTY or ConPTY evidence, but it is not a claim that Terminal.app, Windows Terminal's graphical interface, xterm, or SSH was manually tested. Those optional named-terminal checks remain explicit gaps unless an authorized environment is available.
+CI run links, runner versions, and both native repetitions are recorded in `docs/supported-platforms.md` after the final candidate passes. Hosted console automation is native PTY or ConPTY evidence, but it is not a claim that Terminal.app, Windows Terminal's graphical interface, xterm, or SSH was manually tested. M11 requires those named-terminal and SSH checks. Any unavailable environment remains an open acceptance blocker.
 
 ## Limitations
 

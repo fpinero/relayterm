@@ -46,6 +46,59 @@ Execution contract: [M11 detailed plan](docs/M11_details.md). Add its 50 atomic 
 - M11.09: Complete the threat model and privacy review, scan repository/fixtures/release candidates, and run dependency audit/license checks. Resolve critical/high findings or record explicit reviewed exceptions with rationale and follow-up; fix other acceptance-blocking findings and rerun affected checks.
 - M11.10: Verify the hardening gate with passing cross-platform builds, formatting, linting, unit/integration/end-to-end tests, scans, and all behavior AC evidence. Carry only installation/release-specific checks into M12; do not declare the MVP complete yet.
 
+### M11 atomic execution queue
+
+- M11.01a: Audit the current baseline and R1-R11 coverage.
+- M11.01b: Publish the AC, FR, and NFR acceptance matrix.
+- M11.01c: Freeze workloads, limits, and thresholds before measurement.
+- M11.01d: Prepare the bounded harness and manual evidence manifest.
+- M11.01e: Review compatibility and assign every remediation risk.
+- M11.02a: Implement the real TUI, worktree, and three-session journey.
+- M11.02b: Integrate claims, progress, handover, resume, and completion.
+- M11.02c: Integrate input, resize, history, detach, and reattach.
+- M11.02d: Integrate graceful and abrupt daemon recovery.
+- M11.02e: Reproduce and fix worktree identity, path, launch, and partial-result risks.
+- M11.03a: Test malformed framing and authentication faults.
+- M11.03b: Test request cancellation and uncertain results.
+- M11.03c: Test slow subscribers, cursor gaps, reconnects, and lease races.
+- M11.03d: Test storage, notifier, spawn, and persistence failures.
+- M11.03e: Test Git phase failures and shutdown with pending work.
+- M11.03f: Correct harness and CI failure propagation.
+- M11.04a: Reproduce and fix Git streaming, disk, and reader bounds.
+- M11.04b: Test terminal, input, frame, session, and fairness budgets.
+- M11.04c: Correct unbounded queries, caches, and cancelled waiters.
+- M11.04d: Measure startup, navigation, and input under load.
+- M11.04e: Measure memory, handles, tasks, and reconnect churn.
+- M11.05a: Audit and fix IPC, ownership, and private filesystem boundaries.
+- M11.05b: Block external Git hooks, filters, configuration, and environment exposure.
+- M11.05c: Audit resolver, arguments, environment, imports, and launch snapshots.
+- M11.05d: Test synthetic sensitive and ANSI data through every sink.
+- M11.05e: Update privacy, ADR, and specification contracts.
+- M11.06a: Build native offline monitoring procedures and negative controls.
+- M11.06b: Execute the real offline workflow on every native OS.
+- M11.06c: Review dependencies and publish bounded offline evidence.
+- M11.07a: Publish the mandatory manual terminal observation procedure.
+- M11.07b: Execute the Linux local-terminal and OpenSSH matrix.
+- M11.07c: Execute the macOS Terminal.app and OpenSSH matrix.
+- M11.07d: Execute the Windows Terminal and OpenSSH matrix.
+- M11.07e: Resolve failures and reconcile manual acceptance.
+- M11.08a: Freeze the backup, manifest, CLI, and restore ownership contract.
+- M11.08b: Implement private, no-overwrite, consistent backup.
+- M11.08c: Implement staged, non-destructive, fresh-home restore.
+- M11.08d: Test backup faults, compatibility, and restart natively.
+- M11.08e: Publish and execute the user backup and restore procedure.
+- M11.09a: Complete the threat model and control mapping.
+- M11.09b: Audit dependencies, licenses, sources, and candidate privacy.
+- M11.09c: Fix findings or obtain explicit eligible reviewed exceptions.
+- M11.09d: Reconcile public security and privacy documentation.
+- M11.10a: Integrate native M11 gates while retaining earlier gates.
+- M11.10b: Execute all local controls and focused regressions.
+- M11.10c: Obtain final native Quality, Security, resource, and offline evidence.
+- M11.10d: Reconcile all acceptance, risk, budget, and manual evidence.
+- M11.10e: Create coherent commits and the authorized implementation PR.
+- M11.10f: Merge only verified M11 and synchronize main.
+- M11.10g: Monitor post-merge CI and hand off M12 without implementing it.
+
 ## M12: Installable release candidate and final handoff
 
 Depends on: M11. Specification phase: 5 final gate. Coverage: NFR-1, NFR-4; AC-12, AC-16 and final AC-1 through AC-16 sign-off.
