@@ -89,5 +89,5 @@ public static class RelaytermSocketOwners
 }
 '@
 
-Add-Type -TypeDefinition $source -Language CSharp
+Add-Type -TypeDefinition $source -Language CSharp -CompilerOptions '/shared-'
 [RelaytermSocketOwners]::ReadAll() | Set-Content -LiteralPath $OutputPath -Encoding ascii

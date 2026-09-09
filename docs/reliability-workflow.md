@@ -92,14 +92,17 @@ executed twice as its own required stable-OS CI steps:
 cargo test -p relayterm-cli --test resource_runtime_gate --locked sustained_output_memory_and_reconnect_resources_are_bounded -- --ignored --exact --nocapture --test-threads=1
 ```
 
-It drives a real PTY continuously for 180 seconds, samples the daemon and TUI
-resident memory after a 60-second warm-up, and performs 100 client reconnects,
-including 20 abrupt subscriber losses. Both processes must remain below 512 MiB,
+It launches the maximum eight real PTY or ConPTY sessions at 120 by 40, makes
+each session emit enough data to wrap its 8 MiB retained buffer three times,
+keeps one PTY emitting continuously for 180 seconds, and rejects a ninth session
+before spawn. It samples the daemon, TUI and aggregate fixture-child resident
+memory after a 60-second warm-up, and performs 100 client reconnects, including
+20 abrupt subscriber losses. The daemon and TUI must each remain below 512 MiB,
 the last steady-state median may exceed the first by at most 32 MiB, and daemon
 handles must return to within 16 of their baseline within ten seconds. The
-fixture reports its measured byte count and duration and must sustain at least
-2 MiB/s. The fixture child memory is reported separately and is not charged to
-the daemon or TUI measurements.
+continuous fixture reports its measured byte count and duration and must sustain
+at least 2 MiB/s. Aggregate fixture-child memory is reported separately and is
+not charged to the daemon or TUI measurements.
 
 This baseline proves that the monitor is effective and that daemon startup, local coordination and a credential-free synthetic session do not open TCP or UDP endpoints. Candidate closure still requires the monitored Git, reconnect, backup and restore workflow and explicit DNS or outbound-attempt observation on every native OS.
 

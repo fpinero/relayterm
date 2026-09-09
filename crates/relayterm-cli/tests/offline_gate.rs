@@ -427,7 +427,7 @@ fn processes_have_network_endpoint(process_ids: &[u32]) -> bool {
         .join("tests")
         .join("support")
         .join("windows_socket_owners.ps1");
-    let mut monitor = Command::new("powershell.exe")
+    let mut monitor = Command::new("pwsh.exe")
         .args([
             "-NoLogo",
             "-NoProfile",

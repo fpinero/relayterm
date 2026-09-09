@@ -17,25 +17,43 @@ const SAMPLE_DURATION: Duration = Duration::from_secs(180);
 const WARMUP: Duration = Duration::from_secs(60);
 const MEMORY_LIMIT_BYTES: u64 = 512 * 1024 * 1024;
 const PLATEAU_ALLOWANCE_BYTES: u64 = 32 * 1024 * 1024;
+const SESSION_COUNT: usize = 8;
+const BOUNDED_SESSION_OUTPUT: u64 = 3 * 8 * 1024 * 1024;
 
 #[test]
 #[ignore]
 fn synthetic_resource_flood() {
     let stop = PathBuf::from(std::env::var_os("RELAYTERM_RESOURCE_STOP").unwrap());
-    let report = PathBuf::from(std::env::var_os("RELAYTERM_RESOURCE_REPORT").unwrap());
-    let process = PathBuf::from(std::env::var_os("RELAYTERM_RESOURCE_PROCESS").unwrap());
-    fs::write(process, std::process::id().to_string()).unwrap();
+    let reports = PathBuf::from(std::env::var_os("RELAYTERM_RESOURCE_REPORT").unwrap());
+    let processes = PathBuf::from(std::env::var_os("RELAYTERM_RESOURCE_PROCESS").unwrap());
+    let index = (0..SESSION_COUNT)
+        .find(|index| {
+            fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(processes.join(index.to_string()))
+                .and_then(|mut file| write!(file, "{}", std::process::id()))
+                .is_ok()
+        })
+        .expect("resource fixture could not reserve a session index");
     let chunk = vec![b'x'; 256 * 1024];
     let mut output = std::io::stdout().lock();
     let started = Instant::now();
     let mut bytes = 0_u64;
-    while !stop.exists() {
+    while !stop.exists() && (index == 0 || bytes < BOUNDED_SESSION_OUTPUT) {
         output.write_all(&chunk).unwrap();
         output.write_all(b"\r\nresource-frame\r\n").unwrap();
         output.flush().unwrap();
         bytes += u64::try_from(chunk.len() + b"\r\nresource-frame\r\n".len()).unwrap();
     }
-    fs::write(report, format!("{bytes} {}", started.elapsed().as_millis())).unwrap();
+    fs::write(
+        reports.join(index.to_string()),
+        format!("{bytes} {}", started.elapsed().as_millis()),
+    )
+    .unwrap();
+    while index != 0 && !stop.exists() {
+        thread::sleep(Duration::from_millis(20));
+    }
 }
 
 #[test]
@@ -45,9 +63,11 @@ fn sustained_output_memory_and_reconnect_resources_are_bounded() {
     let root = scratch.0.join("project");
     let home = scratch.0.join("private");
     let stop = scratch.0.join("stop-flood");
-    let report = scratch.0.join("flood-report");
-    let process = scratch.0.join("flood-process");
+    let reports = scratch.0.join("flood-reports");
+    let processes = scratch.0.join("flood-processes");
     fs::create_dir(&root).unwrap();
+    fs::create_dir(&reports).unwrap();
+    fs::create_dir(&processes).unwrap();
 
     let initialized = successful(admin(
         &root,
@@ -61,7 +81,7 @@ fn sustained_output_memory_and_reconnect_resources_are_bounded() {
         &["daemon", "stop", "--terminate-sessions"],
     ));
 
-    let mut daemon = foreground_daemon(&root, &home, &workspace_id, &stop, &report, &process);
+    let mut daemon = foreground_daemon(&root, &home, &workspace_id, &stop, &reports, &processes);
     let _cleanup = DaemonCleanup::new(&root, &home);
     wait_until(
         || {
@@ -104,27 +124,52 @@ fn sustained_output_memory_and_reconnect_resources_are_bounded() {
     ));
     let definition_id = registered["entity_ids"][0].as_str().unwrap();
 
-    let mut session_command = command(&root, &home);
-    session_command
-        .args(["session", "create", "--definition-id", definition_id])
-        .env("RELAYTERM_RESOURCE_STOP", &stop);
-    let session = successful_output(session_command.output().unwrap());
-    let session_id = session["session_id"].as_str().unwrap();
+    let mut session_ids = Vec::with_capacity(SESSION_COUNT);
+    for expected in 1..=SESSION_COUNT {
+        let mut session_command = command(&root, &home);
+        session_command
+            .args(["session", "create", "--definition-id", definition_id])
+            .env("RELAYTERM_RESOURCE_STOP", &stop);
+        let session = successful_output(session_command.output().unwrap());
+        session_ids.push(session["session_id"].as_str().unwrap().to_owned());
+        wait_until(
+            || fs::read_dir(&processes).unwrap().count() == expected,
+            "resource child process identifier",
+        );
+    }
     wait_until(
         || {
             successful(admin(&root, &home, &["session", "list"]))["items"]
                 .as_array()
                 .unwrap()
                 .iter()
-                .any(|item| item["session_id"] == session_id && item["status"] == "running")
+                .filter(|item| item["status"] == "running")
+                .count()
+                == SESSION_COUNT
         },
         "resource session readiness",
     );
-    wait_until(|| process.exists(), "resource child process identifier");
-    let child_pid = fs::read_to_string(&process)
-        .unwrap()
-        .parse::<u32>()
+    wait_until(
+        || fs::read_dir(&reports).unwrap().count() == SESSION_COUNT - 1,
+        "bounded session output completion",
+    );
+    let ninth = command(&root, &home)
+        .args(["session", "create", "--definition-id", definition_id])
+        .output()
         .unwrap();
+    assert!(
+        !ninth.status.success(),
+        "the ninth session must be rejected before spawn"
+    );
+    assert_eq!(fs::read_dir(&processes).unwrap().count(), SESSION_COUNT);
+    let child_pids = (0..SESSION_COUNT)
+        .map(|index| {
+            fs::read_to_string(processes.join(index.to_string()))
+                .unwrap()
+                .parse::<u32>()
+                .unwrap()
+        })
+        .collect::<Vec<_>>();
 
     let mut tui = OuterTerminal::spawn(&root, &home);
     tui.finish_startup();
@@ -141,10 +186,14 @@ fn sustained_output_memory_and_reconnect_resources_are_bounded() {
     let mut tui_memory = Vec::new();
     let mut child_memory = Vec::new();
     while started.elapsed() < SAMPLE_DURATION {
-        let measured = process_memories(&[daemon_pid, tui_pid, child_pid]);
+        let process_ids = [daemon_pid, tui_pid]
+            .into_iter()
+            .chain(child_pids.iter().copied())
+            .collect::<Vec<_>>();
+        let measured = process_memories(&process_ids);
         daemon_memory.push(measured[0]);
         tui_memory.push(measured[1]);
-        child_memory.push(measured[2]);
+        child_memory.push(measured[2..].iter().sum());
         thread::sleep(Duration::from_secs(3));
     }
     assert_memory("daemon", &daemon_memory);
@@ -175,8 +224,8 @@ fn sustained_output_memory_and_reconnect_resources_are_bounded() {
     );
 
     fs::write(&stop, b"stop").unwrap();
-    wait_until(|| report.exists(), "sustained output report");
-    let report = fs::read_to_string(report).unwrap();
+    wait_until(|| reports.join("0").exists(), "sustained output report");
+    let report = fs::read_to_string(reports.join("0")).unwrap();
     let mut fields = report.split_whitespace();
     let output_bytes = fields.next().unwrap().parse::<u64>().unwrap();
     let output_milliseconds = fields.next().unwrap().parse::<u64>().unwrap();
