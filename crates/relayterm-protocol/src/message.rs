@@ -60,6 +60,7 @@ wire_uuid!(ProgressId);
 wire_uuid!(HandoverId);
 wire_uuid!(EventId);
 wire_uuid!(WorktreeId);
+wire_uuid!(WorktreeOperationId);
 wire_uuid!(SubscriptionId);
 wire_uuid!(LaunchReceiptId);
 wire_uuid!(AttachmentId);
@@ -166,10 +167,14 @@ pub enum Operation {
     SessionReadOutput,
     WorktreeCreate,
     WorktreeList,
+    WorktreeInspectRepository,
+    WorktreeGetOperation,
+    WorktreeSelect,
+    WorktreeReconcile,
     Unknown,
 }
 impl Operation {
-    pub const ALL: [Self; 39] = [
+    pub const ALL: [Self; 43] = [
         Self::ProtocolHello,
         Self::ProtocolPing,
         Self::DaemonStatus,
@@ -209,6 +214,10 @@ impl Operation {
         Self::SessionReadOutput,
         Self::WorktreeCreate,
         Self::WorktreeList,
+        Self::WorktreeInspectRepository,
+        Self::WorktreeGetOperation,
+        Self::WorktreeSelect,
+        Self::WorktreeReconcile,
     ];
     pub const fn as_str(self) -> &'static str {
         match self {
@@ -251,6 +260,10 @@ impl Operation {
             Self::SessionReadOutput => "session.read_output",
             Self::WorktreeCreate => "worktree.create",
             Self::WorktreeList => "worktree.list",
+            Self::WorktreeInspectRepository => "worktree.inspect_repository",
+            Self::WorktreeGetOperation => "worktree.get_operation",
+            Self::WorktreeSelect => "worktree.select",
+            Self::WorktreeReconcile => "worktree.reconcile",
             Self::Unknown => "unknown",
         }
     }
@@ -269,6 +282,10 @@ impl Operation {
                 | Self::SessionReadOutput
                 | Self::WorktreeCreate
                 | Self::WorktreeList
+                | Self::WorktreeInspectRepository
+                | Self::WorktreeGetOperation
+                | Self::WorktreeSelect
+                | Self::WorktreeReconcile
         )
     }
     pub const fn is_mutation(self) -> bool {
@@ -291,6 +308,9 @@ impl Operation {
                 | Self::SessionTerminate
                 | Self::SessionAcquireInput
                 | Self::SessionReleaseInput
+                | Self::WorktreeCreate
+                | Self::WorktreeSelect
+                | Self::WorktreeReconcile
         )
     }
 }
@@ -312,7 +332,7 @@ impl<'de> Deserialize<'de> for Operation {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RequestEnvelope {
     #[serde(rename = "type")]
@@ -516,6 +536,7 @@ pub struct HelloResult {
     pub default_page_size: u16,
     pub maximum_page_size: u16,
     pub terminal_available: bool,
+    pub worktrees_v1: bool,
 }
 impl HelloResult {
     pub fn new(
@@ -533,11 +554,17 @@ impl HelloResult {
             default_page_size: DEFAULT_PAGE_SIZE,
             maximum_page_size: MAX_PAGE_SIZE,
             terminal_available: false,
+            worktrees_v1: false,
         }
     }
 
     pub fn with_terminal(mut self, available: bool) -> Self {
         self.terminal_available = available;
+        self
+    }
+
+    pub fn with_worktrees(mut self, available: bool) -> Self {
+        self.worktrees_v1 = available;
         self
     }
 }
@@ -614,7 +641,7 @@ pub struct AgentImportDefinitionsParams {
     #[serde(default)]
     pub expected_revision: Option<DecimalU64>,
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NativePathDto {
     pub encoding: String,
@@ -811,6 +838,7 @@ pub struct AgentInstanceDto {
     pub workspace_id: WorkspaceId,
     pub agent_definition_id: Option<AgentDefinitionId>,
     pub task_id: Option<TaskId>,
+    pub worktree_id: Option<WorktreeId>,
     pub working_directory: NativePathDto,
     pub status: InstanceStatus,
     pub started_at: TimestampDto,
@@ -1074,18 +1102,92 @@ pub struct TerminalSnapshotDto {
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct WorktreeCreateParams {
+    pub payload_version: u8,
+    pub operation_id: WorktreeOperationId,
     pub task_id: TaskId,
+    pub expected_revision: DecimalU64,
     pub base_ref: String,
     pub branch_name: String,
-    pub relative_destination: String,
+    pub destination_leaf: String,
+    #[serde(default)]
+    pub parent: Option<NativePathDto>,
 }
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct WorktreeListParams {
     #[serde(default)]
+    pub task_id: Option<TaskId>,
+    #[serde(default)]
     pub after_id: Option<WorktreeId>,
     #[serde(default = "default_page_size")]
     pub limit: u16,
+    #[serde(default)]
+    pub expected_revision: Option<DecimalU64>,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WorktreeInspectParams {
+    #[serde(default)]
+    pub expected_revision: Option<DecimalU64>,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WorktreeOperationParams {
+    pub operation_id: WorktreeOperationId,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WorktreeReconcileParams {
+    pub operation_id: WorktreeOperationId,
+    pub expected_revision: DecimalU64,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WorktreeSelectParams {
+    pub task_id: TaskId,
+    #[serde(default)]
+    pub worktree_id: Option<WorktreeId>,
+    pub expected_revision: DecimalU64,
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WorktreePhaseDto {
+    Prepared,
+    Applying,
+    Ready,
+    Failed,
+    NeedsAttention,
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WorktreeHealthDto {
+    Ready,
+    Missing,
+    Mismatch,
+    Unavailable,
+}
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WorktreeDto {
+    pub id: WorktreeId,
+    pub task_id: TaskId,
+    pub operation_id: WorktreeOperationId,
+    pub checkout_path: NativePathDto,
+    pub checkout_display: String,
+    pub branch_ref: String,
+    pub initial_base_commit: String,
+    pub health: WorktreeHealthDto,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WorktreeOperationDto {
+    pub operation_id: WorktreeOperationId,
+    pub worktree_id: WorktreeId,
+    pub task_id: TaskId,
+    pub phase: WorktreePhaseDto,
+    #[serde(default)]
+    pub reason: Option<String>,
+    pub selected: bool,
 }
 impl NativePathDto {
     pub fn from_bytes(encoding: &str, bytes: &[u8]) -> Result<Self, MessageError> {
@@ -1551,5 +1653,40 @@ mod tests {
             .validate()
             .is_err()
         );
+    }
+
+    #[test]
+    fn worktree_requests_are_versioned_strict_and_keep_native_paths() {
+        let request = serde_json::json!({
+            "payload_version":1,
+            "operation_id":"00000000-0000-4000-8000-000000000901",
+            "task_id":"00000000-0000-4000-8000-000000000902",
+            "expected_revision":"7",
+            "base_ref":"HEAD",
+            "branch_name":"rt/task-id",
+            "destination_leaf":"task-id",
+            "parent":null
+        });
+        let parsed: WorktreeCreateParams = serde_json::from_value(request.clone()).unwrap();
+        assert_eq!(parsed.payload_version, 1);
+        let mut unknown = request;
+        unknown["unexpected"] = serde_json::json!(true);
+        assert!(serde_json::from_value::<WorktreeCreateParams>(unknown).is_err());
+        assert!(
+            serde_json::from_value::<WorktreeListParams>(serde_json::json!({
+                "limit": 50,
+                "expected_revision": "7"
+            }))
+            .is_ok()
+        );
+        assert!(
+            serde_json::from_value::<WorktreeReconcileParams>(serde_json::json!({
+                "operation_id":"00000000-0000-4000-8000-000000000901"
+            }))
+            .is_err()
+        );
+        let operation: Operation = serde_json::from_str("\"worktree.reconcile\"").unwrap();
+        assert_eq!(operation, Operation::WorktreeReconcile);
+        assert!(operation.is_mutation());
     }
 }

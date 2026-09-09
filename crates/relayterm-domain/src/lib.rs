@@ -4,10 +4,12 @@ mod events;
 mod models;
 mod state;
 mod validation;
+mod worktrees;
 pub use events::*;
 pub use models::*;
 pub use state::*;
 pub use validation::*;
+pub use worktrees::*;
 
 use std::{fmt, str::FromStr};
 use uuid::Uuid;
@@ -56,6 +58,14 @@ identifier!(ProgressEntryId, "An opaque progress entry identity.");
 identifier!(HandoverId, "An opaque handover identity.");
 identifier!(EventId, "An opaque event identity.");
 identifier!(WorktreeId, "An opaque worktree identity.");
+identifier!(
+    WorktreeOperationId,
+    "An opaque durable worktree operation identity."
+);
+identifier!(
+    ApprovedRootId,
+    "An opaque approved worktree parent identity."
+);
 
 /// Workspace and task IDs cannot be substituted for each other.
 ///

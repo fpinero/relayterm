@@ -10,6 +10,9 @@ pub struct WorkspaceState {
     claims: Vec<Claim>,
     progress: Vec<ProgressEntry>,
     handovers: Vec<Handover>,
+    approved_roots: Vec<ApprovedRoot>,
+    worktree_intents: Vec<WorktreeIntent>,
+    worktrees: Vec<Worktree>,
 }
 /// Rows loaded by an adapter; every reference is checked on reconstruction.
 #[derive(Default)]
@@ -20,6 +23,9 @@ pub struct WorkspaceRows {
     pub claims: Vec<Claim>,
     pub progress: Vec<ProgressEntry>,
     pub handovers: Vec<Handover>,
+    pub approved_roots: Vec<ApprovedRoot>,
+    pub worktree_intents: Vec<WorktreeIntent>,
+    pub worktrees: Vec<Worktree>,
 }
 /// User-facing intent cannot carry the internal System actor.
 pub enum Command {
@@ -56,6 +62,27 @@ pub enum Command {
         id: HandoverId,
         task_id: TaskId,
         content: HandoverContent,
+    },
+    AddWorktreeIntent {
+        root: ApprovedRoot,
+        intent: Box<WorktreeIntent>,
+    },
+    MarkWorktreeApplying {
+        operation_id: WorktreeOperationId,
+    },
+    FinalizeWorktree {
+        operation_id: WorktreeOperationId,
+        worktree: Worktree,
+        select: bool,
+    },
+    FailWorktree {
+        operation_id: WorktreeOperationId,
+        reason: WorktreeReason,
+        needs_attention: bool,
+    },
+    SelectWorktree {
+        task_id: TaskId,
+        worktree_id: Option<WorktreeId>,
     },
 }
 /// Supervisor-only observations, routed separately from client commands.
@@ -104,6 +131,9 @@ impl WorkspaceState {
             claims: vec![],
             progress: vec![],
             handovers: vec![],
+            approved_roots: vec![],
+            worktree_intents: vec![],
+            worktrees: vec![],
         }
     }
     pub fn restore(workspace: Workspace, rows: WorkspaceRows) -> Result<Self> {
@@ -115,6 +145,9 @@ impl WorkspaceState {
             claims: rows.claims,
             progress: rows.progress,
             handovers: rows.handovers,
+            approved_roots: rows.approved_roots,
+            worktree_intents: rows.worktree_intents,
+            worktrees: rows.worktrees,
         };
         state.validate()?;
         Ok(state)
@@ -139,6 +172,15 @@ impl WorkspaceState {
     }
     pub fn handovers(&self) -> &[Handover] {
         &self.handovers
+    }
+    pub fn approved_roots(&self) -> &[ApprovedRoot] {
+        &self.approved_roots
+    }
+    pub fn worktree_intents(&self) -> &[WorktreeIntent] {
+        &self.worktree_intents
+    }
+    pub fn worktrees(&self) -> &[Worktree] {
+        &self.worktrees
     }
     pub fn task(&self, id: TaskId) -> Result<&Task> {
         self.tasks
@@ -509,6 +551,188 @@ impl WorkspaceState {
                 self.handovers.push(handover);
                 events.push(EventPayload::HandoverPrepared { id, task_id });
             }
+            Command::AddWorktreeIntent { root, intent } => {
+                actor.user()?;
+                let root_record = root.record();
+                let record = intent.record();
+                if root_record.workspace_id != workspace_id
+                    || record.workspace_id != workspace_id
+                    || root_record.id != record.root_id
+                    || record.phase != WorktreePhase::Prepared
+                    || self
+                        .worktree_intents
+                        .iter()
+                        .any(|candidate| candidate.record().id == record.id)
+                    || self.worktree_intents.iter().any(|candidate| {
+                        !candidate.record().phase.is_terminal()
+                            && (candidate.record().destination == record.destination
+                                || candidate.record().branch == record.branch
+                                || candidate.record().task_id == record.task_id)
+                    })
+                {
+                    return Err(Error::Conflict);
+                }
+                if self.worktree_intents.len() >= 1024 || self.worktrees.len() >= 1024 {
+                    return Err(Error::Validation("worktrees"));
+                }
+                let task = self.task(record.task_id)?;
+                if task.record().status.is_final()
+                    || task.record().status == TaskStatus::Active
+                    || self.current_claim(record.task_id).is_some()
+                    || self.instances.iter().any(|instance| {
+                        instance.record().task_id == Some(record.task_id)
+                            && !instance.record().status.is_final()
+                    })
+                {
+                    return Err(Error::State);
+                }
+                if !self
+                    .approved_roots
+                    .iter()
+                    .any(|candidate| candidate.record().id == root_record.id)
+                {
+                    if self.approved_roots.len() >= 16 {
+                        return Err(Error::Validation("approved_roots"));
+                    }
+                    self.approved_roots.push(root);
+                } else if !self.approved_roots.iter().any(|candidate| {
+                    candidate.record().id == root_record.id
+                        && candidate.record().canonical_parent == root_record.canonical_parent
+                }) {
+                    return Err(Error::Conflict);
+                }
+                events.push(EventPayload::WorktreeIntentCreated {
+                    id: record.id,
+                    task_id: record.task_id,
+                    worktree_id: record.worktree_id,
+                });
+                self.worktree_intents.push(*intent);
+            }
+            Command::MarkWorktreeApplying { operation_id } => {
+                actor.user()?;
+                let intent = self
+                    .worktree_intents
+                    .iter_mut()
+                    .find(|intent| intent.record().id == operation_id)
+                    .ok_or(Error::Reference)?;
+                let from = intent.record().phase;
+                *intent = intent.transition(WorktreePhase::Applying, None, at)?;
+                events.push(EventPayload::WorktreeIntentChanged {
+                    id: operation_id,
+                    from,
+                    to: WorktreePhase::Applying,
+                    reason: None,
+                });
+            }
+            Command::FinalizeWorktree {
+                operation_id,
+                worktree,
+                select,
+            } => {
+                actor.user()?;
+                let position = self
+                    .worktree_intents
+                    .iter()
+                    .position(|intent| intent.record().id == operation_id)
+                    .ok_or(Error::Reference)?;
+                let intent = self.worktree_intents[position].record();
+                let record = worktree.record();
+                if record.operation_id != operation_id
+                    || record.id != intent.worktree_id
+                    || record.task_id != intent.task_id
+                    || record.workspace_id != workspace_id
+                    || record.health != WorktreeHealth::Ready
+                    || self
+                        .worktrees
+                        .iter()
+                        .any(|candidate| candidate.record().id == record.id)
+                {
+                    return Err(Error::Reference);
+                }
+                let worktree_id = record.id;
+                let task_id = record.task_id;
+                let from = intent.phase;
+                self.worktree_intents[position] =
+                    self.worktree_intents[position].transition(WorktreePhase::Ready, None, at)?;
+                self.worktrees.push(worktree);
+                events.push(EventPayload::WorktreeIntentChanged {
+                    id: operation_id,
+                    from,
+                    to: WorktreePhase::Ready,
+                    reason: None,
+                });
+                events.push(EventPayload::WorktreeRegistered {
+                    id: worktree_id,
+                    task_id,
+                });
+                if select {
+                    let task = self.task(task_id)?;
+                    validate_association(task, self.worktrees.last().expect("inserted worktree"))?;
+                    let selected = task.select_worktree(Some(worktree_id), at)?;
+                    *self.task_mut(task_id)? = selected;
+                    events.push(EventPayload::TaskWorktreeSelected {
+                        id: task_id,
+                        worktree_id: Some(worktree_id),
+                    });
+                }
+            }
+            Command::FailWorktree {
+                operation_id,
+                reason,
+                needs_attention,
+            } => {
+                actor.user()?;
+                let intent = self
+                    .worktree_intents
+                    .iter_mut()
+                    .find(|intent| intent.record().id == operation_id)
+                    .ok_or(Error::Reference)?;
+                let from = intent.record().phase;
+                let to = if needs_attention {
+                    WorktreePhase::NeedsAttention
+                } else {
+                    WorktreePhase::Failed
+                };
+                *intent = intent.transition(to, Some(reason), at)?;
+                events.push(EventPayload::WorktreeIntentChanged {
+                    id: operation_id,
+                    from,
+                    to,
+                    reason: Some(reason),
+                });
+            }
+            Command::SelectWorktree {
+                task_id,
+                worktree_id,
+            } => {
+                actor.user()?;
+                let task = self.task(task_id)?;
+                if self.worktree_intents.iter().any(|intent| {
+                    intent.record().task_id == task_id && !intent.record().phase.is_terminal()
+                }) {
+                    return Err(Error::State);
+                }
+                if self.instances.iter().any(|instance| {
+                    instance.record().task_id == Some(task_id)
+                        && !instance.record().status.is_final()
+                }) {
+                    return Err(Error::State);
+                }
+                if let Some(worktree_id) = worktree_id {
+                    let worktree = self
+                        .worktrees
+                        .iter()
+                        .find(|candidate| candidate.record().id == worktree_id)
+                        .ok_or(Error::Reference)?;
+                    validate_association(task, worktree)?;
+                }
+                let selected = task.select_worktree(worktree_id, at)?;
+                *self.task_mut(task_id)? = selected;
+                events.push(EventPayload::TaskWorktreeSelected {
+                    id: task_id,
+                    worktree_id,
+                });
+            }
         }
         Ok(())
     }
@@ -653,6 +877,61 @@ impl WorkspaceState {
         unique!(self.claims);
         unique!(self.progress);
         unique!(self.handovers);
+        for (index, root) in self.approved_roots.iter().enumerate() {
+            if root.record().workspace_id != wid
+                || self.approved_roots[..index]
+                    .iter()
+                    .any(|candidate| candidate.record().id == root.record().id)
+            {
+                return Err(Error::Conflict);
+            }
+        }
+        for (index, intent) in self.worktree_intents.iter().enumerate() {
+            let record = intent.record();
+            if record.workspace_id != wid
+                || self.worktree_intents[..index]
+                    .iter()
+                    .any(|candidate| candidate.record().id == record.id)
+                || !self
+                    .tasks
+                    .iter()
+                    .any(|task| task.record().id == record.task_id)
+                || !self
+                    .approved_roots
+                    .iter()
+                    .any(|root| root.record().id == record.root_id)
+            {
+                return Err(Error::Reference);
+            }
+        }
+        for (index, worktree) in self.worktrees.iter().enumerate() {
+            let record = worktree.record();
+            let intent = self
+                .worktree_intents
+                .iter()
+                .find(|intent| intent.record().id == record.operation_id);
+            if record.workspace_id != wid
+                || self.worktrees[..index]
+                    .iter()
+                    .any(|candidate| candidate.record().id == record.id)
+                || intent.is_none_or(|intent| {
+                    let intent = intent.record();
+                    intent.phase != WorktreePhase::Ready
+                        || intent.worktree_id != record.id
+                        || intent.task_id != record.task_id
+                        || intent.root_id != record.root_id
+                        || intent.common_directory_identity != record.common_directory_identity
+                })
+                || !self
+                    .approved_roots
+                    .iter()
+                    .any(|root| root.record().id == record.root_id)
+            {
+                return Err(Error::Reference);
+            }
+            let task = self.task(record.task_id)?;
+            validate_association(task, worktree)?;
+        }
         for (n, i) in self.instances.iter().enumerate() {
             if self.instances[..n]
                 .iter()
@@ -667,6 +946,16 @@ impl WorkspaceState {
             }
             if let Some(id) = i.0.task_id {
                 self.task(id)?;
+            }
+            if let Some(id) = i.0.worktree_id {
+                let worktree = self
+                    .worktrees
+                    .iter()
+                    .find(|worktree| worktree.record().id == id)
+                    .ok_or(Error::Reference)?;
+                if Some(worktree.record().task_id) != i.0.task_id {
+                    return Err(Error::Reference);
+                }
             }
             i.0.started_at.not_before(self.workspace.0.created_at)?;
             self.workspace
@@ -720,6 +1009,14 @@ impl WorkspaceState {
             if let Some(last) = history.last() {
                 t.0.updated_at
                     .not_before(last.0.closed_at.unwrap_or(last.0.opened_at))?;
+            }
+            if let Some(worktree_id) = t.record().worktree_id {
+                let worktree = self
+                    .worktrees
+                    .iter()
+                    .find(|worktree| worktree.record().id == worktree_id)
+                    .ok_or(Error::Reference)?;
+                validate_association(t, worktree)?;
             }
         }
         for pair in self.claims.windows(2) {

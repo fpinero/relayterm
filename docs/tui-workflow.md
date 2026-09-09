@@ -123,4 +123,4 @@ CI run links, runner versions, and both native repetitions are recorded in `docs
 
 ## Limitations
 
-Relayterm does not persist terminal history or recordings. A daemon restart cannot adopt existing PTYs and honestly marks unreconstructable sessions lost. The TUI does not provide provider templates, Git worktrees, mouse input, OSC clipboard, hyperlinks, or automatic task updates from child output. Those boundaries belong to later milestones or remain excluded from the MVP.
+Relayterm does not persist terminal history or recordings. A daemon restart cannot adopt existing PTYs and honestly marks unreconstructable sessions lost. The Tasks screen provides explicit worktree creation, selection and clearing. A selected worktree is shown before launch and its validated directory is captured in the instance snapshot. The TUI does not provide mouse input, OSC clipboard, hyperlinks, automatic task updates from child output, or destructive Git cleanup.

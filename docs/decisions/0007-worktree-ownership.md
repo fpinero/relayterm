@@ -1,7 +1,7 @@
 # 0007: Worktree ownership and recovery
 
-Status: Accepted architecture; future runtime verification remains assigned below.
-Task: M01.07.
+Status: Accepted and implemented by M10.
+Task: M01.07 and M10.
 Requirements: Sections 6.7, 9.5; FR-7; AC-10.
 
 ## Context
@@ -18,6 +18,12 @@ Use task IDs to propose a branch named rt/task-<task-id> and a stable destinatio
 
 Record a recoverable creation intent before invoking Git. Git success followed by persistence failure is a partial outcome, not permission to delete a worktree. Reconcile the intent and actual Git state on retry/restart before creating anything else. Register only validated, associated worktree paths as session launch roots. Keep operation identifiers stable across retry. M10 fixes concrete state transitions and storage migration before implementation.
 
+The durable creation phases are `prepared`, `applying`, `ready`, `failed`, and `needs_attention`. A receipt stores the operation, workspace, task, worktree and approved-root IDs, the original expected revision, canonical repository and common-directory identities, destination, branch, original base expression, pinned commit, request fingerprint, actor and timestamps. The intent commits in `prepared` before dispatch. A separate commit records `applying` before Git starts. A verified result commits the immutable worktree record, changes the receipt to `ready`, and selects it only if the task still permits association. Uncertain external outcomes remain visible and require bounded explicit reconciliation.
+
+Each worktree belongs permanently to one task and workspace. A task can retain historical worktrees and select at most one ready record. Selection and clearing require a nonfinal, nonactive task without an open claim or a starting or running task-context session. Cancellation can win while Git is running. In that case a proven checkout remains recorded but unselected. No task state changes as a consequence of Git output.
+
+Repository discovery uses Git's checkout top and common directory, including linked `.git` files. Creation requires the workspace root to equal the checkout top. The adapter resolves the base to a local commit before dispatch and invokes `git worktree add -b <branch> --no-track -- <destination> <commit>` as an argument array. Relayterm serializes creation against the common Git directory. It disables hooks, prompts, paging, lazy fetch and inherited Git repository redirection. Checkout filters are rejected.
+
 No automatic branch/worktree deletion, commits, merges, or rebases. Cleanup guidance is manual and must preserve uncommitted work.
 
 ## Alternatives
@@ -30,4 +36,4 @@ Some failures need visible reconciliation or manual intervention. Private paths 
 
 ## Verification and ownership
 
-M10 uses disposable repositories to test two isolated tasks, missing Git, non-Git roots, invalid refs, spaces/Unicode, collisions, symlink escapes, concurrent requests, and interruption after Git succeeds. Verify unrelated session working directories never change.
+The M10 native gate uses production `rt`, SQLite, authenticated IPC, installed Git and PTY or ConPTY. It creates two task-owned checkouts, verifies independent files and an unchanged source checkout, rejects cross-task selection and selection during a live task session, captures the worktree in the instance snapshot, restarts the daemon, recovers the same receipt without another add, and proves normal non-Git sessions remain available. Platform results are recorded in `docs/supported-platforms.md`.

@@ -813,6 +813,9 @@ fn reconstruction_checks_history_and_round_trips_committed_entities() {
             claims: state.claims().to_vec(),
             progress: state.progress().to_vec(),
             handovers: state.handovers().to_vec(),
+            approved_roots: state.approved_roots().to_vec(),
+            worktree_intents: state.worktree_intents().to_vec(),
+            worktrees: state.worktrees().to_vec(),
         }
     }
     let f = Fixture::new();

@@ -77,6 +77,10 @@ enum TopCommand {
         #[command(subcommand)]
         command: EventCommand,
     },
+    Worktree {
+        #[command(subcommand)]
+        command: WorktreeCommand,
+    },
     #[command(name = "__bootstrap", hide = true)]
     InternalBootstrap,
     #[command(name = "__daemon-run", hide = true)]
@@ -263,6 +267,50 @@ enum EventCommand {
     Watch {
         #[arg(long, default_value = "0")]
         after: String,
+    },
+}
+#[derive(Subcommand)]
+enum WorktreeCommand {
+    Inspect,
+    Create {
+        task_id: String,
+        #[arg(long)]
+        expected_revision: String,
+        #[arg(long)]
+        operation_id: Option<String>,
+        #[arg(long, default_value = "HEAD")]
+        base: String,
+        #[arg(long)]
+        branch: String,
+        #[arg(long)]
+        parent: Option<PathBuf>,
+        #[arg(long)]
+        leaf: String,
+    },
+    List {
+        #[arg(long)]
+        task_id: Option<String>,
+        #[command(flatten)]
+        page: PageArgs,
+    },
+    Operation {
+        operation_id: String,
+    },
+    Select {
+        task_id: String,
+        worktree_id: String,
+        #[arg(long)]
+        expected_revision: String,
+    },
+    Clear {
+        task_id: String,
+        #[arg(long)]
+        expected_revision: String,
+    },
+    Reconcile {
+        operation_id: String,
+        #[arg(long)]
+        expected_revision: String,
     },
 }
 
@@ -786,6 +834,76 @@ fn operation_and_params(command: &TopCommand) -> Result<(Operation, Value), CliE
             Operation::AgentCheckDefinition,
             json!({"definition_id":definition_id,"expected_revision":expected_revision}),
         ),
+        TopCommand::Worktree {
+            command: WorktreeCommand::Inspect,
+        } => (Operation::WorktreeInspectRepository, json!({})),
+        TopCommand::Worktree {
+            command:
+                WorktreeCommand::Create {
+                    task_id,
+                    expected_revision,
+                    operation_id,
+                    base,
+                    branch,
+                    parent,
+                    leaf,
+                },
+        } => {
+            let parent = parent
+                .as_deref()
+                .map(relayterm_daemon::encode_session_path)
+                .transpose()?;
+            (
+                Operation::WorktreeCreate,
+                json!({"payload_version":1,"operation_id":operation_id.clone().unwrap_or_else(||uuid::Uuid::new_v4().to_string()),"task_id":task_id,"expected_revision":expected_revision,"base_ref":base,"branch_name":branch,"destination_leaf":leaf,"parent":parent}),
+            )
+        }
+        TopCommand::Worktree {
+            command: WorktreeCommand::List { task_id, page },
+        } => {
+            let mut value = page_params(page);
+            if let Some(task_id) = task_id {
+                value["task_id"] = Value::String(task_id.clone());
+            }
+            (Operation::WorktreeList, value)
+        }
+        TopCommand::Worktree {
+            command: WorktreeCommand::Operation { operation_id },
+        } => (
+            Operation::WorktreeGetOperation,
+            json!({"operation_id":operation_id}),
+        ),
+        TopCommand::Worktree {
+            command:
+                WorktreeCommand::Select {
+                    task_id,
+                    worktree_id,
+                    expected_revision,
+                },
+        } => (
+            Operation::WorktreeSelect,
+            json!({"task_id":task_id,"worktree_id":worktree_id,"expected_revision":expected_revision}),
+        ),
+        TopCommand::Worktree {
+            command:
+                WorktreeCommand::Clear {
+                    task_id,
+                    expected_revision,
+                },
+        } => (
+            Operation::WorktreeSelect,
+            json!({"task_id":task_id,"worktree_id":null,"expected_revision":expected_revision}),
+        ),
+        TopCommand::Worktree {
+            command:
+                WorktreeCommand::Reconcile {
+                    operation_id,
+                    expected_revision,
+                },
+        } => (
+            Operation::WorktreeReconcile,
+            json!({"operation_id":operation_id,"expected_revision":expected_revision}),
+        ),
         TopCommand::Agent {
             command:
                 AgentCommand::Register {
@@ -1130,6 +1248,7 @@ fn command_name(command: Option<&TopCommand>) -> &'static str {
         Some(TopCommand::Handover { .. }) => "handover",
         Some(TopCommand::Session { .. }) => "session",
         Some(TopCommand::Event { .. }) => "event",
+        Some(TopCommand::Worktree { .. }) => "worktree",
         Some(TopCommand::InternalBootstrap) => "bootstrap",
         Some(TopCommand::InternalDaemon(_)) => "daemon_internal",
         None => "tui",

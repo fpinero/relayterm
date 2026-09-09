@@ -21,13 +21,13 @@ Keep the daemon responsible for durable state and supervised processes. Keep dom
 
 Use the specification's recommended Rust stack and the pinned bootstrap toolchain. Verify support when adding dependencies; avoid unused dependencies and empty adapter crates until needed. Follow the eight [architecture decisions](docs/architecture/README.md), refining the risky ones at their implementation gates.
 
-The durable first-slice, real PTY, TUI, and editable agent-template gates are complete. M10 adds explicit worktree isolation; M11 and M12 validate and prepare the release candidate.
+The durable first-slice, real PTY, TUI, editable agent-template, and explicit worktree-isolation gates are complete. M10 awaits delivery; M11 and M12 validate and prepare the release candidate.
 
 Public export and disk-backed scrollback are optional and are deferred from this roadmap. Keep scrollback bounded in daemon memory. Do not add transcript ingestion, provider APIs, automatic task mutation from agent prose, autonomous orchestration, TCP listeners, hosted dependencies, telemetry, graphical clients, or automatic Git commits, merges, rebases, or deletion. Any later export proposal must first add exact-content preview, redaction, and destination confirmation as required by FR-10.
 
 Keep task dependencies informational, as defined in the specification and [M02 storage contract](docs/M02_storage_contract.md); do not introduce a scheduler. Git worktree creation is included because AC-10 requires it, even though several related requirements use SHOULD.
 
-## M10: Explicit Git worktree isolation [PLAN]
+## M10: Explicit Git worktree isolation
 
 Execution contract: [M10 details](docs/M10_details.md).
 
@@ -35,12 +35,8 @@ Depends on: M08. Specification phase: 4. Coverage: FR-7, FR-8; sections 6.7, 9.5
 
 Outcome: two tasks can explicitly use separate working directories without destructive Git automation.
 
-- M10.01: Refine the worktree ADR into naming/root validation, base-ref selection, task association schema, and a recoverable creation sequence across Git and SQLite. Specify duplicate requests, branch/path collisions, missing Git, and failure after Git succeeds but before the database commits. Recovery must preserve files and report partial outcomes.
-- M10.02: Add repository detection and project-owned worktree listing through a narrow argument-array Git adapter. Test Git absence, non-Git roots, linked worktrees, unusual paths, and reliable machine-readable output parsing.
-- M10.03: Implement branch/path validation and explicit worktree creation. Test traversal, option-like names, symlink escapes, preexisting branches/directories, concurrent collisions, and invalid base refs in disposable repositories.
-- M10.04: Persist worktree records and task branch/path associations using versioned migration and events. Test restart, migration, partial creation reconciliation, and repeated requests without deleting or overwriting existing work.
-- M10.05: Complete worktree create/list IPC operations and add the explicit TUI creation/selection flow. Launch task sessions in the validated associated worktree; test that changing one task's selection never changes another session's working directory.
-- M10.06: Document prerequisite Git installation, conflict resolution, ownership, and manual cleanup guidance. Verify the gate with two tasks in separate worktrees, injected partial failure, and the complete non-Git workflow still functional on all three OS targets.
+- M10.06: Deliver the verified worktree implementation and its native evidence without advancing into M11.
+  - M10.06g: Deliver the PR, reviews, merge and post-merge verification.
 
 ## M11: Reliability, privacy, and complete acceptance [PLAN]
 
@@ -88,7 +84,7 @@ This index identifies the planned proof for each specification criterion. As mil
 | AC-7: Another instance resumes shared work | M05, M08 | M06.02; M08.10; M11.02 |
 | AC-8: TUI detach and reattach preserves children | M05, M07, M08 | M07.10; M08.10; M11.07 |
 | AC-9: Durable restart and honest session loss | M05, M07 | M06.03; M07.09; M11.03 |
-| AC-10: Task session in an explicit worktree | M10 | M10.06; M11.02 |
+| AC-10: Task session in an explicit worktree | M11 | M11.02 |
 | AC-11: Core and protocol independent from TUI | M06, M11 | M06.04; M11.10 |
 | AC-12: Cross-platform CI and quality checks | All remaining implementation milestones | M11.10; M12.06 |
 | AC-13: No injected secrets, personal paths, or transcripts in logs/artifacts | M05, M07, M08 | M11.05; M11.09 |

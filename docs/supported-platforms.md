@@ -146,6 +146,22 @@ Earlier Windows candidates exposed two separate restart problems. The stop comma
 
 The final local gate passes reported unavailable checks of 20 to 30 ms and available checks of 30 ms. These are observations from one machine, not universal performance guarantees. Optional provider checks were not run because no provider installation or authenticated account is required for account-free acceptance.
 
+## M10 Git worktree evidence
+
+Local development on macOS 26.5.2 arm64 used Rust 1.98.1 and Git 2.53.0. Two consecutive invocations of the native M10 gate passed. Each invocation drove the real TUI to create two tasks and two linked worktrees, launched a real task-context PTY in each selected checkout, and verified the immutable task and worktree identities in SQLite. A separate administrative journey preserved source HEAD and dirty files, wrote independent same-name files, rejected cross-task selection and live-session reassignment, restarted the production daemon, reused a durable operation receipt without another add, and completed a non-Git session.
+
+The focused recovery gate injected a failure after a confirmed real `git worktree add` and before final SQLite registration. After closing and reopening the server and database, explicit authenticated reconciliation verified the recorded destination, common Git directory, branch and pinned commit, finalized the receipt, and confirmed that the Git inventory still contained exactly two entries. Product recovery performed no add, removal or branch mutation.
+
+Candidate `f57ce9a948da5ee3e89c0143b55aadbb3430e031` passed [Quality run 34350013365](https://github.com/fpinero/relayterm/actions/runs/34350013365) and [Security run 34350013342](https://github.com/fpinero/relayterm/actions/runs/34350013342). The Quality workflow ran the complete M10 gate twice in independent steps on every stable native runner and retained the existing M06 through M09 repetitions.
+
+| Native runner | Architecture | Git | TUI gate runs | Administrative gate runs | Result |
+| --- | --- | --- | --- | --- | --- |
+| ubuntu-24.04 | x86_64 | 2.55.0 | 1.331 s, 1.311 s | 1.592 s, 1.590 s | Passed |
+| macos-14 | aarch64 | 2.55.0 | 5.255 s, 6.211 s | 5.758 s, 6.231 s | Passed |
+| windows-2022 | x86_64 | 2.55.0.windows.5 | 6.806 s, 6.197 s | 6.218 s, 6.236 s | Passed |
+
+Earlier Windows candidates exposed an oversized domain command on the MSVC ABI, an inherited pipe that delayed bounded test completion, and a Git boundary that passed Rust verbatim paths directly to Git for Windows. The final implementation boxes the large payload, reads bounded administrative output to one newline, and converts verbatim disk and UNC paths through exact UTF-16 only at the Git argument boundary. The passing candidate did not extend deadlines, skip a gate, retry a failed creation, or expose native paths and Git output in ordinary diagnostics.
+
 ## Remaining manual shell and terminal matrix
 
 | Platform | Shells | Terminals and connections to verify |
@@ -158,6 +174,6 @@ Native PTY full-screen redraw, Unicode, resize, process survival, reattachment, 
 
 ## Prerequisites and limitations
 
-Development requires rustup and native linker/build tools. Git is needed for repository validation and later optional worktree isolation. Provider CLIs, credentials, graphical desktops, and hosted accounts are not needed for automated runtime acceptance.
+Development requires rustup and native linker/build tools. Git is needed only for optional worktree inspection and isolation. Provider CLIs, credentials, graphical desktops, and hosted accounts are not needed for automated runtime acceptance.
 
-The administrative daemon, CLI, real supervised sessions, PTY interaction, terminal reattachment workflow, and no-command interactive TUI are available. Host restart recovery of live processes is outside the MVP.
+The administrative daemon, CLI, real supervised sessions, PTY interaction, terminal reattachment workflow, no-command interactive TUI, neutral agent templates, and explicit task worktrees are available. Host restart recovery of live processes and automatic Git cleanup are outside the MVP.

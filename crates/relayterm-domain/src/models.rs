@@ -264,12 +264,20 @@ impl Task {
         if r.content.dependency_ids.contains(&r.id) {
             return Err(Error::Reference);
         }
-        if (r.status == TaskStatus::Active) != r.claimed_by_instance_id.is_some()
-            || r.worktree_id.is_some()
-        {
+        if (r.status == TaskStatus::Active) != r.claimed_by_instance_id.is_some() {
             return Err(Error::State);
         }
         r.updated_at.not_before(r.created_at)
+    }
+    pub fn select_worktree(&self, worktree_id: Option<WorktreeId>, at: Timestamp) -> Result<Self> {
+        if self.0.status.is_final() || self.0.status == TaskStatus::Active {
+            return Err(Error::State);
+        }
+        at.not_before(self.0.updated_at)?;
+        let mut record = self.0.clone();
+        record.worktree_id = worktree_id;
+        record.updated_at = at;
+        Self::restore(record)
     }
     pub(crate) fn transition(
         &mut self,
@@ -311,7 +319,7 @@ impl TerminalSize {
 record!(AgentInstance, AgentInstanceRecord {
     id: AgentInstanceId, session_id: TerminalSessionId, workspace_id: WorkspaceId,
     agent_definition_id: Option<AgentDefinitionId>, task_id: Option<TaskId>,
-    launch_definition: Option<LaunchDefinitionSnapshot>,
+    launch_definition: Option<LaunchDefinitionSnapshot>, worktree_id: Option<WorktreeId>,
     working_directory: PathBuf, status: InstanceStatus, started_at: Timestamp, last_observed_at: Timestamp,
     ended_at: Option<Timestamp>, exit_code: Option<i32>, terminal_size: TerminalSize,
 });

@@ -457,6 +457,12 @@ async fn handle_key(client: &Client, app: &mut App, key: KeyEvent) {
         KeyCode::Char('x') if app.screen == Screen::Tasks => {
             transition(client, app, "cancelled").await
         }
+        KeyCode::Char('w') if app.screen == Screen::Tasks => open_worktree_form(client, app).await,
+        KeyCode::Char('o') if app.screen == Screen::Tasks => {
+            select_next_worktree(client, app).await
+        }
+        KeyCode::Char('u') if app.screen == Screen::Tasks => clear_worktree(client, app).await,
+        KeyCode::Char('a') if app.screen == Screen::Tasks => launch(client, app, None).await,
         _ => {}
     }
 }
@@ -619,6 +625,21 @@ async fn refresh(client: &Client, app: &mut App) -> Result<(), ClientError> {
         app.selected_template = app
             .selected_template
             .min(app.templates.len().saturating_sub(1));
+    }
+    if let Ok(page) = client
+        .call::<_, Value>(
+            Operation::WorktreeList,
+            &json!({"limit":200,"expected_revision":app.last_revision}),
+        )
+        .await
+    {
+        app.worktrees = page
+            .get("items")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+    } else {
+        app.worktrees.clear();
     }
     Ok(())
 }
@@ -806,8 +827,130 @@ fn form_params(_app: &App, form: &Form, task_id: &str) -> Result<(Operation, Val
                 }),
             ))
         }
+        FormKind::WorktreeCreate => {
+            if value(0).is_empty()
+                || value(1).is_empty()
+                || value(3).is_empty()
+                || value(4).is_empty()
+            {
+                return Err(
+                    "Base, branch, destination leaf, and operation ID are required.".into(),
+                );
+            }
+            let parent = if value(2).is_empty() {
+                Value::Null
+            } else {
+                serde_json::to_value(native_text_path(&value(2))?)
+                    .map_err(|_| "The approved parent cannot be encoded.".to_owned())?
+            };
+            Ok((
+                Operation::WorktreeCreate,
+                json!({
+                    "payload_version":1,"operation_id":value(4),"task_id":task_id,
+                    "expected_revision":form.base_revision,"base_ref":value(0),"branch_name":value(1),
+                    "destination_leaf":value(3),"parent":parent
+                }),
+            ))
+        }
         FormKind::ConfirmTerminate => Err("Use the termination confirmation action.".into()),
     }
+}
+
+fn native_text_path(value: &str) -> Result<relayterm_protocol::NativePathDto, String> {
+    #[cfg(unix)]
+    let (encoding, bytes) = ("unix_bytes_v1", value.as_bytes().to_vec());
+    #[cfg(windows)]
+    let (encoding, bytes): (&str, Vec<u8>) = (
+        "windows_utf16le_v1",
+        value.encode_utf16().flat_map(u16::to_le_bytes).collect(),
+    );
+    #[cfg(not(any(unix, windows)))]
+    return Err("Native paths are unavailable on this platform.".into());
+    relayterm_protocol::NativePathDto::from_bytes(encoding, &bytes)
+        .map_err(|_| "The approved parent cannot be encoded.".into())
+}
+
+async fn open_worktree_form(client: &Client, app: &mut App) {
+    let Some(task_id) = selected_task_id(app) else {
+        return;
+    };
+    let mut form = Form::worktree_create();
+    form.target_id = Some(task_id.clone());
+    form.base_revision = app.last_revision.clone();
+    form.fields[0].value = "HEAD".into();
+    form.fields[1].value = format!("rt/task-{task_id}");
+    form.fields[3].value = format!("task-{task_id}");
+    form.fields[4].value = uuid::Uuid::new_v4().to_string();
+    if let Ok(inspect) = client
+        .call::<_, Value>(
+            Operation::WorktreeInspectRepository,
+            &json!({"expected_revision":app.last_revision}),
+        )
+        .await
+    {
+        form.fields[2].value = inspect
+            .get("default_parent_display")
+            .and_then(Value::as_str)
+            .unwrap_or("Relayterm private worktree root")
+            .to_owned();
+    }
+    for field in &mut form.fields {
+        field.cursor = field.value.len();
+    }
+    app.form = Some(form);
+}
+
+async fn select_next_worktree(client: &Client, app: &mut App) {
+    let Some(task_id) = selected_task_id(app) else {
+        return;
+    };
+    let current = app
+        .selected_task()
+        .and_then(|task| task.get("worktree_id"))
+        .and_then(Value::as_str);
+    let owned: Vec<_> = app
+        .worktrees
+        .iter()
+        .filter(|worktree| {
+            worktree.get("task_id").and_then(Value::as_str) == Some(task_id.as_str())
+                && worktree.get("health").and_then(Value::as_str) == Some("ready")
+        })
+        .collect();
+    let next = owned
+        .iter()
+        .position(|worktree| worktree.get("id").and_then(Value::as_str) == current)
+        .map_or(0, |index| (index + 1) % owned.len().max(1));
+    let Some(id) = owned
+        .get(next)
+        .and_then(|worktree| worktree.get("id"))
+        .and_then(Value::as_str)
+    else {
+        app.add_diagnostic(
+            "invalid_reference",
+            "No ready worktree belongs to the selected task.",
+        );
+        return;
+    };
+    mutate(
+        client,
+        app,
+        Operation::WorktreeSelect,
+        json!({"task_id":task_id,"worktree_id":id,"expected_revision":app.last_revision}),
+    )
+    .await;
+}
+
+async fn clear_worktree(client: &Client, app: &mut App) {
+    let Some(task_id) = selected_task_id(app) else {
+        return;
+    };
+    mutate(
+        client,
+        app,
+        Operation::WorktreeSelect,
+        json!({"task_id":task_id,"worktree_id":null,"expected_revision":app.last_revision}),
+    )
+    .await;
 }
 
 fn edit_task(app: &mut App) {
@@ -1484,5 +1627,32 @@ mod tests {
             KeyCode::Char(']'),
             KeyModifiers::NONE
         )));
+    }
+
+    #[test]
+    fn worktree_form_pins_task_revision_and_operation_identity() {
+        let app = App {
+            last_revision: "14".into(),
+            ..App::default()
+        };
+        let mut form = Form::worktree_create();
+        form.target_id = Some("00000000-0000-4000-8000-000000000710".into());
+        form.base_revision = "12".into();
+        form.fields[0].value = "HEAD".into();
+        form.fields[1].value = "rt/task-710".into();
+        form.fields[2].value = "Private root preview".into();
+        form.fields[3].value = "task-710".into();
+        form.fields[4].value = "00000000-0000-4000-8000-000000001710".into();
+
+        let target = form.target_id.clone().unwrap();
+        let (operation, params) = form_params(&app, &form, &target).unwrap();
+        assert_eq!(operation, Operation::WorktreeCreate);
+        assert_eq!(params["task_id"], target);
+        assert_eq!(params["expected_revision"], "12");
+        assert_eq!(
+            params["operation_id"],
+            "00000000-0000-4000-8000-000000001710"
+        );
+        assert_ne!(params["parent"], Value::Null);
     }
 }

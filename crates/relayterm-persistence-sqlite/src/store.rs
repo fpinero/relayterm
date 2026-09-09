@@ -412,6 +412,8 @@ async fn load_snapshot(
     let instances = load_instances(connection, expected).await?;
     let progress = load_progress(connection, expected).await?;
     let handovers = load_handovers(connection, expected).await?;
+    let (approved_roots, worktree_intents, worktrees) =
+        load_worktree_state(connection, expected).await?;
     let state = WorkspaceState::restore(
         workspace,
         WorkspaceRows {
@@ -421,9 +423,153 @@ async fn load_snapshot(
             claims,
             progress,
             handovers,
+            approved_roots,
+            worktree_intents,
+            worktrees,
         },
     )?;
     Snapshot::restore(revision, Some(state))
+}
+
+async fn load_worktree_state(
+    connection: &mut SqliteConnection,
+    workspace_id: WorkspaceId,
+) -> Result<(Vec<ApprovedRoot>, Vec<WorktreeIntent>, Vec<Worktree>)> {
+    let mut roots = Vec::new();
+    for row in
+        sqlx::query("SELECT * FROM approved_worktree_roots WHERE workspace_id=? ORDER BY root_id")
+            .bind(id_bytes(workspace_id.as_uuid()))
+            .fetch_all(&mut *connection)
+            .await
+            .map_err(domain_storage)?
+    {
+        roots.push(ApprovedRoot::restore(ApprovedRootRecord {
+            id: approved_root_id(row.try_get("root_id").map_err(|_| Error::Storage)?)?,
+            workspace_id,
+            canonical_parent: decode_native_path(
+                &row.try_get::<String, _>("path_codec")
+                    .map_err(|_| Error::Storage)?,
+                &row.try_get::<Vec<u8>, _>("canonical_parent")
+                    .map_err(|_| Error::Storage)?,
+            )
+            .map_err(|_| Error::Storage)?,
+            filesystem_identity: row
+                .try_get("filesystem_identity")
+                .map_err(|_| Error::Storage)?,
+            private_default: int_bool(row.try_get("private_default").map_err(|_| Error::Storage)?)?,
+            created_at: timestamp_row(&row, "created_seconds", "created_nanoseconds")?,
+        })?);
+    }
+    let mut intents = Vec::new();
+    for row in
+        sqlx::query("SELECT * FROM worktree_intents WHERE workspace_id=? ORDER BY operation_id")
+            .bind(id_bytes(workspace_id.as_uuid()))
+            .fetch_all(&mut *connection)
+            .await
+            .map_err(domain_storage)?
+    {
+        let fingerprint: Vec<u8> = row
+            .try_get("request_fingerprint")
+            .map_err(|_| Error::Storage)?;
+        let fingerprint: [u8; 32] = fingerprint.try_into().map_err(|_| Error::Storage)?;
+        intents.push(WorktreeIntent::restore(WorktreeIntentRecord {
+            id: worktree_operation_id(row.try_get("operation_id").map_err(|_| Error::Storage)?)?,
+            workspace_id,
+            task_id: task_id(row.try_get("task_id").map_err(|_| Error::Storage)?)?,
+            worktree_id: worktree_id(row.try_get("worktree_id").map_err(|_| Error::Storage)?)?,
+            root_id: approved_root_id(row.try_get("root_id").map_err(|_| Error::Storage)?)?,
+            actor: Actor::LocalUser,
+            schema_version: u32::try_from(
+                row.try_get::<i64, _>("schema_version")
+                    .map_err(|_| Error::Storage)?,
+            )
+            .map_err(|_| Error::Storage)?,
+            expected_revision: decode_counter(
+                &row.try_get::<Vec<u8>, _>("expected_revision")
+                    .map_err(|_| Error::Storage)?,
+            )
+            .map_err(|_| Error::Storage)?,
+            repository_identity: decode_native_path(
+                &row.try_get::<String, _>("repository_codec")
+                    .map_err(|_| Error::Storage)?,
+                &row.try_get::<Vec<u8>, _>("repository_identity")
+                    .map_err(|_| Error::Storage)?,
+            )
+            .map_err(|_| Error::Storage)?,
+            common_directory_identity: decode_native_path(
+                &row.try_get::<String, _>("common_codec")
+                    .map_err(|_| Error::Storage)?,
+                &row.try_get::<Vec<u8>, _>("common_directory_identity")
+                    .map_err(|_| Error::Storage)?,
+            )
+            .map_err(|_| Error::Storage)?,
+            destination: decode_native_path(
+                &row.try_get::<String, _>("destination_codec")
+                    .map_err(|_| Error::Storage)?,
+                &row.try_get::<Vec<u8>, _>("destination")
+                    .map_err(|_| Error::Storage)?,
+            )
+            .map_err(|_| Error::Storage)?,
+            branch: row.try_get("branch").map_err(|_| Error::Storage)?,
+            base_expression: row.try_get("base_expression").map_err(|_| Error::Storage)?,
+            resolved_commit: row.try_get("resolved_commit").map_err(|_| Error::Storage)?,
+            request_fingerprint: fingerprint,
+            phase: parse_worktree_phase(
+                &row.try_get::<String, _>("phase")
+                    .map_err(|_| Error::Storage)?,
+            )?,
+            reason: row
+                .try_get::<Option<String>, _>("reason")
+                .map_err(|_| Error::Storage)?
+                .as_deref()
+                .map(parse_worktree_reason)
+                .transpose()?,
+            created_at: timestamp_row(&row, "created_seconds", "created_nanoseconds")?,
+            updated_at: timestamp_row(&row, "updated_seconds", "updated_nanoseconds")?,
+        })?);
+    }
+    let mut worktrees = Vec::new();
+    for row in sqlx::query("SELECT * FROM worktrees WHERE workspace_id=? ORDER BY worktree_id")
+        .bind(id_bytes(workspace_id.as_uuid()))
+        .fetch_all(&mut *connection)
+        .await
+        .map_err(domain_storage)?
+    {
+        worktrees.push(Worktree::restore(WorktreeRecord {
+            id: worktree_id(row.try_get("worktree_id").map_err(|_| Error::Storage)?)?,
+            workspace_id,
+            task_id: task_id(row.try_get("task_id").map_err(|_| Error::Storage)?)?,
+            operation_id: worktree_operation_id(
+                row.try_get("operation_id").map_err(|_| Error::Storage)?,
+            )?,
+            root_id: approved_root_id(row.try_get("root_id").map_err(|_| Error::Storage)?)?,
+            checkout_path: decode_native_path(
+                &row.try_get::<String, _>("checkout_codec")
+                    .map_err(|_| Error::Storage)?,
+                &row.try_get::<Vec<u8>, _>("checkout_path")
+                    .map_err(|_| Error::Storage)?,
+            )
+            .map_err(|_| Error::Storage)?,
+            common_directory_identity: decode_native_path(
+                &row.try_get::<String, _>("common_codec")
+                    .map_err(|_| Error::Storage)?,
+                &row.try_get::<Vec<u8>, _>("common_directory_identity")
+                    .map_err(|_| Error::Storage)?,
+            )
+            .map_err(|_| Error::Storage)?,
+            branch_ref: row.try_get("branch_ref").map_err(|_| Error::Storage)?,
+            initial_base_commit: row
+                .try_get("initial_base_commit")
+                .map_err(|_| Error::Storage)?,
+            health: parse_worktree_health(
+                &row.try_get::<String, _>("health")
+                    .map_err(|_| Error::Storage)?,
+            )?,
+            created_at: timestamp_row(&row, "created_seconds", "created_nanoseconds")?,
+            updated_at: timestamp_row(&row, "updated_seconds", "updated_nanoseconds")?,
+        })?);
+    }
+    Ok((roots, intents, worktrees))
 }
 
 async fn load_definitions(
@@ -569,6 +715,11 @@ async fn load_instances(
                 .map(task_id)
                 .transpose()?,
             launch_definition,
+            worktree_id: row
+                .try_get::<Option<Vec<u8>>, _>("worktree_id")
+                .map_err(|_| Error::Storage)?
+                .map(worktree_id)
+                .transpose()?,
             working_directory: decode_native_path(
                 &row.try_get::<String, _>("working_directory_codec")
                     .map_err(|_| Error::Storage)?,
@@ -938,6 +1089,7 @@ async fn persist_state(
         workspace_id,
     )
     .await?;
+    persist_worktree_state(connection, before, after, workspace_id).await?;
     persist_instances(
         connection,
         before.map(WorkspaceState::instances).unwrap_or(&[]),
@@ -980,6 +1132,113 @@ async fn persist_state(
         .execute(&mut *connection)
         .await
         .map_err(domain_storage)?;
+    Ok(())
+}
+
+async fn persist_worktree_state(
+    connection: &mut SqliteConnection,
+    before: Option<&WorkspaceState>,
+    after: &WorkspaceState,
+    workspace_id: WorkspaceId,
+) -> Result<()> {
+    let previous_roots = before.map(WorkspaceState::approved_roots).unwrap_or(&[]);
+    for root in after.approved_roots() {
+        if previous_roots.contains(root) {
+            continue;
+        }
+        let record = root.record();
+        let path = encode_native_path(&record.canonical_parent).map_err(|_| Error::Storage)?;
+        let (seconds, nanos) = encode_timestamp(record.created_at);
+        sqlx::query("INSERT INTO approved_worktree_roots VALUES(?,?,?,?,?,?,?,?)")
+            .bind(id_bytes(workspace_id.as_uuid()))
+            .bind(id_bytes(record.id.as_uuid()))
+            .bind(path.tag)
+            .bind(path.bytes)
+            .bind(record.filesystem_identity.as_deref())
+            .bind(i64::from(record.private_default))
+            .bind(seconds)
+            .bind(nanos)
+            .execute(&mut *connection)
+            .await
+            .map_err(domain_storage)?;
+    }
+    let previous_intents = before.map(WorkspaceState::worktree_intents).unwrap_or(&[]);
+    for intent in after.worktree_intents() {
+        let record = intent.record();
+        if previous_intents.iter().any(|candidate| candidate == intent) {
+            continue;
+        }
+        if previous_intents
+            .iter()
+            .any(|candidate| candidate.record().id == record.id)
+        {
+            let (updated_s, updated_ns) = encode_timestamp(record.updated_at);
+            sqlx::query("UPDATE worktree_intents SET phase=?,reason=?,updated_seconds=?,updated_nanoseconds=? WHERE workspace_id=? AND operation_id=?")
+                .bind(worktree_phase_name(record.phase)).bind(record.reason.map(worktree_reason_name)).bind(updated_s).bind(updated_ns)
+                .bind(id_bytes(workspace_id.as_uuid())).bind(id_bytes(record.id.as_uuid())).execute(&mut *connection).await.map_err(domain_storage)?;
+        } else {
+            let repository =
+                encode_native_path(&record.repository_identity).map_err(|_| Error::Storage)?;
+            let common = encode_native_path(&record.common_directory_identity)
+                .map_err(|_| Error::Storage)?;
+            let destination =
+                encode_native_path(&record.destination).map_err(|_| Error::Storage)?;
+            let (created_s, created_ns) = encode_timestamp(record.created_at);
+            let (updated_s, updated_ns) = encode_timestamp(record.updated_at);
+            sqlx::query("INSERT INTO worktree_intents VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+                .bind(id_bytes(workspace_id.as_uuid())).bind(id_bytes(record.id.as_uuid())).bind(id_bytes(record.task_id.as_uuid())).bind(id_bytes(record.worktree_id.as_uuid())).bind(id_bytes(record.root_id.as_uuid()))
+                .bind(i64::from(record.schema_version)).bind(encode_counter(record.expected_revision).to_vec())
+                .bind(repository.tag).bind(repository.bytes).bind(common.tag).bind(common.bytes).bind(destination.tag).bind(destination.bytes)
+                .bind(record.branch.as_str()).bind(record.base_expression.as_str()).bind(record.resolved_commit.as_str()).bind(record.request_fingerprint.as_slice())
+                .bind(worktree_phase_name(record.phase)).bind(record.reason.map(worktree_reason_name)).bind(created_s).bind(created_ns).bind(updated_s).bind(updated_ns)
+                .execute(&mut *connection).await.map_err(domain_storage)?;
+        }
+    }
+    let previous_worktrees = before.map(WorkspaceState::worktrees).unwrap_or(&[]);
+    for worktree in after.worktrees() {
+        let record = worktree.record();
+        if previous_worktrees
+            .iter()
+            .any(|candidate| candidate == worktree)
+        {
+            continue;
+        }
+        if previous_worktrees
+            .iter()
+            .any(|candidate| candidate.record().id == record.id)
+        {
+            let (updated_s, updated_ns) = encode_timestamp(record.updated_at);
+            sqlx::query("UPDATE worktrees SET health=?,updated_seconds=?,updated_nanoseconds=? WHERE workspace_id=? AND worktree_id=?")
+                .bind(worktree_health_name(record.health)).bind(updated_s).bind(updated_ns).bind(id_bytes(workspace_id.as_uuid())).bind(id_bytes(record.id.as_uuid()))
+                .execute(&mut *connection).await.map_err(domain_storage)?;
+        } else {
+            let checkout = encode_native_path(&record.checkout_path).map_err(|_| Error::Storage)?;
+            let common = encode_native_path(&record.common_directory_identity)
+                .map_err(|_| Error::Storage)?;
+            let (created_s, created_ns) = encode_timestamp(record.created_at);
+            let (updated_s, updated_ns) = encode_timestamp(record.updated_at);
+            sqlx::query("INSERT INTO worktrees VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+                .bind(id_bytes(workspace_id.as_uuid()))
+                .bind(id_bytes(record.id.as_uuid()))
+                .bind(id_bytes(record.task_id.as_uuid()))
+                .bind(id_bytes(record.operation_id.as_uuid()))
+                .bind(id_bytes(record.root_id.as_uuid()))
+                .bind(checkout.tag)
+                .bind(checkout.bytes)
+                .bind(common.tag)
+                .bind(common.bytes)
+                .bind(record.branch_ref.as_str())
+                .bind(record.initial_base_commit.as_str())
+                .bind(worktree_health_name(record.health))
+                .bind(created_s)
+                .bind(created_ns)
+                .bind(updated_s)
+                .bind(updated_ns)
+                .execute(&mut *connection)
+                .await
+                .map_err(domain_storage)?;
+        }
+    }
     Ok(())
 }
 
@@ -1049,7 +1308,7 @@ async fn persist_tasks(
         }
         let (created_s, created_ns) = encode_timestamp(record.created_at);
         let (updated_s, updated_ns) = encode_timestamp(record.updated_at);
-        sqlx::query("INSERT INTO tasks VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(workspace_id,task_id) DO UPDATE SET title=excluded.title,description=excluded.description,priority=excluded.priority,status=excluded.status,acceptance_notes=excluded.acceptance_notes,updated_seconds=excluded.updated_seconds,updated_nanoseconds=excluded.updated_nanoseconds")
+        sqlx::query("INSERT INTO tasks VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(workspace_id,task_id) DO UPDATE SET title=excluded.title,description=excluded.description,priority=excluded.priority,status=excluded.status,acceptance_notes=excluded.acceptance_notes,worktree_id=excluded.worktree_id,updated_seconds=excluded.updated_seconds,updated_nanoseconds=excluded.updated_nanoseconds")
             .bind(id_bytes(workspace_id.as_uuid())).bind(id_bytes(record.id.as_uuid())).bind(record.content.title.as_str()).bind(record.content.description.as_str())
             .bind(priority_name(record.content.priority)).bind(task_status_name(record.status)).bind(record.content.acceptance_notes.as_str())
             .bind(record.worktree_id.map(|x| id_bytes(x.as_uuid()))).bind(created_s).bind(created_ns).bind(updated_s).bind(updated_ns)
@@ -1106,9 +1365,7 @@ async fn persist_instances(
                 let (started_s, started_ns) = encode_timestamp(record.started_at);
                 let (observed_s, observed_ns) = encode_timestamp(record.last_observed_at);
                 let ended = record.ended_at.map(encode_timestamp);
-                sqlx::query(
-                    "INSERT INTO agent_instances VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                )
+                sqlx::query("INSERT INTO agent_instances(workspace_id,instance_id,session_id,definition_id,task_id,working_directory_codec,working_directory,status,started_seconds,started_nanoseconds,observed_seconds,observed_nanoseconds,ended_seconds,ended_nanoseconds,exit_code,terminal_rows,terminal_columns,worktree_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
                 .bind(id_bytes(workspace_id.as_uuid()))
                 .bind(id_bytes(record.id.as_uuid()))
                 .bind(id_bytes(record.session_id.as_uuid()))
@@ -1126,6 +1383,7 @@ async fn persist_instances(
                 .bind(record.exit_code)
                 .bind(i64::from(record.terminal_size.rows()))
                 .bind(i64::from(record.terminal_size.columns()))
+                .bind(record.worktree_id.map(|value| id_bytes(value.as_uuid())))
                 .execute(&mut *connection)
                 .await
                 .map_err(domain_storage)?;
@@ -1422,7 +1680,80 @@ typed_id!(claim_id, ClaimId);
 typed_id!(progress_id, ProgressEntryId);
 typed_id!(handover_id, HandoverId);
 typed_id!(worktree_id, WorktreeId);
+typed_id!(worktree_operation_id, WorktreeOperationId);
+typed_id!(approved_root_id, ApprovedRootId);
 typed_id!(event_id, EventId);
+fn worktree_phase_name(value: WorktreePhase) -> &'static str {
+    match value {
+        WorktreePhase::Prepared => "prepared",
+        WorktreePhase::Applying => "applying",
+        WorktreePhase::Ready => "ready",
+        WorktreePhase::Failed => "failed",
+        WorktreePhase::NeedsAttention => "needs_attention",
+    }
+}
+fn parse_worktree_phase(value: &str) -> Result<WorktreePhase> {
+    match value {
+        "prepared" => Ok(WorktreePhase::Prepared),
+        "applying" => Ok(WorktreePhase::Applying),
+        "ready" => Ok(WorktreePhase::Ready),
+        "failed" => Ok(WorktreePhase::Failed),
+        "needs_attention" => Ok(WorktreePhase::NeedsAttention),
+        _ => Err(Error::Storage),
+    }
+}
+fn worktree_health_name(value: WorktreeHealth) -> &'static str {
+    match value {
+        WorktreeHealth::Ready => "ready",
+        WorktreeHealth::Missing => "missing",
+        WorktreeHealth::Mismatch => "mismatch",
+        WorktreeHealth::Unavailable => "unavailable",
+    }
+}
+fn parse_worktree_health(value: &str) -> Result<WorktreeHealth> {
+    match value {
+        "ready" => Ok(WorktreeHealth::Ready),
+        "missing" => Ok(WorktreeHealth::Missing),
+        "mismatch" => Ok(WorktreeHealth::Mismatch),
+        "unavailable" => Ok(WorktreeHealth::Unavailable),
+        _ => Err(Error::Storage),
+    }
+}
+fn worktree_reason_name(value: WorktreeReason) -> &'static str {
+    match value {
+        WorktreeReason::GitMissing => "git_missing",
+        WorktreeReason::GitUnsupported => "git_unsupported",
+        WorktreeReason::NotRepository => "not_repository",
+        WorktreeReason::UnsupportedRoot => "unsupported_root",
+        WorktreeReason::InvalidReference => "invalid_reference",
+        WorktreeReason::BranchConflict => "branch_conflict",
+        WorktreeReason::DestinationConflict => "destination_conflict",
+        WorktreeReason::PathRejected => "path_rejected",
+        WorktreeReason::Busy => "busy",
+        WorktreeReason::UnsupportedCheckoutFilter => "unsupported_checkout_filter",
+        WorktreeReason::StorageUnavailable => "storage_unavailable",
+        WorktreeReason::OutcomeUncertain => "outcome_uncertain",
+        WorktreeReason::CancelledTask => "cancelled_task",
+    }
+}
+fn parse_worktree_reason(value: &str) -> Result<WorktreeReason> {
+    match value {
+        "git_missing" => Ok(WorktreeReason::GitMissing),
+        "git_unsupported" => Ok(WorktreeReason::GitUnsupported),
+        "not_repository" => Ok(WorktreeReason::NotRepository),
+        "unsupported_root" => Ok(WorktreeReason::UnsupportedRoot),
+        "invalid_reference" => Ok(WorktreeReason::InvalidReference),
+        "branch_conflict" => Ok(WorktreeReason::BranchConflict),
+        "destination_conflict" => Ok(WorktreeReason::DestinationConflict),
+        "path_rejected" => Ok(WorktreeReason::PathRejected),
+        "busy" => Ok(WorktreeReason::Busy),
+        "unsupported_checkout_filter" => Ok(WorktreeReason::UnsupportedCheckoutFilter),
+        "storage_unavailable" => Ok(WorktreeReason::StorageUnavailable),
+        "outcome_uncertain" => Ok(WorktreeReason::OutcomeUncertain),
+        "cancelled_task" => Ok(WorktreeReason::CancelledTask),
+        _ => Err(Error::Storage),
+    }
+}
 fn timestamp_row(row: &sqlx::sqlite::SqliteRow, seconds: &str, nanos: &str) -> Result<Timestamp> {
     decode_timestamp(
         row.try_get(seconds).map_err(|_| Error::Storage)?,
@@ -1567,6 +1898,9 @@ fn entity_parts(entity: EntityId) -> (&'static str, Uuid) {
         EntityId::Claim(id) => ("claim", id.as_uuid()),
         EntityId::Progress(id) => ("progress", id.as_uuid()),
         EntityId::Handover(id) => ("handover", id.as_uuid()),
+        EntityId::Worktree(id) => ("worktree", id.as_uuid()),
+        EntityId::WorktreeOperation(id) => ("worktree_operation", id.as_uuid()),
+        EntityId::ApprovedRoot(id) => ("approved_root", id.as_uuid()),
     }
 }
 fn event_type_name(value: EventType) -> &'static str {
@@ -1583,6 +1917,10 @@ fn event_type_name(value: EventType) -> &'static str {
         EventType::ClaimClosed => "claim_closed",
         EventType::ProgressAdded => "progress_added",
         EventType::HandoverPrepared => "handover_prepared",
+        EventType::WorktreeIntentCreated => "worktree_intent_created",
+        EventType::WorktreeIntentChanged => "worktree_intent_changed",
+        EventType::WorktreeRegistered => "worktree_registered",
+        EventType::TaskWorktreeSelected => "task_worktree_selected",
     }
 }
 fn parse_event_type(value: &str) -> Result<EventType> {
@@ -1599,6 +1937,10 @@ fn parse_event_type(value: &str) -> Result<EventType> {
         "claim_closed" => Ok(EventType::ClaimClosed),
         "progress_added" => Ok(EventType::ProgressAdded),
         "handover_prepared" => Ok(EventType::HandoverPrepared),
+        "worktree_intent_created" => Ok(EventType::WorktreeIntentCreated),
+        "worktree_intent_changed" => Ok(EventType::WorktreeIntentChanged),
+        "worktree_registered" => Ok(EventType::WorktreeRegistered),
+        "task_worktree_selected" => Ok(EventType::TaskWorktreeSelected),
         _ => Err(Error::Version),
     }
 }
@@ -1611,6 +1953,9 @@ fn parse_entity(kind: &str, bytes: Vec<u8>) -> Result<EntityId> {
         "claim" => EntityId::Claim(claim_id(bytes)?),
         "progress" => EntityId::Progress(progress_id(bytes)?),
         "handover" => EntityId::Handover(handover_id(bytes)?),
+        "worktree" => EntityId::Worktree(worktree_id(bytes)?),
+        "worktree_operation" => EntityId::WorktreeOperation(worktree_operation_id(bytes)?),
+        "approved_root" => EntityId::ApprovedRoot(approved_root_id(bytes)?),
         _ => return Err(Error::Version),
     })
 }

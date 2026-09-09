@@ -17,7 +17,9 @@ relayterm-platform = { version = "0.1.0", path = "../relayterm-platform" }
 relayterm-protocol = { version = "0.1.0", path = "../relayterm-protocol" }
 relayterm-pty = { version = "0.1.0", path = "../relayterm-pty" }
 relayterm-terminal = { version = "0.1.0", path = "../relayterm-terminal" }
+relayterm-git = { version = "0.1.0", path = "../relayterm-git" }
 base64.workspace = true
+blake3.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true

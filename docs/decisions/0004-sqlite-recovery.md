@@ -18,6 +18,8 @@ Separate user configuration, durable application data, runtime endpoints/locks, 
 
 The daemon serializes mutation use cases; database constraints still enforce identities, references, and claim exclusivity. Migrations are ordered and transactional where supported. Refuse newer schemas or unsupported downgrade. On corruption or migration failure, preserve originals and return safe recovery guidance, never silently recreate storage.
 
+M10 embeds migration resources in the executable and adds approved worktree roots, creation intents, immutable worktree records, task associations, and immutable instance worktree context. SQLite atomically commits each intent phase, association, and metadata-only event. It does not provide a transaction across Git. A confirmed or uncertain external Git result therefore remains recorded for explicit read-only reconciliation without automatic add, deletion, or branch repair.
+
 Back up with SQLite facilities such as the online backup API or VACUUM INTO, selected against the actual adapter in M03/M11. Never copy only an active database's main file. Restore initially with the daemon stopped into a fresh destination. Reconcile former live sessions as lost without inventing an exit code; related events commit atomically.
 
 ## Alternatives
@@ -30,6 +32,6 @@ Backups contain sensitive coordination data and require private storage. Migrati
 
 ## Verification and ownership
 
-M03-M06 test write/reopen in separate processes, initial-schema migrations, claim races, failed transaction rollback, newer schemas, locked/corrupt databases, and idempotent reconciliation. M11 tests consistent backup and non-destructive restore.
+M03-M06 test write/reopen in separate processes, initial-schema migrations, claim races, failed transaction rollback, newer schemas, locked/corrupt databases, and idempotent reconciliation. M10 tests the embedded second workspace migration, durable operation receipts, restart after an injected post-Git failure, and non-destructive explicit finalization. M11 tests consistent backup and non-destructive restore.
 
 Reference: [SQLite backup mechanisms](https://www.sqlite.org/backup.html).

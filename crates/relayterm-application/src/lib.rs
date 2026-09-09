@@ -339,6 +339,28 @@ impl<S: Store, C: Clock, I: IdGenerator, N: EventNotifier> Service<S, C, I, N> {
             .await
     }
 
+    /// Commit a validated domain command supplied by a trusted application adapter.
+    pub async fn execute_domain_command_at_revision(
+        &self,
+        workspace_id: WorkspaceId,
+        command: Command,
+        expected_revision: u64,
+    ) -> Result<Outcome> {
+        if expected_revision == 0 {
+            return Err(Error::Validation("expected_revision"));
+        }
+        let transaction = self.store.begin(workspace_id).await?;
+        if transaction.snapshot().revision() != expected_revision {
+            return Err(Error::Conflict);
+        }
+        let changes = transaction.snapshot().state()?.execute(
+            Actor::LocalUser,
+            command,
+            self.clock.now()?,
+        )?;
+        self.commit_changes(transaction, changes).await
+    }
+
     async fn execute_checked(
         &self,
         workspace_id: WorkspaceId,
@@ -446,6 +468,17 @@ impl<S: Store, C: Clock, I: IdGenerator, N: EventNotifier> Service<S, C, I, N> {
         };
         let instance_id = AgentInstanceId::from_uuid(self.ids.next()?.as_uuid());
         let session_id = TerminalSessionId::from_uuid(self.ids.next()?.as_uuid());
+        let worktree_id = context
+            .task_id
+            .map(|task_id| {
+                transaction
+                    .snapshot()
+                    .state()?
+                    .task(task_id)
+                    .map(|task| task.record().worktree_id)
+            })
+            .transpose()?
+            .flatten();
         let instance = AgentInstance::restore(AgentInstanceRecord {
             id: instance_id,
             session_id,
@@ -453,6 +486,7 @@ impl<S: Store, C: Clock, I: IdGenerator, N: EventNotifier> Service<S, C, I, N> {
             agent_definition_id: context.agent_definition_id,
             task_id: context.task_id,
             launch_definition: launch_definition.clone(),
+            worktree_id,
             working_directory: context.working_directory,
             status: InstanceStatus::Starting,
             started_at: at,

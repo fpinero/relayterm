@@ -71,6 +71,14 @@ jobs:
       - name: Test agent templates, pass 2
         timeout-minutes: 10
         run: cargo test -p relayterm-cli --test agent_templates_gate --locked -- --nocapture --test-threads=1
+      - name: Test Git worktree isolation, pass 1
+        if: matrix.toolchain == 'stable'
+        timeout-minutes: 10
+        run: cargo test -p relayterm-cli --test worktree_gate --locked -- --nocapture --test-threads=1
+      - name: Test Git worktree isolation, pass 2
+        if: matrix.toolchain == 'stable'
+        timeout-minutes: 10
+        run: cargo test -p relayterm-cli --test worktree_gate --locked -- --nocapture --test-threads=1
       - name: Test workspace and CLI contracts
         timeout-minutes: 5
         run: cargo test --workspace --locked

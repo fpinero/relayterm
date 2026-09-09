@@ -1,6 +1,6 @@
 # 0002: Local IPC and synchronization
 
-Status: Accepted architecture; implemented by M04 and extended through M08 with native verification recorded separately.
+Status: Accepted architecture; implemented by M04 and extended through M10 with native verification recorded separately.
 Task: M01.02, refined by M04.01.
 Requirements: Sections 6.2, 9.2, 9.5; NFR-2, NFR-4, NFR-8.
 
@@ -30,6 +30,8 @@ M05 adds `daemon.status`, generation-targeted `daemon.shutdown`, and `agent.impo
 
 M08 uses separate client connections for control calls and event subscription so an idle subscription cannot hold the control stream. Event recovery resumes from the last durable sequence with bounded backoff. Parsed display polling uses the additive `session.read_display` operation and returns no cell payload when terminal revision and scrollback position are unchanged. The operation is advertised during hello and does not reinterpret an older successful request.
 
+M10 advertises `worktrees_v1` and activates strict additive worktree requests. Create uses a durable operation ID independent of connection request IDs. A client may poll that receipt after uncertain delivery but does not automatically submit another create. List and reconciliation remain authenticated, bounded, and revision checked. Native path DTOs preserve platform encoding, while ordinary events exclude path, branch, base, and Git output content.
+
 ## Alternatives
 
 TCP would expand the trust boundary. Newline-only text framing is unsuitable for opaque terminal bytes. Unbounded queues and blind retries can corrupt perceived state or exhaust memory.
@@ -40,6 +42,6 @@ Clients must handle reconnect and cursor expiry. IPC access protects against oth
 
 ## Verification and ownership
 
-M04: fragmented/coalesced frames, rejected peers, unknown operations, version mismatch, oversized/truncated input, concurrent claims, snapshot/subscription races, expired cursors, uncertain mutation recovery, slow-client isolation, and terminal/control queue fairness. M07 verifies real terminal streams. M08 verifies independent TUI control and subscription traffic, compact display bounds, reconnect behavior, and native multi-session interaction. M01 tests every `u16` version against version 1.
+M04: fragmented/coalesced frames, rejected peers, unknown operations, version mismatch, oversized/truncated input, concurrent claims, snapshot/subscription races, expired cursors, uncertain mutation recovery, slow-client isolation, and terminal/control queue fairness. M07 verifies real terminal streams. M08 verifies independent TUI control and subscription traffic, compact display bounds, reconnect behavior, and native multi-session interaction. M10 verifies versioned worktree requests, durable receipts, bounded lists, explicit reconciliation, and task-context launches through native IPC. M01 tests every `u16` version against version 1.
 
 Reference: [Windows pipe access control](https://learn.microsoft.com/en-us/windows/win32/ipc/named-pipe-security-and-access-rights).

@@ -1,14 +1,16 @@
 # Privacy and runtime boundaries
 
-## Current bootstrap
+## Current local runtime
 
-The current `rt` binary provides help/version and explicit unavailable-runtime errors. It opens no database or IPC endpoint, launches no child process, enters no terminal raw mode, and makes no network requests. No telemetry or automatic export exists.
+The `rt` executable connects to one detached daemon per initialized workspace through current-user IPC. The daemon owns private SQLite state, real PTY or ConPTY sessions, bounded terminal state, and optional explicit Git worktree operations. The interactive client and administrative commands use the same authenticated protocol. Help and version remain side-effect free. Relayterm has no telemetry, hosted dependency, or automatic export.
 
-## Planned durable state
+## Durable state
 
-The daemon will store workspace identities, definitions, task/claim history, progress, handovers, and session metadata in private OS application data. Local paths may be necessary in that private state. They must not be written to project files automatically. Configuration, application data, runtime endpoints, and cache have separate logical locations.
+The daemon stores workspace identities, definitions, task and claim history, progress, handovers, session metadata, immutable launch snapshots, worktree intents, approved worktree roots, and task worktree associations in private OS application data. Native paths are necessary for workspace, process, and worktree recovery. They are not written into project files automatically. Configuration, application data, runtime endpoints, and cache have separate logical locations.
 
-## Planned ephemeral state
+Worktree events contain IDs, phases, reason enums, and changed field names. They exclude checkout paths, branch labels, base expressions, and Git output. Authorized worktree detail queries include the local path and branch needed by the current user. Runtime databases, sockets, logs, and worktree metadata are excluded from version control.
+
+## Ephemeral state
 
 Terminal screen state and bounded scrollback remain in daemon memory. Environment values are resolved at launch and passed to the child, not serialized into definitions, events, databases, or logs. Command arguments and user text may be sensitive; diagnostics use approved fields and path aliases rather than full-object dumps.
 
