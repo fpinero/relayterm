@@ -65,7 +65,7 @@ pub enum Command {
     },
     AddWorktreeIntent {
         root: ApprovedRoot,
-        intent: WorktreeIntent,
+        intent: Box<WorktreeIntent>,
     },
     MarkWorktreeApplying {
         operation_id: WorktreeOperationId,
@@ -606,7 +606,7 @@ impl WorkspaceState {
                     task_id: record.task_id,
                     worktree_id: record.worktree_id,
                 });
-                self.worktree_intents.push(intent);
+                self.worktree_intents.push(*intent);
             }
             Command::MarkWorktreeApplying { operation_id } => {
                 actor.user()?;

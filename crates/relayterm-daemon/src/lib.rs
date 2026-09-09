@@ -1039,7 +1039,10 @@ where
             .service
             .execute_domain_command_at_revision(
                 self.workspace_id,
-                domain::Command::AddWorktreeIntent { root, intent },
+                domain::Command::AddWorktreeIntent {
+                    root,
+                    intent: Box::new(intent),
+                },
                 expected_revision,
             )
             .await

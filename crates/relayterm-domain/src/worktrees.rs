@@ -399,7 +399,7 @@ mod tests {
                 Actor::LocalUser,
                 Command::AddWorktreeIntent {
                     root,
-                    intent: prepared,
+                    intent: Box::new(prepared),
                 },
                 at(4),
             )
