@@ -94,6 +94,22 @@ jobs:
         if: matrix.toolchain == 'stable'
         timeout-minutes: 10
         run: cargo test -p relayterm-cli --test hardening_gate --locked -- --nocapture --test-threads=1
+      - name: Test M11 protocol faults, pass 1
+        if: matrix.toolchain == 'stable'
+        timeout-minutes: 5
+        run: cargo test -p relayterm-daemon --test protocol_gate --locked -- --nocapture --test-threads=1
+      - name: Test M11 protocol faults, pass 2
+        if: matrix.toolchain == 'stable'
+        timeout-minutes: 5
+        run: cargo test -p relayterm-daemon --test protocol_gate --locked -- --nocapture --test-threads=1
+      - name: Test M11 durable scale, pass 1
+        if: matrix.toolchain == 'stable'
+        timeout-minutes: 5
+        run: cargo test -p relayterm-persistence-sqlite --test resource_gate --locked -- --nocapture --test-threads=1
+      - name: Test M11 durable scale, pass 2
+        if: matrix.toolchain == 'stable'
+        timeout-minutes: 5
+        run: cargo test -p relayterm-persistence-sqlite --test resource_gate --locked -- --nocapture --test-threads=1
       - name: Test private backup and restore
         if: matrix.toolchain == 'stable'
         timeout-minutes: 5
