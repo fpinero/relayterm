@@ -114,7 +114,7 @@ fn private_backup_restores_into_a_fresh_home_without_overwriting() {
     let scratch = Scratch::new();
     let root = scratch.0.join("project");
     let private = scratch.0.join("private");
-    let restored = scratch.0.join("restored-private");
+    let restored = private.join("data").join("r");
     fs::create_dir(&root).unwrap();
 
     let initialized = invoke(
@@ -242,7 +242,7 @@ fn private_backup_restores_into_a_fresh_home_without_overwriting() {
         .unwrap();
     damaged.write_all(b"synthetic-damage").unwrap();
     damaged.sync_all().unwrap();
-    let rejected_home = scratch.0.join("rejected-private");
+    let rejected_home = private.join("data").join("x");
     let rejected = Command::new(env!("CARGO_BIN_EXE_rt"))
         .arg("--workspace")
         .arg(&root)
