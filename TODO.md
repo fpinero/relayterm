@@ -29,6 +29,8 @@ Keep task dependencies informational, as defined in the specification and [M02 s
 
 ## M10: Explicit Git worktree isolation [PLAN]
 
+Execution contract: [M10 details](docs/M10_details.md).
+
 Depends on: M08. Specification phase: 4. Coverage: FR-7, FR-8; sections 6.7, 9.5; AC-10.
 
 Outcome: two tasks can explicitly use separate working directories without destructive Git automation.
