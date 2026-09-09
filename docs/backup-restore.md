@@ -17,7 +17,7 @@ rt --workspace /path/to/project --home /private/relayterm-home daemon stop --ter
 rt --workspace /path/to/project --home /private/relayterm-home backup create --destination /private/backups/workspace-001
 ```
 
-The destination must not exist and its parent must already satisfy Relayterm's private access policy. Relayterm reserves the SQLite output with private permissions before `VACUUM INTO`, validates the completed snapshot, computes a BLAKE3 integrity value and writes `manifest.json` last. It never overwrites an existing destination.
+The destination must not exist and its parent must already satisfy Relayterm's private access policy. Relayterm reserves the SQLite output with private permissions before `VACUUM INTO`, validates the completed snapshot, computes a BLAKE3 integrity value and writes `manifest.json` last. The manifest records its own format, the producing application version, the workspace schema version, identity, revision and event watermark. Relayterm never overwrites an existing destination.
 
 An interrupted operation may leave a private incomplete directory without a manifest. Treat it as unusable evidence and choose a new destination. Relayterm does not automatically delete it. Do not copy only a live `workspace.sqlite3` file because WAL content may be omitted.
 

@@ -10,7 +10,7 @@ use relayterm_domain::{AgentInstanceId, InstanceStatus, Observation, WorkspaceId
 use relayterm_ipc::{Endpoint, LocalListener};
 use relayterm_persistence_sqlite::{
     Database, DatabaseKind, InitializationError, OpenMode, PoolSettings, RegistrationState,
-    Registry, SqliteStore, StorageError, initialize_workspace,
+    Registry, SqliteStore, StorageError, WORKSPACE_SCHEMA_VERSION, initialize_workspace,
 };
 use relayterm_platform::{
     LocationAlias, LocationOptions, PrivateLocations, PrivateLock, RandomIdGenerator, SystemClock,
@@ -54,6 +54,8 @@ const MAX_BACKUP_MANIFEST: u64 = 64 * 1024;
 #[serde(deny_unknown_fields)]
 struct BackupManifest {
     format_version: u8,
+    application_version: String,
+    workspace_schema_version: i64,
     workspace_id: String,
     database_member: String,
     workspace_revision: String,
@@ -65,6 +67,8 @@ struct BackupManifest {
 #[derive(Serialize)]
 pub struct BackupReport {
     pub format_version: u8,
+    pub application_version: String,
+    pub workspace_schema_version: i64,
     pub workspace_id: String,
     pub workspace_revision: String,
     pub last_event_sequence: String,
@@ -648,6 +652,7 @@ pub async fn backup_workspace(
     )
     .await
     .map_err(map_storage)?;
+    let workspace_schema_version = captured.schema_version().await.map_err(map_storage)?;
     let snapshot = SqliteStore::new(captured.pool().clone())
         .consistent_snapshot(workspace_id)
         .await
@@ -658,6 +663,8 @@ pub async fn backup_workspace(
     let checksum = hash_private_file(&database_member)?;
     let manifest = BackupManifest {
         format_version: 1,
+        application_version: env!("CARGO_PKG_VERSION").to_owned(),
+        workspace_schema_version,
         workspace_id: workspace_id.to_string(),
         database_member: BACKUP_WORKSPACE.to_owned(),
         workspace_revision: workspace_revision.clone(),
@@ -675,6 +682,8 @@ pub async fn backup_workspace(
     validate_backup_members(destination)?;
     Ok(BackupReport {
         format_version: 1,
+        application_version: env!("CARGO_PKG_VERSION").to_owned(),
+        workspace_schema_version,
         workspace_id: workspace_id.to_string(),
         workspace_revision,
         last_event_sequence,
@@ -695,6 +704,9 @@ pub async fn restore_workspace(
     if manifest.format_version != 1
         || !manifest.complete
         || manifest.database_member != BACKUP_WORKSPACE
+        || manifest.application_version.is_empty()
+        || manifest.workspace_schema_version <= 0
+        || manifest.workspace_schema_version > WORKSPACE_SCHEMA_VERSION
     {
         return Err(RuntimeError::RecoveryRequired);
     }
@@ -756,6 +768,8 @@ pub async fn restore_workspace(
         .map_err(map_storage)?;
     Ok(BackupReport {
         format_version: manifest.format_version,
+        application_version: manifest.application_version,
+        workspace_schema_version: manifest.workspace_schema_version,
         workspace_id: manifest.workspace_id,
         workspace_revision: manifest.workspace_revision,
         last_event_sequence: manifest.last_event_sequence,

@@ -12,6 +12,7 @@ use std::{
 
 static REGISTRY_MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations/registry");
 static WORKSPACE_MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations/workspace");
+pub const WORKSPACE_SCHEMA_VERSION: i64 = 2;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DatabaseKind {
@@ -144,6 +145,15 @@ impl Database {
     }
     pub fn private_path(&self) -> &Path {
         &self.path
+    }
+
+    pub async fn schema_version(&self) -> Result<i64, StorageError> {
+        sqlx::query_scalar(
+            "SELECT COALESCE(MAX(version), 0) FROM _sqlx_migrations WHERE success = 1",
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(map_sqlx)
     }
 
     pub async fn snapshot_to(&self, destination: &Path) -> Result<(), StorageError> {
@@ -380,6 +390,10 @@ mod tests {
                 .await
                 .unwrap();
                 assert_eq!(database.mode(), OpenMode::ExplicitNew);
+                assert_eq!(
+                    database.schema_version().await.unwrap(),
+                    WORKSPACE_SCHEMA_VERSION
+                );
                 assert_eq!(
                     sqlx::query_scalar::<_, i64>("PRAGMA foreign_keys")
                         .fetch_one(database.pool())
