@@ -223,14 +223,38 @@ fn real_tui_creates_and_launches_two_task_worktrees() {
         || session_items(&repository, &home).len() == 2,
         "first task launch through TUI",
     );
+    tui.send(b"3s");
+    wait_until(
+        || session_items(&repository, &home).len() == 3,
+        "third default-shell launch through TUI",
+    );
     let sessions = session_items(&repository, &home);
-    for task in &tasks {
-        let instance = sessions
+    for instance in sessions
+        .iter()
+        .filter(|instance| !instance["task_id"].is_null())
+    {
+        let task = tasks
             .iter()
-            .find(|instance| instance["task_id"] == task["id"])
+            .find(|task| task["id"] == instance["task_id"])
             .unwrap();
         assert_eq!(instance["worktree_id"], task["worktree_id"]);
+        let worktree = worktrees
+            .iter()
+            .find(|worktree| worktree["id"] == task["worktree_id"])
+            .unwrap();
+        assert_eq!(instance["working_directory"], worktree["checkout_path"]);
     }
+    assert!(
+        sessions
+            .iter()
+            .filter(|instance| !instance["worktree_id"].is_null())
+            .count()
+            >= 2
+    );
+    assert_eq!(
+        std::fs::read_to_string(repository.join("fixture.txt")).unwrap(),
+        "source\n"
+    );
     tui.send(b"\x03");
     tui.wait_exit();
     command(
@@ -239,7 +263,7 @@ fn real_tui_creates_and_launches_two_task_worktrees() {
         &["daemon", "stop", "--terminate-sessions"],
     );
     eprintln!(
-        "M10 TUI gate os={} arch={} elapsed_ms={} tasks=2 worktrees=2 sessions=2",
+        "M11 TUI worktree gate os={} arch={} elapsed_ms={} tasks=2 worktrees=2 sessions=3",
         std::env::consts::OS,
         std::env::consts::ARCH,
         started.elapsed().as_millis()

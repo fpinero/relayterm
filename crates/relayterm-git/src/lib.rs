@@ -431,8 +431,8 @@ impl Git {
             let _ = stderr_tx.send(read_stream_bounded(stderr, MAX_STDERR, stderr_finished));
         });
         let status = wait_bounded(&mut child, timeout);
-        terminate_process_group(process_group);
         command_finished.store(true, Ordering::Release);
+        terminate_process_group(process_group);
         let stdout = receive_stream(&stdout_rx, timeout)?;
         let stderr = receive_stream(&stderr_rx, timeout)?;
         let status = status?;
@@ -498,6 +498,7 @@ fn read_nonblocking(
                 thread::sleep(Duration::from_millis(2));
                 continue;
             }
+            Err(_) if command_finished.load(Ordering::Acquire) => return Ok(value),
             Err(_) => return Err(Error::new(ErrorKind::Io)),
         };
         if read == 0 {

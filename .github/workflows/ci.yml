@@ -93,6 +93,10 @@ jobs:
         if: matrix.toolchain == 'stable'
         timeout-minutes: 10
         run: cargo test -p relayterm-cli --test hardening_gate --locked -- --nocapture --test-threads=1
+      - name: Test private backup and restore
+        if: matrix.toolchain == 'stable'
+        timeout-minutes: 5
+        run: cargo test -p relayterm-cli --test backup_restore --locked -- --nocapture --test-threads=1
       - name: Test workspace and CLI contracts
         timeout-minutes: 5
         run: cargo test --workspace --locked

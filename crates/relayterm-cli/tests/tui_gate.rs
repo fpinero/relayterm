@@ -710,12 +710,21 @@ fn register_fixture(root: &Path, private: &Path) {
     let status = admin(root, private, &["daemon", "status"]);
     let revision = status["result"]["revision"].as_str().unwrap();
     let definition = private.join("fixture-definition.json");
+    let executable = std::env::current_exe().unwrap();
+    let fixture_test = if executable
+        .file_stem()
+        .is_some_and(|name| name.to_string_lossy().starts_with("hardening_gate-"))
+    {
+        "tui::interactive_fixture_process"
+    } else {
+        "interactive_fixture_process"
+    };
     fs::write(
         &definition,
         serde_json::to_vec(&serde_json::json!({
             "display_name":"Neutral fixture",
-            "command":std::env::current_exe().unwrap().to_string_lossy(),
-            "arguments":["--exact","interactive_fixture_process","--ignored","--nocapture"],
+            "command":executable.to_string_lossy(),
+            "arguments":["--exact",fixture_test,"--ignored","--nocapture"],
             "environment_allowlist":[],
             "capabilities":["interactive_terminal"],
             "enabled":true
