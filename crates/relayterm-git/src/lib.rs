@@ -1,7 +1,7 @@
 //! Bounded, argument-array Git operations for explicit worktree management.
 
 use std::ffi::{OsStr, OsString};
-use std::io::Read;
+use std::io::{Read, Seek};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::thread;
@@ -200,8 +200,8 @@ impl Git {
             destination.as_os_str().to_owned(),
             OsString::from(commit),
         ];
-        self.run(
-            Some(root),
+        self.run_quiet(
+            root,
             args.iter().map(OsString::as_os_str),
             self.create_timeout,
         )?;
@@ -260,6 +260,24 @@ impl Git {
             .ok_or_else(|| Error::new(ErrorKind::CommandFailed))
     }
 
+    fn run_quiet<I, S>(&self, root: &Path, args: I, timeout: Duration) -> Result<()>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<OsStr>,
+    {
+        let mut command = self.command(Some(root));
+        command
+            .args(args)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        let mut child = command.spawn().map_err(map_spawn)?;
+        if wait_bounded(&mut child, timeout)?.success() {
+            Ok(())
+        } else {
+            Err(Error::new(ErrorKind::CommandFailed))
+        }
+    }
+
     fn command(&self, root: Option<&Path>) -> Command {
         let mut command = Command::new(&self.executable);
         if let Some(root) = root {
@@ -289,16 +307,24 @@ impl Git {
         S: AsRef<OsStr>,
     {
         let mut command = self.command(root);
+        let mut stdout_file = tempfile::tempfile().map_err(|_| Error::new(ErrorKind::Io))?;
+        let mut stderr_file = tempfile::tempfile().map_err(|_| Error::new(ErrorKind::Io))?;
         command
             .args(args)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
+            .stdout(Stdio::from(
+                stdout_file
+                    .try_clone()
+                    .map_err(|_| Error::new(ErrorKind::Io))?,
+            ))
+            .stderr(Stdio::from(
+                stderr_file
+                    .try_clone()
+                    .map_err(|_| Error::new(ErrorKind::Io))?,
+            ));
         let mut child = command.spawn().map_err(map_spawn)?;
-        let stdout = drain(child.stdout.take().expect("configured stdout"), MAX_STDOUT);
-        let stderr = drain(child.stderr.take().expect("configured stderr"), MAX_STDERR);
         let status = wait_bounded(&mut child, timeout)?;
-        let stdout = stdout.join().map_err(|_| Error::new(ErrorKind::Io))??;
-        let stderr = stderr.join().map_err(|_| Error::new(ErrorKind::Io))??;
+        let stdout = read_bounded(&mut stdout_file, MAX_STDOUT)?;
+        let stderr = read_bounded(&mut stderr_file, MAX_STDERR)?;
         if !status.success() {
             let kind = classify_failure(&stderr);
             return Err(Error::new(kind));
@@ -338,26 +364,17 @@ fn wait_bounded(child: &mut Child, timeout: Duration) -> Result<std::process::Ex
     }
 }
 
-fn drain(
-    mut reader: impl Read + Send + 'static,
-    limit: usize,
-) -> thread::JoinHandle<Result<Vec<u8>>> {
-    thread::spawn(move || {
-        let mut value = Vec::new();
-        let mut chunk = [0_u8; 8192];
-        loop {
-            let read = reader
-                .read(&mut chunk)
-                .map_err(|_| Error::new(ErrorKind::Io))?;
-            if read == 0 {
-                return Ok(value);
-            }
-            if value.len().saturating_add(read) > limit {
-                return Err(Error::new(ErrorKind::OutputLimit));
-            }
-            value.extend_from_slice(&chunk[..read]);
-        }
-    })
+fn read_bounded(file: &mut std::fs::File, limit: usize) -> Result<Vec<u8>> {
+    file.rewind().map_err(|_| Error::new(ErrorKind::Io))?;
+    let mut value = Vec::new();
+    file.take((limit + 1) as u64)
+        .read_to_end(&mut value)
+        .map_err(|_| Error::new(ErrorKind::Io))?;
+    if value.len() > limit {
+        Err(Error::new(ErrorKind::OutputLimit))
+    } else {
+        Ok(value)
+    }
 }
 
 fn map_spawn(error: std::io::Error) -> Error {
