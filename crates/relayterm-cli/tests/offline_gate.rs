@@ -305,17 +305,33 @@ fn processes_have_network_endpoint(process_ids: &[u32]) -> bool {
 
 #[cfg(windows)]
 fn processes_have_network_endpoint(process_ids: &[u32]) -> bool {
-    let markers = process_ids.iter().map(u32::to_string).collect::<Vec<_>>();
-    Command::new("netstat.exe")
-        .args(["-ano"])
+    let identifiers = process_ids
+        .iter()
+        .map(u32::to_string)
+        .collect::<Vec<_>>()
+        .join(",");
+    let expression = format!(
+        "$ids=@({identifiers}); $tcp=@(Get-NetTCPConnection -ErrorAction SilentlyContinue | Where-Object {{ $ids -contains $_.OwningProcess }}); $udp=@(Get-NetUDPEndpoint -ErrorAction SilentlyContinue | Where-Object {{ $ids -contains $_.OwningProcess }}); if ($tcp.Count -gt 0 -or $udp.Count -gt 0) {{ exit 0 }} else {{ exit 1 }}"
+    );
+    let mut monitor = Command::new("powershell.exe")
+        .args(["-NoProfile", "-NonInteractive", "-Command", &expression])
         .stdin(Stdio::null())
-        .output()
-        .ok()
-        .is_some_and(|output| {
-            String::from_utf8_lossy(&output.stdout).lines().any(|line| {
-                line.split_whitespace()
-                    .next_back()
-                    .is_some_and(|pid| markers.iter().any(|marker| marker == pid))
-            })
-        })
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("native network monitor could not start");
+    let deadline = Instant::now() + Duration::from_secs(15);
+    loop {
+        if let Some(status) = monitor
+            .try_wait()
+            .expect("native network monitor could not be observed")
+        {
+            return status.success();
+        }
+        if Instant::now() >= deadline {
+            stop_child(&mut monitor);
+            panic!("native network monitor exceeded its bounded deadline");
+        }
+        thread::sleep(Duration::from_millis(20));
+    }
 }
