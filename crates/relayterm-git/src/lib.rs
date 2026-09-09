@@ -1046,6 +1046,13 @@ mod tests {
         std::fs::write(source.join("file.txt"), "source\n").unwrap();
         run(&["add", "file.txt"]);
         run(&["commit", "-qm", "fixture"]);
+        let hook = source.join(".git/hooks/post-checkout");
+        std::fs::write(&hook, "#!/bin/sh\ntouch relayterm-hook-ran\n").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&hook, std::fs::Permissions::from_mode(0o700)).unwrap();
+        }
         let environment_probe = Command::new(std::env::current_exe().unwrap())
             .args([
                 "--ignored",
@@ -1063,6 +1070,8 @@ mod tests {
         let destination = directory.path().canonicalize().unwrap().join("linked");
         git.add(&source, &destination, "rt/test", &repository.head_commit)
             .unwrap();
+        assert!(!source.join("relayterm-hook-ran").exists());
+        assert!(!destination.join("relayterm-hook-ran").exists());
         assert_eq!(
             std::fs::read_to_string(destination.join("file.txt")).unwrap(),
             "source\n"
@@ -1137,6 +1146,32 @@ mod tests {
                 .kind(),
             ErrorKind::InvalidReference
         );
+        let included = directory.path().join("included-config");
+        let included_marker = directory.path().join("included-filter-ran");
+        std::fs::write(
+            &included,
+            format!(
+                "[filter \"included\"]\n\tsmudge = touch {}\n",
+                included_marker.display()
+            ),
+        )
+        .unwrap();
+        run(&["config", "include.path", included.to_str().unwrap()]);
+        let repository = git.inspect(&source).unwrap();
+        assert_eq!(
+            git.add(
+                &source,
+                &directory.path().canonicalize().unwrap().join("included"),
+                "rt/included-filter",
+                &repository.head_commit,
+            )
+            .unwrap_err()
+            .kind(),
+            ErrorKind::UnsupportedCheckoutFilter
+        );
+        assert!(!included_marker.exists());
+        assert!(!directory.path().join("included").exists());
+        run(&["config", "--unset", "include.path"]);
         std::fs::write(source.join(".gitattributes"), "* filter=fixture\n").unwrap();
         let repository = git.inspect(&source).unwrap();
         assert_eq!(
