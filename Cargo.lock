@@ -1458,7 +1458,6 @@ dependencies = [
  "clap",
  "relayterm-client",
  "relayterm-daemon",
- "relayterm-platform",
  "relayterm-protocol",
  "relayterm-pty",
  "relayterm-tui",

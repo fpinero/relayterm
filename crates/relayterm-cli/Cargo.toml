@@ -27,7 +27,6 @@ uuid.workspace = true
 
 [dev-dependencies]
 blake3.workspace = true
-relayterm-platform = { version = "0.1.0", path = "../relayterm-platform" }
 relayterm-pty = { version = "0.1.0", path = "../relayterm-pty" }
 vt100.workspace = true
 tempfile.workspace = true

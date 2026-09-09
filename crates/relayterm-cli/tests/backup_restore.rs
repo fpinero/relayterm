@@ -23,7 +23,7 @@ impl Scratch {
         #[cfg(windows)]
         let base = std::env::temp_dir();
         let path = base.join(format!(
-            "rt11-{}-{}",
+            "r{:x}{:x}",
             std::process::id(),
             NEXT.fetch_add(1, Ordering::Relaxed)
         ));
@@ -123,11 +123,10 @@ fn success(root: &Path, home: &Path, args: &[&str]) -> Value {
 #[test]
 fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
     let scratch = Scratch::new();
-    let root = scratch.0.join("synthetic project λ");
-    let home = scratch.0.join("private");
-    let recovery = scratch.0.join("r");
-    relayterm_platform::create_private_dir(&recovery).unwrap();
-    let restored = recovery.join("h");
+    let root = scratch.0.join("p λ");
+    let home = scratch.0.join("h");
+    let recovery = home.join("data");
+    let restored = recovery.join("r");
     fs::create_dir(&root).unwrap();
     let _cleanup = DaemonCleanup {
         root: root.clone(),
