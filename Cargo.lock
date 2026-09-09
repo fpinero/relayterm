@@ -1456,6 +1456,7 @@ dependencies = [
  "base64",
  "blake3",
  "clap",
+ "fs4",
  "relayterm-client",
  "relayterm-daemon",
  "relayterm-protocol",

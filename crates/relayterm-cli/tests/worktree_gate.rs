@@ -1,6 +1,9 @@
 #[path = "support/m09_native.rs"]
 #[allow(dead_code)]
 mod native;
+#[path = "support/native_serial.rs"]
+#[allow(clippy::duplicate_mod)]
+mod native_serial;
 
 use native::{OuterTerminal, admin_output, wait_until};
 use serde_json::{Value, json};
@@ -155,6 +158,7 @@ fn session_items(root: &Path, home: &Path) -> Vec<Value> {
 
 #[test]
 fn real_tui_creates_and_launches_two_task_worktrees() {
+    let _native_serial = native_serial::NativeSerialGuard::acquire();
     let started = Instant::now();
     let temporary = temporary();
     let repository = temporary.path().join("tui-repository");
@@ -272,6 +276,7 @@ fn real_tui_creates_and_launches_two_task_worktrees() {
 
 #[test]
 fn two_real_worktrees_are_isolated_and_survive_restart() {
+    let _native_serial = native_serial::NativeSerialGuard::acquire();
     let started = Instant::now();
     let git_version = Command::new("git").arg("--version").output().unwrap();
     let temporary = temporary();

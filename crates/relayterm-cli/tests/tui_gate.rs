@@ -18,6 +18,10 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[path = "support/native_serial.rs"]
+#[allow(clippy::duplicate_mod)]
+mod native_serial;
+
 const DEADLINE: Duration = Duration::from_secs(45);
 const OUTPUT_LIMIT: usize = 2 * 1024 * 1024;
 const FLOOD_CHUNK_REPETITIONS: usize = 2_048;
@@ -231,6 +235,7 @@ impl Drop for DaemonCleanup {
 
 #[test]
 fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
+    let _native_serial = native_serial::NativeSerialGuard::acquire();
     let _serial = NATIVE_GATE_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -562,6 +567,7 @@ fn assert_latency(
 
 #[test]
 fn existing_daemon_reaches_usable_screen_within_budget() {
+    let _native_serial = native_serial::NativeSerialGuard::acquire();
     let _serial = NATIVE_GATE_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
