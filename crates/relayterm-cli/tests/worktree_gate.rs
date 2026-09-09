@@ -103,23 +103,33 @@ fn create_worktree(
     suffix: &str,
     operation: &str,
 ) -> Value {
-    command(
-        root,
-        home,
-        &[
-            "worktree",
-            "create",
-            task,
-            "--expected-revision",
-            revision,
-            "--operation-id",
-            operation,
-            "--branch",
-            &format!("rt/gate-{suffix}"),
-            "--leaf",
-            &format!("gate-{suffix}"),
-        ],
-    )
+    let branch = format!("rt/gate-{suffix}");
+    let leaf = format!("gate-{suffix}");
+    let arguments = [
+        "worktree",
+        "create",
+        task,
+        "--expected-revision",
+        revision,
+        "--operation-id",
+        operation,
+        "--branch",
+        branch.as_str(),
+        "--leaf",
+        leaf.as_str(),
+    ];
+    let output = admin_output(root, home, &arguments);
+    if !output.status.success() {
+        let receipt = admin_output(root, home, &["worktree", "operation", operation]);
+        panic!(
+            "worktree create failed: response={} receipt={}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&receipt.stdout)
+        );
+    }
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value.get("ok").and_then(Value::as_bool), Some(true));
+    value.get("result").cloned().unwrap_or(Value::Null)
 }
 
 fn task_items(root: &Path, home: &Path) -> Vec<Value> {
