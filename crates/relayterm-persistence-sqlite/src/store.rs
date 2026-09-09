@@ -8,19 +8,33 @@ use relayterm_domain::*;
 use relayterm_platform::{decode_native_path, encode_native_path};
 use sqlx::{AssertSqlSafe, Row, SqliteConnection, SqlitePool};
 use std::collections::HashMap;
+#[cfg(feature = "test-hooks")]
+use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct SqliteStore {
     pool: SqlitePool,
+    #[cfg(feature = "test-hooks")]
+    before_commit: Option<Arc<dyn Fn() + Send + Sync>>,
 }
 
 impl SqliteStore {
     pub fn new(pool: SqlitePool) -> Self {
-        Self { pool }
+        Self {
+            pool,
+            #[cfg(feature = "test-hooks")]
+            before_commit: None,
+        }
     }
     pub fn pool(&self) -> &SqlitePool {
         &self.pool
+    }
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn with_before_commit_hook(mut self, hook: Arc<dyn Fn() + Send + Sync>) -> Self {
+        self.before_commit = Some(hook);
+        self
     }
 }
 
@@ -28,6 +42,8 @@ pub struct SqliteTransaction {
     pool: SqlitePool,
     workspace_id: WorkspaceId,
     snapshot: Snapshot,
+    #[cfg(feature = "test-hooks")]
+    before_commit: Option<Arc<dyn Fn() + Send + Sync>>,
 }
 
 impl Store for SqliteStore {
@@ -40,6 +56,8 @@ impl Store for SqliteStore {
             pool: self.pool.clone(),
             workspace_id,
             snapshot,
+            #[cfg(feature = "test-hooks")]
+            before_commit: self.before_commit.clone(),
         })
     }
 }
@@ -693,6 +711,10 @@ impl ApplicationTransaction for SqliteTransaction {
         let result = commit_locked(&mut connection, self.workspace_id, &batch).await;
         match result {
             Ok(committed) => {
+                #[cfg(feature = "test-hooks")]
+                if let Some(hook) = self.before_commit {
+                    hook();
+                }
                 sqlx::query("COMMIT")
                     .execute(&mut *connection)
                     .await

@@ -59,7 +59,13 @@ The native PTY gate launches an additional executable that exits with status 23 
 
 The SQLite continuity target installs a database-level rejecting trigger across the real connection pool. A progress mutation fails after entering the write transaction, and the test verifies that revision, progress and durable events all remain unchanged. After removing the trigger, a notifier that returns an error leaves the committed progress and event readable at the returned revision. This proves that post-commit notification loss does not turn durable success into an application failure.
 
-Remaining required boundaries include daemon loss during a transaction and the complete Git phase cancellation matrix.
+The abrupt SQLite gate runs a separate native server process with the production application and SQLite composition. A feature-gated test barrier acknowledges that the transaction has persisted its entity and event changes but has not issued `COMMIT`. The parent terminates that process, reopens the database, verifies the previous revision and event count with no task, and commits an independent healthy mutation. The hook is absent from ordinary `rt`, protocol and release builds. Run it twice on each stable native target:
+
+```text
+cargo test -p relayterm-daemon --test sqlite_kill_gate --features test-hooks --locked -- --nocapture --test-threads=1
+```
+
+Remaining required fault work includes the complete Git phase cancellation matrix.
 
 Every fault test performs an independent healthy request or session action after the failure. A test fails if the daemon crashes, an unrelated session stops, a transaction becomes partial, a result is retried automatically, or a timeout leaves an unbounded reader, task, handle or child.
 
