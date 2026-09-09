@@ -1147,13 +1147,10 @@ mod tests {
             ErrorKind::InvalidReference
         );
         let included = directory.path().join("included-config");
-        let included_marker = directory.path().join("included-filter-ran");
+        let included_marker = source.join("relayterm-included-filter-ran");
         std::fs::write(
             &included,
-            format!(
-                "[filter \"included\"]\n\tsmudge = touch {}\n",
-                included_marker.display()
-            ),
+            "[filter \"included\"]\n\tsmudge = touch relayterm-included-filter-ran\n",
         )
         .unwrap();
         run(&["config", "include.path", included.to_str().unwrap()]);
