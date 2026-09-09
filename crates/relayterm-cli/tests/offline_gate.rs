@@ -50,6 +50,15 @@ fn synthetic_network_probe() {
 }
 
 #[test]
+#[ignore]
+fn synthetic_offline_agent() {
+    let ready = PathBuf::from(std::env::var_os("RELAYTERM_OFFLINE_AGENT_READY").unwrap());
+    let stop = PathBuf::from(std::env::var_os("RELAYTERM_OFFLINE_AGENT_STOP").unwrap());
+    fs::write(ready, std::process::id().to_string()).unwrap();
+    wait_until(|| stop.exists(), "offline agent stop marker");
+}
+
+#[test]
 fn daemon_uses_local_ipc_without_network_endpoints() {
     let scratch = Scratch::new();
     let probe_ready = scratch.0.join("probe.ready");
@@ -69,13 +78,15 @@ fn daemon_uses_local_ipc_without_network_endpoints() {
         .unwrap();
     wait_until(|| probe_ready.exists(), "network monitor probe readiness");
     assert!(
-        process_has_network_endpoint(probe.id()),
+        processes_have_network_endpoint(&[probe.id()]),
         "the native monitor did not detect its TCP negative control"
     );
     stop_child(&mut probe);
 
     let root = scratch.0.join("project");
     let home = scratch.0.join("private");
+    let agent_ready = scratch.0.join("agent.ready");
+    let agent_stop = scratch.0.join("agent.stop");
     fs::create_dir(&root).unwrap();
     let initialized = successful(command(
         &root,
@@ -101,6 +112,8 @@ fn daemon_uses_local_ipc_without_network_endpoints() {
         .arg(&root)
         .args(["--workspace-id", &workspace_id, "--private-home"])
         .arg(&home)
+        .env("RELAYTERM_OFFLINE_AGENT_READY", &agent_ready)
+        .env("RELAYTERM_OFFLINE_AGENT_STOP", &agent_stop)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -115,15 +128,69 @@ fn daemon_uses_local_ipc_without_network_endpoints() {
         "foreground daemon readiness",
     );
 
-    for _ in 0..20 {
-        assert!(
-            !process_has_network_endpoint(daemon.id()),
-            "the Relayterm daemon opened a TCP or UDP endpoint"
-        );
+    let status = successful(command(&root, &home, &["workspace", "status"]));
+    let revision = status["result"]["revision"].as_str().unwrap();
+    let definition = scratch.0.join("offline-agent.json");
+    fs::write(
+        &definition,
+        serde_json::to_vec(&serde_json::json!({
+            "display_name":"Offline fixture",
+            "command":std::env::current_exe().unwrap().to_string_lossy(),
+            "arguments":["--ignored","--exact","synthetic_offline_agent","--nocapture","--test-threads=1"],
+            "environment_allowlist":["RELAYTERM_OFFLINE_AGENT_READY","RELAYTERM_OFFLINE_AGENT_STOP"],
+            "capabilities":["interactive_terminal"],
+            "enabled":true
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    let registered = successful(command(
+        &root,
+        &home,
+        &[
+            "agent",
+            "register",
+            "--expected-revision",
+            revision,
+            "--file",
+            definition.to_str().unwrap(),
+        ],
+    ));
+    let definition_id = registered["result"]["entity_ids"][0].as_str().unwrap();
+    let created = successful(command(
+        &root,
+        &home,
+        &["session", "create", "--definition-id", definition_id],
+    ));
+    let session_id = created["result"]["session_id"].as_str().unwrap();
+    wait_until(|| agent_ready.exists(), "offline agent readiness");
+    let agent_pid = fs::read_to_string(&agent_ready)
+        .unwrap()
+        .parse::<u32>()
+        .unwrap();
+
+    for index in 0..20 {
+        if !cfg!(windows) || matches!(index, 0 | 9 | 19) {
+            assert!(
+                !processes_have_network_endpoint(&[daemon.id(), agent_pid]),
+                "the Relayterm daemon or synthetic agent opened a TCP or UDP endpoint"
+            );
+        }
         let status = successful(command(&root, &home, &["workspace", "status"]));
         assert_eq!(status["ok"], true);
         thread::sleep(Duration::from_millis(50));
     }
+    fs::write(&agent_stop, b"stop").unwrap();
+    wait_until(
+        || {
+            successful(command(&root, &home, &["session", "list"]))["result"]["items"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|item| item["session_id"] == session_id && item["status"] == "exited")
+        },
+        "offline agent exit observation",
+    );
     successful(command(
         &root,
         &home,
@@ -183,40 +250,52 @@ fn stop_child(child: &mut Child) {
 }
 
 #[cfg(target_os = "linux")]
-fn process_has_network_endpoint(process_id: u32) -> bool {
+fn processes_have_network_endpoint(process_ids: &[u32]) -> bool {
     use std::collections::HashSet;
 
-    let descriptors = PathBuf::from(format!("/proc/{process_id}/fd"));
-    let inodes = fs::read_dir(descriptors)
-        .into_iter()
-        .flatten()
-        .filter_map(Result::ok)
-        .filter_map(|entry| fs::read_link(entry.path()).ok())
-        .filter_map(|target| {
-            let value = target.to_string_lossy();
-            value
-                .strip_prefix("socket:[")
-                .and_then(|value| value.strip_suffix(']'))
-                .map(str::to_owned)
-        })
-        .collect::<HashSet<_>>();
-    ["tcp", "tcp6", "udp", "udp6"].into_iter().any(|name| {
-        fs::read_to_string(format!("/proc/{process_id}/net/{name}"))
-            .ok()
-            .is_some_and(|table| {
-                table
-                    .lines()
-                    .skip(1)
-                    .filter_map(|line| line.split_whitespace().nth(9))
-                    .any(|inode| inodes.contains(inode))
+    process_ids.iter().any(|process_id| {
+        let descriptors = PathBuf::from(format!("/proc/{process_id}/fd"));
+        let inodes = fs::read_dir(descriptors)
+            .into_iter()
+            .flatten()
+            .filter_map(Result::ok)
+            .filter_map(|entry| fs::read_link(entry.path()).ok())
+            .filter_map(|target| {
+                let value = target.to_string_lossy();
+                value
+                    .strip_prefix("socket:[")
+                    .and_then(|value| value.strip_suffix(']'))
+                    .map(str::to_owned)
             })
+            .collect::<HashSet<_>>();
+        ["tcp", "tcp6", "udp", "udp6"].into_iter().any(|name| {
+            fs::read_to_string(format!("/proc/{process_id}/net/{name}"))
+                .ok()
+                .is_some_and(|table| {
+                    table
+                        .lines()
+                        .skip(1)
+                        .filter_map(|line| line.split_whitespace().nth(9))
+                        .any(|inode| inodes.contains(inode))
+                })
+        })
     })
 }
 
 #[cfg(target_os = "macos")]
-fn process_has_network_endpoint(process_id: u32) -> bool {
+fn processes_have_network_endpoint(process_ids: &[u32]) -> bool {
     Command::new("lsof")
-        .args(["-nP", "-a", "-p", &process_id.to_string(), "-i"])
+        .args([
+            "-nP",
+            "-a",
+            "-p",
+            &process_ids
+                .iter()
+                .map(u32::to_string)
+                .collect::<Vec<_>>()
+                .join(","),
+            "-i",
+        ])
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -225,16 +304,18 @@ fn process_has_network_endpoint(process_id: u32) -> bool {
 }
 
 #[cfg(windows)]
-fn process_has_network_endpoint(process_id: u32) -> bool {
-    let marker = process_id.to_string();
+fn processes_have_network_endpoint(process_ids: &[u32]) -> bool {
+    let markers = process_ids.iter().map(u32::to_string).collect::<Vec<_>>();
     Command::new("netstat.exe")
         .args(["-ano"])
         .stdin(Stdio::null())
         .output()
         .ok()
         .is_some_and(|output| {
-            String::from_utf8_lossy(&output.stdout)
-                .lines()
-                .any(|line| line.split_whitespace().next_back() == Some(marker.as_str()))
+            String::from_utf8_lossy(&output.stdout).lines().any(|line| {
+                line.split_whitespace()
+                    .next_back()
+                    .is_some_and(|pid| markers.iter().any(|marker| marker == pid))
+            })
         })
 }

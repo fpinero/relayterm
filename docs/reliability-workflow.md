@@ -63,7 +63,7 @@ Every fault test performs an independent healthy request or session action after
 
 Build with the locked dependency graph before the runtime observation. Run the integrated workflow without provider credentials under a process-scoped native network denial or observation mechanism. Validate that mechanism with a separate harmless synthetic probe.
 
-The automated native baseline starts a real foreground `rt` daemon over real SQLite and local IPC, then samples its process network endpoints during repeated authenticated status calls. Linux correlates `/proc/<pid>/fd` socket inodes with the process network tables, macOS uses `lsof -a -p <pid> -i`, and Windows matches the owning PID in `netstat -ano`. Before inspecting Relayterm, the same monitor must detect a test-only loopback TCP listener. The target runs twice on each stable native runner:
+The automated native baseline starts a real foreground `rt` daemon over real SQLite and local IPC. It registers and launches a neutral synthetic agent through a real PTY, then samples both process network endpoints during repeated authenticated status calls. Linux correlates `/proc/<pid>/fd` socket inodes with the process network tables, macOS uses `lsof -a -p <pid> -i`, and Windows takes three combined snapshots matching both owning PIDs in `netstat -ano`. Before inspecting Relayterm, the same monitor must detect a test-only loopback TCP listener. The target runs twice on each stable native runner:
 
 ```text
 cargo test -p relayterm-cli --test offline_gate --locked -- --nocapture --test-threads=1
@@ -85,7 +85,7 @@ fixture reports its measured byte count and duration and must sustain at least
 2 MiB/s. The fixture child memory is reported separately and is not charged to
 the daemon or TUI measurements.
 
-This baseline proves that the monitor is effective and that daemon startup plus local coordination do not open TCP or UDP endpoints. Candidate closure still requires the monitored Git, reconnect, backup and restore workflow and explicit DNS or outbound-attempt observation on every native OS.
+This baseline proves that the monitor is effective and that daemon startup, local coordination and a credential-free synthetic session do not open TCP or UDP endpoints. Candidate closure still requires the monitored Git, reconnect, backup and restore workflow and explicit DNS or outbound-attempt observation on every native OS.
 
 Local IPC must remain functional. Record no product TCP listener, DNS lookup, telemetry, update request or hosted dependency during init, session coordination, Git worktrees, reconnect, backup and restore. Build-time package downloads, user-configured child networking and SSH test transport are separate and must not be attributed to Relayterm runtime.
 

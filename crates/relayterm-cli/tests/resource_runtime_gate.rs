@@ -142,9 +142,10 @@ fn sustained_output_memory_and_reconnect_resources_are_bounded() {
     let mut tui_memory = Vec::new();
     let mut child_memory = Vec::new();
     while started.elapsed() < SAMPLE_DURATION {
-        daemon_memory.push(process_memory(daemon_pid));
-        tui_memory.push(process_memory(tui_pid));
-        child_memory.push(process_memory(child_pid));
+        let measured = process_memories(&[daemon_pid, tui_pid, child_pid]);
+        daemon_memory.push(measured[0]);
+        tui_memory.push(measured[1]);
+        child_memory.push(measured[2]);
         thread::sleep(Duration::from_secs(3));
     }
     assert_memory("daemon", &daemon_memory);
@@ -308,6 +309,14 @@ fn process_memory(process_id: u32) -> u64 {
     kib * 1024
 }
 
+#[cfg(not(windows))]
+fn process_memories(process_ids: &[u32]) -> Vec<u64> {
+    process_ids
+        .iter()
+        .map(|process_id| process_memory(*process_id))
+        .collect()
+}
+
 #[cfg(target_os = "macos")]
 fn process_memory(process_id: u32) -> u64 {
     let output = Command::new("ps")
@@ -323,8 +332,35 @@ fn process_memory(process_id: u32) -> u64 {
 }
 
 #[cfg(windows)]
-fn process_memory(process_id: u32) -> u64 {
-    powershell_process_value(process_id, "WorkingSet64")
+fn process_memories(process_ids: &[u32]) -> Vec<u64> {
+    let identifiers = process_ids
+        .iter()
+        .map(u32::to_string)
+        .collect::<Vec<_>>()
+        .join(",");
+    let expression = format!(
+        "Get-Process -Id {identifiers} | ForEach-Object {{ Write-Output ($_.Id.ToString() + ' ' + $_.WorkingSet64.ToString()) }}"
+    );
+    let output = Command::new("powershell.exe")
+        .args(["-NoProfile", "-NonInteractive", "-Command", &expression])
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "process measurement failed");
+    let measured = String::from_utf8(output.stdout)
+        .unwrap()
+        .lines()
+        .map(|line| {
+            let mut fields = line.split_whitespace();
+            (
+                fields.next().unwrap().parse::<u32>().unwrap(),
+                fields.next().unwrap().parse::<u64>().unwrap(),
+            )
+        })
+        .collect::<std::collections::BTreeMap<_, _>>();
+    process_ids
+        .iter()
+        .map(|process_id| measured[process_id])
+        .collect()
 }
 
 #[cfg(target_os = "linux")]
