@@ -1,7 +1,9 @@
 use crate::{
     DaemonControl, WorkspaceServer, diagnostics::DiagnosticLog, supervisor::SessionSupervisor,
 };
-use relayterm_application::{Clock, EventNotifier, IdGenerator, Service, Store, Transaction};
+use relayterm_application::{
+    Clock, DurableReadStore, EventNotifier, IdGenerator, Service, Store, Transaction,
+};
 use relayterm_client::{Client, ClientError, Delivery};
 use relayterm_config::StorageSettings;
 use relayterm_domain::{AgentInstanceId, InstanceStatus, Observation, WorkspaceId};
@@ -11,15 +13,18 @@ use relayterm_persistence_sqlite::{
     Registry, SqliteStore, StorageError, initialize_workspace,
 };
 use relayterm_platform::{
-    LocationOptions, PrivateLocations, PrivateLock, RandomIdGenerator, SystemClock,
-    WorkspaceRootIdentity, decode_native_path, detach_current_process, encode_native_path,
-    spawn_detached as spawn_detached_process,
+    LocationAlias, LocationOptions, PrivateLocations, PrivateLock, RandomIdGenerator, SystemClock,
+    WorkspaceRootIdentity, create_private_dir, create_private_file, decode_native_path,
+    detach_current_process, encode_native_path, spawn_detached as spawn_detached_process,
+    validate_private_dir, validate_private_file,
 };
 use relayterm_protocol::{NativePathDto, WorkspaceId as WireWorkspaceId};
 use serde::{Deserialize, Serialize};
 use std::{
     ffi::OsString,
     fmt,
+    fs::File,
+    io::{Read, Write},
     path::{Path, PathBuf},
     sync::Arc,
     time::{Duration, Instant},
@@ -39,6 +44,30 @@ pub enum RuntimeError {
     Protocol,
     Spawn,
     Timeout,
+}
+
+const BACKUP_MANIFEST: &str = "manifest.json";
+const BACKUP_WORKSPACE: &str = "workspace.sqlite3";
+const MAX_BACKUP_MANIFEST: u64 = 64 * 1024;
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct BackupManifest {
+    format_version: u8,
+    workspace_id: String,
+    database_member: String,
+    workspace_revision: String,
+    last_event_sequence: String,
+    blake3: String,
+    complete: bool,
+}
+
+#[derive(Serialize)]
+pub struct BackupReport {
+    pub format_version: u8,
+    pub workspace_id: String,
+    pub workspace_revision: String,
+    pub last_event_sequence: String,
 }
 
 impl fmt::Display for RuntimeError {
@@ -577,6 +606,224 @@ pub fn wait_for_workspace_release(
     let locations = locations(home)?;
     drop(acquire_runtime_lock(&locations, expected, timeout)?);
     Ok(())
+}
+
+/// Create a consistent private workspace backup while the workspace daemon is stopped.
+pub async fn backup_workspace(
+    root: &Path,
+    home: Option<PathBuf>,
+    destination: &Path,
+    timeout: Duration,
+) -> Result<BackupReport, RuntimeError> {
+    let (route, locations) = locate_workspace(root, home).await?;
+    let workspace_id = route.domain_id()?;
+    let _runtime_lock = acquire_runtime_lock(&locations, workspace_id, timeout)?;
+    let parent = destination.parent().ok_or(RuntimeError::InvalidLocation)?;
+    validate_private_dir(parent).map_err(|_| RuntimeError::AccessDenied)?;
+    if destination.exists() {
+        return Err(RuntimeError::InvalidLocation);
+    }
+    create_private_dir(destination).map_err(|_| RuntimeError::AccessDenied)?;
+
+    let source_path = workspace_database_path(&locations, workspace_id);
+    let source = Database::open(
+        &source_path,
+        DatabaseKind::Workspace,
+        OpenMode::Reopen,
+        PoolSettings::default(),
+    )
+    .await
+    .map_err(map_storage)?;
+    let database_member = destination.join(BACKUP_WORKSPACE);
+    source
+        .snapshot_to(&database_member)
+        .await
+        .map_err(map_storage)?;
+    source.pool().close().await;
+    let captured = Database::open(
+        &database_member,
+        DatabaseKind::Workspace,
+        OpenMode::ReadOnly,
+        PoolSettings::default(),
+    )
+    .await
+    .map_err(map_storage)?;
+    let snapshot = SqliteStore::new(captured.pool().clone())
+        .consistent_snapshot(workspace_id)
+        .await
+        .map_err(|_| RuntimeError::Storage)?;
+    let workspace_revision = snapshot.snapshot.revision().to_string();
+    let last_event_sequence = snapshot.last_sequence.to_string();
+    captured.pool().close().await;
+    let checksum = hash_private_file(&database_member)?;
+    let manifest = BackupManifest {
+        format_version: 1,
+        workspace_id: workspace_id.to_string(),
+        database_member: BACKUP_WORKSPACE.to_owned(),
+        workspace_revision: workspace_revision.clone(),
+        last_event_sequence: last_event_sequence.clone(),
+        blake3: checksum,
+        complete: true,
+    };
+    let bytes = serde_json::to_vec(&manifest).map_err(|_| RuntimeError::Storage)?;
+    let mut output = create_private_file(&destination.join(BACKUP_MANIFEST))
+        .map_err(|_| RuntimeError::AccessDenied)?;
+    output
+        .write_all(&bytes)
+        .map_err(|_| RuntimeError::Storage)?;
+    output.sync_all().map_err(|_| RuntimeError::Storage)?;
+    validate_backup_members(destination)?;
+    Ok(BackupReport {
+        format_version: 1,
+        workspace_id: workspace_id.to_string(),
+        workspace_revision,
+        last_event_sequence,
+    })
+}
+
+/// Restore a private workspace backup into a new Relayterm home.
+pub async fn restore_workspace(
+    root: &Path,
+    source: &Path,
+    destination_home: &Path,
+) -> Result<BackupReport, RuntimeError> {
+    validate_backup_members(source)?;
+    if destination_home.exists() || !destination_home.is_absolute() {
+        return Err(RuntimeError::InvalidLocation);
+    }
+    let manifest = read_backup_manifest(source)?;
+    if manifest.format_version != 1
+        || !manifest.complete
+        || manifest.database_member != BACKUP_WORKSPACE
+    {
+        return Err(RuntimeError::RecoveryRequired);
+    }
+    let workspace_id = manifest
+        .workspace_id
+        .parse::<WorkspaceId>()
+        .map_err(|_| RuntimeError::RecoveryRequired)?;
+    let backup_database = source.join(BACKUP_WORKSPACE);
+    if hash_private_file(&backup_database)? != manifest.blake3 {
+        return Err(RuntimeError::RecoveryRequired);
+    }
+    let locations = locations(Some(destination_home.to_path_buf()))?;
+    for alias in [LocationAlias::Data, LocationAlias::Runtime] {
+        create_private_dir(locations.path(alias)).map_err(|_| RuntimeError::AccessDenied)?;
+    }
+    let workspaces = locations.data().join("workspaces");
+    create_private_dir(&workspaces).map_err(|_| RuntimeError::AccessDenied)?;
+    let workspace_dir = workspaces.join(workspace_id.to_string());
+    create_private_dir(&workspace_dir).map_err(|_| RuntimeError::AccessDenied)?;
+    copy_private_file(&backup_database, &workspace_dir.join(BACKUP_WORKSPACE))?;
+    let restored = Database::open(
+        &workspace_dir.join(BACKUP_WORKSPACE),
+        DatabaseKind::Workspace,
+        OpenMode::Reopen,
+        PoolSettings::default(),
+    )
+    .await
+    .map_err(map_storage)?;
+    let snapshot = SqliteStore::new(restored.pool().clone())
+        .consistent_snapshot(workspace_id)
+        .await
+        .map_err(|_| RuntimeError::RecoveryRequired)?;
+    if snapshot.snapshot.revision().to_string() != manifest.workspace_revision
+        || snapshot.last_sequence.to_string() != manifest.last_event_sequence
+    {
+        return Err(RuntimeError::RecoveryRequired);
+    }
+    restored.pool().close().await;
+
+    let identity =
+        WorkspaceRootIdentity::resolve(root).map_err(|_| RuntimeError::InvalidWorkspace)?;
+    let registry = Registry::open(
+        &locations.data().join("registry.sqlite3"),
+        PoolSettings::default(),
+    )
+    .await
+    .map_err(map_storage)?;
+    let now = SystemClock.now().map_err(|_| RuntimeError::Storage)?;
+    let registration = registry
+        .reserve_or_get(&identity, workspace_id, now)
+        .await
+        .map_err(map_storage)?;
+    if registration.workspace_id != workspace_id {
+        return Err(RuntimeError::RecoveryRequired);
+    }
+    registry
+        .mark_ready(workspace_id, now)
+        .await
+        .map_err(map_storage)?;
+    Ok(BackupReport {
+        format_version: manifest.format_version,
+        workspace_id: manifest.workspace_id,
+        workspace_revision: manifest.workspace_revision,
+        last_event_sequence: manifest.last_event_sequence,
+    })
+}
+
+fn validate_backup_members(directory: &Path) -> Result<(), RuntimeError> {
+    validate_private_dir(directory).map_err(|_| RuntimeError::AccessDenied)?;
+    let mut names = std::fs::read_dir(directory)
+        .map_err(|_| RuntimeError::Storage)?
+        .map(|entry| {
+            entry.map_err(|_| RuntimeError::Storage).and_then(|entry| {
+                let kind = entry.file_type().map_err(|_| RuntimeError::Storage)?;
+                if !kind.is_file() || kind.is_symlink() {
+                    return Err(RuntimeError::RecoveryRequired);
+                }
+                Ok(entry.file_name())
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    names.sort();
+    let mut expected = vec![
+        OsString::from(BACKUP_MANIFEST),
+        OsString::from(BACKUP_WORKSPACE),
+    ];
+    expected.sort();
+    if names != expected {
+        return Err(RuntimeError::RecoveryRequired);
+    }
+    for name in expected {
+        validate_private_file(&directory.join(name)).map_err(|_| RuntimeError::AccessDenied)?;
+    }
+    Ok(())
+}
+
+fn read_backup_manifest(directory: &Path) -> Result<BackupManifest, RuntimeError> {
+    let file = File::open(directory.join(BACKUP_MANIFEST)).map_err(|_| RuntimeError::Storage)?;
+    let mut bytes = Vec::new();
+    file.take(MAX_BACKUP_MANIFEST + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|_| RuntimeError::Storage)?;
+    if bytes.len() as u64 > MAX_BACKUP_MANIFEST {
+        return Err(RuntimeError::RecoveryRequired);
+    }
+    serde_json::from_slice(&bytes).map_err(|_| RuntimeError::RecoveryRequired)
+}
+
+fn hash_private_file(path: &Path) -> Result<String, RuntimeError> {
+    validate_private_file(path).map_err(|_| RuntimeError::AccessDenied)?;
+    let mut file = File::open(path).map_err(|_| RuntimeError::Storage)?;
+    let mut hasher = blake3::Hasher::new();
+    let mut buffer = [0u8; 64 * 1024];
+    loop {
+        let read = file.read(&mut buffer).map_err(|_| RuntimeError::Storage)?;
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..read]);
+    }
+    Ok(hasher.finalize().to_hex().to_string())
+}
+
+fn copy_private_file(source: &Path, destination: &Path) -> Result<(), RuntimeError> {
+    validate_private_file(source).map_err(|_| RuntimeError::AccessDenied)?;
+    let mut input = File::open(source).map_err(|_| RuntimeError::Storage)?;
+    let mut output = create_private_file(destination).map_err(|_| RuntimeError::AccessDenied)?;
+    std::io::copy(&mut input, &mut output).map_err(|_| RuntimeError::Storage)?;
+    output.sync_all().map_err(|_| RuntimeError::Storage)
 }
 
 fn acquire_runtime_lock(

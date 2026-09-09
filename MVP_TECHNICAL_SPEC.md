@@ -608,6 +608,8 @@ Suggested logical separation:
 
 Configuration MUST support a documented override for tests and portable development environments. Unknown fields SHOULD produce warnings, and invalid security-sensitive fields MUST fail closed.
 
+M11 adds an explicit private backup of one stopped workspace and a non-destructive restore into a fresh Relayterm home. The backup is a recovery copy of durable coordination state, not FR-10 project export. It excludes project files, Git objects, provider authentication, environment values, live processes, terminal state and scrollback. Existing destinations, incompatible or corrupt inputs, and active workspace ownership fail without overwriting originals.
+
 Relayterm uses `RELAYTERM_HOME` as its single bootstrap override, with `config`, `data`, `runtime`, and `cache` children. An explicitly supplied internal `LocationOptions` value takes precedence. Overrides must be absolute and are the only supported way to place private state inside a project. Default resolution never falls back to the current directory. Location resolution has no filesystem side effects.
 
 Accepted definitions in SQLite are authoritative. TOML uses `format_version = 1`, requires stable definition IDs, and is imported only by an explicit operation. Imports compare a captured workspace revision, apply supplied creates and updates atomically, preserve omitted definitions, and never rewrite the source file. Unknown non-security fields produce bounded warnings. Unknown security-shaped settings, invalid security values, and recognized credential patterns are rejected without echoing input.

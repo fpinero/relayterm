@@ -22,6 +22,8 @@ M10 embeds migration resources in the executable and adds approved worktree root
 
 Back up with SQLite facilities such as the online backup API or VACUUM INTO, selected against the actual adapter in M03/M11. Never copy only an active database's main file. Restore initially with the daemon stopped into a fresh destination. Reconcile former live sessions as lost without inventing an exit code; related events commit atomically.
 
+M11 selects `VACUUM INTO` for an explicitly stopped single-workspace backup. Runtime ownership excludes the daemon, the adapter reserves an empty destination with private permissions before SQLite opens it, and a bounded versioned manifest is written last with the captured revision, event watermark and BLAKE3 integrity value. Restore validates an exact two-file private inventory, copies into a new Relayterm home, applies embedded migrations to the copy and creates only the minimal registry entry. It never overwrites the original, copies runtime ownership, adopts PTYs, launches a child or invokes Git. The operator must not run original and restored homes concurrently against the same project.
+
 ## Alternatives
 
 Full event sourcing is unnecessary for the MVP. Project-local private state risks publication. Raw live-file copies can omit WAL content. Destructive automatic recovery can erase the only usable evidence.

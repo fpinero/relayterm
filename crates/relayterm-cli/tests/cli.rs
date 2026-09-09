@@ -110,6 +110,155 @@ fn status_of_unknown_workspace_is_non_creating() {
 }
 
 #[test]
+fn private_backup_restores_into_a_fresh_home_without_overwriting() {
+    let scratch = Scratch::new();
+    let root = scratch.0.join("project");
+    let private = scratch.0.join("private");
+    let restored = scratch.0.join("restored-private");
+    fs::create_dir(&root).unwrap();
+
+    let initialized = invoke(
+        env!("CARGO_BIN_EXE_rt"),
+        &root,
+        &private,
+        &["workspace", "init", "--name", "Synthetic workspace"],
+    );
+    assert!(
+        initialized.status.success(),
+        "{}",
+        String::from_utf8_lossy(&initialized.stdout)
+    );
+    let initialized: Value = serde_json::from_slice(&initialized.stdout).unwrap();
+    let workspace_id = initialized["result"]["workspace_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let busy_backup = private.join("data").join("busy-backup");
+    let busy = Command::new(env!("CARGO_BIN_EXE_rt"))
+        .arg("--workspace")
+        .arg(&root)
+        .arg("--home")
+        .arg(&private)
+        .args([
+            "--format",
+            "json",
+            "--timeout",
+            "1",
+            "backup",
+            "create",
+            "--destination",
+        ])
+        .arg(&busy_backup)
+        .output()
+        .unwrap();
+    assert_eq!(busy.status.code(), Some(1));
+    let busy: Value = serde_json::from_slice(&busy.stdout).unwrap();
+    assert_eq!(busy["error"]["code"], "workspace_busy");
+    assert!(!busy_backup.exists());
+    assert!(
+        invoke(
+            env!("CARGO_BIN_EXE_rt"),
+            &root,
+            &private,
+            &["daemon", "stop", "--terminate-sessions"],
+        )
+        .status
+        .success()
+    );
+
+    let backup = private.join("data").join("backup-one");
+    let created = Command::new(env!("CARGO_BIN_EXE_rt"))
+        .arg("--workspace")
+        .arg(&root)
+        .arg("--home")
+        .arg(&private)
+        .args(["--format", "json", "backup", "create", "--destination"])
+        .arg(&backup)
+        .output()
+        .unwrap();
+    assert!(
+        created.status.success(),
+        "{}",
+        String::from_utf8_lossy(&created.stdout)
+    );
+    let value: Value = serde_json::from_slice(&created.stdout).unwrap();
+    assert_eq!(value["result"]["workspace_id"], workspace_id);
+    assert!(backup.join("manifest.json").is_file());
+    assert!(backup.join("workspace.sqlite3").is_file());
+
+    let second = Command::new(env!("CARGO_BIN_EXE_rt"))
+        .arg("--workspace")
+        .arg(&root)
+        .arg("--home")
+        .arg(&private)
+        .args(["--format", "json", "backup", "create", "--destination"])
+        .arg(&backup)
+        .output()
+        .unwrap();
+    assert_eq!(second.status.code(), Some(1));
+    let second: Value = serde_json::from_slice(&second.stdout).unwrap();
+    assert_eq!(second["error"]["code"], "invalid_location");
+
+    let restored_output = Command::new(env!("CARGO_BIN_EXE_rt"))
+        .arg("--workspace")
+        .arg(&root)
+        .args(["--format", "json", "backup", "restore", "--source"])
+        .arg(&backup)
+        .arg("--destination")
+        .arg(&restored)
+        .output()
+        .unwrap();
+    assert!(
+        restored_output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&restored_output.stdout)
+    );
+    let value: Value = serde_json::from_slice(&restored_output.stdout).unwrap();
+    assert_eq!(value["result"]["workspace_id"], workspace_id);
+
+    let opened = invoke(
+        env!("CARGO_BIN_EXE_rt"),
+        &root,
+        &restored,
+        &["workspace", "open"],
+    );
+    assert!(opened.status.success());
+    let value: Value = serde_json::from_slice(&opened.stdout).unwrap();
+    assert_eq!(value["result"]["workspace_id"], workspace_id);
+    assert!(
+        invoke(
+            env!("CARGO_BIN_EXE_rt"),
+            &root,
+            &restored,
+            &["daemon", "stop", "--terminate-sessions"],
+        )
+        .status
+        .success()
+    );
+
+    let mut damaged = fs::OpenOptions::new()
+        .append(true)
+        .open(backup.join("workspace.sqlite3"))
+        .unwrap();
+    damaged.write_all(b"synthetic-damage").unwrap();
+    damaged.sync_all().unwrap();
+    let rejected_home = scratch.0.join("rejected-private");
+    let rejected = Command::new(env!("CARGO_BIN_EXE_rt"))
+        .arg("--workspace")
+        .arg(&root)
+        .args(["--format", "json", "backup", "restore", "--source"])
+        .arg(&backup)
+        .arg("--destination")
+        .arg(&rejected_home)
+        .output()
+        .unwrap();
+    assert_eq!(rejected.status.code(), Some(6));
+    let rejected: Value = serde_json::from_slice(&rejected.stdout).unwrap();
+    assert_eq!(rejected["error"]["code"], "recovery_required");
+    assert!(!rejected_home.exists());
+}
+
+#[test]
 fn bootstrap_rejects_invalid_input_without_side_effects() {
     for input in [
         b"{".to_vec(),

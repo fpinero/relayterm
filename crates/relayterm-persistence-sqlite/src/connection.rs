@@ -155,6 +155,9 @@ impl Database {
         }
         validate_private_dir(destination.parent().ok_or(StorageError::AccessDenied)?)
             .map_err(|_| StorageError::AccessDenied)?;
+        // Reserve the destination with private permissions before SQLite opens it.
+        // VACUUM INTO accepts an existing empty file and refuses nonempty targets.
+        drop(create_private_file(destination).map_err(|_| StorageError::AccessDenied)?);
         let destination_text = destination.to_str().ok_or(StorageError::Unavailable)?;
         sqlx::query("VACUUM INTO ?")
             .bind(destination_text)

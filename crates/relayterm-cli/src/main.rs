@@ -81,6 +81,10 @@ enum TopCommand {
         #[command(subcommand)]
         command: WorktreeCommand,
     },
+    Backup {
+        #[command(subcommand)]
+        command: BackupCommand,
+    },
     #[command(name = "__bootstrap", hide = true)]
     InternalBootstrap,
     #[command(name = "__daemon-run", hide = true)]
@@ -311,6 +315,22 @@ enum WorktreeCommand {
         operation_id: String,
         #[arg(long)]
         expected_revision: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum BackupCommand {
+    /// Create a consistent private backup while the workspace daemon is stopped.
+    Create {
+        #[arg(long)]
+        destination: PathBuf,
+    },
+    /// Restore a backup into a new private Relayterm home.
+    Restore {
+        #[arg(long)]
+        source: PathBuf,
+        #[arg(long)]
+        destination: PathBuf,
     },
 }
 
@@ -554,6 +574,28 @@ async fn run(cli: &Cli) -> Result<Value, CliError> {
         TopCommand::Daemon {
             command: DaemonCommand::Stop { terminate_sessions },
         } => stop(cli, &root, *terminate_sessions).await,
+        TopCommand::Backup {
+            command: BackupCommand::Create { destination },
+        } => serde_json::to_value(
+            relayterm_daemon::backup_workspace(
+                &root,
+                cli.home.clone(),
+                destination,
+                Duration::from_secs(cli.timeout),
+            )
+            .await?,
+        )
+        .map_err(|_| CliError::InvalidInput),
+        TopCommand::Backup {
+            command:
+                BackupCommand::Restore {
+                    source,
+                    destination,
+                },
+        } => serde_json::to_value(
+            relayterm_daemon::restore_workspace(&root, source, destination).await?,
+        )
+        .map_err(|_| CliError::InvalidInput),
         TopCommand::Event {
             command: EventCommand::Watch { after },
         } => watch_events(cli, &root, after).await,
@@ -1249,6 +1291,7 @@ fn command_name(command: Option<&TopCommand>) -> &'static str {
         Some(TopCommand::Session { .. }) => "session",
         Some(TopCommand::Event { .. }) => "event",
         Some(TopCommand::Worktree { .. }) => "worktree",
+        Some(TopCommand::Backup { .. }) => "backup",
         Some(TopCommand::InternalBootstrap) => "bootstrap",
         Some(TopCommand::InternalDaemon(_)) => "daemon_internal",
         None => "tui",
