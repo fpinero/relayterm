@@ -576,9 +576,11 @@ fn read_stream_bounded(
     command_finished: Arc<AtomicBool>,
 ) -> Result<Vec<u8>> {
     use rustix::fs::{OFlags, fcntl_getfl, fcntl_setfl};
+    use rustix::io::retry_on_intr;
 
-    let flags = fcntl_getfl(&input).map_err(|_| Error::new(ErrorKind::Io))?;
-    fcntl_setfl(&input, flags | OFlags::NONBLOCK).map_err(|_| Error::new(ErrorKind::Io))?;
+    let flags = retry_on_intr(|| fcntl_getfl(&input)).map_err(|_| Error::new(ErrorKind::Io))?;
+    retry_on_intr(|| fcntl_setfl(&input, flags | OFlags::NONBLOCK))
+        .map_err(|_| Error::new(ErrorKind::Io))?;
     read_nonblocking(&mut input, limit, &command_finished)
 }
 
@@ -1482,7 +1484,7 @@ mod tests {
         let executable = directory.path().join("git-fixture");
         std::fs::write(
             &executable,
-            "#!/bin/sh\n(sleep 0.2; touch \"${0}.marker\") &\nprintf 'git version 2.99.0\\n'\n",
+            "#!/bin/sh\n(sleep 0.2; touch \"${0}.marker\") &\ndescendant=$!\nkill -0 \"${descendant}\"\nprintf 'git version 2.99.0\\n'\n",
         )
         .unwrap();
         std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o700)).unwrap();
