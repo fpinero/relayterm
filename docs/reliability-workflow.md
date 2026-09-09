@@ -57,7 +57,9 @@ The native protocol fault gate also pauses the real connection writer at a deter
 
 The native PTY gate launches an additional executable that exits with status 23 immediately after spawn. Relayterm records an observed `exited` instance with that exact status, while an already running independent session remains usable. This distinguishes a real child exit from pre-admission resolution failure and supervisor failure.
 
-Remaining required boundaries include SQLite write and notification loss, daemon loss during a transaction, and the complete Git phase cancellation matrix.
+The SQLite continuity target installs a database-level rejecting trigger across the real connection pool. A progress mutation fails after entering the write transaction, and the test verifies that revision, progress and durable events all remain unchanged. After removing the trigger, a notifier that returns an error leaves the committed progress and event readable at the returned revision. This proves that post-commit notification loss does not turn durable success into an application failure.
+
+Remaining required boundaries include daemon loss during a transaction and the complete Git phase cancellation matrix.
 
 Every fault test performs an independent healthy request or session action after the failure. A test fails if the daemon crashes, an unrelated session stops, a transaction becomes partial, a result is retried automatically, or a timeout leaves an unbounded reader, task, handle or child.
 
