@@ -54,8 +54,12 @@ impl Drop for DaemonCleanup {
 }
 
 fn invoke(root: &Path, home: &Path, args: &[&str]) -> Output {
+    invoke_binary(Path::new(env!("CARGO_BIN_EXE_rt")), root, home, args)
+}
+
+fn invoke_binary(binary: &Path, root: &Path, home: &Path, args: &[&str]) -> Output {
     bounded_output(
-        Command::new(env!("CARGO_BIN_EXE_rt"))
+        Command::new(binary)
             .arg("--workspace")
             .arg(root)
             .arg("--home")
@@ -112,6 +116,15 @@ fn bounded_output(command: &mut Command) -> Output {
 
 fn success(root: &Path, home: &Path, args: &[&str]) -> Value {
     let output = invoke(root, home, args);
+    successful_value(output, args)
+}
+
+fn success_binary(binary: &Path, root: &Path, home: &Path, args: &[&str]) -> Value {
+    let output = invoke_binary(binary, root, home, args);
+    successful_value(output, args)
+}
+
+fn successful_value(output: Output, args: &[&str]) -> Value {
     assert!(
         output.status.success(),
         "command {args:?} failed: {}",
@@ -198,7 +211,12 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
     );
 
     let restored_text = restored.to_str().unwrap();
-    let restored_result = success(
+    let installed_directory = scratch.0.join("installed");
+    fs::create_dir(&installed_directory).unwrap();
+    let installed_binary = installed_directory.join(if cfg!(windows) { "rt.exe" } else { "rt" });
+    fs::copy(env!("CARGO_BIN_EXE_rt"), &installed_binary).unwrap();
+    let restored_result = success_binary(
+        &installed_binary,
         &root,
         &home,
         &[
@@ -211,9 +229,10 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
         ],
     );
     assert_eq!(restored_result["workspace_id"], workspace_id);
-    let reopened = success(&root, &restored, &["workspace", "open"]);
+    let reopened = success_binary(&installed_binary, &root, &restored, &["workspace", "open"]);
     assert_eq!(reopened["workspace_id"], workspace_id);
-    success(
+    success_binary(
+        &installed_binary,
         &root,
         &restored,
         &["daemon", "stop", "--terminate-sessions"],
@@ -274,6 +293,77 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
     );
     assert!(!newer_result.status.success());
     assert!(!newer_home.exists());
+
+    let newer_schema = home.join("data").join("newer-schema-backup");
+    success(
+        &root,
+        &home,
+        &[
+            "backup",
+            "create",
+            "--destination",
+            newer_schema.to_str().unwrap(),
+        ],
+    );
+    let mut newer_schema_manifest: Value =
+        serde_json::from_slice(&fs::read(newer_schema.join("manifest.json")).unwrap()).unwrap();
+    let schema = newer_schema_manifest["workspace_schema_version"]
+        .as_i64()
+        .unwrap();
+    newer_schema_manifest["workspace_schema_version"] = Value::from(schema + 1);
+    fs::write(
+        newer_schema.join("manifest.json"),
+        serde_json::to_vec(&newer_schema_manifest).unwrap(),
+    )
+    .unwrap();
+    let newer_schema_home = recovery.join("v");
+    let newer_schema_result = bounded_output(
+        Command::new(&installed_binary)
+            .arg("--workspace")
+            .arg(&root)
+            .args(["--format", "json", "backup", "restore", "--source"])
+            .arg(&newer_schema)
+            .arg("--destination")
+            .arg(&newer_schema_home)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null()),
+    );
+    assert!(!newer_schema_result.status.success());
+    assert!(!newer_schema_home.exists());
+
+    let incomplete = home.join("data").join("incomplete-backup");
+    success(
+        &root,
+        &home,
+        &[
+            "backup",
+            "create",
+            "--destination",
+            incomplete.to_str().unwrap(),
+        ],
+    );
+    let mut incomplete_manifest: Value =
+        serde_json::from_slice(&fs::read(incomplete.join("manifest.json")).unwrap()).unwrap();
+    incomplete_manifest["complete"] = Value::Bool(false);
+    fs::write(
+        incomplete.join("manifest.json"),
+        serde_json::to_vec(&incomplete_manifest).unwrap(),
+    )
+    .unwrap();
+    let incomplete_home = recovery.join("i");
+    let incomplete_result = bounded_output(
+        Command::new(&installed_binary)
+            .arg("--workspace")
+            .arg(&root)
+            .args(["--format", "json", "backup", "restore", "--source"])
+            .arg(&incomplete)
+            .arg("--destination")
+            .arg(&incomplete_home)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null()),
+    );
+    assert!(!incomplete_result.status.success());
+    assert!(!incomplete_home.exists());
 
     let corrupt = home.join("data").join("corrupt-backup");
     success(
@@ -359,4 +449,35 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
         fs::read(backup.join("manifest.json")).unwrap(),
         original_manifest
     );
+
+    let redirected_source = home.join("data").join("redirected-backup");
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(&backup, &redirected_source).unwrap();
+    #[cfg(windows)]
+    {
+        let status = Command::new("cmd.exe")
+            .args(["/d", "/c", "mklink", "/J"])
+            .arg(&redirected_source)
+            .arg(&backup)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .unwrap();
+        assert!(status.success());
+    }
+    let redirected_home = recovery.join("l");
+    let redirected_result = bounded_output(
+        Command::new(&installed_binary)
+            .arg("--workspace")
+            .arg(&root)
+            .args(["--format", "json", "backup", "restore", "--source"])
+            .arg(&redirected_source)
+            .arg("--destination")
+            .arg(&redirected_home)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null()),
+    );
+    assert!(!redirected_result.status.success());
+    assert!(!redirected_home.exists());
 }
