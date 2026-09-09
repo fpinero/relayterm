@@ -1,4 +1,5 @@
 use serde_json::Value;
+use sqlx::{ConnectOptions, Connection, Executor};
 use std::{
     fs,
     io::{BufRead, Read},
@@ -152,6 +153,36 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
         &["workspace", "init", "--name", "M11 fixture"],
     );
     let workspace_id = initialized["workspace_id"].as_str().unwrap().to_owned();
+    let revision = success(&root, &home, &["workspace", "status"])["revision"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let task = scratch.0.join("task.json");
+    fs::write(
+        &task,
+        serde_json::to_vec(&serde_json::json!({
+            "title":"Retained legacy task",
+            "description":"Populated before backup",
+            "priority":"normal",
+            "scope_paths":[],
+            "acceptance_notes":"Survive migration",
+            "dependency_ids":[]
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    success(
+        &root,
+        &home,
+        &[
+            "task",
+            "create",
+            "--expected-revision",
+            &revision,
+            "--file",
+            task.to_str().unwrap(),
+        ],
+    );
     let busy_target = home.join("data").join("busy-backup");
     let busy = bounded_output(
         Command::new(env!("CARGO_BIN_EXE_rt"))
@@ -288,6 +319,97 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
         &installed_binary,
         &root,
         &restored,
+        &["daemon", "stop", "--terminate-sessions"],
+    );
+
+    let older = home.join("data").join("older-schema-backup");
+    success(
+        &root,
+        &home,
+        &["backup", "create", "--destination", older.to_str().unwrap()],
+    );
+    let older_database = older.join("workspace.sqlite3");
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(async {
+            let options = sqlx::sqlite::SqliteConnectOptions::new()
+                .filename(&older_database)
+                .create_if_missing(false)
+                .disable_statement_logging();
+            let mut connection = sqlx::SqliteConnection::connect_with(&options)
+                .await
+                .unwrap();
+            connection.execute("PRAGMA foreign_keys=OFF").await.unwrap();
+            connection.execute("BEGIN IMMEDIATE").await.unwrap();
+            connection.execute("DROP TABLE worktrees").await.unwrap();
+            connection
+                .execute("DROP TABLE worktree_intents")
+                .await
+                .unwrap();
+            connection
+                .execute("DROP TABLE approved_worktree_roots")
+                .await
+                .unwrap();
+            connection
+                .execute("ALTER TABLE agent_instances DROP COLUMN worktree_id")
+                .await
+                .unwrap();
+            connection
+                .execute("DELETE FROM _sqlx_migrations WHERE version=2")
+                .await
+                .unwrap();
+            connection.execute("COMMIT").await.unwrap();
+            connection.close().await.unwrap();
+        });
+    let mut older_manifest: Value =
+        serde_json::from_slice(&fs::read(older.join("manifest.json")).unwrap()).unwrap();
+    older_manifest["workspace_schema_version"] = Value::from(1);
+    older_manifest["blake3"] = Value::String(
+        blake3::hash(&fs::read(&older_database).unwrap())
+            .to_hex()
+            .to_string(),
+    );
+    fs::write(
+        older.join("manifest.json"),
+        serde_json::to_vec(&older_manifest).unwrap(),
+    )
+    .unwrap();
+    let migrated_home = recovery.join("m");
+    let migrated = success_binary(
+        &installed_binary,
+        &root,
+        &home,
+        &[
+            "backup",
+            "restore",
+            "--source",
+            older.to_str().unwrap(),
+            "--destination",
+            migrated_home.to_str().unwrap(),
+        ],
+    );
+    assert_eq!(migrated["workspace_schema_version"], 1);
+    success_binary(
+        &installed_binary,
+        &root,
+        &migrated_home,
+        &["workspace", "open"],
+    );
+    let migrated_tasks =
+        success_binary(&installed_binary, &root, &migrated_home, &["task", "list"]);
+    assert!(
+        migrated_tasks["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|task| task["content"]["title"] == "Retained legacy task")
+    );
+    success_binary(
+        &installed_binary,
+        &root,
+        &migrated_home,
         &["daemon", "stop", "--terminate-sessions"],
     );
 

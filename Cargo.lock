@@ -1475,6 +1475,7 @@ dependencies = [
  "relayterm-tui",
  "serde",
  "serde_json",
+ "sqlx",
  "tempfile",
  "tokio",
  "uuid",
