@@ -3,7 +3,7 @@
 use std::ffi::{OsStr, OsString};
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
+use std::process::{ChildStderr, ChildStdout, Command, ExitStatus, Stdio};
 use std::sync::{
     Arc,
     atomic::{AtomicBool, Ordering},
@@ -11,6 +11,9 @@ use std::sync::{
 };
 use std::thread;
 use std::time::{Duration, Instant};
+
+#[cfg(not(windows))]
+use std::process::Child;
 
 pub const MAX_STDOUT: usize = 4 * 1024 * 1024;
 pub const MAX_STDERR: usize = 64 * 1024;
@@ -201,8 +204,6 @@ impl Git {
         self.branch_available(root, branch)?;
         self.reject_checkout_filters(root, commit)?;
         let args = [
-            OsString::from("-c"),
-            OsString::from("core.hooksPath="),
             OsString::from("worktree"),
             OsString::from("add"),
             OsString::from("-b"),
@@ -337,7 +338,7 @@ impl Git {
             .args(args)
             .stdout(Stdio::null())
             .stderr(Stdio::null());
-        let mut child = command.spawn().map_err(map_spawn)?;
+        let mut child = spawn_managed(command).map_err(map_spawn)?;
         wait_bounded(&mut child, self.read_timeout)?
             .code()
             .ok_or_else(|| Error::new(ErrorKind::CommandFailed))
@@ -353,7 +354,7 @@ impl Git {
             .args(args)
             .stdout(Stdio::null())
             .stderr(Stdio::null());
-        let mut child = command.spawn().map_err(map_spawn)?;
+        let mut child = spawn_managed(command).map_err(map_spawn)?;
         if wait_bounded(&mut child, timeout)?.success() {
             Ok(())
         } else {
@@ -383,11 +384,16 @@ impl Git {
         .filter_map(|name| std::env::var_os(name).map(|value| (name, value)))
         .collect::<Vec<_>>();
         command
+            .args(["-c", "core.hooksPath=", "-c", "core.fsmonitor=false"])
+            .arg("-c")
+            .arg(format!("core.attributesFile={}", null_device()))
+            .args(["-c", "credential.helper=", "-c", "protocol.allow=never"])
             .stdin(Stdio::null())
             .env_clear()
             .envs(inherited)
             .env("GIT_CONFIG_NOSYSTEM", "1")
             .env("GIT_CONFIG_GLOBAL", null_device())
+            .env("GIT_ATTR_NOSYSTEM", "1")
             .env("GIT_TERMINAL_PROMPT", "0")
             .env("GCM_INTERACTIVE", "Never")
             .env("GIT_PAGER", "cat")
@@ -409,16 +415,10 @@ impl Git {
             .args(args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
-        let mut child = command.spawn().map_err(map_spawn)?;
-        let process_group = child.id();
-        let stdout = child
-            .stdout
-            .take()
-            .ok_or_else(|| Error::new(ErrorKind::Io))?;
-        let stderr = child
-            .stderr
-            .take()
-            .ok_or_else(|| Error::new(ErrorKind::Io))?;
+        let mut child = spawn_managed(command).map_err(map_spawn)?;
+        let process_group = child_id(&child);
+        let stdout = take_stdout(&mut child).ok_or_else(|| Error::new(ErrorKind::Io))?;
+        let stderr = take_stderr(&mut child).ok_or_else(|| Error::new(ErrorKind::Io))?;
         let (stdout_tx, stdout_rx) = mpsc::sync_channel(1);
         let (stderr_tx, stderr_rx) = mpsc::sync_channel(1);
         let command_finished = Arc::new(AtomicBool::new(false));
@@ -466,6 +466,108 @@ fn terminate_process_group(raw_pid: u32) {
 
 #[cfg(windows)]
 fn terminate_process_group(_: u32) {}
+
+#[cfg(not(windows))]
+type ManagedChild = Child;
+
+#[cfg(windows)]
+type ManagedChild = Box<dyn process_wrap::std::ChildWrapper>;
+
+#[cfg(not(windows))]
+fn spawn_managed(mut command: Command) -> std::io::Result<ManagedChild> {
+    command.spawn()
+}
+
+#[cfg(windows)]
+fn spawn_managed(command: Command) -> std::io::Result<ManagedChild> {
+    use process_wrap::std::{CommandWrap, JobObject};
+
+    let mut command = CommandWrap::from(command);
+    command.wrap(JobObject).wrap(PrimaryExit);
+    command.spawn()
+}
+
+#[cfg(windows)]
+#[derive(Debug)]
+struct PrimaryExit;
+
+#[cfg(windows)]
+impl process_wrap::std::CommandWrapper for PrimaryExit {
+    fn wrap_child(
+        &mut self,
+        child: Box<dyn process_wrap::std::ChildWrapper>,
+        _core: &process_wrap::std::CommandWrap,
+    ) -> std::io::Result<Box<dyn process_wrap::std::ChildWrapper>> {
+        Ok(Box::new(PrimaryExitChild {
+            inner: child,
+            status: None,
+        }))
+    }
+}
+
+#[cfg(windows)]
+#[derive(Debug)]
+struct PrimaryExitChild {
+    inner: Box<dyn process_wrap::std::ChildWrapper>,
+    status: Option<ExitStatus>,
+}
+
+#[cfg(windows)]
+impl process_wrap::std::ChildWrapper for PrimaryExitChild {
+    fn inner(&self) -> &dyn process_wrap::std::ChildWrapper {
+        self.inner.as_ref()
+    }
+
+    fn inner_mut(&mut self) -> &mut dyn process_wrap::std::ChildWrapper {
+        self.inner.as_mut()
+    }
+
+    fn into_inner(self: Box<Self>) -> Box<dyn process_wrap::std::ChildWrapper> {
+        self.inner
+    }
+
+    fn try_wait(&mut self) -> std::io::Result<Option<ExitStatus>> {
+        if let Some(status) = self.status {
+            return Ok(Some(status));
+        }
+        let Some(status) = self.inner.inner_mut().try_wait()? else {
+            return Ok(None);
+        };
+        self.status = Some(status);
+        self.inner.start_kill()?;
+        Ok(Some(status))
+    }
+}
+
+#[cfg(not(windows))]
+fn child_id(child: &ManagedChild) -> u32 {
+    child.id()
+}
+
+#[cfg(windows)]
+fn child_id(child: &ManagedChild) -> u32 {
+    child.id()
+}
+
+#[cfg(not(windows))]
+fn take_stdout(child: &mut ManagedChild) -> Option<ChildStdout> {
+    child.stdout.take()
+}
+
+#[cfg(windows)]
+fn take_stdout(child: &mut ManagedChild) -> Option<ChildStdout> {
+    child.stdout().take()
+}
+
+#[cfg(not(windows))]
+fn take_stderr(child: &mut ManagedChild) -> Option<ChildStderr> {
+    child.stderr.take()
+}
+
+#[cfg(windows)]
+fn take_stderr(child: &mut ManagedChild) -> Option<ChildStderr> {
+    child.stderr().take()
+}
 
 #[cfg(unix)]
 fn read_stream_bounded(
@@ -558,19 +660,40 @@ fn lock_bounded(file: &std::fs::File, timeout: Duration) -> Result<()> {
     }
 }
 
-fn wait_bounded(child: &mut Child, timeout: Duration) -> Result<std::process::ExitStatus> {
+fn wait_bounded(child: &mut ManagedChild, timeout: Duration) -> Result<ExitStatus> {
     let started = Instant::now();
     loop {
-        if let Some(status) = child.try_wait().map_err(|_| Error::new(ErrorKind::Io))? {
+        if let Some(status) = child_try_wait(child).map_err(|_| Error::new(ErrorKind::Io))? {
             return Ok(status);
         }
         if started.elapsed() >= timeout {
-            let _ = child.kill();
-            let _ = child.wait();
+            terminate_child(child);
             return Err(Error::new(ErrorKind::Timeout));
         }
         thread::sleep(Duration::from_millis(10));
     }
+}
+
+#[cfg(not(windows))]
+fn child_try_wait(child: &mut ManagedChild) -> std::io::Result<Option<ExitStatus>> {
+    child.try_wait()
+}
+
+#[cfg(windows)]
+fn child_try_wait(child: &mut ManagedChild) -> std::io::Result<Option<ExitStatus>> {
+    child.try_wait()
+}
+
+#[cfg(not(windows))]
+fn terminate_child(child: &mut ManagedChild) {
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
+#[cfg(windows)]
+fn terminate_child(child: &mut ManagedChild) {
+    let _ = child.start_kill();
+    let _ = child.wait();
 }
 
 fn map_spawn(error: std::io::Error) -> Error {
@@ -866,6 +989,15 @@ mod tests {
             .unwrap();
     }
 
+    #[cfg(windows)]
+    #[test]
+    #[ignore]
+    fn descendant_pipe_probe() {
+        let marker = PathBuf::from(std::env::var_os("RELAYTERM_GIT_DESCENDANT_MARKER").unwrap());
+        thread::sleep(Duration::from_secs(2));
+        std::fs::write(marker, b"descendant survived").unwrap();
+    }
+
     #[test]
     fn portable_validators_reject_injection_and_escape_forms() {
         for branch in ["", "-force", "a..b", "a@{b", "a b", "a\\b", "a:b", "a/"] {
@@ -1054,6 +1186,12 @@ mod tests {
             use std::os::unix::fs::PermissionsExt;
             std::fs::set_permissions(&hook, std::fs::Permissions::from_mode(0o700)).unwrap();
         }
+        run(&["config", "core.fsmonitor", hook.to_str().unwrap()]);
+        run(&[
+            "config",
+            "credential.helper",
+            "!touch relayterm-credential-ran",
+        ]);
         let environment_probe = Command::new(std::env::current_exe().unwrap())
             .args([
                 "--ignored",
@@ -1069,15 +1207,51 @@ mod tests {
         assert!(environment_probe.success());
         let repository = git.inspect(&source).unwrap();
         let destination = directory.path().canonicalize().unwrap().join("linked");
+        let included_hooks = directory.path().join("included-hooks");
+        std::fs::create_dir(&included_hooks).unwrap();
+        let included_hook = included_hooks.join("post-checkout");
+        std::fs::write(
+            &included_hook,
+            "#!/bin/sh\ntouch relayterm-included-hook-ran\n",
+        )
+        .unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&included_hook, std::fs::Permissions::from_mode(0o700))
+                .unwrap();
+        }
+        let included = directory.path().join("worktree-config");
+        let hooks_path = included_hooks.to_string_lossy().replace('\\', "/");
+        std::fs::write(
+            &included,
+            format!(
+                "[core]\n\thooksPath = {hooks_path}\n\tfsmonitor = {hooks_path}/post-checkout\n"
+            ),
+        )
+        .unwrap();
+        let linked_git_dir = source
+            .join(".git/worktrees/linked")
+            .to_string_lossy()
+            .replace('\\', "/");
+        let include_key = format!("includeIf.gitdir/i:{linked_git_dir}/.path");
+        run(&["config", include_key.as_str(), included.to_str().unwrap()]);
         git.add(&source, &destination, "rt/test", &repository.head_commit)
             .unwrap();
         assert!(!source.join("relayterm-hook-ran").exists());
         assert!(!destination.join("relayterm-hook-ran").exists());
+        assert!(!source.join("relayterm-credential-ran").exists());
+        assert!(!destination.join("relayterm-credential-ran").exists());
+        assert!(!source.join("relayterm-included-hook-ran").exists());
+        assert!(!destination.join("relayterm-included-hook-ran").exists());
         assert_eq!(
             std::fs::read_to_string(destination.join("file.txt")).unwrap(),
             "source\n"
         );
         assert_eq!(git.list(&source).unwrap().len(), 2);
+        run(&["config", "--unset", include_key.as_str()]);
+        run(&["config", "--unset", "core.fsmonitor"]);
+        run(&["config", "--unset", "credential.helper"]);
 
         let initial_commit = repository.head_commit;
         let run_linked = |args: &[&str]| {
@@ -1320,5 +1494,33 @@ mod tests {
         assert!(started.elapsed() < Duration::from_secs(2));
         thread::sleep(Duration::from_millis(400));
         assert!(!directory.path().join("git-fixture.marker").exists());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn completed_git_terminates_a_descendant_holding_stdout() {
+        let directory = tempfile::tempdir().unwrap();
+        let executable = directory.path().join("git-fixture.cmd");
+        let marker = directory.path().join("descendant.marker");
+        let test_binary = std::env::current_exe().unwrap();
+        std::fs::write(
+            &executable,
+            format!(
+                "@echo off\r\nset RELAYTERM_GIT_DESCENDANT_MARKER={}\r\nstart \"\" /b \"{}\" --ignored --exact tests::descendant_pipe_probe --test-threads=1\r\necho git version 2.99.0\r\n",
+                marker.display(),
+                test_binary.display()
+            ),
+        )
+        .unwrap();
+        let started = Instant::now();
+        assert!(
+            Git::with_executable(executable)
+                .version()
+                .unwrap()
+                .contains("git version 2.99.0")
+        );
+        assert!(started.elapsed() < Duration::from_secs(2));
+        thread::sleep(Duration::from_millis(2_500));
+        assert!(!marker.exists());
     }
 }

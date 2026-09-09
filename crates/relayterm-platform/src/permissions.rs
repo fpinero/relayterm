@@ -85,7 +85,7 @@ pub fn publish_private_dir(source: &Path, destination: &Path) -> Result<(), Priv
 
 pub fn validate_private_dir(path: &Path) -> Result<(), PrivatePathError> {
     let metadata = fs::symlink_metadata(path).map_err(map_io)?;
-    if metadata.file_type().is_symlink() {
+    if is_link_or_reparse(&metadata) {
         return Err(PrivatePathError::LinkRejected);
     }
     if !metadata.is_dir() {
@@ -99,7 +99,7 @@ pub fn validate_private_dir(path: &Path) -> Result<(), PrivatePathError> {
 
 pub fn validate_private_file(path: &Path) -> Result<(), PrivatePathError> {
     let metadata = fs::symlink_metadata(path).map_err(map_io)?;
-    if metadata.file_type().is_symlink() {
+    if is_link_or_reparse(&metadata) {
         return Err(PrivatePathError::LinkRejected);
     }
     if !metadata.is_file() {
@@ -114,7 +114,7 @@ pub fn validate_private_file(path: &Path) -> Result<(), PrivatePathError> {
 /// Secure a file created by a trusted library inside an already private directory.
 pub fn secure_generated_file(path: &Path) -> Result<(), PrivatePathError> {
     let metadata = fs::symlink_metadata(path).map_err(map_io)?;
-    if metadata.file_type().is_symlink() {
+    if is_link_or_reparse(&metadata) {
         return Err(PrivatePathError::LinkRejected);
     }
     if !metadata.is_file() {
@@ -137,6 +137,21 @@ pub fn secure_generated_file(path: &Path) -> Result<(), PrivatePathError> {
         secure_windows_handle(&mut file, false)?;
     }
     validate_private_file(path)
+}
+
+fn is_link_or_reparse(metadata: &fs::Metadata) -> bool {
+    if metadata.file_type().is_symlink() {
+        return true;
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+
+        const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0000_0400;
+        metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0
+    }
+    #[cfg(not(windows))]
+    false
 }
 
 #[cfg(unix)]
@@ -413,6 +428,29 @@ mod tests {
         assert_eq!(
             validate_private_dir(&directory),
             Err(PrivatePathError::AclTooBroad)
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn rejects_windows_directory_junctions() {
+        let temporary = tempfile::tempdir().unwrap();
+        let target = temporary.path().join("target");
+        let junction = temporary.path().join("junction");
+        create_private_dir(&target).unwrap();
+        let status = std::process::Command::new("cmd.exe")
+            .args(["/d", "/c", "mklink", "/J"])
+            .arg(&junction)
+            .arg(&target)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .unwrap();
+        assert!(status.success());
+        assert_eq!(
+            validate_private_dir(&junction),
+            Err(PrivatePathError::LinkRejected)
         );
     }
 }

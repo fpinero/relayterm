@@ -12,5 +12,8 @@ tempfile.workspace = true
 [target.'cfg(unix)'.dependencies]
 rustix.workspace = true
 
+[target.'cfg(windows)'.dependencies]
+process-wrap = { version = "10.0.0", default-features = false, features = ["job-object", "std"] }
+
 [lints]
 workspace = true
