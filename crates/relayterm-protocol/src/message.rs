@@ -171,10 +171,11 @@ pub enum Operation {
     WorktreeGetOperation,
     WorktreeSelect,
     WorktreeReconcile,
+    BackupCreate,
     Unknown,
 }
 impl Operation {
-    pub const ALL: [Self; 43] = [
+    pub const ALL: [Self; 44] = [
         Self::ProtocolHello,
         Self::ProtocolPing,
         Self::DaemonStatus,
@@ -218,6 +219,7 @@ impl Operation {
         Self::WorktreeGetOperation,
         Self::WorktreeSelect,
         Self::WorktreeReconcile,
+        Self::BackupCreate,
     ];
     pub const fn as_str(self) -> &'static str {
         match self {
@@ -264,6 +266,7 @@ impl Operation {
             Self::WorktreeGetOperation => "worktree.get_operation",
             Self::WorktreeSelect => "worktree.select",
             Self::WorktreeReconcile => "worktree.reconcile",
+            Self::BackupCreate => "backup.create",
             Self::Unknown => "unknown",
         }
     }
@@ -286,6 +289,7 @@ impl Operation {
                 | Self::WorktreeGetOperation
                 | Self::WorktreeSelect
                 | Self::WorktreeReconcile
+                | Self::BackupCreate
         )
     }
     pub const fn is_mutation(self) -> bool {
@@ -311,6 +315,7 @@ impl Operation {
                 | Self::WorktreeCreate
                 | Self::WorktreeSelect
                 | Self::WorktreeReconcile
+                | Self::BackupCreate
         )
     }
 }
@@ -1149,6 +1154,12 @@ pub struct WorktreeSelectParams {
     pub worktree_id: Option<WorktreeId>,
     pub expected_revision: DecimalU64,
 }
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BackupCreateParams {
+    pub destination: NativePathDto,
+}
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum WorktreePhaseDto {
@@ -1688,5 +1699,16 @@ mod tests {
         let operation: Operation = serde_json::from_str("\"worktree.reconcile\"").unwrap();
         assert_eq!(operation, Operation::WorktreeReconcile);
         assert!(operation.is_mutation());
+
+        let destination = NativePathDto::from_bytes("unix_bytes_v1", b"/private/backup").unwrap();
+        let backup = serde_json::to_value(BackupCreateParams { destination }).unwrap();
+        assert!(serde_json::from_value::<BackupCreateParams>(backup.clone()).is_ok());
+        let mut unknown_backup = backup;
+        unknown_backup["sql"] = serde_json::json!("VACUUM");
+        assert!(serde_json::from_value::<BackupCreateParams>(unknown_backup).is_err());
+        let backup_operation: Operation = serde_json::from_str("\"backup.create\"").unwrap();
+        assert_eq!(backup_operation, Operation::BackupCreate);
+        assert!(backup_operation.is_reserved());
+        assert!(backup_operation.is_mutation());
     }
 }

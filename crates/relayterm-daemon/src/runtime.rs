@@ -450,6 +450,14 @@ impl PreparedWorkspace {
                 .to_string(),
         );
         let supervisor = Arc::new(SessionSupervisor::default());
+        let backup_database = self.database.clone();
+        let backup_workspace_id = self.expected;
+        let backup = Arc::new(move |destination: PathBuf| {
+            let database = backup_database.clone();
+            Box::pin(async move {
+                create_backup_from_database(&database, backup_workspace_id, &destination).await
+            }) as crate::BackupFuture
+        });
         let server = WorkspaceServer::from_listener(
             self.expected,
             self.listener,
@@ -459,7 +467,8 @@ impl PreparedWorkspace {
         .with_event_wakeups(self.notify_rx)
         .with_lifecycle(control.clone())
         .with_supervisor(supervisor.clone())
-        .with_worktrees(self.worktree_parent.clone());
+        .with_worktrees(self.worktree_parent.clone())
+        .with_backup(backup);
         self.diagnostics.write(
             "info",
             "daemon.ready",
@@ -622,6 +631,24 @@ pub async fn backup_workspace(
     let (route, locations) = locate_workspace(root, home).await?;
     let workspace_id = route.domain_id()?;
     let _runtime_lock = acquire_runtime_lock(&locations, workspace_id, timeout)?;
+    let source = Database::open(
+        &workspace_database_path(&locations, workspace_id),
+        DatabaseKind::Workspace,
+        OpenMode::Reopen,
+        PoolSettings::default(),
+    )
+    .await
+    .map_err(map_storage)?;
+    let report = create_backup_from_database(&source, workspace_id, destination).await;
+    source.pool().close().await;
+    report
+}
+
+async fn create_backup_from_database(
+    source: &Database,
+    workspace_id: WorkspaceId,
+    destination: &Path,
+) -> Result<BackupReport, RuntimeError> {
     let parent = destination.parent().ok_or(RuntimeError::InvalidLocation)?;
     validate_private_dir(parent).map_err(|_| RuntimeError::AccessDenied)?;
     if std::fs::symlink_metadata(destination).is_ok() {
@@ -637,21 +664,11 @@ pub async fn backup_workspace(
     ));
     let staging = PrivateStaging::new(staging_path)?;
 
-    let source_path = workspace_database_path(&locations, workspace_id);
-    let source = Database::open(
-        &source_path,
-        DatabaseKind::Workspace,
-        OpenMode::Reopen,
-        PoolSettings::default(),
-    )
-    .await
-    .map_err(map_storage)?;
     let database_member = staging.path().join(BACKUP_WORKSPACE);
     source
         .snapshot_to(&database_member)
         .await
         .map_err(map_storage)?;
-    source.pool().close().await;
     let captured = Database::open(
         &database_member,
         DatabaseKind::Workspace,

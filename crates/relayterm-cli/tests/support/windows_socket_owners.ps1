@@ -90,4 +90,5 @@ public static class RelaytermSocketOwners
 '@
 
 Add-Type -TypeDefinition $source -Language CSharp -CompilerOptions '/shared-'
-[RelaytermSocketOwners]::ReadAll() | Set-Content -LiteralPath $OutputPath -Encoding ascii
+$owners = @([RelaytermSocketOwners]::ReadAll() | ForEach-Object { $_.ToString() })
+[System.IO.File]::WriteAllLines($OutputPath, [string[]]$owners)

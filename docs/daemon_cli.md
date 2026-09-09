@@ -20,6 +20,8 @@ rt --workspace ./example workspace open
 
 `workspace init` is the only command that creates a registration. `workspace open` and `daemon start` start an existing workspace. Status and stop never initialize or start one. Closing the starter does not stop a ready daemon. Orderly stop drains accepted mutations and verifies that the same daemon generation has stopped.
 
+`backup create` uses the authenticated workspace daemon when it is active and admits one consistent SQLite snapshot at a time without terminating supervised sessions. If the daemon is stopped, the command instead holds exclusive workspace ownership only for the snapshot. Restore remains an offline ownership operation into a fresh private home. See [private backup and restore](backup-restore.md).
+
 After a daemon crash or host restart, persisted `starting` and `running` instances become `lost` before the daemon reports ready. Their open claims close and active tasks become blocked atomically. Final historical exits remain unchanged. Relayterm does not attach to an operating-system process from a persisted PID.
 
 ## Machine-readable output

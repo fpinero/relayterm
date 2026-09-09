@@ -257,13 +257,6 @@ fn daemon_uses_local_ipc_without_network_endpoints() {
         },
         "offline agent exit observation",
     );
-    successful(command(
-        &root,
-        &home,
-        &["daemon", "stop", "--terminate-sessions"],
-    ));
-    wait_child(&mut daemon);
-
     let backup = home.join("data").join("b");
     let restored = home.join("data").join("r");
     successful(command(
@@ -276,6 +269,13 @@ fn daemon_uses_local_ipc_without_network_endpoints() {
             backup.to_str().unwrap(),
         ],
     ));
+    assert!(!processes_have_network_endpoint(&[daemon.id()]));
+    successful(command(
+        &root,
+        &home,
+        &["daemon", "stop", "--terminate-sessions"],
+    ));
+    wait_child(&mut daemon);
     successful(command(
         &root,
         &home,

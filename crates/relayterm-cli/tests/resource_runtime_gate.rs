@@ -2,7 +2,9 @@
 #[allow(dead_code)]
 mod native;
 
-use native::{DaemonCleanup, OuterTerminal, Scratch, admin, admin_output, wait_until};
+use native::{
+    DaemonCleanup, OuterTerminal, Scratch, admin, admin_output, next_selection_input, wait_until,
+};
 use serde_json::{Value, json};
 use std::{
     fs,
@@ -166,10 +168,6 @@ fn sustained_output_memory_and_reconnect_resources_are_bounded() {
         .as_array()
         .unwrap()
         .clone();
-    let running_selection = listed_sessions
-        .iter()
-        .position(|item| item["status"] == "running")
-        .expect("at least one admitted session must remain running");
     assert_eq!(
         listed_sessions
             .iter()
@@ -190,9 +188,7 @@ fn sustained_output_memory_and_reconnect_resources_are_bounded() {
     tui.finish_startup();
     tui.send(b"3");
     tui.wait_for("Sessions selected");
-    for _ in 0..running_selection {
-        tui.send(b"j");
-    }
+    select_rendered_running_session(&mut tui, listed_sessions.len());
     tui.send(b"\r");
     tui.wait_for("Terminal");
 
@@ -265,6 +261,44 @@ fn sustained_output_memory_and_reconnect_resources_are_bounded() {
         &["daemon", "stop", "--terminate-sessions"],
     ));
     wait_child(&mut daemon);
+}
+
+fn select_rendered_running_session(tui: &mut OuterTerminal, session_count: usize) {
+    for _ in 0..session_count {
+        let screen = tui.screen_contents();
+        if screen
+            .lines()
+            .any(|line| line.contains("> [running] session "))
+        {
+            return;
+        }
+        let previous = rendered_selected_session_id(&screen).map(str::to_owned);
+        tui.send(next_selection_input());
+        wait_until(
+            || {
+                let screen = tui.screen_contents();
+                let current = rendered_selected_session_id(&screen);
+                current.is_some() && current != previous.as_deref()
+            },
+            "resource TUI selection change",
+        );
+    }
+    panic!(
+        "no running session could be selected from the rendered TUI; screen={:?}",
+        tui.screen_contents()
+    );
+}
+
+fn rendered_selected_session_id(screen: &str) -> Option<&str> {
+    screen.lines().find_map(|line| {
+        let (_, value) = line.split_once("Sessions selected ")?;
+        let length = value
+            .char_indices()
+            .take_while(|(_, character)| character.is_ascii_alphanumeric() || *character == '-')
+            .last()
+            .map_or(0, |(index, character)| index + character.len_utf8());
+        (length != 0).then_some(&value[..length])
+    })
 }
 
 fn command(root: &Path, home: &Path) -> Command {

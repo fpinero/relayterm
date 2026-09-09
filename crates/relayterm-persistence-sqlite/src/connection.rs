@@ -54,6 +54,7 @@ impl PoolSettings {
     }
 }
 
+#[derive(Clone)]
 pub struct Database {
     pool: SqlitePool,
     path: PathBuf,

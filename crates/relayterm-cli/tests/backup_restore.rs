@@ -183,23 +183,6 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
             task.to_str().unwrap(),
         ],
     );
-    let busy_target = home.join("data").join("busy-backup");
-    let busy = bounded_output(
-        Command::new(env!("CARGO_BIN_EXE_rt"))
-            .arg("--workspace")
-            .arg(&root)
-            .arg("--home")
-            .arg(&home)
-            .args(["--format", "json", "--timeout", "1", "backup", "create"])
-            .arg("--destination")
-            .arg(&busy_target)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null()),
-    );
-    assert!(!busy.status.success());
-    assert!(!busy_target.exists());
-
-    success(&root, &home, &["daemon", "stop", "--terminate-sessions"]);
     let backup = home.join("data").join("backup");
     let backup_text = backup.to_str().unwrap();
     let created = success(
@@ -208,6 +191,10 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
         &["backup", "create", "--destination", backup_text],
     );
     assert_eq!(created["workspace_id"], workspace_id);
+    assert_eq!(
+        success(&root, &home, &["daemon", "status"])["lifecycle"],
+        "ready"
+    );
     assert_eq!(fs::read_dir(&backup).unwrap().count(), 2);
     let original_database = fs::read(backup.join("workspace.sqlite3")).unwrap();
     let original_manifest = fs::read(backup.join("manifest.json")).unwrap();
@@ -264,6 +251,7 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
         fs::read(backup.join("manifest.json")).unwrap(),
         original_manifest
     );
+    success(&root, &home, &["daemon", "stop", "--terminate-sessions"]);
 
     let existing_home = scratch.0.join("existing-private");
     fs::create_dir(&existing_home).unwrap();

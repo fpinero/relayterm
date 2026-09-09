@@ -31,7 +31,9 @@ use serde_json::{Value, json};
 use std::{
     collections::BTreeSet,
     fmt,
+    future::Future,
     path::PathBuf,
+    pin::Pin,
     str::FromStr,
     sync::{
         Arc, Mutex,
@@ -49,6 +51,9 @@ pub const EVENT_POLL_INTERVAL: Duration = Duration::from_millis(250);
 pub const EVENT_QUEUE_ITEMS: usize = 256;
 pub const EVENT_QUEUE_BYTES: usize = 1024 * 1024;
 static CONNECTION_SEQUENCE: AtomicU64 = AtomicU64::new(1);
+
+type BackupFuture = Pin<Box<dyn Future<Output = Result<BackupReport, RuntimeError>> + Send>>;
+type BackupHandler = Arc<dyn Fn(PathBuf) -> BackupFuture + Send + Sync>;
 
 #[derive(Clone)]
 pub struct DaemonControl {
@@ -329,6 +334,8 @@ pub struct WorkspaceServer<S, C, I, N> {
     worktree_parent: Option<PathBuf>,
     git_admissions: Arc<Semaphore>,
     git: relayterm_git::Git,
+    backup_admission: Arc<Semaphore>,
+    backup: Option<BackupHandler>,
 }
 impl<S, C, I, N> WorkspaceServer<S, C, I, N>
 where
@@ -373,6 +380,8 @@ where
             worktree_parent: None,
             git_admissions: Arc::new(Semaphore::new(2)),
             git: relayterm_git::Git::default(),
+            backup_admission: Arc::new(Semaphore::new(1)),
+            backup: None,
         }
     }
     pub fn with_event_wakeups(mut self, receiver: watch::Receiver<u64>) -> Self {
@@ -392,6 +401,10 @@ where
     }
     pub fn with_worktrees(mut self, parent: PathBuf) -> Self {
         self.worktree_parent = Some(parent);
+        self
+    }
+    pub(crate) fn with_backup(mut self, backup: BackupHandler) -> Self {
+        self.backup = Some(backup);
         self
     }
     /// Replaces the Git adapter for deterministic native integration tests.
@@ -762,6 +775,7 @@ where
                     | O::WorktreeGetOperation
                     | O::WorktreeSelect
                     | O::WorktreeReconcile
+                    | O::BackupCreate
             )
         {
             validate_reserved(request.operation, &request.params)?;
@@ -833,6 +847,7 @@ where
                 .map_err(|_| invalid())
             }
             O::SessionCreate => self.session_create(&request.params).await,
+            O::BackupCreate => self.backup_create(&request.params).await,
             O::SessionAttach => self.session_attach(&request.params, connection_id).await,
             O::SessionReadDisplay => {
                 self.session_read_display(&request.params, connection_id)
@@ -1477,6 +1492,22 @@ where
             }
         }
         Err(map_domain_error(domain::Error::Conflict))
+    }
+
+    async fn backup_create(&self, value: &Value) -> Result<Value, wire::ErrorBody> {
+        let params: wire::BackupCreateParams = parameters(value)?;
+        let bytes = params.destination.decode().map_err(|_| invalid())?;
+        let destination =
+            relayterm_platform::decode_native_path(&params.destination.encoding, &bytes)
+                .map_err(|_| invalid())?;
+        let _permit = self
+            .backup_admission
+            .clone()
+            .try_acquire_owned()
+            .map_err(|_| unavailable())?;
+        let backup = self.backup.as_ref().ok_or_else(unavailable)?.clone();
+        let report = backup(destination).await.map_err(map_backup_error)?;
+        serde_json::to_value(report).map_err(|_| invalid())
     }
 
     async fn session_create(&self, value: &Value) -> Result<Value, wire::ErrorBody> {
@@ -2905,6 +2936,9 @@ fn validate_reserved(operation: wire::Operation, value: &Value) -> Result<(), wi
         O::WorktreeSelect => {
             let _: wire::WorktreeSelectParams = parameters(value)?;
         }
+        O::BackupCreate => {
+            let _: wire::BackupCreateParams = parameters(value)?;
+        }
         O::WorktreeList => {
             let params: wire::WorktreeListParams = parameters(value)?;
             if params.limit == 0 || params.limit > wire::MAX_PAGE_SIZE {
@@ -2959,6 +2993,26 @@ fn unavailable() -> wire::ErrorBody {
 }
 fn resource() -> wire::ErrorBody {
     wire::ErrorBody::not_applied(wire::ErrorCode::ResourceLimit, wire::Recovery::None)
+}
+fn map_backup_error(error: RuntimeError) -> wire::ErrorBody {
+    use wire::{ErrorCode as C, Recovery as R};
+    match error {
+        RuntimeError::InvalidLocation | RuntimeError::InvalidWorkspace => {
+            wire::ErrorBody::not_applied(C::InvalidParams, R::None)
+        }
+        RuntimeError::AccessDenied => wire::ErrorBody::not_applied(C::Unauthorized, R::None),
+        RuntimeError::Busy | RuntimeError::Timeout => {
+            wire::ErrorBody::not_applied(C::StorageBusy, R::None)
+        }
+        RuntimeError::RecoveryRequired => {
+            wire::ErrorBody::not_applied(C::IntegrityError, R::InspectState)
+        }
+        RuntimeError::Storage => wire::ErrorBody::not_applied(C::StorageError, R::InspectState),
+        RuntimeError::WorkspaceNotInitialized
+        | RuntimeError::Transport
+        | RuntimeError::Protocol
+        | RuntimeError::Spawn => unavailable(),
+    }
 }
 fn map_supervisor(error: supervisor::SupervisorError) -> wire::ErrorBody {
     match error {

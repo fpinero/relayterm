@@ -320,7 +320,7 @@ enum WorktreeCommand {
 
 #[derive(Subcommand)]
 enum BackupCommand {
-    /// Create a consistent private backup while the workspace daemon is stopped.
+    /// Create a consistent private backup through the workspace daemon.
     Create {
         #[arg(long)]
         destination: PathBuf,
@@ -576,16 +576,7 @@ async fn run(cli: &Cli) -> Result<Value, CliError> {
         } => stop(cli, &root, *terminate_sessions).await,
         TopCommand::Backup {
             command: BackupCommand::Create { destination },
-        } => serde_json::to_value(
-            relayterm_daemon::backup_workspace(
-                &root,
-                cli.home.clone(),
-                destination,
-                Duration::from_secs(cli.timeout),
-            )
-            .await?,
-        )
-        .map_err(|_| CliError::InvalidInput),
+        } => create_backup(cli, &root, destination).await,
         TopCommand::Backup {
             command:
                 BackupCommand::Restore {
@@ -859,6 +850,30 @@ async fn dispatch_admin(cli: &Cli, root: &Path, command: &TopCommand) -> Result<
     let client = relayterm_daemon::connect_route(&route, cli.home.clone()).await?;
     let (operation, params) = operation_and_params(command)?;
     client.call(operation, &params).await.map_err(Into::into)
+}
+
+async fn create_backup(cli: &Cli, root: &Path, destination: &Path) -> Result<Value, CliError> {
+    let route = invoke_bootstrap("locate", root, cli.home.as_deref(), None, cli.timeout)?;
+    match relayterm_daemon::connect_route(&route, cli.home.clone()).await {
+        Ok(client) => {
+            let destination = relayterm_daemon::encode_session_path(destination)?;
+            client
+                .call(Operation::BackupCreate, &json!({"destination":destination}))
+                .await
+                .map_err(Into::into)
+        }
+        Err(RuntimeError::Transport) => serde_json::to_value(
+            relayterm_daemon::backup_workspace(
+                root,
+                cli.home.clone(),
+                destination,
+                Duration::from_secs(cli.timeout),
+            )
+            .await?,
+        )
+        .map_err(|_| CliError::InvalidInput),
+        Err(error) => Err(error.into()),
+    }
 }
 
 fn operation_and_params(command: &TopCommand) -> Result<(Operation, Value), CliError> {
