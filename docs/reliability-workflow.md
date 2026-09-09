@@ -67,6 +67,22 @@ The automated native baseline starts a real foreground `rt` daemon over real SQL
 cargo test -p relayterm-cli --test offline_gate --locked -- --nocapture --test-threads=1
 ```
 
+The long native resource gate is ignored by ordinary workspace test runs and is
+executed twice as its own required stable-OS CI steps:
+
+```text
+cargo test -p relayterm-cli --test resource_runtime_gate --locked sustained_output_memory_and_reconnect_resources_are_bounded -- --ignored --exact --nocapture --test-threads=1
+```
+
+It drives a real PTY continuously for 180 seconds, samples the daemon and TUI
+resident memory after a 60-second warm-up, and performs 100 client reconnects,
+including 20 abrupt subscriber losses. Both processes must remain below 512 MiB,
+the last steady-state median may exceed the first by at most 32 MiB, and daemon
+handles must return to within 16 of their baseline within ten seconds. The
+fixture reports its measured byte count and duration and must sustain at least
+2 MiB/s. The fixture child memory is reported separately and is not charged to
+the daemon or TUI measurements.
+
 This baseline proves that the monitor is effective and that daemon startup plus local coordination do not open TCP or UDP endpoints. Candidate closure still requires the monitored Git, reconnect, backup and restore workflow and explicit DNS or outbound-attempt observation on every native OS.
 
 Local IPC must remain functional. Record no product TCP listener, DNS lookup, telemetry, update request or hosted dependency during init, session coordination, Git worktrees, reconnect, backup and restore. Build-time package downloads, user-configured child networking and SSH test transport are separate and must not be attributed to Relayterm runtime.

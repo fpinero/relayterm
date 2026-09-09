@@ -118,6 +118,14 @@ jobs:
         if: matrix.toolchain == 'stable'
         timeout-minutes: 5
         run: cargo test -p relayterm-cli --test offline_gate --locked -- --nocapture --test-threads=1
+      - name: Test M11 sustained resources, pass 1
+        if: matrix.toolchain == 'stable'
+        timeout-minutes: 5
+        run: cargo test -p relayterm-cli --test resource_runtime_gate --locked sustained_output_memory_and_reconnect_resources_are_bounded -- --ignored --exact --nocapture --test-threads=1
+      - name: Test M11 sustained resources, pass 2
+        if: matrix.toolchain == 'stable'
+        timeout-minutes: 5
+        run: cargo test -p relayterm-cli --test resource_runtime_gate --locked sustained_output_memory_and_reconnect_resources_are_bounded -- --ignored --exact --nocapture --test-threads=1
       - name: Test private backup and restore
         if: matrix.toolchain == 'stable'
         timeout-minutes: 5

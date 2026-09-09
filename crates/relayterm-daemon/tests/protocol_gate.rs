@@ -266,6 +266,9 @@ async fn send_fault_and_wait(
     let mut stream = connect(endpoint).await.unwrap();
     stream.write_all(bytes).await.unwrap();
     stream.shutdown().await.unwrap();
+    // Windows named pipes do not expose the truncated peer as closed until the
+    // client handle itself is released. Unix sockets observe the half-close.
+    drop(stream);
     tokio::time::timeout(
         Duration::from_secs(2),
         faults.wait_for_connection_failure_after(previous),

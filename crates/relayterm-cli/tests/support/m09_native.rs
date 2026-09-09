@@ -139,6 +139,12 @@ impl OuterTerminal {
         self.screen.lock().unwrap().screen().contents()
     }
 
+    pub fn process_id(&self) -> u32 {
+        self.control
+            .process_id()
+            .expect("native TUI process must expose its identifier")
+    }
+
     pub fn wait_exit(&mut self) {
         wait_until(
             || self.control.try_wait().unwrap().is_some(),
