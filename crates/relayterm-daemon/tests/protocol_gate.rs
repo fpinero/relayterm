@@ -4,10 +4,13 @@ use relayterm_daemon::WorkspaceServer;
 use relayterm_domain::{
     AgentInstanceId, EntityId, InstanceStatus, Observation, TaskStatus, TerminalSize, WorkspaceId,
 };
-use relayterm_ipc::{Endpoint, connect};
+use relayterm_ipc::{Endpoint, connect, read_frame, write_frame};
 use relayterm_persistence_sqlite::{Database, DatabaseKind, OpenMode, PoolSettings, SqliteStore};
 use relayterm_platform::{RandomIdGenerator, SystemClock, create_private_dir};
-use relayterm_protocol::{ErrorCode, Operation, WorkspaceId as WireWorkspaceId};
+use relayterm_protocol::{
+    DecimalU64, ErrorCode, FrameKind, JSON_FRAME_LIMIT, Operation, RequestEnvelope, RequestType,
+    WorkspaceId as WireWorkspaceId, encode_frame, encode_json,
+};
 use serde_json::{Value, json};
 use std::{
     io::Write,
@@ -252,6 +255,88 @@ impl EventNotifier for Notify {
 
 fn entity_id(value: &Value) -> String {
     value["entity_ids"][0].as_str().unwrap().to_owned()
+}
+
+async fn send_fault_and_wait(
+    endpoint: &Endpoint,
+    faults: &relayterm_daemon::ServerFaults,
+    bytes: &[u8],
+) {
+    let previous = faults.connection_failure_count();
+    let mut stream = connect(endpoint).await.unwrap();
+    stream.write_all(bytes).await.unwrap();
+    stream.shutdown().await.unwrap();
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        faults.wait_for_connection_failure_after(previous),
+    )
+    .await
+    .unwrap();
+}
+
+fn request_bytes(
+    workspace: WireWorkspaceId,
+    request_id: u64,
+    operation: Operation,
+    protocol_version: u16,
+) -> Vec<u8> {
+    let request = RequestEnvelope {
+        message_type: RequestType::Request,
+        protocol_version,
+        request_id: DecimalU64::new(request_id).unwrap(),
+        workspace_id: workspace,
+        operation,
+        params: json!({}),
+    };
+    encode_frame(FrameKind::Json, &encode_json(&request).unwrap()).unwrap()
+}
+
+async fn duplicate_request_id_and_wait(
+    endpoint: &Endpoint,
+    workspace: WireWorkspaceId,
+    faults: &relayterm_daemon::ServerFaults,
+) {
+    let previous = faults.connection_failure_count();
+    let mut stream = connect(endpoint).await.unwrap();
+    write_frame(
+        &mut stream,
+        FrameKind::Json,
+        &encode_json(&RequestEnvelope {
+            message_type: RequestType::Request,
+            protocol_version: relayterm_protocol::PROTOCOL_VERSION,
+            request_id: DecimalU64::new(1).unwrap(),
+            workspace_id: workspace,
+            operation: Operation::ProtocolHello,
+            params: json!({}),
+        })
+        .unwrap(),
+    )
+    .await
+    .unwrap();
+    read_frame(&mut stream, Duration::from_secs(2))
+        .await
+        .unwrap();
+    write_frame(
+        &mut stream,
+        FrameKind::Json,
+        &encode_json(&RequestEnvelope {
+            message_type: RequestType::Request,
+            protocol_version: relayterm_protocol::PROTOCOL_VERSION,
+            request_id: DecimalU64::new(1).unwrap(),
+            workspace_id: workspace,
+            operation: Operation::ProtocolPing,
+            params: json!({}),
+        })
+        .unwrap(),
+    )
+    .await
+    .unwrap();
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        faults.wait_for_connection_failure_after(previous),
+    )
+    .await
+    .unwrap();
 }
 async fn running_instance(
     service: &Service<SqliteStore, SystemClock, RandomIdGenerator, Notify>,
@@ -611,12 +696,66 @@ async fn two_clients_complete_a_durable_handover_journey() {
         .execute(store.pool())
         .await
         .unwrap();
-    let mut malformed = connect(&endpoint).await.unwrap();
-    malformed.write_all(&[0, 0, 0, 1, 0, 2, 1]).await.unwrap();
-    drop(malformed);
     let survivor = Client::connect(&endpoint, WireWorkspaceId::from_uuid(workspace.as_uuid()))
         .await
         .unwrap();
+    let before_faults: Value = survivor
+        .call(
+            Operation::WorkspaceGetSnapshot,
+            &json!({"collection":"workspace","limit":50}),
+        )
+        .await
+        .unwrap();
+    let wire_workspace = WireWorkspaceId::from_uuid(workspace.as_uuid());
+    let mut oversized = [0_u8; relayterm_protocol::HEADER_SIZE];
+    oversized[..4].copy_from_slice(&((JSON_FRAME_LIMIT + 1) as u32).to_be_bytes());
+    oversized[5] = relayterm_protocol::PROTOCOL_VERSION as u8;
+    oversized[6] = FrameKind::Json as u8;
+    let mut partial_body = request_bytes(
+        wire_workspace,
+        1,
+        Operation::ProtocolHello,
+        relayterm_protocol::PROTOCOL_VERSION,
+    );
+    partial_body.pop();
+    let unknown_field = encode_frame(
+        FrameKind::Json,
+        format!(
+            "{{\"type\":\"request\",\"protocol_version\":1,\"request_id\":\"1\",\"workspace_id\":\"{wire_workspace}\",\"operation\":\"protocol.hello\",\"params\":{{}},\"private_marker\":\"must-not-pass\"}}"
+        )
+        .as_bytes(),
+    )
+    .unwrap();
+    let malformed_cases = [
+        vec![0, 0, 0],
+        partial_body,
+        oversized.to_vec(),
+        encode_frame(FrameKind::Json, &[0xff]).unwrap(),
+        encode_frame(FrameKind::Json, b"{").unwrap(),
+        unknown_field,
+        request_bytes(wire_workspace, 1, Operation::ProtocolHello, 2),
+    ];
+    for bytes in malformed_cases {
+        send_fault_and_wait(&endpoint, &faults, &bytes).await;
+        let healthy: Value = survivor
+            .call(Operation::ProtocolPing, &json!({}))
+            .await
+            .unwrap();
+        assert_eq!(healthy["ok"], true);
+    }
+    duplicate_request_id_and_wait(&endpoint, wire_workspace, &faults).await;
+    let after_faults: Value = survivor
+        .call(
+            Operation::WorkspaceGetSnapshot,
+            &json!({"collection":"workspace","limit":50}),
+        )
+        .await
+        .unwrap();
+    assert_eq!(after_faults["revision"], before_faults["revision"]);
+    assert_eq!(
+        after_faults["last_sequence"],
+        before_faults["last_sequence"]
+    );
     let invalid_subscription = survivor
         .call::<_, Value>(Operation::EventSubscribe, &json!({}))
         .await;

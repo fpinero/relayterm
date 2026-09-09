@@ -17,9 +17,9 @@ rt --workspace /path/to/project --home /private/relayterm-home daemon stop --ter
 rt --workspace /path/to/project --home /private/relayterm-home backup create --destination /private/backups/workspace-001
 ```
 
-The destination must not exist and its parent must already satisfy Relayterm's private access policy. Relayterm reserves the SQLite output with private permissions before `VACUUM INTO`, validates the completed snapshot, computes a BLAKE3 integrity value and writes `manifest.json` last. The manifest records its own format, the producing application version, the workspace schema version, identity, revision and event watermark. Relayterm never overwrites an existing destination.
+The destination must not exist and its parent must already satisfy Relayterm's private access policy. Relayterm builds the SQLite output and manifest in a uniquely owned private sibling staging directory. It reserves the SQLite file with private permissions before `VACUUM INTO`, validates the completed snapshot, computes a BLAKE3 integrity value and writes `manifest.json` last. The manifest records its own format, the producing application version, the workspace schema version, identity, revision and event watermark. Relayterm publishes the validated directory with a native no-replace rename and never overwrites an existing path, dangling symbolic link or Windows reparse point.
 
-An interrupted operation may leave a private incomplete directory without a manifest. Treat it as unusable evidence and choose a new destination. Relayterm does not automatically delete it. Do not copy only a live `workspace.sqlite3` file because WAL content may be omitted.
+A failed operation removes only its unpublished private staging directory, so the requested final path never names a partial backup. A process or machine failure can still leave a hidden private staging directory. Treat such staging as unusable and choose a new destination. Do not copy only a live `workspace.sqlite3` file because WAL content may be omitted.
 
 ## Restore a backup
 

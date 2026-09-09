@@ -180,6 +180,59 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
     assert_eq!(fs::read_dir(&backup).unwrap().count(), 2);
     let original_database = fs::read(backup.join("workspace.sqlite3")).unwrap();
     let original_manifest = fs::read(backup.join("manifest.json")).unwrap();
+    assert!(
+        fs::read_dir(backup.parent().unwrap())
+            .unwrap()
+            .all(|entry| {
+                !entry
+                    .unwrap()
+                    .file_name()
+                    .to_string_lossy()
+                    .contains(".relayterm-backup-")
+            }),
+        "a completed backup must not retain private staging directories"
+    );
+
+    let redirected_destination = home.join("data").join("redirected-destination");
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(
+        home.join("data").join("missing-redirection-target"),
+        &redirected_destination,
+    )
+    .unwrap();
+    #[cfg(windows)]
+    {
+        let status = Command::new("cmd.exe")
+            .args(["/d", "/c", "mklink", "/J"])
+            .arg(&redirected_destination)
+            .arg(&backup)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .unwrap();
+        assert!(status.success());
+    }
+    let redirected_destination_result = bounded_output(
+        Command::new(env!("CARGO_BIN_EXE_rt"))
+            .arg("--workspace")
+            .arg(&root)
+            .arg("--home")
+            .arg(&home)
+            .args(["--format", "json", "backup", "create", "--destination"])
+            .arg(&redirected_destination)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null()),
+    );
+    assert!(!redirected_destination_result.status.success());
+    assert_eq!(
+        fs::read(backup.join("workspace.sqlite3")).unwrap(),
+        original_database
+    );
+    assert_eq!(
+        fs::read(backup.join("manifest.json")).unwrap(),
+        original_manifest
+    );
 
     let existing_home = scratch.0.join("existing-private");
     fs::create_dir(&existing_home).unwrap();

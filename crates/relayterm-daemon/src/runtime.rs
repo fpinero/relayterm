@@ -624,10 +624,18 @@ pub async fn backup_workspace(
     let _runtime_lock = acquire_runtime_lock(&locations, workspace_id, timeout)?;
     let parent = destination.parent().ok_or(RuntimeError::InvalidLocation)?;
     validate_private_dir(parent).map_err(|_| RuntimeError::AccessDenied)?;
-    if destination.exists() {
+    if std::fs::symlink_metadata(destination).is_ok() {
         return Err(RuntimeError::InvalidLocation);
     }
-    create_private_dir(destination).map_err(|_| RuntimeError::AccessDenied)?;
+    let destination_name = destination
+        .file_name()
+        .ok_or(RuntimeError::InvalidLocation)?
+        .to_string_lossy();
+    let staging_path = parent.join(format!(
+        ".{destination_name}.relayterm-backup-{}",
+        uuid::Uuid::new_v4()
+    ));
+    let staging = PrivateStaging::new(staging_path)?;
 
     let source_path = workspace_database_path(&locations, workspace_id);
     let source = Database::open(
@@ -638,7 +646,7 @@ pub async fn backup_workspace(
     )
     .await
     .map_err(map_storage)?;
-    let database_member = destination.join(BACKUP_WORKSPACE);
+    let database_member = staging.path().join(BACKUP_WORKSPACE);
     source
         .snapshot_to(&database_member)
         .await
@@ -673,21 +681,23 @@ pub async fn backup_workspace(
         complete: true,
     };
     let bytes = serde_json::to_vec(&manifest).map_err(|_| RuntimeError::Storage)?;
-    let mut output = create_private_file(&destination.join(BACKUP_MANIFEST))
+    let mut output = create_private_file(&staging.path().join(BACKUP_MANIFEST))
         .map_err(|_| RuntimeError::AccessDenied)?;
     output
         .write_all(&bytes)
         .map_err(|_| RuntimeError::Storage)?;
     output.sync_all().map_err(|_| RuntimeError::Storage)?;
-    validate_backup_members(destination)?;
-    Ok(BackupReport {
+    validate_backup_members(staging.path())?;
+    let report = BackupReport {
         format_version: 1,
         application_version: env!("CARGO_PKG_VERSION").to_owned(),
         workspace_schema_version,
         workspace_id: workspace_id.to_string(),
         workspace_revision,
         last_event_sequence,
-    })
+    };
+    staging.publish(destination)?;
+    Ok(report)
 }
 
 /// Restore a private workspace backup into a new Relayterm home.
@@ -697,7 +707,7 @@ pub async fn restore_workspace(
     destination_home: &Path,
 ) -> Result<BackupReport, RuntimeError> {
     validate_backup_members(source)?;
-    if destination_home.exists() || !destination_home.is_absolute() {
+    if std::fs::symlink_metadata(destination_home).is_ok() || !destination_home.is_absolute() {
         return Err(RuntimeError::InvalidLocation);
     }
     let destination_parent = destination_home
@@ -739,7 +749,7 @@ pub async fn restore_workspace(
         ".{destination_name}.relayterm-restore-{}",
         uuid::Uuid::new_v4()
     ));
-    let staging = RestoreStaging::new(staging_home)?;
+    let staging = PrivateStaging::new(staging_home)?;
     let locations = locations(Some(staging.path().to_path_buf()))?;
     for alias in [LocationAlias::Data, LocationAlias::Runtime] {
         create_private_dir(locations.path(alias)).map_err(|_| RuntimeError::AccessDenied)?;
@@ -801,12 +811,12 @@ pub async fn restore_workspace(
     Ok(report)
 }
 
-struct RestoreStaging {
+struct PrivateStaging {
     path: PathBuf,
     published: bool,
 }
 
-impl RestoreStaging {
+impl PrivateStaging {
     fn new(path: PathBuf) -> Result<Self, RuntimeError> {
         if std::fs::symlink_metadata(&path).is_ok() {
             return Err(RuntimeError::InvalidLocation);
@@ -829,7 +839,7 @@ impl RestoreStaging {
     }
 }
 
-impl Drop for RestoreStaging {
+impl Drop for PrivateStaging {
     fn drop(&mut self) {
         if !self.published {
             let _ = std::fs::remove_dir_all(&self.path);

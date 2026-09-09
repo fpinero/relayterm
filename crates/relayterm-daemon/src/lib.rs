@@ -157,6 +157,8 @@ pub struct ServerFaults {
     release_mutation_response: Arc<Notify>,
     event_wakeup_count: Arc<AtomicU64>,
     event_wakeup_observed: Arc<Notify>,
+    connection_failure_count: Arc<AtomicU64>,
+    connection_failure_observed: Arc<Notify>,
 }
 impl ServerFaults {
     pub fn drop_next_mutation_response(&self) {
@@ -187,6 +189,14 @@ impl ServerFaults {
             self.event_wakeup_observed.notified().await;
         }
     }
+    pub fn connection_failure_count(&self) -> u64 {
+        self.connection_failure_count.load(Ordering::Acquire)
+    }
+    pub async fn wait_for_connection_failure_after(&self, previous: u64) {
+        while self.connection_failure_count() <= previous {
+            self.connection_failure_observed.notified().await;
+        }
+    }
     async fn pause_if_requested(&self, mutation: bool) {
         if mutation && self.pause_mutation_response.swap(false, Ordering::AcqRel) {
             self.mutation_paused.notify_one();
@@ -196,6 +206,10 @@ impl ServerFaults {
     fn record_event_wakeup(&self) {
         self.event_wakeup_count.fetch_add(1, Ordering::AcqRel);
         self.event_wakeup_observed.notify_waiters();
+    }
+    fn record_connection_failure(&self) {
+        self.connection_failure_count.fetch_add(1, Ordering::AcqRel);
+        self.connection_failure_observed.notify_waiters();
     }
     fn take_drop(&self, mutation: bool) -> bool {
         self.any_response.swap(false, Ordering::AcqRel)
@@ -313,7 +327,7 @@ where
             tokio::select! {biased;
                 changed=shutdown.changed()=>{if changed.is_err()||*shutdown.borrow(){break}}
                 joined=connections.join_next(),if !connections.is_empty()=>{let _=joined;}
-                accepted=shared.listener.accept()=>{let Ok(stream)=accepted else{continue};let Ok(permit)=shared.connections.clone().try_acquire_owned()else{drop(stream);continue};let server=shared.clone();let child_shutdown=shutdown.clone();connections.spawn(async move{let _permit=permit;let _=server.connection(stream,child_shutdown).await;});}
+                accepted=shared.listener.accept()=>{let Ok(stream)=accepted else{continue};let Ok(permit)=shared.connections.clone().try_acquire_owned()else{drop(stream);continue};let server=shared.clone();let child_shutdown=shutdown.clone();connections.spawn(async move{let _permit=permit;if server.clone().connection(stream,child_shutdown).await.is_err(){server.faults.record_connection_failure();}});}
             }
         }
         while connections.join_next().await.is_some() {}
