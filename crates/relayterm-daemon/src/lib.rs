@@ -874,6 +874,11 @@ where
 
     async fn worktree_inspect(&self, value: &Value) -> Result<Value, wire::ErrorBody> {
         let params: wire::WorktreeInspectParams = parameters(value)?;
+        let _permit = self
+            .git_admissions
+            .clone()
+            .try_acquire_owned()
+            .map_err(|_| unavailable())?;
         let snapshot = self
             .reads
             .consistent_snapshot(self.workspace_id)
@@ -1094,7 +1099,7 @@ where
             move || {
                 let git = relayterm_git::Git::default();
                 git.add(&root, &destination, &add_branch, &add_commit)?;
-                git.verify_worktree(
+                git.verify_created_worktree(
                     &root,
                     &destination,
                     &add_branch,
@@ -1107,12 +1112,9 @@ where
         .map_err(|_| unavailable())?;
         if let Err(error) = add_result {
             let current = applying.committed.snapshot.revision();
-            let needs_attention = matches!(
-                error.kind(),
-                relayterm_git::ErrorKind::Timeout
-                    | relayterm_git::ErrorKind::OutputLimit
-                    | relayterm_git::ErrorKind::CommandFailed
-            );
+            // Once dispatch reached Git, even an I/O or malformed-output error
+            // cannot prove that no external worktree effect occurred.
+            let needs_attention = true;
             let _ = self
                 .service
                 .execute_domain_command_at_revision(
@@ -1244,6 +1246,11 @@ where
 
     async fn worktree_reconcile(&self, value: &Value) -> Result<Value, wire::ErrorBody> {
         let params: wire::WorktreeReconcileParams = parameters(value)?;
+        let _permit = self
+            .git_admissions
+            .clone()
+            .try_acquire_owned()
+            .map_err(|_| unavailable())?;
         let operation_id = domain::WorktreeOperationId::from_uuid(params.operation_id.as_uuid());
         let snapshot = self
             .reads

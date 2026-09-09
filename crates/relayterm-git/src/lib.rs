@@ -1,9 +1,10 @@
 //! Bounded, argument-array Git operations for explicit worktree management.
 
 use std::ffi::{OsStr, OsString};
-use std::io::{Read, Seek};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -101,21 +102,21 @@ impl Git {
     }
 
     pub fn inspect(&self, root: &Path) -> Result<Repository> {
-        let top = self.text(root, ["rev-parse", "--show-toplevel"])?;
-        let common = self.text(
+        let top = self.path(root, ["rev-parse", "--show-toplevel"])?;
+        let common = self.path(
             root,
             ["rev-parse", "--path-format=absolute", "--git-common-dir"],
         )?;
         let head = self.text(root, ["rev-parse", "--verify", "HEAD^{commit}"])?;
-        let checkout_top = canonical_existing(Path::new(top.trim()))?;
+        let checkout_top = canonical_existing(&top)?;
         let requested = canonical_existing(root)?;
         if checkout_top != requested {
             return Err(Error::new(ErrorKind::UnsupportedRoot));
         }
         Ok(Repository {
             checkout_top,
-            common_directory: canonical_existing(Path::new(common.trim()))?,
-            head_commit: validate_object_id(head.trim())?.to_owned(),
+            common_directory: canonical_existing(&common)?,
+            head_commit: validate_object_id(single_line(&head)?)?.to_owned(),
         })
     }
 
@@ -131,7 +132,7 @@ impl Git {
                 expression.as_str(),
             ],
         )?;
-        Ok(validate_object_id(value.trim())?.to_owned())
+        Ok(validate_object_id(single_line(&value)?)?.to_owned())
     }
 
     pub fn branch_available(&self, root: &Path, branch: &str) -> Result<()> {
@@ -176,8 +177,6 @@ impl Git {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
             Err(_) => return Err(Error::new(ErrorKind::Io)),
         }
-        self.branch_available(root, branch)?;
-        self.reject_checkout_filters(root)?;
         let repository = self.inspect(root)?;
         let lock_path = repository.common_directory.join("relayterm-worktree.lock");
         let lock = std::fs::OpenOptions::new()
@@ -188,6 +187,15 @@ impl Git {
             .open(lock_path)
             .map_err(|_| Error::new(ErrorKind::Io))?;
         lock_bounded(&lock, self.read_timeout)?;
+        // Checks which protect an external effect must run while every Relayterm
+        // process sharing this Git common directory is excluded.
+        match std::fs::symlink_metadata(destination) {
+            Ok(_) => return Err(Error::new(ErrorKind::DestinationConflict)),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(_) => return Err(Error::new(ErrorKind::Io)),
+        }
+        self.branch_available(root, branch)?;
+        self.reject_checkout_filters(root, commit)?;
         let args = [
             OsString::from("-c"),
             OsString::from("core.hooksPath="),
@@ -214,13 +222,37 @@ impl Git {
         destination: &Path,
         branch: &str,
         common_directory: &Path,
+        _initial_commit: &str,
+    ) -> Result<()> {
+        self.verify_worktree_identity(source, destination, branch, common_directory)
+    }
+
+    pub fn verify_created_worktree(
+        &self,
+        source: &Path,
+        destination: &Path,
+        branch: &str,
+        common_directory: &Path,
         initial_commit: &str,
+    ) -> Result<()> {
+        self.verify_worktree_identity(source, destination, branch, common_directory)?;
+        let repository = self.inspect(destination)?;
+        if repository.head_commit != initial_commit {
+            return Err(Error::new(ErrorKind::CommandFailed));
+        }
+        Ok(())
+    }
+
+    fn verify_worktree_identity(
+        &self,
+        source: &Path,
+        destination: &Path,
+        branch: &str,
+        common_directory: &Path,
     ) -> Result<()> {
         let destination = canonical_existing(destination)?;
         let repository = self.inspect(&destination)?;
-        if repository.common_directory != common_directory
-            || repository.head_commit != initial_commit
-        {
+        if repository.common_directory != common_directory {
             return Err(Error::new(ErrorKind::CommandFailed));
         }
         let expected = format!("refs/heads/{branch}");
@@ -238,14 +270,61 @@ impl Git {
         String::from_utf8(output).map_err(|_| Error::new(ErrorKind::MalformedOutput))
     }
 
-    fn reject_checkout_filters(&self, root: &Path) -> Result<()> {
+    fn path<const N: usize>(&self, root: &Path, args: [&str; N]) -> Result<PathBuf> {
+        let output = self.run(Some(root), args.map(OsStr::new), self.read_timeout)?;
+        bytes_to_path(single_line_bytes(&output)?)
+    }
+
+    fn reject_checkout_filters(&self, root: &Path, commit: &str) -> Result<()> {
         reject_checkout_filters(root)?;
-        match self.run_status(root, ["config", "--local", "--get-regexp", "^filter\\."]) {
+        match self.run_status(root, ["config", "--get-regexp", "^filter\\."]) {
             Ok(0) => Err(Error::new(ErrorKind::UnsupportedCheckoutFilter)),
-            Ok(1) => Ok(()),
+            Ok(1) => self.reject_committed_checkout_filters(root, commit),
             Ok(_) => Err(Error::new(ErrorKind::CommandFailed)),
             Err(error) => Err(error),
         }
+    }
+
+    fn reject_committed_checkout_filters(&self, root: &Path, commit: &str) -> Result<()> {
+        let output = self.run(
+            Some(root),
+            [
+                OsStr::new("ls-tree"),
+                OsStr::new("-r"),
+                OsStr::new("-z"),
+                OsStr::new("--name-only"),
+                OsStr::new(commit),
+            ],
+            self.read_timeout,
+        )?;
+        let mut count = 0usize;
+        for path in output
+            .split(|byte| *byte == 0)
+            .filter(|value| !value.is_empty())
+        {
+            if path == b".gitattributes" || path.ends_with(b"/.gitattributes") {
+                count = count.saturating_add(1);
+                if count > 128 {
+                    return Err(Error::new(ErrorKind::OutputLimit));
+                }
+                let path = std::str::from_utf8(path)
+                    .map_err(|_| Error::new(ErrorKind::UnsupportedCheckoutFilter))?;
+                let object = format!("{commit}:{path}");
+                let attributes = self.run(
+                    Some(root),
+                    [
+                        OsStr::new("show"),
+                        OsStr::new("--no-textconv"),
+                        OsStr::new(&object),
+                    ],
+                    self.read_timeout,
+                )?;
+                if contains_filter_attribute(&attributes) {
+                    return Err(Error::new(ErrorKind::UnsupportedCheckoutFilter));
+                }
+            }
+        }
+        Ok(())
     }
 
     fn run_status<const N: usize>(&self, root: &Path, args: [&str; N]) -> Result<i32> {
@@ -283,8 +362,26 @@ impl Git {
         if let Some(root) = root {
             command.current_dir(root);
         }
+        let inherited = [
+            "PATH",
+            "LANG",
+            "LC_ALL",
+            "LC_CTYPE",
+            "TMPDIR",
+            "TEMP",
+            "TMP",
+            "SystemRoot",
+            "WINDIR",
+            "PATHEXT",
+            "COMSPEC",
+        ]
+        .into_iter()
+        .filter_map(|name| std::env::var_os(name).map(|value| (name, value)))
+        .collect::<Vec<_>>();
         command
             .stdin(Stdio::null())
+            .env_clear()
+            .envs(inherited)
             .env("GIT_CONFIG_NOSYSTEM", "1")
             .env("GIT_CONFIG_GLOBAL", null_device())
             .env("GIT_TERMINAL_PROMPT", "0")
@@ -293,11 +390,7 @@ impl Git {
             .env("PAGER", "cat")
             .env("GIT_OPTIONAL_LOCKS", "0")
             .env("GIT_NO_LAZY_FETCH", "1")
-            .env_remove("GIT_DIR")
-            .env_remove("GIT_WORK_TREE")
-            .env_remove("GIT_INDEX_FILE")
-            .env_remove("GIT_OBJECT_DIRECTORY")
-            .env_remove("GIT_ALTERNATE_OBJECT_DIRECTORIES");
+            .env("GIT_PROTOCOL_FROM_USER", "0");
         command
     }
 
@@ -307,30 +400,62 @@ impl Git {
         S: AsRef<OsStr>,
     {
         let mut command = self.command(root);
-        let mut stdout_file = tempfile::tempfile().map_err(|_| Error::new(ErrorKind::Io))?;
-        let mut stderr_file = tempfile::tempfile().map_err(|_| Error::new(ErrorKind::Io))?;
         command
             .args(args)
-            .stdout(Stdio::from(
-                stdout_file
-                    .try_clone()
-                    .map_err(|_| Error::new(ErrorKind::Io))?,
-            ))
-            .stderr(Stdio::from(
-                stderr_file
-                    .try_clone()
-                    .map_err(|_| Error::new(ErrorKind::Io))?,
-            ));
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
         let mut child = command.spawn().map_err(map_spawn)?;
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or_else(|| Error::new(ErrorKind::Io))?;
+        let stderr = child
+            .stderr
+            .take()
+            .ok_or_else(|| Error::new(ErrorKind::Io))?;
+        let (stdout_tx, stdout_rx) = mpsc::sync_channel(1);
+        let (stderr_tx, stderr_rx) = mpsc::sync_channel(1);
+        thread::spawn(move || {
+            let _ = stdout_tx.send(read_stream_bounded(stdout, MAX_STDOUT));
+        });
+        thread::spawn(move || {
+            let _ = stderr_tx.send(read_stream_bounded(stderr, MAX_STDERR));
+        });
         let status = wait_bounded(&mut child, timeout)?;
-        let stdout = read_bounded(&mut stdout_file, MAX_STDOUT)?;
-        let stderr = read_bounded(&mut stderr_file, MAX_STDERR)?;
+        let stdout = receive_stream(&stdout_rx, timeout)?;
+        let stderr = receive_stream(&stderr_rx, timeout)?;
         if !status.success() {
             let kind = classify_failure(&stderr);
             return Err(Error::new(kind));
         }
         Ok(stdout)
     }
+}
+
+fn read_stream_bounded(mut input: impl Read, limit: usize) -> Result<Vec<u8>> {
+    let mut value = Vec::with_capacity(limit.min(64 * 1024));
+    let mut chunk = [0u8; 16 * 1024];
+    loop {
+        let read = input
+            .read(&mut chunk)
+            .map_err(|_| Error::new(ErrorKind::Io))?;
+        if read == 0 {
+            return Ok(value);
+        }
+        if value.len().saturating_add(read) > limit {
+            return Err(Error::new(ErrorKind::OutputLimit));
+        }
+        value.extend_from_slice(&chunk[..read]);
+    }
+}
+
+fn receive_stream(
+    receiver: &mpsc::Receiver<Result<Vec<u8>>>,
+    timeout: Duration,
+) -> Result<Vec<u8>> {
+    receiver
+        .recv_timeout(timeout.min(Duration::from_secs(1)))
+        .map_err(|_| Error::new(ErrorKind::Timeout))?
 }
 
 fn lock_bounded(file: &std::fs::File, timeout: Duration) -> Result<()> {
@@ -361,19 +486,6 @@ fn wait_bounded(child: &mut Child, timeout: Duration) -> Result<std::process::Ex
             return Err(Error::new(ErrorKind::Timeout));
         }
         thread::sleep(Duration::from_millis(10));
-    }
-}
-
-fn read_bounded(file: &mut std::fs::File, limit: usize) -> Result<Vec<u8>> {
-    file.rewind().map_err(|_| Error::new(ErrorKind::Io))?;
-    let mut value = Vec::new();
-    file.take((limit + 1) as u64)
-        .read_to_end(&mut value)
-        .map_err(|_| Error::new(ErrorKind::Io))?;
-    if value.len() > limit {
-        Err(Error::new(ErrorKind::OutputLimit))
-    } else {
-        Ok(value)
     }
 }
 
@@ -468,45 +580,43 @@ pub fn validate_destination_leaf(value: &str) -> Result<()> {
         || value == "."
         || value == ".."
         || value.starts_with('-')
+        || value.ends_with(['.', ' '])
         || value.contains(['/', '\\', ':'])
         || value.chars().any(char::is_control)
     {
         return Err(Error::new(ErrorKind::DestinationConflict));
     }
-    #[cfg(windows)]
-    {
-        let stem = value
-            .split('.')
-            .next()
-            .unwrap_or(value)
-            .to_ascii_uppercase();
-        if matches!(
-            stem.as_str(),
-            "CON"
-                | "PRN"
-                | "AUX"
-                | "NUL"
-                | "COM1"
-                | "COM2"
-                | "COM3"
-                | "COM4"
-                | "COM5"
-                | "COM6"
-                | "COM7"
-                | "COM8"
-                | "COM9"
-                | "LPT1"
-                | "LPT2"
-                | "LPT3"
-                | "LPT4"
-                | "LPT5"
-                | "LPT6"
-                | "LPT7"
-                | "LPT8"
-                | "LPT9"
-        ) {
-            return Err(Error::new(ErrorKind::DestinationConflict));
-        }
+    let stem = value
+        .split('.')
+        .next()
+        .unwrap_or(value)
+        .to_ascii_uppercase();
+    if matches!(
+        stem.as_str(),
+        "CON"
+            | "PRN"
+            | "AUX"
+            | "NUL"
+            | "COM1"
+            | "COM2"
+            | "COM3"
+            | "COM4"
+            | "COM5"
+            | "COM6"
+            | "COM7"
+            | "COM8"
+            | "COM9"
+            | "LPT1"
+            | "LPT2"
+            | "LPT3"
+            | "LPT4"
+            | "LPT5"
+            | "LPT6"
+            | "LPT7"
+            | "LPT8"
+            | "LPT9"
+    ) {
+        return Err(Error::new(ErrorKind::DestinationConflict));
     }
     Ok(())
 }
@@ -518,21 +628,45 @@ fn validate_object_id(value: &str) -> Result<&str> {
     Ok(value)
 }
 
+fn single_line(value: &str) -> Result<&str> {
+    let bytes = single_line_bytes(value.as_bytes())?;
+    std::str::from_utf8(bytes).map_err(|_| Error::new(ErrorKind::MalformedOutput))
+}
+
+fn single_line_bytes(value: &[u8]) -> Result<&[u8]> {
+    let value = value
+        .strip_suffix(b"\n")
+        .and_then(|value| value.strip_suffix(b"\r").or(Some(value)))
+        .unwrap_or(value);
+    if value.is_empty() || value.contains(&0) || value.contains(&b'\n') || value.contains(&b'\r') {
+        return Err(Error::new(ErrorKind::MalformedOutput));
+    }
+    Ok(value)
+}
+
+fn contains_filter_attribute(bytes: &[u8]) -> bool {
+    String::from_utf8_lossy(bytes)
+        .lines()
+        .map(|line| line.split_once('#').map_or(line, |(value, _)| value))
+        .flat_map(str::split_ascii_whitespace)
+        .any(|item| item == "filter" || item.starts_with("filter=") || item == "-filter")
+}
+
 fn reject_checkout_filters(root: &Path) -> Result<()> {
     let attributes = root.join(".gitattributes");
     let Ok(bytes) = std::fs::read(attributes) else {
         return Ok(());
     };
-    if String::from_utf8_lossy(&bytes)
-        .split_ascii_whitespace()
-        .any(|item| item.starts_with("filter=") || item == "filter")
-    {
+    if contains_filter_attribute(&bytes) {
         return Err(Error::new(ErrorKind::UnsupportedCheckoutFilter));
     }
     Ok(())
 }
 
 pub fn parse_porcelain_z(input: &[u8]) -> Result<Vec<WorktreeEntry>> {
+    if !input.is_empty() && !input.ends_with(&[0]) {
+        return Err(Error::new(ErrorKind::MalformedOutput));
+    }
     let mut result: Vec<WorktreeEntry> = Vec::new();
     for field in input
         .split(|byte| *byte == 0)
@@ -562,18 +696,40 @@ pub fn parse_porcelain_z(input: &[u8]) -> Result<Vec<WorktreeEntry>> {
                     prunable: false,
                 });
             }
-            b"HEAD" => current(&mut result)?.head = Some(text_value(value)?),
-            b"branch" => current(&mut result)?.branch = Some(text_value(value)?),
-            b"bare" => current(&mut result)?.bare = true,
-            b"detached" => current(&mut result)?.detached = true,
-            b"locked" => current(&mut result)?.locked = true,
-            b"prunable" => current(&mut result)?.prunable = true,
+            b"HEAD" => {
+                let current = current(&mut result)?;
+                if current.head.replace(text_value(value)?).is_some() {
+                    return Err(Error::new(ErrorKind::MalformedOutput));
+                }
+            }
+            b"branch" => {
+                let current = current(&mut result)?;
+                if current.branch.replace(text_value(value)?).is_some() {
+                    return Err(Error::new(ErrorKind::MalformedOutput));
+                }
+            }
+            b"bare" => set_flag(&mut result, |value| &mut value.bare)?,
+            b"detached" => set_flag(&mut result, |value| &mut value.detached)?,
+            b"locked" => set_flag(&mut result, |value| &mut value.locked)?,
+            b"prunable" => set_flag(&mut result, |value| &mut value.prunable)?,
             _ => {
                 current(&mut result)?;
             }
         }
     }
     Ok(result)
+}
+
+fn set_flag(
+    values: &mut [WorktreeEntry],
+    select: impl FnOnce(&mut WorktreeEntry) -> &mut bool,
+) -> Result<()> {
+    let flag = select(current(values)?);
+    if *flag {
+        return Err(Error::new(ErrorKind::MalformedOutput));
+    }
+    *flag = true;
+    Ok(())
 }
 
 fn current(values: &mut [WorktreeEntry]) -> Result<&mut WorktreeEntry> {
@@ -602,12 +758,39 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore]
+    fn injected_git_environment_probe() {
+        let root = PathBuf::from(std::env::var_os("RELAYTERM_GIT_PROBE_ROOT").unwrap());
+        assert!(Git::default().inspect(&root).is_ok());
+    }
+
+    #[test]
+    #[ignore]
+    fn concurrent_add_probe() {
+        let root = PathBuf::from(std::env::var_os("RELAYTERM_GIT_PROBE_ROOT").unwrap());
+        let destination =
+            PathBuf::from(std::env::var_os("RELAYTERM_GIT_PROBE_DESTINATION").unwrap());
+        let start = PathBuf::from(std::env::var_os("RELAYTERM_GIT_PROBE_START").unwrap());
+        let commit = std::env::var("RELAYTERM_GIT_PROBE_COMMIT").unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while !start.exists() {
+            assert!(Instant::now() < deadline, "probe start barrier timed out");
+            thread::sleep(Duration::from_millis(5));
+        }
+        Git::default()
+            .add(&root, &destination, "rt/concurrent", &commit)
+            .unwrap();
+    }
+
+    #[test]
     fn portable_validators_reject_injection_and_escape_forms() {
         for branch in ["", "-force", "a..b", "a@{b", "a b", "a\\b", "a:b", "a/"] {
             assert!(validate_branch(branch).is_err(), "{branch:?}");
         }
         assert!(validate_branch("rt/task-00000000-0000-4000-8000-000000000001").is_ok());
-        for leaf in ["", ".", "..", "-x", "a/b", "a\\b", "C:x", "a\0b"] {
+        for leaf in [
+            "", ".", "..", "-x", "a/b", "a\\b", "C:x", "a\0b", "task ", "task.", "CON", "nul.txt",
+        ] {
             assert!(validate_destination_leaf(leaf).is_err(), "{leaf:?}");
         }
         assert!(validate_destination_leaf("task one-é").is_ok());
@@ -642,6 +825,16 @@ mod tests {
             parse_porcelain_z(&excessive).unwrap_err().kind(),
             ErrorKind::OutputLimit
         );
+        for malformed in [
+            &b"worktree /tmp/main"[..],
+            &b"worktree /tmp/main\0HEAD 01234567\0HEAD abcdef12\0"[..],
+            &b"worktree /tmp/main\0detached\0detached\0"[..],
+        ] {
+            assert_eq!(
+                parse_porcelain_z(malformed).unwrap_err().kind(),
+                ErrorKind::MalformedOutput
+            );
+        }
     }
 
     #[test]
@@ -703,6 +896,53 @@ mod tests {
         );
     }
 
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn repository_discovery_preserves_non_utf8_native_paths() {
+        use std::os::unix::ffi::OsStringExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory
+            .path()
+            .join(OsString::from_vec(b"source-\xff".to_vec()));
+        std::fs::create_dir(&source).unwrap();
+        for arguments in [
+            vec!["init", "-q"],
+            vec!["config", "user.name", "Fixture"],
+            vec!["config", "user.email", "fixture@example.invalid"],
+        ] {
+            assert!(
+                Command::new("git")
+                    .current_dir(&source)
+                    .args(arguments)
+                    .status()
+                    .unwrap()
+                    .success()
+            );
+        }
+        std::fs::write(source.join("fixture.txt"), "fixture\n").unwrap();
+        assert!(
+            Command::new("git")
+                .current_dir(&source)
+                .args(["add", "fixture.txt"])
+                .status()
+                .unwrap()
+                .success()
+        );
+        assert!(
+            Command::new("git")
+                .current_dir(&source)
+                .args(["commit", "-qm", "fixture"])
+                .status()
+                .unwrap()
+                .success()
+        );
+        assert_eq!(
+            Git::default().inspect(&source).unwrap().checkout_top,
+            source.canonicalize().unwrap()
+        );
+    }
+
     #[test]
     fn real_git_creates_a_pinned_worktree_without_moving_source() {
         let directory = tempfile::tempdir().unwrap();
@@ -723,6 +963,19 @@ mod tests {
         std::fs::write(source.join("file.txt"), "source\n").unwrap();
         run(&["add", "file.txt"]);
         run(&["commit", "-qm", "fixture"]);
+        let environment_probe = Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--ignored",
+                "--exact",
+                "tests::injected_git_environment_probe",
+                "--test-threads=1",
+            ])
+            .env("RELAYTERM_GIT_PROBE_ROOT", &source)
+            .env("GIT_DIR", directory.path().join("foreign-git-dir"))
+            .env("GIT_WORK_TREE", directory.path().join("foreign-work-tree"))
+            .status()
+            .unwrap();
+        assert!(environment_probe.success());
         let repository = git.inspect(&source).unwrap();
         let destination = directory.path().canonicalize().unwrap().join("linked");
         git.add(&source, &destination, "rt/test", &repository.head_commit)
@@ -732,6 +985,45 @@ mod tests {
             "source\n"
         );
         assert_eq!(git.list(&source).unwrap().len(), 2);
+
+        let initial_commit = repository.head_commit;
+        let run_linked = |args: &[&str]| {
+            assert!(
+                Command::new("git")
+                    .current_dir(&destination)
+                    .args(args)
+                    .status()
+                    .unwrap()
+                    .success()
+            );
+        };
+        run_linked(&["config", "user.name", "Fixture"]);
+        run_linked(&["config", "user.email", "fixture@example.invalid"]);
+        std::fs::write(destination.join("second.txt"), "user work\n").unwrap();
+        run_linked(&["add", "second.txt"]);
+        run_linked(&["commit", "-qm", "user work"]);
+        assert!(
+            git.verify_worktree(
+                &source,
+                &destination,
+                "rt/test",
+                &repository.common_directory,
+                &initial_commit,
+            )
+            .is_ok()
+        );
+        assert_eq!(
+            git.verify_created_worktree(
+                &source,
+                &destination,
+                "rt/test",
+                &repository.common_directory,
+                &initial_commit,
+            )
+            .unwrap_err()
+            .kind(),
+            ErrorKind::CommandFailed
+        );
     }
 
     #[test]
@@ -776,5 +1068,108 @@ mod tests {
             ErrorKind::UnsupportedCheckoutFilter
         );
         assert!(!directory.path().join("linked").exists());
+
+        std::fs::create_dir(source.join("nested")).unwrap();
+        std::fs::write(source.join("nested/.gitattributes"), "* filter=fixture\n").unwrap();
+        run(&["add", "nested/.gitattributes"]);
+        run(&["commit", "-qm", "nested attributes"]);
+        std::fs::remove_file(source.join(".gitattributes")).unwrap();
+        let repository = git.inspect(&source).unwrap();
+        assert_eq!(
+            git.add(
+                &source,
+                &directory
+                    .path()
+                    .canonicalize()
+                    .unwrap()
+                    .join("nested-filter"),
+                "rt/nested-filter",
+                &repository.head_commit,
+            )
+            .unwrap_err()
+            .kind(),
+            ErrorKind::UnsupportedCheckoutFilter
+        );
+        assert!(!directory.path().join("nested-filter").exists());
+    }
+
+    #[test]
+    fn separate_processes_serialize_branch_and_destination_admission() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("source");
+        std::fs::create_dir(&source).unwrap();
+        let run = |args: &[&str]| {
+            assert!(
+                Command::new("git")
+                    .current_dir(&source)
+                    .args(args)
+                    .status()
+                    .unwrap()
+                    .success()
+            );
+        };
+        run(&["init", "-q"]);
+        run(&["config", "user.name", "Fixture"]);
+        run(&["config", "user.email", "fixture@example.invalid"]);
+        std::fs::write(source.join("fixture.txt"), "fixture\n").unwrap();
+        run(&["add", "fixture.txt"]);
+        run(&["commit", "-qm", "fixture"]);
+        let commit = Git::default().inspect(&source).unwrap().head_commit;
+        let canonical_parent = directory.path().canonicalize().unwrap();
+        let start = canonical_parent.join("start");
+        let spawn = |destination: &Path| {
+            Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--ignored",
+                    "--exact",
+                    "tests::concurrent_add_probe",
+                    "--test-threads=1",
+                ])
+                .env("RELAYTERM_GIT_PROBE_ROOT", &source)
+                .env("RELAYTERM_GIT_PROBE_DESTINATION", destination)
+                .env("RELAYTERM_GIT_PROBE_START", &start)
+                .env("RELAYTERM_GIT_PROBE_COMMIT", &commit)
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+                .unwrap()
+        };
+        let mut first = spawn(&canonical_parent.join("first"));
+        let mut second = spawn(&canonical_parent.join("second"));
+        std::fs::write(&start, b"start").unwrap();
+        let results = [
+            first.wait().unwrap().success(),
+            second.wait().unwrap().success(),
+        ];
+        assert_eq!(results.into_iter().filter(|result| *result).count(), 1);
+        assert_eq!(Git::default().list(&source).unwrap().len(), 2);
+    }
+
+    #[test]
+    fn line_decoding_preserves_identity_whitespace_and_rejects_extra_records() {
+        assert_eq!(single_line(" value \n").unwrap(), " value ");
+        assert_eq!(single_line_bytes(b"native \n").unwrap(), b"native ");
+        assert_eq!(
+            single_line("one\ntwo\n").unwrap_err().kind(),
+            ErrorKind::MalformedOutput
+        );
+        assert_eq!(
+            single_line_bytes(b"value\0tail\n").unwrap_err().kind(),
+            ErrorKind::MalformedOutput
+        );
+    }
+
+    #[test]
+    fn stream_reader_stops_at_the_exact_output_budget() {
+        assert_eq!(
+            read_stream_bounded(std::io::Cursor::new(vec![b'x'; 16]), 16).unwrap(),
+            vec![b'x'; 16]
+        );
+        assert_eq!(
+            read_stream_bounded(std::io::Cursor::new(vec![b'x'; 17]), 16)
+                .unwrap_err()
+                .kind(),
+            ErrorKind::OutputLimit
+        );
     }
 }

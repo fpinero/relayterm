@@ -137,6 +137,15 @@ async fn explicit_reconciliation_finishes_a_confirmed_add_without_repeating_git(
         relayterm_git::Git::default().list(&project).unwrap().len(),
         2
     );
+    let recovered_checkout = worktrees.join("recovery");
+    git(&recovered_checkout, &["config", "user.name", "Fixture"]);
+    git(
+        &recovered_checkout,
+        &["config", "user.email", "fixture@example.invalid"],
+    );
+    std::fs::write(recovered_checkout.join("continued.txt"), "continued\n").unwrap();
+    git(&recovered_checkout, &["add", "continued.txt"]);
+    git(&recovered_checkout, &["commit", "-qm", "continued work"]);
 
     drop(client);
     shutdown.send(true).unwrap();
@@ -181,6 +190,7 @@ async fn explicit_reconciliation_finishes_a_confirmed_add_without_repeating_git(
         .unwrap();
     assert_eq!(reconciled["phase"], "ready");
     assert_eq!(reconciled["selected"], true);
+    assert!(recovered_checkout.join("continued.txt").exists());
     assert_eq!(
         relayterm_git::Git::default().list(&project).unwrap().len(),
         2,

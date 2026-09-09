@@ -38,6 +38,10 @@ The create request stores a durable intent before `git worktree add`. Reusing th
 
 A task session with no selection starts in the source checkout. A task with a ready selection starts in that worktree. Relayterm verifies the canonical checkout, common Git directory and expected branch immediately before launch. A missing or mismatched checkout stops the launch. Relayterm does not fall back to the source checkout.
 
+Initial creation also verifies the resolved base commit. Later health checks permit ordinary commits made by the user on the recorded branch; they do not confuse a changed HEAD with a foreign checkout. Detached HEAD, branch replacement and another common Git directory remain failures.
+
+Relayterm runs Git with a small explicit environment, disabled prompts, pager and lazy fetch, and no inherited repository override variables. It rejects configured checkout filters and filter attributes in the selected commit, including nested `.gitattributes`. Branch and destination admission is repeated while holding the per-common-directory Relayterm lock. Read output is drained through bounded memory rather than an unbounded temporary capture.
+
 An explicit launch subdirectory must remain under the effective task root. Relative agent executables are resolved against that same root and working directory. The instance snapshot stores its task, selected worktree, actual working directory, definition snapshot, instance ID and session ID. Later association changes do not retarget an existing process.
 
 ## Recovery and manual cleanup
