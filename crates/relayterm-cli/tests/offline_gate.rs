@@ -305,18 +305,49 @@ fn processes_have_network_endpoint(process_ids: &[u32]) -> bool {
 
 #[cfg(windows)]
 fn processes_have_network_endpoint(process_ids: &[u32]) -> bool {
-    use netstat2::{AddressFamilyFlags, ProtocolFlags, get_sockets_info};
-
-    get_sockets_info(
-        AddressFamilyFlags::IPV4 | AddressFamilyFlags::IPV6,
-        ProtocolFlags::TCP | ProtocolFlags::UDP,
-    )
-    .expect("native network tables could not be read")
-    .into_iter()
-    .any(|socket| {
-        socket
-            .associated_pids
-            .iter()
-            .any(|process_id| process_ids.contains(process_id))
-    })
+    static NEXT_PROBE: AtomicU64 = AtomicU64::new(1);
+    let output = std::env::temp_dir().join(format!(
+        "rt11-socket-owners-{}-{}.txt",
+        std::process::id(),
+        NEXT_PROBE.fetch_add(1, Ordering::Relaxed)
+    ));
+    let script = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("support")
+        .join("windows_socket_owners.ps1");
+    let mut monitor = Command::new("powershell.exe")
+        .args([
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+        ])
+        .arg(script)
+        .args(["-OutputPath"])
+        .arg(&output)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("native Windows network monitor could not start");
+    let deadline = Instant::now() + Duration::from_secs(15);
+    loop {
+        if let Some(status) = monitor.try_wait().unwrap() {
+            assert!(status.success(), "native Windows network monitor failed");
+            break;
+        }
+        if Instant::now() >= deadline {
+            stop_child(&mut monitor);
+            panic!("native Windows network monitor exceeded its deadline");
+        }
+        thread::sleep(Duration::from_millis(20));
+    }
+    let owners = fs::read_to_string(&output).expect("native owner table output was not written");
+    let _ = fs::remove_file(output);
+    owners
+        .lines()
+        .filter_map(|line| line.parse::<u32>().ok())
+        .any(|owner| process_ids.contains(&owner))
 }
