@@ -133,8 +133,8 @@ fn private_backup_restores_into_a_fresh_home_without_overwriting() {
         .as_str()
         .unwrap()
         .to_owned();
-    let busy_backup = private.join("data").join("busy-backup");
-    let busy = Command::new(env!("CARGO_BIN_EXE_rt"))
+    let live_backup = private.join("data").join("live-backup");
+    let live = Command::new(env!("CARGO_BIN_EXE_rt"))
         .arg("--workspace")
         .arg(&root)
         .arg("--home")
@@ -148,13 +148,17 @@ fn private_backup_restores_into_a_fresh_home_without_overwriting() {
             "create",
             "--destination",
         ])
-        .arg(&busy_backup)
+        .arg(&live_backup)
         .output()
         .unwrap();
-    assert_eq!(busy.status.code(), Some(1));
-    let busy: Value = serde_json::from_slice(&busy.stdout).unwrap();
-    assert_eq!(busy["error"]["code"], "workspace_busy");
-    assert!(!busy_backup.exists());
+    assert!(
+        live.status.success(),
+        "{}",
+        String::from_utf8_lossy(&live.stdout)
+    );
+    let live: Value = serde_json::from_slice(&live.stdout).unwrap();
+    assert_eq!(live["result"]["workspace_id"], workspace_id);
+    assert!(live_backup.join("workspace.sqlite3").is_file());
     assert!(
         invoke(
             env!("CARGO_BIN_EXE_rt"),

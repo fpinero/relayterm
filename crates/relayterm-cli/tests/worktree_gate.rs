@@ -232,6 +232,16 @@ fn real_tui_creates_and_launches_two_task_worktrees() {
         || session_items(&repository, &home).len() == 3,
         "third default-shell launch through TUI",
     );
+    wait_until(
+        || {
+            let sessions = session_items(&repository, &home);
+            sessions.len() == 3
+                && sessions
+                    .iter()
+                    .all(|instance| instance["status"] == "running")
+        },
+        "all integrated sessions running",
+    );
     let sessions = session_items(&repository, &home);
     for instance in sessions
         .iter()
