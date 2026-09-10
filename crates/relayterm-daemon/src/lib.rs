@@ -1524,11 +1524,7 @@ where
         let destination =
             relayterm_platform::decode_native_path(&params.destination.encoding, &bytes)
                 .map_err(|_| invalid())?;
-        let _permit = self
-            .backup_admission
-            .clone()
-            .try_acquire_owned()
-            .map_err(|_| unavailable())?;
+        let _permit = admit_backup(&self.backup_admission)?;
         let backup = self.backup.as_ref().ok_or_else(unavailable)?.clone();
         let report = backup(destination).await.map_err(map_backup_error)?;
         serde_json::to_value(report).map_err(|_| invalid())
@@ -2530,6 +2526,13 @@ where
     }
 }
 
+fn admit_backup(admission: &Arc<Semaphore>) -> Result<OwnedSemaphorePermit, wire::ErrorBody> {
+    admission
+        .clone()
+        .try_acquire_owned()
+        .map_err(|_| unavailable())
+}
+
 fn try_queue_event(
     sender: &mpsc::Sender<QueuedEvent>,
     budget: &Arc<Semaphore>,
@@ -3341,6 +3344,20 @@ fn entity_sort_key(value: &Value) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn backup_admission_is_immediate_and_exclusive() {
+        let admission = Arc::new(Semaphore::new(1));
+        let Ok(first) = admit_backup(&admission) else {
+            panic!("the first backup must be admitted");
+        };
+        let Err(error) = admit_backup(&admission) else {
+            panic!("a concurrent backup must be rejected");
+        };
+        assert_eq!(error.code, wire::ErrorCode::OperationUnavailable);
+        drop(first);
+        assert!(admit_backup(&admission).is_ok());
+    }
 
     #[tokio::test]
     async fn event_queue_enforces_item_and_byte_limits_and_releases_permits() {

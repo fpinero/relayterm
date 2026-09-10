@@ -1,6 +1,7 @@
 use serde_json::Value;
 use std::{
     fs,
+    io::{BufRead, Read},
     net::TcpListener,
     path::{Path, PathBuf},
     process::{Child, Command, Output, Stdio},
@@ -82,6 +83,7 @@ fn daemon_uses_local_ipc_without_network_endpoints() {
         "the native monitor did not detect its TCP negative control"
     );
     stop_child(&mut probe);
+    eprintln!("M11 offline phase=negative-control-complete");
 
     let root = scratch.0.join("project");
     let home = scratch.0.join("private");
@@ -133,6 +135,7 @@ fn daemon_uses_local_ipc_without_network_endpoints() {
         },
         "foreground daemon readiness",
     );
+    eprintln!("M11 offline phase=daemon-ready");
 
     let status = successful(command(&root, &home, &["workspace", "status"]));
     let revision = status["result"]["revision"].as_str().unwrap();
@@ -246,6 +249,7 @@ fn daemon_uses_local_ipc_without_network_endpoints() {
         assert_eq!(status["ok"], true);
         thread::sleep(Duration::from_millis(50));
     }
+    eprintln!("M11 offline phase=runtime-observation-complete");
     fs::write(&agent_stop, b"stop").unwrap();
     wait_until(
         || {
@@ -269,6 +273,7 @@ fn daemon_uses_local_ipc_without_network_endpoints() {
             backup.to_str().unwrap(),
         ],
     ));
+    eprintln!("M11 offline phase=backup-complete");
     assert!(!processes_have_network_endpoint(&[daemon.id()]));
     successful(command(
         &root,
@@ -295,6 +300,7 @@ fn daemon_uses_local_ipc_without_network_endpoints() {
         &restored,
         &["daemon", "stop", "--terminate-sessions"],
     ));
+    eprintln!("M11 offline phase=restore-complete");
 }
 
 fn run_git(root: &Path, arguments: &[&str]) {
@@ -312,7 +318,8 @@ fn run_git(root: &Path, arguments: &[&str]) {
 }
 
 fn command(root: &Path, home: &Path, arguments: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_rt"))
+    const OUTPUT_LIMIT: usize = 64 * 1024;
+    let mut child = Command::new(env!("CARGO_BIN_EXE_rt"))
         .arg("--workspace")
         .arg(root)
         .arg("--home")
@@ -320,8 +327,41 @@ fn command(root: &Path, home: &Path, arguments: &[&str]) -> Output {
         .args(["--format", "json", "--timeout", "5"])
         .args(arguments)
         .stdin(Stdio::null())
-        .output()
-        .unwrap()
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    let stdout = child.stdout.take().unwrap();
+    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    thread::spawn(move || {
+        let mut bytes = Vec::new();
+        let result = std::io::BufReader::new(stdout)
+            .take((OUTPUT_LIMIT + 1) as u64)
+            .read_until(b'\n', &mut bytes)
+            .map(|_| bytes);
+        let _ = sender.send(result);
+    });
+    let deadline = Instant::now() + DEADLINE;
+    let status = loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            break status;
+        }
+        if Instant::now() >= deadline {
+            stop_child(&mut child);
+            panic!("offline command exceeded its deadline");
+        }
+        thread::sleep(Duration::from_millis(20));
+    };
+    let stdout = receiver
+        .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+        .expect("offline command output did not close before its deadline")
+        .expect("offline command output could not be read");
+    assert!(stdout.len() <= OUTPUT_LIMIT);
+    Output {
+        status,
+        stdout,
+        stderr: Vec::new(),
+    }
 }
 
 fn successful(output: Output) -> Value {
@@ -358,7 +398,17 @@ fn wait_child(child: &mut Child) {
 
 fn stop_child(child: &mut Child) {
     let _ = child.kill();
-    let _ = child.wait();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        if child.try_wait().ok().flatten().is_some() {
+            return;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "fixture child did not terminate after kill"
+        );
+        thread::sleep(Duration::from_millis(20));
+    }
 }
 
 #[cfg(target_os = "linux")]

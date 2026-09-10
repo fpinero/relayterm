@@ -10,22 +10,22 @@ Evidence records include candidate commit, command or procedure, native OS and a
 
 | Criterion | Automated evidence | Manual evidence | Current M11 status |
 | --- | --- | --- | --- |
-| AC-1 | `durable_slice`, `hardening_gate`, backup and restore tests | M12 clean installation only | Pending final candidate |
-| AC-2 | Daemon lifecycle, IPC permission and ownership gates | Actual terminal closure in the manual matrix | Pending final candidate |
-| AC-3 | Three native real sessions in retained PTY and TUI gates | Observe three sessions in each named terminal | Pending integrated M11 gate and manual matrix |
-| AC-4 | Full-screen, Unicode, input, resize, switch, exit and bound assertions | Local and SSH rendering matrix | Pending manual matrix |
-| AC-5 | Deterministic competing-claim tests | None | Pending integrated M11 journey |
-| AC-6 | Progress and atomic handover tests through retained TUI and IPC gates | None | Pending integrated M11 journey |
-| AC-7 | Second-instance continuation and durable context assertions in retained gates | None | Pending integrated M11 journey |
-| AC-8 | Abrupt client and console-owner loss with independent reattach | Named terminal and SSH disconnect observations | Pending manual matrix |
-| AC-9 | Graceful and abrupt restart, one-time loss reconciliation | None | Pending final candidate |
-| AC-10 | Two real Git worktrees, immutable launch snapshots and partial-result recovery | None | Pending final candidate |
-| AC-11 | Architecture gate and core-only test command | None | Pending final candidate |
-| AC-12 | Quality and Security on Linux, macOS and Windows, plus pinned Rust on Linux | None | Pending final candidate |
-| AC-13 | Synthetic marker sink tests and repository/candidate scans | Sanitized display inspection | Pending final candidate |
-| AC-14 | Native monitored offline product workflow | Headless SSH workflow | Pending native evidence |
-| AC-15 | Unknown executable configured and launched through the real TUI | None | Pending final candidate |
-| AC-16 | One `rt` entrypoint and side-effect-free help/version | Installation conflict belongs to M12 | Pending regression |
+| AC-1 | `cli::bootstrap_rejects_invalid_input_without_side_effects`, `durable_slice::durable_handover_survives_process_restart`, and `backup_restore::private_backup_is_exclusive_integrity_checked_and_reopenable` | M12 clean installation only | Automated locally; pending final native candidate |
+| AC-2 | `cli::detached_daemon_survives_starters_and_reopens_durable_state`, `runtime_ownership_precedes_recovery_and_rejects_a_contender`, IPC ownership tests, and `durable_slice::closing_launch_console_keeps_daemon_reachable` | Actual terminal closure in the manual matrix | Automated locally; manual matrix pending |
+| AC-3 | `pty_gate::three_real_ptys_survive_client_disconnect_and_reconstruct`, `tui_gate::tui_initializes_launches_detaches_and_reopens_without_stopping_children`, and `worktree_gate::real_tui_creates_and_launches_two_task_worktrees` | Observe three sessions in each named terminal | Automated locally; manual matrix pending |
+| AC-4 | The TUI workflow gate, terminal reconstruction unit tests, and resource-runtime gate cover full-screen state, Unicode, input, resize, switching, exit and bounds | Local and SSH rendering matrix | Automated locally; manual matrix pending |
+| AC-5 | `application::two_transactions_race_without_sleeps_and_only_one_claim_commits`, `persistence::independent_clients_race_one_claim_without_partial_events`, and the integrated worktree journey | None | Automated locally; pending final native candidate |
+| AC-6 | `tui_gate::tui_initializes_launches_detaches_and_reopens_without_stopping_children`, `protocol_gate::two_clients_complete_a_durable_handover_journey`, and the integrated worktree journey | None | Automated locally; pending final native candidate |
+| AC-7 | The TUI and worktree journeys plus `continuity_gate_preserves_context_attribution_and_event_order` assert second-instance context and completion | None | Automated locally; pending final native candidate |
+| AC-8 | TUI abrupt detach, PTY client disconnect and launch-console closure tests preserve daemon-owned children and allow independent reattach | Named terminal and SSH disconnect observations | Automated locally; manual matrix pending |
+| AC-9 | `startup_reconciles_active_claim_once_before_readiness`, `sqlite_kill_gate::killing_the_server_before_sqlite_commit_rolls_back_the_whole_mutation`, and durable restart journeys | None | Automated locally; pending final native candidate |
+| AC-10 | Both worktree-gate journeys, native Git identity tests, `worktree_cancellation_gate`, and `worktree_recovery` cover isolation, immutable launch identity and partial outcomes | None | Automated locally; pending final native candidate |
+| AC-11 | `architecture` compile tests and the core-only workspace command | None | Automated locally; pending final native candidate |
+| AC-12 | Quality on Linux, macOS and Windows, pinned Rust 1.98.1 on Linux, plus Security | None | Pending final candidate checks |
+| AC-13 | Domain privacy tests, daemon diagnostic tests, TUI safe-text tests, durable-slice sink assertions and candidate/history scans | Sanitized display inspection | Automated locally; manual matrix pending |
+| AC-14 | `offline_gate::daemon_uses_local_ipc_without_network_endpoints` with a positive loopback control, real Git, SQLite, IPC, PTY, backup and restore | Headless SSH workflow | Automated locally; SSH matrix pending |
+| AC-15 | `agent_templates_gate::unknown_cli_is_configured_and_continued_through_the_real_tui` | None | Automated locally; pending final native candidate |
+| AC-16 | `cli::command_contracts_have_no_runtime_side_effects`, one binary target, and help/version repository checks | Installation conflict belongs to M12 | Automated locally; pending final native candidate |
 
 FR-1 through FR-9 map to AC-1 through AC-10 and AC-15. FR-10 remains deferred because M11 private database recovery is not a project export. NFR-1 maps to the native matrix, NFR-2 to fault isolation and atomicity, NFR-3 to the fixed performance workloads, NFR-4 to protocol/database compatibility, NFR-5 to diagnostics, NFR-6 to TUI and manual observations, NFR-7 to architecture tests, and NFR-8 to the complete resource inventory.
 
