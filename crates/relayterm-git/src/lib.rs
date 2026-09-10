@@ -1534,7 +1534,8 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn completed_git_does_not_wait_for_a_descendant_holding_stdout() {
+    #[ignore = "runs as an isolated native process-tree gate"]
+    fn completed_git_terminates_descendant_holding_output() {
         use std::os::unix::fs::PermissionsExt;
 
         let directory = tempfile::tempdir().unwrap();
@@ -1557,7 +1558,8 @@ mod tests {
 
     #[cfg(windows)]
     #[test]
-    fn completed_git_terminates_a_descendant_holding_stdout() {
+    #[ignore = "runs as an isolated native process-tree gate"]
+    fn completed_git_terminates_descendant_holding_output() {
         let directory = tempfile::tempdir().unwrap();
         let executable = directory.path().join("git-fixture.cmd");
         let marker = directory.path().join("descendant.marker");

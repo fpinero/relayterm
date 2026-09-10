@@ -118,6 +118,14 @@ jobs:
         if: matrix.toolchain == 'stable'
         timeout-minutes: 5
         run: cargo test -p relayterm-daemon --test worktree_cancellation_gate --features test-hooks --locked -- --nocapture --test-threads=1
+      - name: Test M11 Git descendant containment, pass 1
+        if: matrix.toolchain == 'stable'
+        timeout-minutes: 2
+        run: cargo test -p relayterm-git --lib --locked tests::completed_git_terminates_descendant_holding_output -- --ignored --exact --nocapture --test-threads=1
+      - name: Test M11 Git descendant containment, pass 2
+        if: matrix.toolchain == 'stable'
+        timeout-minutes: 2
+        run: cargo test -p relayterm-git --lib --locked tests::completed_git_terminates_descendant_holding_output -- --ignored --exact --nocapture --test-threads=1
       - name: Test M11 durable scale, pass 1
         if: matrix.toolchain == 'stable'
         timeout-minutes: 5
