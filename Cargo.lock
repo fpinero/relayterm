@@ -1472,7 +1472,6 @@ dependencies = [
  "relayterm-daemon",
  "relayterm-protocol",
  "relayterm-pty",
- "relayterm-terminal",
  "relayterm-tui",
  "serde",
  "serde_json",

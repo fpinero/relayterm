@@ -50,6 +50,7 @@ use tokio::{
 pub const EVENT_POLL_INTERVAL: Duration = Duration::from_millis(250);
 pub const EVENT_QUEUE_ITEMS: usize = 256;
 pub const EVENT_QUEUE_BYTES: usize = 1024 * 1024;
+pub const TERMINAL_SCROLLBACK_BYTES: usize = relayterm_terminal::DEFAULT_SCROLLBACK_BYTES;
 static CONNECTION_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
 type BackupFuture = Pin<Box<dyn Future<Output = Result<BackupReport, RuntimeError>> + Send>>;

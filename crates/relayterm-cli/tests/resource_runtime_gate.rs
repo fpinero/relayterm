@@ -5,7 +5,7 @@ mod native;
 use native::{
     DaemonCleanup, OuterTerminal, Scratch, admin, admin_output, next_selection_input, wait_until,
 };
-use relayterm_terminal::DEFAULT_SCROLLBACK_BYTES;
+use relayterm_daemon::TERMINAL_SCROLLBACK_BYTES;
 use serde_json::{Value, json};
 use std::{
     fs,
@@ -21,7 +21,7 @@ const WARMUP: Duration = Duration::from_secs(60);
 const MEMORY_LIMIT_BYTES: u64 = 512 * 1024 * 1024;
 const PLATEAU_ALLOWANCE_BYTES: u64 = 32 * 1024 * 1024;
 const SESSION_COUNT: usize = 8;
-const BOUNDED_SESSION_OUTPUT: u64 = 3 * DEFAULT_SCROLLBACK_BYTES as u64;
+const BOUNDED_SESSION_OUTPUT: u64 = 3 * TERMINAL_SCROLLBACK_BYTES as u64;
 
 #[test]
 #[ignore]
