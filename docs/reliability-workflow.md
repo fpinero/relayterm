@@ -101,7 +101,7 @@ cargo test -p relayterm-cli --test resource_runtime_gate --locked sustained_outp
 ```
 
 It launches the maximum eight real PTY or ConPTY sessions at 120 by 40, makes
-each session emit enough data to wrap its 8 MiB retained buffer three times,
+each session emit enough data to wrap its configured 1 MiB retained buffer three times,
 keeps one PTY emitting continuously for 180 seconds, and rejects a ninth session
 before spawn. It samples the daemon, TUI and aggregate fixture-child resident
 memory after a 60-second warm-up, and performs 100 client reconnects, including

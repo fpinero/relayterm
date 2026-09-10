@@ -5,6 +5,7 @@ mod native;
 use native::{
     DaemonCleanup, OuterTerminal, Scratch, admin, admin_output, next_selection_input, wait_until,
 };
+use relayterm_terminal::DEFAULT_SCROLLBACK_BYTES;
 use serde_json::{Value, json};
 use std::{
     fs,
@@ -20,7 +21,7 @@ const WARMUP: Duration = Duration::from_secs(60);
 const MEMORY_LIMIT_BYTES: u64 = 512 * 1024 * 1024;
 const PLATEAU_ALLOWANCE_BYTES: u64 = 32 * 1024 * 1024;
 const SESSION_COUNT: usize = 8;
-const BOUNDED_SESSION_OUTPUT: u64 = 3 * 8 * 1024 * 1024;
+const BOUNDED_SESSION_OUTPUT: u64 = 3 * DEFAULT_SCROLLBACK_BYTES as u64;
 
 #[test]
 #[ignore]
@@ -130,7 +131,16 @@ fn sustained_output_memory_and_reconnect_resources_are_bounded() {
     for expected in 1..=SESSION_COUNT {
         let mut session_command = command(&root, &home);
         session_command
-            .args(["session", "create", "--definition-id", definition_id])
+            .args([
+                "session",
+                "create",
+                "--definition-id",
+                definition_id,
+                "--rows",
+                "40",
+                "--columns",
+                "120",
+            ])
             .env("RELAYTERM_RESOURCE_STOP", &stop);
         let session = successful_output(session_command.output().unwrap());
         session_ids.push(session["session_id"].as_str().unwrap().to_owned());
