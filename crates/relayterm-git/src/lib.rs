@@ -624,6 +624,7 @@ fn read_nonblocking(
     loop {
         let read = match input.read(&mut chunk) {
             Ok(read) => read,
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
             Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
                 if command_finished.load(Ordering::Acquire) {
                     return Ok(value);
@@ -1483,6 +1484,33 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn stream_reader_stops_at_the_exact_output_budget() {
+        struct InterruptedOnce {
+            interrupted: bool,
+            inner: std::io::Cursor<Vec<u8>>,
+        }
+
+        impl Read for InterruptedOnce {
+            fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+                if !self.interrupted {
+                    self.interrupted = true;
+                    return Err(std::io::Error::from(std::io::ErrorKind::Interrupted));
+                }
+                self.inner.read(buffer)
+            }
+        }
+
+        assert_eq!(
+            read_nonblocking(
+                &mut InterruptedOnce {
+                    interrupted: false,
+                    inner: std::io::Cursor::new(b"complete".to_vec()),
+                },
+                16,
+                &AtomicBool::new(false),
+            )
+            .unwrap(),
+            b"complete"
+        );
         assert_eq!(
             read_nonblocking(
                 &mut std::io::Cursor::new(vec![b'x'; 16]),
