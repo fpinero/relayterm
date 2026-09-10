@@ -709,6 +709,10 @@ async fn create_backup_from_database(
         .write_all(&bytes)
         .map_err(|_| RuntimeError::Storage)?;
     output.sync_all().map_err(|_| RuntimeError::Storage)?;
+    // Windows cannot publish the staging directory while a member is still
+    // held by this process without delete sharing. Close the manifest before
+    // validating and atomically renaming the directory.
+    drop(output);
     validate_backup_members(staging.path())?;
     let report = BackupReport {
         format_version: 1,

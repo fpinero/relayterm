@@ -4,28 +4,28 @@
 
 This matrix tracks the hardening candidate. `Passed` requires candidate-specific evidence. `Pending` means implementation or evidence remains. `Blocked` means an external requirement is unavailable. Earlier milestone results are regression inputs, not M11 completion.
 
-Evidence records include candidate commit, command or procedure, native OS and architecture, tool versions, repetition, duration, and sanitized measurements. Cross-compilation never substitutes for native execution. Manual named-terminal and SSH observations are independent from automated PTY or ConPTY tests.
+Evidence records include candidate commit, command or procedure, native OS and architecture, tool versions, repetition, duration, and sanitized measurements. Cross-compilation never substitutes for native execution. Manual named-terminal and SSH observations are independent from automated PTY or ConPTY tests. The implementation owner is M11 unless a row explicitly assigns installation-only work to M12. Automated candidate evidence is tracked against `235196d`; a later evidence-only documentation commit is a descendant and does not change the tested behavior.
 
 ## Acceptance criteria
 
-| Criterion | Automated evidence | Manual evidence | Current M11 status |
-| --- | --- | --- | --- |
-| AC-1 | `cli::bootstrap_rejects_invalid_input_without_side_effects`, `durable_slice::durable_handover_survives_process_restart`, and `backup_restore::private_backup_is_exclusive_integrity_checked_and_reopenable` | M12 clean installation only | Automated locally; pending final native candidate |
-| AC-2 | `cli::detached_daemon_survives_starters_and_reopens_durable_state`, `runtime_ownership_precedes_recovery_and_rejects_a_contender`, IPC ownership tests, and `durable_slice::closing_launch_console_keeps_daemon_reachable` | Actual terminal closure in the manual matrix | Automated locally; manual matrix pending |
-| AC-3 | `pty_gate::three_real_ptys_survive_client_disconnect_and_reconstruct`, `tui_gate::tui_initializes_launches_detaches_and_reopens_without_stopping_children`, and `worktree_gate::real_tui_creates_and_launches_two_task_worktrees` | Observe three sessions in each named terminal | Automated locally; manual matrix pending |
-| AC-4 | The TUI workflow gate, terminal reconstruction unit tests, and resource-runtime gate cover full-screen state, Unicode, input, resize, switching, exit and bounds | Local and SSH rendering matrix | Automated locally; manual matrix pending |
-| AC-5 | `application::two_transactions_race_without_sleeps_and_only_one_claim_commits`, `persistence::independent_clients_race_one_claim_without_partial_events`, and the integrated worktree journey | None | Automated locally; pending final native candidate |
-| AC-6 | `tui_gate::tui_initializes_launches_detaches_and_reopens_without_stopping_children`, `protocol_gate::two_clients_complete_a_durable_handover_journey`, and the integrated worktree journey | None | Automated locally; pending final native candidate |
-| AC-7 | The TUI and worktree journeys plus `continuity_gate_preserves_context_attribution_and_event_order` assert second-instance context and completion | None | Automated locally; pending final native candidate |
-| AC-8 | TUI abrupt detach, PTY client disconnect and launch-console closure tests preserve daemon-owned children and allow independent reattach | Named terminal and SSH disconnect observations | Automated locally; manual matrix pending |
-| AC-9 | `startup_reconciles_active_claim_once_before_readiness`, `sqlite_kill_gate::killing_the_server_before_sqlite_commit_rolls_back_the_whole_mutation`, and durable restart journeys | None | Automated locally; pending final native candidate |
-| AC-10 | Both worktree-gate journeys, native Git identity tests, `worktree_cancellation_gate`, and `worktree_recovery` cover isolation, immutable launch identity and partial outcomes | None | Automated locally; pending final native candidate |
-| AC-11 | `architecture` compile tests and the core-only workspace command | None | Automated locally; pending final native candidate |
-| AC-12 | Quality on Linux, macOS and Windows, pinned Rust 1.98.1 on Linux, plus Security | None | Pending final candidate checks |
-| AC-13 | Domain privacy tests, daemon diagnostic tests, TUI safe-text tests, durable-slice sink assertions and candidate/history scans | Sanitized display inspection | Automated locally; manual matrix pending |
-| AC-14 | `offline_gate::daemon_uses_local_ipc_without_network_endpoints` with a positive loopback control, real Git, SQLite, IPC, PTY, backup and restore | Headless SSH workflow | Automated locally; SSH matrix pending |
-| AC-15 | `agent_templates_gate::unknown_cli_is_configured_and_continued_through_the_real_tui` | None | Automated locally; pending final native candidate |
-| AC-16 | `cli::command_contracts_have_no_runtime_side_effects`, one binary target, and help/version repository checks | Installation conflict belongs to M12 | Automated locally; pending final native candidate |
+| Criterion | Owner | Automated evidence | Manual evidence or limitation | Candidate | Status |
+| --- | --- | --- | --- | --- | --- |
+| AC-1 | M11 | `cli::bootstrap_rejects_invalid_input_without_side_effects`, `durable_slice::durable_handover_survives_process_restart`, and `backup_restore::private_backup_is_exclusive_integrity_checked_and_reopenable` | Clean-machine installation belongs to M12 | `235196d` | Pending native reconciliation |
+| AC-2 | M11 | Detached daemon, runtime ownership, IPC ownership and launch-console closure tests | Actual named-terminal closure is required | `235196d` | Pending manual matrix |
+| AC-3 | M11 | Real PTY, TUI and integrated worktree tests each retain three running sessions | Observe the same behavior in every named terminal | `235196d` | Pending manual matrix |
+| AC-4 | M11 | TUI workflow, terminal reconstruction and resource-runtime tests cover rendering, Unicode, input, resize, switching, exit and bounds | Local and SSH rendering observations are required | `235196d` | Pending manual matrix |
+| AC-5 | M11 | Application and SQLite barrier races plus the integrated worktree journey prove one claim winner and no partial effects | None | `235196d` | Pending native reconciliation |
+| AC-6 | M11 | TUI forms, protocol continuity and integrated worktree tests prove progress plus atomic handover | None | `235196d` | Pending native reconciliation |
+| AC-7 | M11 | TUI, worktree and continuity gates prove attributed context transfer and completion by a second instance | None | `235196d` | Pending native reconciliation |
+| AC-8 | M11 | Abrupt TUI detach, PTY disconnect and launch-console closure tests preserve daemon-owned children and reattach | Named-terminal and SSH disconnect observations are required | `235196d` | Pending manual matrix |
+| AC-9 | M11 | Startup reconciliation, abrupt SQLite rollback and durable restart tests prove honest one-time loss handling | None | `235196d` | Pending native reconciliation |
+| AC-10 | M11 | Worktree journeys, Git identity, cancellation and recovery tests prove isolation and conservative outcomes | None | `235196d` | Pending native reconciliation |
+| AC-11 | M11 | Architecture compile tests and the core-only workspace command preserve client separation | None | `235196d` | Pending native reconciliation |
+| AC-12 | M11 | Quality on Linux, macOS and Windows, pinned Rust 1.98.1 on Linux, plus Security | Clean-machine packaging belongs to M12 | `235196d` | Pending native reconciliation |
+| AC-13 | M11 | Domain privacy, daemon diagnostics, TUI safe-text, sink and source/history scan tests | Sanitized display inspection is required | `235196d` | Pending manual matrix |
+| AC-14 | M11 | Offline gate uses a positive network control and real Git, SQLite, IPC, PTY, backup and restore | Headless SSH observation is required | `235196d` | Pending SSH matrix |
+| AC-15 | M11 | The agent-template gate configures and continues an unknown CLI through the real TUI | None | `235196d` | Pending native reconciliation |
+| AC-16 | M11 | CLI contract tests, the single binary target and repository help/version checks | PATH and installer collision checks belong to M12 | `235196d` | Pending native reconciliation |
 
 FR-1 through FR-9 map to AC-1 through AC-10 and AC-15. FR-10 remains deferred because M11 private database recovery is not a project export. NFR-1 maps to the native matrix, NFR-2 to fault isolation and atomicity, NFR-3 to the fixed performance workloads, NFR-4 to protocol/database compatibility, NFR-5 to diagnostics, NFR-6 to TUI and manual observations, NFR-7 to architecture tests, and NFR-8 to the complete resource inventory.
 
@@ -68,10 +68,18 @@ Durable history is append-only. Resource hardening must bound SQL reads, pages, 
 
 ## Required native and manual matrix
 
-| Platform | Automated | Required manual local | Required SSH |
-| --- | --- | --- | --- |
-| Linux | Ubuntu 24.04 stable and Rust 1.98.1 | Bash and configured generic shell in an identified xterm-compatible terminal | OpenSSH to Linux |
-| macOS | macOS 14 stable | Zsh and Bash in Terminal.app | OpenSSH to macOS |
-| Windows | Windows Server 2022 stable | PowerShell and cmd.exe in Windows Terminal | Supported Windows OpenSSH session |
+Automated execution uses Ubuntu 24.04 stable, Ubuntu 24.04 with Rust 1.98.1, macOS 14 stable and Windows Server 2022 stable. The rows below are separate operator observations and cannot be inferred from CI.
 
-Every manual cell covers full-screen entry/exit, Unicode wide and combining characters, resize, minimum size, focus escape, keyboard help, color-independent state, form conflicts, detach/reattach, terminal restoration, actual window or connection closure, and survival of the same children while the daemon remains alive. Missing cells keep M11.07 and M11.10 open.
+| ID | Platform and connection | Shell | Candidate | Dated observer evidence | Status |
+| --- | --- | --- | --- | --- | --- |
+| MAN-LNX-1 | Identified local xterm-compatible terminal | Bash | Pending final candidate | Pending | Blocked on environment and observer |
+| MAN-LNX-2 | Same local terminal | Configured generic shell | Pending final candidate | Pending | Blocked on environment and observer |
+| MAN-LNX-3 | Fresh OpenSSH connection to Linux | Record server shell | Pending final candidate | Pending | Blocked on authorized SSH target and observer |
+| MAN-MAC-1 | Terminal.app | Zsh | Pending final candidate | Pending | Blocked on observer |
+| MAN-MAC-2 | Terminal.app | Bash | Pending final candidate | Pending | Blocked on observer |
+| MAN-MAC-3 | Fresh OpenSSH connection to macOS | Record server shell and client terminal | Pending final candidate | Pending | Blocked on authorized SSH target and observer |
+| MAN-WIN-1 | Windows Terminal with ConPTY | PowerShell | Pending final candidate | Pending | Blocked on environment and observer |
+| MAN-WIN-2 | Windows Terminal with ConPTY | cmd.exe | Pending final candidate | Pending | Blocked on environment and observer |
+| MAN-WIN-3 | Fresh Windows OpenSSH connection | Record server shell and client terminal | Pending final candidate | Pending | Blocked on authorized SSH target and observer |
+
+Every row covers full-screen entry and exit, Unicode wide and combining characters, resize, minimum size, focus escape, keyboard help, color-independent state, form conflicts, detach and reattach, terminal restoration, actual window or connection closure, and survival of the same children while the daemon remains alive. Record terminal, shell, OS and `rt` versions, candidate SHA, UTC date, expected and actual results, and sanitized observer confirmation. Missing rows keep M11.07 and M11.10 open.
