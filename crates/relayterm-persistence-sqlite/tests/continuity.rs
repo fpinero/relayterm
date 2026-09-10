@@ -87,6 +87,63 @@ fn task_content(title: &str) -> TaskContent {
 }
 
 #[test]
+fn bounded_integrity_validation_rejects_cross_row_state_corruption() {
+    runtime().block_on(async {
+        let temporary = tempfile::tempdir().unwrap();
+        let private = temporary.path().join("private");
+        let project = temporary.path().join("project");
+        std::fs::create_dir(&project).unwrap();
+        relayterm_platform::create_private_dir(&private).unwrap();
+        let database = Database::open(
+            &private.join("workspace.sqlite3"),
+            DatabaseKind::Workspace,
+            OpenMode::ExplicitNew,
+            PoolSettings::default(),
+        )
+        .await
+        .unwrap();
+        let store = SqliteStore::new(database.pool().clone());
+        let workspace_id: WorkspaceId = "10000000-0000-4000-8000-000000000098".parse().unwrap();
+        let service = Service::new(
+            store.clone(),
+            TestClock(Arc::new(AtomicU64::new(0))),
+            TestIds(AtomicU64::new(7_000)),
+            NoopNotifier,
+        );
+        service
+            .create_workspace_reserved(workspace_id, "Integrity fixture".into(), project)
+            .await
+            .unwrap();
+        let created = service
+            .execute(
+                workspace_id,
+                Actor::LocalUser,
+                Request::CreateTask(task_content("Cross-row integrity")),
+            )
+            .await
+            .unwrap();
+        let task_id = created.committed.snapshot.state().unwrap().tasks()[0]
+            .record()
+            .id;
+
+        store
+            .validate_workspace_integrity(workspace_id)
+            .await
+            .unwrap();
+        sqlx::query("UPDATE tasks SET status='active' WHERE workspace_id=? AND task_id=?")
+            .bind(workspace_id.as_uuid().as_bytes().to_vec())
+            .bind(task_id.as_uuid().as_bytes().to_vec())
+            .execute(database.pool())
+            .await
+            .unwrap();
+        assert_eq!(
+            store.validate_workspace_integrity(workspace_id).await,
+            Err(Error::Integrity)
+        );
+    });
+}
+
+#[test]
 fn real_sqlite_write_failure_rolls_back_and_notifier_loss_keeps_the_commit() {
     runtime().block_on(async {
         let temporary = tempfile::tempdir().unwrap();

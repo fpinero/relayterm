@@ -17,8 +17,8 @@ pub use relayterm_platform::SystemClock as RuntimeSystemClock;
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use relayterm_application::{
-    Clock, DurableReadStore, EventNotifier, EventPageRequest, IdGenerator, Request, Service, Store,
-    TaskHistoryItem, TaskHistoryPageRequest,
+    Clock, DurableReadStore, EventNotifier, EventPageRequest, IdGenerator, MutationScope, Request,
+    Service, Store, TaskHistoryItem, TaskHistoryPageRequest,
 };
 use relayterm_domain as domain;
 use relayterm_ipc::{
@@ -789,23 +789,21 @@ where
             O::DaemonStatus => {
                 let _: wire::DaemonStatusParams = parameters(&request.params)?;
                 let control = self.lifecycle.as_ref().ok_or_else(unavailable)?;
-                let snapshot = self
+                let overview = self
                     .reads
-                    .consistent_snapshot(self.workspace_id)
+                    .workspace_overview(self.workspace_id)
                     .await
                     .map_err(map_domain_error)?;
-                let state = snapshot.snapshot.state().map_err(map_domain_error)?;
                 serde_json::to_value(wire::DaemonStatusResult {
                     workspace_id: wire::WorkspaceId::from_uuid(self.workspace_id.as_uuid()),
                     generation: control.generation().to_owned(),
                     lifecycle: control.lifecycle().to_owned(),
                     protocol_version: wire::PROTOCOL_VERSION,
-                    schema_version: state.workspace().record().schema_version,
-                    revision: wire::DecimalU64::new(snapshot.snapshot.revision())
-                        .map_err(|_| invalid())?,
-                    definitions: state.definitions().len(),
-                    tasks: state.tasks().len(),
-                    instances: state.instances().len(),
+                    schema_version: overview.schema_version,
+                    revision: wire::DecimalU64::new(overview.revision).map_err(|_| invalid())?,
+                    definitions: overview.definitions,
+                    tasks: overview.tasks,
+                    instances: overview.instances,
                 })
                 .map_err(|_| invalid())
             }
@@ -959,7 +957,13 @@ where
                 let id = parse_id::<domain::TaskId>(&request.params, "task_id")?;
                 let snapshot = self
                     .reads
-                    .consistent_snapshot(self.workspace_id)
+                    .consistent_projection(
+                        self.workspace_id,
+                        MutationScope {
+                            task_ids: vec![id],
+                            ..MutationScope::default()
+                        },
+                    )
                     .await
                     .map_err(map_domain_error)?;
                 let task = snapshot
@@ -972,20 +976,12 @@ where
             }
             O::HandoverGet => {
                 let id = parse_id::<domain::HandoverId>(&request.params, "handover_id")?;
-                let snapshot = self
+                let item = self
                     .reads
-                    .consistent_snapshot(self.workspace_id)
+                    .handover_by_id(self.workspace_id, id)
                     .await
                     .map_err(map_domain_error)?;
-                let item = snapshot
-                    .snapshot
-                    .state()
-                    .map_err(map_domain_error)?
-                    .handovers()
-                    .iter()
-                    .find(|x| x.record().id == id)
-                    .ok_or_else(|| map_domain_error(domain::Error::Reference))?;
-                Ok(handover_dto(item))
+                Ok(handover_dto(&item))
             }
             O::TaskGetHistory | O::TaskGetClaimHistory => self.history(request).await,
             O::EventList => self.event_list(&request.params).await,
@@ -1019,7 +1015,7 @@ where
             .map_err(|_| unavailable())?;
         let snapshot = self
             .reads
-            .consistent_snapshot(self.workspace_id)
+            .consistent_projection(self.workspace_id, MutationScope::default())
             .await
             .map_err(map_domain_error)?;
         if params
@@ -1063,7 +1059,13 @@ where
         let expected_revision = params.expected_revision.get();
         let snapshot = self
             .reads
-            .consistent_snapshot(self.workspace_id)
+            .consistent_projection(
+                self.workspace_id,
+                MutationScope {
+                    task_ids: vec![task_id],
+                    ..MutationScope::default()
+                },
+            )
             .await
             .map_err(map_domain_error)?;
         let state = snapshot.snapshot.state().map_err(map_domain_error)?;
@@ -1194,7 +1196,13 @@ where
             Err(domain::Error::Conflict) => {
                 let current = self
                     .reads
-                    .consistent_snapshot(self.workspace_id)
+                    .consistent_projection(
+                        self.workspace_id,
+                        MutationScope {
+                            task_ids: vec![task_id],
+                            ..MutationScope::default()
+                        },
+                    )
                     .await
                     .map_err(map_domain_error)?;
                 let state = current.snapshot.state().map_err(map_domain_error)?;
@@ -1315,7 +1323,12 @@ where
         let id = domain::WorktreeOperationId::from_uuid(params.operation_id.as_uuid());
         let snapshot = self
             .reads
-            .consistent_snapshot(self.workspace_id)
+            .consistent_projection(
+                self.workspace_id,
+                MutationScope {
+                    ..MutationScope::default()
+                },
+            )
             .await
             .map_err(map_domain_error)?;
         let state = snapshot.snapshot.state().map_err(map_domain_error)?;
@@ -1387,7 +1400,12 @@ where
         let operation_id = domain::WorktreeOperationId::from_uuid(params.operation_id.as_uuid());
         let snapshot = self
             .reads
-            .consistent_snapshot(self.workspace_id)
+            .consistent_projection(
+                self.workspace_id,
+                MutationScope {
+                    ..MutationScope::default()
+                },
+            )
             .await
             .map_err(map_domain_error)?;
         if snapshot.snapshot.revision() != params.expected_revision.get() {
@@ -1460,7 +1478,13 @@ where
         for _ in 0..8 {
             let snapshot = self
                 .reads
-                .consistent_snapshot(self.workspace_id)
+                .consistent_projection(
+                    self.workspace_id,
+                    MutationScope {
+                        task_ids: vec![worktree.record().task_id],
+                        ..MutationScope::default()
+                    },
+                )
                 .await
                 .map_err(map_domain_error)?;
             let state = snapshot.snapshot.state().map_err(map_domain_error)?;
@@ -1514,18 +1538,25 @@ where
         let params: wire::SessionCreateParams = parameters(value)?;
         validate_reserved(wire::Operation::SessionCreate, value)?;
         let supervisor = self.supervisor.as_ref().ok_or_else(unavailable)?;
-        let before = self
-            .reads
-            .consistent_snapshot(self.workspace_id)
-            .await
-            .map_err(map_domain_error)?;
-        let state = before.snapshot.state().map_err(map_domain_error)?;
         let definition_id = params
             .definition_id
             .map(|id| domain::AgentDefinitionId::from_uuid(id.as_uuid()));
         let task_id = params
             .task_id
             .map(|id| domain::TaskId::from_uuid(id.as_uuid()));
+        let before = self
+            .reads
+            .consistent_projection(
+                self.workspace_id,
+                MutationScope {
+                    task_ids: task_id.into_iter().collect(),
+                    definition_ids: definition_id.into_iter().collect(),
+                    ..MutationScope::default()
+                },
+            )
+            .await
+            .map_err(map_domain_error)?;
+        let state = before.snapshot.state().map_err(map_domain_error)?;
         let root = match task_id {
             Some(task_id) => {
                 if state.worktree_intents().iter().any(|intent| {
@@ -1754,7 +1785,15 @@ where
         let params: wire::AgentCheckDefinitionParams = parameters(value)?;
         let snapshot = self
             .reads
-            .consistent_snapshot(self.workspace_id)
+            .consistent_projection(
+                self.workspace_id,
+                MutationScope {
+                    definition_ids: vec![domain::AgentDefinitionId::from_uuid(
+                        params.definition_id.as_uuid(),
+                    )],
+                    ..MutationScope::default()
+                },
+            )
             .await
             .map_err(map_domain_error)?;
         if snapshot.snapshot.revision() != params.expected_revision.get() {
@@ -2050,7 +2089,7 @@ where
         }
         let snap = self
             .reads
-            .consistent_snapshot(self.workspace_id)
+            .consistent_projection(self.workspace_id, MutationScope::default())
             .await
             .map_err(map_domain_error)?;
         let revision = snap.snapshot.revision();
@@ -2346,7 +2385,7 @@ where
             Some(value) => value.get(),
             None => self
                 .reads
-                .consistent_snapshot(self.workspace_id)
+                .consistent_projection(self.workspace_id, MutationScope::default())
                 .await
                 .map_err(map_domain_error)?
                 .snapshot

@@ -22,8 +22,78 @@ pub trait Store: Sync {
     fn begin_mutation(
         &self,
         workspace_id: WorkspaceId,
+        _scope: MutationScope,
     ) -> impl Future<Output = Result<Self::Transaction>> + Send {
         self.begin(workspace_id)
+    }
+}
+
+/// Entity hints let durable adapters load the bounded consistency projection
+/// needed by one mutation. They never replace revision checks or domain rules.
+#[derive(Clone, Default)]
+pub struct MutationScope {
+    pub task_ids: Vec<TaskId>,
+    pub definition_ids: Vec<AgentDefinitionId>,
+    pub instance_ids: Vec<AgentInstanceId>,
+    pub all_definitions: bool,
+}
+
+impl MutationScope {
+    fn command(command: &Command) -> Self {
+        let mut scope = Self::default();
+        match command {
+            Command::AddDefinition(value) | Command::UpdateDefinition(value) => {
+                scope.definition_ids.push(value.record().id);
+            }
+            Command::ImportDefinitions(_) => scope.all_definitions = true,
+            Command::CreateTask { id, content } | Command::EditTask { id, content } => {
+                scope.task_ids.push(*id);
+                scope
+                    .task_ids
+                    .extend(content.dependency_ids.iter().copied());
+            }
+            Command::Transition { id, .. } => scope.task_ids.push(*id),
+            Command::Claim {
+                task_id,
+                instance_id,
+                ..
+            } => {
+                scope.task_ids.push(*task_id);
+                scope.instance_ids.push(*instance_id);
+            }
+            Command::Release { task_id }
+            | Command::Progress { task_id, .. }
+            | Command::Handover { task_id, .. } => scope.task_ids.push(*task_id),
+            Command::AddWorktreeIntent { intent, .. } => {
+                scope.task_ids.push(intent.record().task_id);
+            }
+            Command::MarkWorktreeApplying { .. } | Command::FailWorktree { .. } => {}
+            Command::FinalizeWorktree { worktree, .. } => {
+                scope.task_ids.push(worktree.record().task_id);
+            }
+            Command::SelectWorktree {
+                task_id,
+                worktree_id: _,
+            } => {
+                scope.task_ids.push(*task_id);
+            }
+        }
+        scope
+    }
+
+    fn observation(observation: &Observation) -> Self {
+        let mut scope = Self::default();
+        match observation {
+            Observation::Register(instance) => {
+                let record = instance.record();
+                scope.instance_ids.push(record.id);
+                scope.definition_ids.extend(record.agent_definition_id);
+                scope.task_ids.extend(record.task_id);
+            }
+            Observation::Status { id, .. } => scope.instance_ids.push(*id),
+            Observation::ReconcileLost => {}
+        }
+        scope
     }
 }
 pub trait Transaction: Send {
@@ -44,6 +114,13 @@ pub trait DurableReadStore: Sync {
         &self,
         workspace_id: WorkspaceId,
     ) -> impl Future<Output = Result<WatermarkedSnapshot>> + Send;
+    fn consistent_projection(
+        &self,
+        workspace_id: WorkspaceId,
+        _scope: MutationScope,
+    ) -> impl Future<Output = Result<WatermarkedSnapshot>> + Send {
+        self.consistent_snapshot(workspace_id)
+    }
     fn event_page(
         &self,
         workspace_id: WorkspaceId,
@@ -91,6 +168,49 @@ pub trait DurableReadStore: Sync {
         workspace_id: WorkspaceId,
         request: IdPageRequest,
     ) -> impl Future<Output = Result<IdPage<AgentInstance>>> + Send;
+    fn workspace_overview(
+        &self,
+        workspace_id: WorkspaceId,
+    ) -> impl Future<Output = Result<WorkspaceOverview>> + Send {
+        async move {
+            let snapshot = self.consistent_snapshot(workspace_id).await?;
+            let state = snapshot.snapshot.state()?;
+            Ok(WorkspaceOverview {
+                schema_version: state.workspace().record().schema_version,
+                revision: snapshot.snapshot.revision(),
+                last_sequence: snapshot.last_sequence,
+                definitions: state.definitions().len(),
+                tasks: state.tasks().len(),
+                instances: state.instances().len(),
+            })
+        }
+    }
+    fn handover_by_id(
+        &self,
+        workspace_id: WorkspaceId,
+        handover_id: HandoverId,
+    ) -> impl Future<Output = Result<Handover>> + Send {
+        async move {
+            self.consistent_snapshot(workspace_id)
+                .await?
+                .snapshot
+                .state()?
+                .handovers()
+                .iter()
+                .find(|value| value.record().id == handover_id)
+                .cloned()
+                .ok_or(Error::Reference)
+        }
+    }
+}
+
+pub struct WorkspaceOverview {
+    pub schema_version: u32,
+    pub revision: u64,
+    pub last_sequence: u64,
+    pub definitions: usize,
+    pub tasks: usize,
+    pub instances: usize,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -359,7 +479,10 @@ impl<S: Store, C: Clock, I: IdGenerator, N: EventNotifier> Service<S, C, I, N> {
             updated_at: at,
             schema_version: 1,
         })?;
-        let transaction = self.store.begin_mutation(id).await?;
+        let transaction = self
+            .store
+            .begin_mutation(id, MutationScope::default())
+            .await?;
         let event = PendingEvent {
             event_id: self.ids.next()?,
             workspace_id: id,
@@ -380,7 +503,16 @@ impl<S: Store, C: Clock, I: IdGenerator, N: EventNotifier> Service<S, C, I, N> {
         baseline_revision: u64,
         definitions: Vec<AgentDefinition>,
     ) -> Result<Outcome> {
-        let transaction = self.store.begin_mutation(workspace_id).await?;
+        let transaction = self
+            .store
+            .begin_mutation(
+                workspace_id,
+                MutationScope {
+                    all_definitions: true,
+                    ..MutationScope::default()
+                },
+            )
+            .await?;
         if transaction.snapshot().revision() != baseline_revision {
             return Err(Error::Conflict);
         }
@@ -426,7 +558,8 @@ impl<S: Store, C: Clock, I: IdGenerator, N: EventNotifier> Service<S, C, I, N> {
         if expected_revision == 0 {
             return Err(Error::Validation("expected_revision"));
         }
-        let transaction = self.store.begin_mutation(workspace_id).await?;
+        let scope = MutationScope::command(&command);
+        let transaction = self.store.begin_mutation(workspace_id, scope).await?;
         if transaction.snapshot().revision() != expected_revision {
             return Err(Error::Conflict);
         }
@@ -495,7 +628,8 @@ impl<S: Store, C: Clock, I: IdGenerator, N: EventNotifier> Service<S, C, I, N> {
                 content,
             },
         };
-        let transaction = self.store.begin_mutation(workspace_id).await?;
+        let scope = MutationScope::command(&command);
+        let transaction = self.store.begin_mutation(workspace_id, scope).await?;
         if expected_revision.is_some_and(|revision| transaction.snapshot().revision() != revision) {
             return Err(Error::Conflict);
         }
@@ -523,7 +657,17 @@ impl<S: Store, C: Clock, I: IdGenerator, N: EventNotifier> Service<S, C, I, N> {
         expected_revision: Option<u64>,
     ) -> Result<RegisteredInstance> {
         let at = self.clock.now()?;
-        let transaction = self.store.begin_mutation(workspace_id).await?;
+        let transaction = self
+            .store
+            .begin_mutation(
+                workspace_id,
+                MutationScope {
+                    task_ids: context.task_id.into_iter().collect(),
+                    definition_ids: context.agent_definition_id.into_iter().collect(),
+                    ..MutationScope::default()
+                },
+            )
+            .await?;
         if expected_revision.is_some_and(|revision| transaction.snapshot().revision() != revision) {
             return Err(Error::Conflict);
         }
@@ -598,7 +742,8 @@ impl<S: Store, C: Clock, I: IdGenerator, N: EventNotifier> Service<S, C, I, N> {
         observation: Observation,
         at: Timestamp,
     ) -> Result<Outcome> {
-        let transaction = self.store.begin_mutation(workspace_id).await?;
+        let scope = MutationScope::observation(&observation);
+        let transaction = self.store.begin_mutation(workspace_id, scope).await?;
         let changes = transaction.snapshot().state()?.observe(observation, at)?;
         self.commit_changes(transaction, changes).await
     }

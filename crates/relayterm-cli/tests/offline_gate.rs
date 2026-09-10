@@ -418,48 +418,40 @@ fn processes_have_network_endpoint(process_ids: &[u32]) -> bool {
 #[cfg(windows)]
 fn processes_have_network_endpoint(process_ids: &[u32]) -> bool {
     static NEXT_PROBE: AtomicU64 = AtomicU64::new(1);
-    let output = std::env::temp_dir().join(format!(
-        "rt11-socket-owners-{}-{}.txt",
+    let prefix = std::env::temp_dir().join(format!(
+        "rt11-netstat-{}-{}",
         std::process::id(),
         NEXT_PROBE.fetch_add(1, Ordering::Relaxed)
     ));
-    let script = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests")
-        .join("support")
-        .join("windows_socket_owners.ps1");
-    let mut monitor = Command::new("pwsh.exe")
-        .args([
-            "-NoLogo",
-            "-NoProfile",
-            "-NonInteractive",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-        ])
-        .arg(script)
-        .args(["-OutputPath"])
-        .arg(&output)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .expect("native Windows network monitor could not start");
-    let deadline = Instant::now() + Duration::from_secs(15);
-    loop {
-        if let Some(status) = monitor.try_wait().unwrap() {
-            assert!(status.success(), "native Windows network monitor failed");
-            break;
-        }
-        if Instant::now() >= deadline {
-            stop_child(&mut monitor);
-            panic!("native Windows network monitor exceeded its deadline");
-        }
-        thread::sleep(Duration::from_millis(20));
-    }
-    let owners = fs::read_to_string(&output).expect("native owner table output was not written");
-    let _ = fs::remove_file(output);
-    owners
-        .lines()
-        .filter_map(|line| line.parse::<u32>().ok())
-        .any(|owner| process_ids.contains(&owner))
+    ["tcp", "udp"].into_iter().any(|protocol| {
+        let output = prefix.with_extension(protocol);
+        let writer = fs::File::create(&output).expect("native netstat output could not be created");
+        let mut monitor = Command::new("netstat.exe")
+            .args(["-ano", "-p", protocol])
+            .stdin(Stdio::null())
+            .stdout(writer)
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("native Windows netstat monitor could not start");
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let status = loop {
+            if let Some(status) = monitor.try_wait().unwrap() {
+                break status;
+            }
+            if Instant::now() >= deadline {
+                stop_child(&mut monitor);
+                panic!("native Windows netstat monitor exceeded its deadline");
+            }
+            thread::sleep(Duration::from_millis(20));
+        };
+        assert!(status.success(), "native Windows netstat monitor failed");
+        let table = fs::read_to_string(&output).expect("native netstat output was not written");
+        let _ = fs::remove_file(output);
+        table.lines().any(|line| {
+            line.split_whitespace()
+                .next_back()
+                .and_then(|value| value.parse::<u32>().ok())
+                .is_some_and(|owner| process_ids.contains(&owner))
+        })
+    })
 }

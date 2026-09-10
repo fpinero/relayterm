@@ -2,7 +2,7 @@ use crate::{
     DaemonControl, WorkspaceServer, diagnostics::DiagnosticLog, supervisor::SessionSupervisor,
 };
 use relayterm_application::{
-    Clock, DurableReadStore, EventNotifier, IdGenerator, Service, Store, Transaction,
+    Clock, DurableReadStore, EventNotifier, IdGenerator, MutationScope, Service, Store, Transaction,
 };
 use relayterm_client::{Client, ClientError, Delivery};
 use relayterm_config::StorageSettings;
@@ -580,7 +580,7 @@ pub async fn prepare_workspace(
         RuntimeNotifier(notify_tx),
     ));
     let snapshot = store
-        .begin(expected)
+        .begin_mutation(expected, MutationScope::default())
         .await
         .map_err(|_| RuntimeError::Storage)?;
     if snapshot
@@ -678,11 +678,16 @@ async fn create_backup_from_database(
     .await
     .map_err(map_storage)?;
     let workspace_schema_version = captured.schema_version().await.map_err(map_storage)?;
-    let snapshot = SqliteStore::new(captured.pool().clone())
-        .consistent_snapshot(workspace_id)
+    let captured_store = SqliteStore::new(captured.pool().clone());
+    captured_store
+        .validate_workspace_integrity(workspace_id)
         .await
         .map_err(|_| RuntimeError::Storage)?;
-    let workspace_revision = snapshot.snapshot.revision().to_string();
+    let snapshot = captured_store
+        .workspace_overview(workspace_id)
+        .await
+        .map_err(|_| RuntimeError::Storage)?;
+    let workspace_revision = snapshot.revision.to_string();
     let last_event_sequence = snapshot.last_sequence.to_string();
     captured.pool().close().await;
     let checksum = hash_private_file(&database_member)?;
@@ -784,11 +789,16 @@ pub async fn restore_workspace(
     )
     .await
     .map_err(map_storage)?;
-    let snapshot = SqliteStore::new(restored.pool().clone())
-        .consistent_snapshot(workspace_id)
+    let restored_store = SqliteStore::new(restored.pool().clone());
+    restored_store
+        .validate_workspace_integrity(workspace_id)
         .await
         .map_err(|_| RuntimeError::RecoveryRequired)?;
-    if snapshot.snapshot.revision().to_string() != manifest.workspace_revision
+    let snapshot = restored_store
+        .workspace_overview(workspace_id)
+        .await
+        .map_err(|_| RuntimeError::RecoveryRequired)?;
+    if snapshot.revision.to_string() != manifest.workspace_revision
         || snapshot.last_sequence.to_string() != manifest.last_event_sequence
     {
         return Err(RuntimeError::RecoveryRequired);

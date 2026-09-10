@@ -604,6 +604,66 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
         fs::read(corrupt_structure.join("manifest.json")).unwrap(),
         serde_json::to_vec(&corrupt_manifest).unwrap()
     );
+
+    let inconsistent = home.join("data").join("inconsistent-backup");
+    success(
+        &root,
+        &home,
+        &[
+            "backup",
+            "create",
+            "--destination",
+            inconsistent.to_str().unwrap(),
+        ],
+    );
+    let inconsistent_database = inconsistent.join("workspace.sqlite3");
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(async {
+            let options = sqlx::sqlite::SqliteConnectOptions::new()
+                .filename(&inconsistent_database)
+                .create_if_missing(false)
+                .disable_statement_logging();
+            let mut connection = sqlx::SqliteConnection::connect_with(&options)
+                .await
+                .unwrap();
+            connection
+                .execute("UPDATE tasks SET status='active'")
+                .await
+                .unwrap();
+            connection.close().await.unwrap();
+        });
+    let inconsistent_bytes = fs::read(&inconsistent_database).unwrap();
+    let mut inconsistent_manifest: Value =
+        serde_json::from_slice(&fs::read(inconsistent.join("manifest.json")).unwrap()).unwrap();
+    inconsistent_manifest["blake3"] =
+        Value::String(blake3::hash(&inconsistent_bytes).to_hex().to_string());
+    fs::write(
+        inconsistent.join("manifest.json"),
+        serde_json::to_vec(&inconsistent_manifest).unwrap(),
+    )
+    .unwrap();
+    let inconsistent_home = recovery.join("x");
+    let inconsistent_result = bounded_output(
+        Command::new(env!("CARGO_BIN_EXE_rt"))
+            .arg("--workspace")
+            .arg(&root)
+            .args(["--format", "json", "backup", "restore", "--source"])
+            .arg(&inconsistent)
+            .arg("--destination")
+            .arg(&inconsistent_home)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null()),
+    );
+    assert!(!inconsistent_result.status.success());
+    assert!(!inconsistent_home.exists());
+    assert_eq!(
+        fs::read(&inconsistent_database).unwrap(),
+        inconsistent_bytes
+    );
+
     assert_eq!(
         fs::read(backup.join("workspace.sqlite3")).unwrap(),
         original_database
