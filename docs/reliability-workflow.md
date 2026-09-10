@@ -34,6 +34,8 @@ The `hardening_gate` target composes two isolated native workspaces. Its TUI sce
 
 Each native CI command and each required gate repetition is a separate workflow step. Compiler installation, compiler reporting and Cargo reporting are also separate steps, so a failed native command on PowerShell cannot be hidden by a later successful command. The repository audit checks this workflow structure as part of candidate review.
 
+The complete workspace suite has a ten-minute step limit inside a 45-minute native job. Windows candidate `ab393da` demonstrated that the previous five-minute step limit expired after 53 seconds of ordinary compilation and four minutes of passing tests, before the suite reached the remaining crates. Every test retained its own existing deadline, workload and assertion. The larger orchestration limits accommodate the measured bounded inventory and do not retry, omit or weaken a failed test.
+
 Do not treat two passing invocations of the current entry point as evidence for the complete M11 journey. Candidate acceptance also requires every mapped retained gate, the fault and resource workloads, native offline observation and the manual matrix. Cleanup must remain bounded and target only fixture-owned children and private scratch paths.
 
 ## Current risk investigations
