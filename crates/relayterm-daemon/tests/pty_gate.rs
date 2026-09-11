@@ -479,7 +479,7 @@ async fn three_real_ptys_survive_client_disconnect_and_reconstruct() {
         .call::<_, Value>(Operation::SessionAcquireInput, &json!({"session_id":first}))
         .await;
     assert!(conflict.is_err(), "a second writer must be rejected");
-    drop(client);
+    client.reconnect_explicitly().await.unwrap();
     let deadline = Instant::now() + Duration::from_secs(15);
     let replacement_lease = loop {
         match observer

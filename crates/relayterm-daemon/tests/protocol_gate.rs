@@ -902,3 +902,91 @@ async fn two_clients_complete_a_durable_handover_journey() {
         TaskStatus::Done
     );
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn idle_subscription_delivers_event_without_reconnecting() {
+    let temp = private_temp();
+    let private = temp.path().join("private");
+    create_private_dir(&private).unwrap();
+    let database_path = private.join("workspace.db");
+    let database = Database::open(
+        &database_path,
+        DatabaseKind::Workspace,
+        OpenMode::ExplicitNew,
+        PoolSettings::default(),
+    )
+    .await
+    .unwrap();
+    let store = SqliteStore::new(database.pool().clone());
+    let workspace: WorkspaceId = "00000000-0000-4000-8000-000000000101".parse().unwrap();
+    let (event_wakeup_tx, event_wakeup_rx) = watch::channel(0);
+    let service = Arc::new(Service::new(
+        store.clone(),
+        SystemClock,
+        RandomIdGenerator::default(),
+        Notify(Some(event_wakeup_tx)),
+    ));
+    service
+        .create_workspace_reserved(
+            workspace,
+            "Protocol fixture".into(),
+            temp.path().join("project"),
+        )
+        .await
+        .unwrap();
+    let endpoint = Endpoint::derive(
+        &temp.path().join("runtime"),
+        WireWorkspaceId::from_uuid(workspace.as_uuid()),
+    )
+    .unwrap();
+    let server = WorkspaceServer::bind(workspace, &endpoint, service.clone(), store.clone())
+        .await
+        .unwrap()
+        .with_event_wakeups(event_wakeup_rx);
+    let faults = server.fault_injector();
+    let (shutdown_tx, shutdown_rx) = watch::channel(false);
+    let task = tokio::spawn(server.run(shutdown_rx));
+    let a = Client::connect(&endpoint, WireWorkspaceId::from_uuid(workspace.as_uuid()))
+        .await
+        .unwrap();
+    let b = Client::connect(&endpoint, WireWorkspaceId::from_uuid(workspace.as_uuid()))
+        .await
+        .unwrap();
+
+    let snapshot: Value = a
+        .call(
+            Operation::WorkspaceGetSnapshot,
+            &json!({"collection":"tasks","limit":50}),
+        )
+        .await
+        .unwrap();
+    let sequence = snapshot["last_sequence"].as_str().unwrap().parse().unwrap();
+    let revision = snapshot["revision"].as_str().unwrap();
+    let b = b.with_deadline(Duration::from_millis(200));
+    b.subscribe(sequence).await.unwrap();
+    let connections = faults.connection_accept_count();
+    let (event, created) = tokio::join!(
+        tokio::time::timeout(Duration::from_secs(15), b.next_event()),
+        async {
+            tokio::time::sleep(relayterm_ipc::PARTIAL_FRAME_TIMEOUT + Duration::from_secs(1)).await;
+            a.call::<_, Value>(Operation::TaskCreate, &json!({"expected_revision":revision,"title":"After idle","description":"","priority":"normal","scope_paths":[],"acceptance_notes":"","dependency_ids":[]})).await
+        }
+    );
+    created.unwrap();
+    let event = event
+        .expect("event wait must finish")
+        .expect("idle must not disconnect");
+    assert_eq!(
+        event["sequence"].as_str().unwrap().parse::<u64>().unwrap(),
+        sequence + 1
+    );
+    assert_eq!(
+        faults.connection_accept_count(),
+        connections,
+        "idle request and event connections must remain open"
+    );
+    drop(a);
+    drop(b);
+    shutdown_tx.send(true).unwrap();
+    task.await.unwrap().unwrap();
+}

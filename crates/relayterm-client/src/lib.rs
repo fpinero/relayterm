@@ -1,6 +1,8 @@
 //! Shared Relayterm IPC client with explicit mutation uncertainty.
 
-use relayterm_ipc::{Endpoint, IpcError, LocalStream, connect, read_frame, write_frame};
+use relayterm_ipc::{
+    Endpoint, IpcError, LocalStream, connect, read_frame, read_frame_idle, write_frame,
+};
 use relayterm_protocol::{
     DecimalU64, ErrorBody, ErrorCode, EventEnvelope, FrameKind, Operation, PROTOCOL_VERSION,
     RequestEnvelope, RequestType, ResponseEnvelope, SNAPSHOT_STAGING_LIMIT,
@@ -158,6 +160,19 @@ impl Client {
             .await
             .map(|peer| peer.with_deadline(self.deadline))
     }
+
+    /// Replace the current connection after an explicit reconciliation request.
+    /// Dropping the old authenticated connection also releases its ephemeral
+    /// attachments and input leases on the daemon.
+    pub async fn reconnect_explicitly(&self) -> Result<(), ClientError> {
+        {
+            let mut stream = self.stream.lock().await;
+            let _ = stream.shutdown().await;
+        }
+        self.visible.lock().await.connection = ConnectionStatus::Disconnected;
+        self.reconnect().await
+    }
+
     pub async fn call<P: Serialize, R: DeserializeOwned>(
         &self,
         operation: Operation,
@@ -609,7 +624,7 @@ impl Client {
         }
         loop {
             let mut stream = self.stream.lock().await;
-            let frame = match read_frame(&mut *stream, self.deadline).await {
+            let frame = match read_frame_idle(&mut *stream).await {
                 Ok(frame) => frame,
                 Err(_) => {
                     self.visible.lock().await.connection = ConnectionStatus::Disconnected;

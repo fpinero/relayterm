@@ -22,8 +22,7 @@ use relayterm_application::{
 };
 use relayterm_domain as domain;
 use relayterm_ipc::{
-    Endpoint, IpcError, LocalListener, LocalStream, MAX_CONNECTIONS, PARTIAL_FRAME_TIMEOUT,
-    read_frame, write_frame,
+    Endpoint, IpcError, LocalListener, LocalStream, MAX_CONNECTIONS, read_frame, write_frame,
 };
 use relayterm_protocol as wire;
 use serde::Deserialize;
@@ -537,7 +536,7 @@ where
         let reader_task = tokio::spawn(async move {
             loop {
                 let frame: Result<wire::Frame, IpcError> =
-                    read_frame(&mut reader, PARTIAL_FRAME_TIMEOUT).await;
+                    relayterm_ipc::read_frame_idle(&mut reader).await;
                 let terminal = frame.is_err();
                 if incoming_tx.send(frame).await.is_err() || terminal {
                     return;

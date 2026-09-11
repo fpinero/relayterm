@@ -12,7 +12,7 @@ pub use model::{App, Form, FormKind, Freshness, Screen};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use relayterm_client::{Client, ClientError, Delivery};
-use relayterm_protocol::Operation;
+use relayterm_protocol::{ErrorCode, Operation};
 use serde_json::{Value, json};
 use std::{
     fmt,
@@ -274,8 +274,8 @@ async fn run_loop(
         {
             refresh_terminal(client, &mut app).await;
             last_terminal_refresh = Instant::now();
-        } else if app.terminal.is_none()
-            && last_refresh.elapsed() >= REFRESH_INTERVAL
+        }
+        if last_refresh.elapsed() >= REFRESH_INTERVAL
             && last_input.elapsed() >= REFRESH_IDLE_INTERVAL
         {
             if let Err(error) = refresh(client, &mut app).await {
@@ -386,7 +386,19 @@ async fn handle_key(client: &Client, app: &mut App, key: KeyEvent) {
         KeyCode::Char('?') => app.screen = Screen::Help,
         KeyCode::Char('R') => {
             app.freshness = Freshness::Reconnecting;
+            let reconcile_input = app
+                .terminal
+                .as_ref()
+                .is_some_and(|terminal| terminal.uncertain_input);
+            if reconcile_input && let Err(error) = client.reconnect_explicitly().await {
+                app.record_client_error(error);
+                return;
+            }
             if let Err(error) = refresh(client, app).await {
+                app.record_client_error(error);
+            } else if reconcile_input
+                && let Err(error) = reconcile_uncertain_input(client, app).await
+            {
                 app.record_client_error(error);
             }
         }
@@ -718,6 +730,7 @@ async fn submit_form(client: &Client, app: &mut App) {
                 error,
                 ClientError::Transport(Delivery::Unknown)
                     | ClientError::Cancelled(Delivery::Unknown)
+                    | ClientError::Rejected(ErrorCode::ResultUnknown)
             );
             form.error = Some(error.to_string());
             app.record_client_error(error);
@@ -1301,6 +1314,17 @@ async fn refresh_terminal(client: &Client, app: &mut App) {
 }
 
 async fn acquire_input(client: &Client, app: &mut App) {
+    if app
+        .terminal
+        .as_ref()
+        .is_some_and(|terminal| terminal.uncertain_input)
+    {
+        app.add_diagnostic(
+            "result_unknown",
+            "Input ownership is uncertain. Press R to reconnect and reconcile before acquiring input.",
+        );
+        return;
+    }
     if let Some(terminal) = app.terminal.as_mut()
         && terminal.scrollback_rows != 0
     {
@@ -1340,18 +1364,41 @@ async fn release_input(client: &Client, app: &mut App) {
     let Some(terminal) = app.terminal.as_ref() else {
         return;
     };
+    if terminal.uncertain_input {
+        if let Some(terminal) = app.terminal.as_mut() {
+            terminal.input_focus = false;
+        }
+        return;
+    }
     if let Some(lease_id) = terminal.lease_id.clone() {
         let session_id = terminal.session_id.clone();
-        let _ = client
+        let result = client
             .call::<_, Value>(
                 Operation::SessionReleaseInput,
                 &json!({"session_id":session_id,"lease_id":lease_id}),
             )
             .await;
-    }
-    if let Some(terminal) = app.terminal.as_mut() {
-        terminal.lease_id = None;
-        terminal.input_focus = false;
+        match result {
+            Ok(_) => {
+                if let Some(terminal) = app.terminal.as_mut() {
+                    confirm_input_release(terminal);
+                }
+            }
+            Err(error) => {
+                if input_result_is_unknown(error)
+                    && let Some(terminal) = app.terminal.as_mut()
+                {
+                    preserve_uncertain_input(terminal);
+                } else if release_error_invalidates_lease(error)
+                    && let Some(terminal) = app.terminal.as_mut()
+                {
+                    confirm_input_release(terminal);
+                }
+                app.record_client_error(error);
+            }
+        }
+    } else if let Some(terminal) = app.terminal.as_mut() {
+        confirm_input_release(terminal);
     }
 }
 
@@ -1371,13 +1418,83 @@ async fn send_input(client: &Client, app: &mut App, bytes: Vec<u8>) {
         Ok(_) => if let Some(terminal) = app.terminal.as_mut() { terminal.input_sequence += 1; },
         Err(error) => {
             if let Some(terminal) = app.terminal.as_mut() {
-                terminal.uncertain_input = true;
-                terminal.input_focus = false;
-                terminal.lease_id = None;
+                if input_result_is_unknown(error) {
+                    preserve_uncertain_input(terminal);
+                } else {
+                    confirm_input_release(terminal);
+                }
             }
             app.record_client_error(error);
         }
     }
+}
+
+fn input_result_is_unknown(error: ClientError) -> bool {
+    matches!(
+        error,
+        ClientError::Transport(Delivery::Unknown)
+            | ClientError::Cancelled(Delivery::Unknown)
+            | ClientError::Rejected(ErrorCode::ResultUnknown)
+    )
+}
+
+fn release_error_invalidates_lease(error: ClientError) -> bool {
+    matches!(
+        error,
+        ClientError::Rejected(
+            ErrorCode::Conflict | ErrorCode::InvalidState | ErrorCode::InvalidReference
+        )
+    )
+}
+
+fn preserve_uncertain_input(terminal: &mut model::TerminalView) {
+    terminal.input_focus = false;
+    terminal.uncertain_input = true;
+}
+
+fn confirm_input_release(terminal: &mut model::TerminalView) {
+    terminal.lease_id = None;
+    terminal.input_focus = false;
+    terminal.uncertain_input = false;
+}
+
+async fn reconcile_uncertain_input(client: &Client, app: &mut App) -> Result<(), ClientError> {
+    let Some((session_id, scrollback_rows)) = app.terminal.as_ref().and_then(|terminal| {
+        terminal
+            .uncertain_input
+            .then(|| (terminal.session_id.clone(), terminal.scrollback_rows))
+    }) else {
+        return Ok(());
+    };
+    let value = client
+        .call::<_, Value>(
+            Operation::SessionReadDisplay,
+            &display_params(app, &session_id, None, None, scrollback_rows, None),
+        )
+        .await?;
+    if let Some(terminal) = app.terminal.as_mut() {
+        terminal.attachment_id = string(&value, "attachment_id");
+        terminal.snapshot = value
+            .get("snapshot")
+            .cloned()
+            .filter(|snapshot| !snapshot.is_null());
+        terminal.scrollback_rows = value
+            .get("scrollback_offset")
+            .and_then(Value::as_u64)
+            .and_then(|value| u16::try_from(value).ok())
+            .unwrap_or(0);
+        terminal.retained_scrollback_rows = value
+            .get("retained_scrollback_rows")
+            .and_then(Value::as_u64)
+            .and_then(|value| u16::try_from(value).ok())
+            .unwrap_or(0);
+        confirm_input_release(terminal);
+    }
+    app.add_diagnostic(
+        "reconciled",
+        "Input ownership was reconciled on a fresh attachment.",
+    );
+    Ok(())
 }
 
 async fn resize_attached(client: &Client, app: &mut App) {
@@ -1627,6 +1744,44 @@ mod tests {
             KeyCode::Char(']'),
             KeyModifiers::NONE
         )));
+    }
+
+    #[test]
+    fn uncertain_terminal_input_preserves_the_lease_until_reconciliation() {
+        let mut terminal = model::TerminalView {
+            lease_id: Some("17".into()),
+            input_focus: true,
+            input_sequence: 4,
+            ..model::TerminalView::default()
+        };
+
+        preserve_uncertain_input(&mut terminal);
+        assert_eq!(terminal.lease_id.as_deref(), Some("17"));
+        assert!(!terminal.input_focus);
+        assert!(terminal.uncertain_input);
+        assert!(input_result_is_unknown(ClientError::Transport(
+            Delivery::Unknown
+        )));
+        assert!(input_result_is_unknown(ClientError::Rejected(
+            ErrorCode::ResultUnknown
+        )));
+        assert!(!input_result_is_unknown(ClientError::Rejected(
+            ErrorCode::Conflict
+        )));
+        assert!(release_error_invalidates_lease(ClientError::Rejected(
+            ErrorCode::Conflict
+        )));
+        assert!(release_error_invalidates_lease(ClientError::Rejected(
+            ErrorCode::InvalidState
+        )));
+        assert!(!release_error_invalidates_lease(ClientError::Rejected(
+            ErrorCode::OperationUnavailable
+        )));
+
+        confirm_input_release(&mut terminal);
+        assert!(terminal.lease_id.is_none());
+        assert!(!terminal.input_focus);
+        assert!(!terminal.uncertain_input);
     }
 
     #[test]

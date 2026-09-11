@@ -373,7 +373,8 @@ impl App {
     pub fn record_client_error(&mut self, error: ClientError) {
         match error {
             ClientError::Transport(Delivery::Unknown)
-            | ClientError::Cancelled(Delivery::Unknown) => {
+            | ClientError::Cancelled(Delivery::Unknown)
+            | ClientError::Rejected(relayterm_protocol::ErrorCode::ResultUnknown) => {
                 self.freshness = Freshness::Stale;
                 self.add_diagnostic(
                     "result_unknown",

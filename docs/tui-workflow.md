@@ -85,7 +85,13 @@ PageUp and PageDown request a private parsed-history view. The daemon takes that
 
 Control requests and event subscription use independent connections. The event reader queues at most 64 invalidations for the UI, and the protocol client retains at most 256 events or 1 MiB. It reconnects with bounded delays of 100, 250, 500, 1,000, and 2,000 ms. A gap, expired cursor, incompatible generation, or changed attachment requires an authoritative replacement.
 
+Workspace snapshots continue to refresh during idle input periods while a child terminal remains attached, including when another screen such as Agents is visible. Terminal display polling does not suppress workspace collection refresh.
+
+Established IPC connections may remain idle without reporting a transport failure. Event subscriptions wait for the next frame; once its first byte arrives, partial-header and partial-payload deadlines still apply. Handshake and request-response deadlines remain bounded.
+
 Reads may reconnect automatically. Mutations and terminal input never retry automatically after delivery becomes uncertain. The TUI labels the state stale, retains a form draft where applicable, refreshes authoritative state, and requires a deliberate user decision before another submission. Form submission is disabled while its request is pending. Revision-bearing task edits use the revision captured by the coherent snapshot, so a concurrent edit is rejected instead of overwritten.
+
+If terminal input or explicit input release has an uncertain result, the terminal changes to navigation mode, retains the unresolved lease identity, labels the attachment `RECONCILE WITH R`, and blocks another acquisition. Pressing `R` explicitly replaces the authenticated connection, which releases its ephemeral daemon lease, refreshes the workspace, and creates a fresh read-only attachment to the same session. Relayterm does not replay the uncertain input or release request.
 
 Diagnostics contain allowlisted categories and sequence or opaque identity context. They do not retain drafts, terminal cells, child output, command arguments, environment values, raw errors, or native paths. Diagnostics retain at most 1,000 entries and 1 MiB. All form drafts together are limited to 256 KiB and exist only in client memory.
 
