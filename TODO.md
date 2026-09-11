@@ -39,9 +39,7 @@ Execution contract: [M11 detailed plan](docs/M11_details.md). Add its 50 atomic 
 - M11.10: Verify the hardening gate with passing cross-platform builds, formatting, linting, unit/integration/end-to-end tests, scans, and all behavior AC evidence. Carry only installation/release-specific checks into M12; do not declare the MVP complete yet.
 
 ### M11 atomic execution queue
-
 - M11.07b: Execute the Linux local-terminal and OpenSSH matrix.
-- M11.07c: Execute the macOS Terminal.app and OpenSSH matrix.
 - M11.07d: Execute the Windows Terminal and OpenSSH matrix.
 - M11.07e: Resolve failures and reconcile manual acceptance.
 - M11.10d: Reconcile all acceptance, risk, budget, and manual evidence.
@@ -87,3 +85,13 @@ This index identifies the planned proof for each specification criterion. As mil
 | AC-16: Single `rt` executable and naming conflict guidance | M05, M12 | M12.01; M12.02 |
 
 FR-10 remains conditional: export is deferred, and no automatic project export may be introduced. Remaining NFR coverage is carried by M12 (platforms), M03-M07/M11 (reliability), M07-M08/M11 (performance), M03-M04/M12 (compatibility), M05/M11 (observability), M08/M11 (accessibility), M06 (maintainability), and M03-M04/M07/M11 (resource limits).
+
+## Usability follow-up proposals
+
+- UX-SESSION-NAMES: Plan user-editable session names so users can identify and select sessions without comparing full UUIDs. Preserve stable internal session and instance IDs and keep them available in details. Define persistence, rename behavior, and concise list labels before implementation. Requested during M11 manual observation; scheduling remains pending and this proposal does not add an M11 acceptance gate.
+
+- UX-SESSION-ORDER: Review predictable session ordering alongside editable names; consider creation order with new sessions appended at the end, preserving selection by identity. Scheduling remains pending.
+
+- UX-FORM-CURSOR: Investigate the reported invisible insertion cursor in task edit forms and provide a visible editing position. Keep Ctrl-U documented as clearing the active field, not enabling editing. Scheduling remains pending.
+
+- UX-CONFLICT-MESSAGE: Replace the generic rejected-request message for a stale form submission with safe guidance that identifies a concurrent edit, states that the local draft was retained, and explains explicit discard or reconciliation. Scheduling remains pending and this proposal does not add an M11 acceptance gate.

@@ -95,9 +95,9 @@ Automated execution uses Ubuntu 24.04 stable, Ubuntu 24.04 with Rust 1.98.1, mac
 | MAN-LNX-1 | Identified local xterm-compatible terminal | Bash | Pending final candidate | Pending | Blocked on environment and observer |
 | MAN-LNX-2 | Same local terminal | Configured generic shell | Pending final candidate | Pending | Blocked on environment and observer |
 | MAN-LNX-3 | Fresh OpenSSH connection to Linux | Record server shell | Pending final candidate | Pending | Blocked on authorized SSH target and observer |
-| MAN-MAC-1 | Terminal.app | Zsh | Pending final candidate | Pending | Blocked on observer |
-| MAN-MAC-2 | Terminal.app | Bash | Pending final candidate | Pending | Blocked on observer |
-| MAN-MAC-3 | Fresh OpenSSH connection to macOS | Record server shell and client terminal | Pending final candidate | Pending | Blocked on authorized SSH target and observer |
+| MAN-MAC-1 | Terminal.app | Zsh | `69ff8a8`, matching observed v4 SHA-256 `ebf27bbd945a` | [2026-09-10 to 2026-09-11 composite observations](m11-macos-manual-observations.md) | Passed; repeat affected behavior if source changes |
+| MAN-MAC-2 | Terminal.app | Bash | `69ff8a8`, matching observed v4 SHA-256 `ebf27bbd945a` | [2026-09-10 to 2026-09-11 composite observations](m11-macos-manual-observations.md) | Passed; repeat affected behavior if source changes |
+| MAN-MAC-3 | Fresh loopback OpenSSH connection to macOS from Terminal.app | Bash 3.2.57 | `69ff8a8`, matching observed v4 SHA-256 `ebf27bbd945a` | [2026-09-10 to 2026-09-11 composite observations](m11-macos-manual-observations.md) | Passed; repeat affected behavior if source changes |
 | MAN-WIN-1 | Windows Terminal with ConPTY | PowerShell | Pending final candidate | Pending | Blocked on environment and observer |
 | MAN-WIN-2 | Windows Terminal with ConPTY | cmd.exe | Pending final candidate | Pending | Blocked on environment and observer |
 | MAN-WIN-3 | Fresh Windows OpenSSH connection | Record server shell and client terminal | Pending final candidate | Pending | Blocked on authorized SSH target and observer |
