@@ -18,6 +18,10 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[path = "support/native_serial.rs"]
+#[allow(clippy::duplicate_mod)]
+mod native_serial;
+
 const DEADLINE: Duration = Duration::from_secs(45);
 const OUTPUT_LIMIT: usize = 2 * 1024 * 1024;
 const FLOOD_CHUNK_REPETITIONS: usize = 2_048;
@@ -230,7 +234,87 @@ impl Drop for DaemonCleanup {
 }
 
 #[test]
+fn input_ownership_moves_between_open_tui_clients() {
+    let _native_serial = native_serial::NativeSerialGuard::acquire();
+    let _serial = NATIVE_GATE_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let scratch = Scratch::new();
+    let root = scratch.0.join("project");
+    let private = scratch.0.join("private");
+    fs::create_dir(&root).unwrap();
+    let _cleanup = DaemonCleanup {
+        root: root.clone(),
+        private: private.clone(),
+    };
+    let mut owner = OuterTerminal::spawn(&root, &private);
+    owner.wait_for("Initialize it?");
+    owner.send(b"y\r");
+    owner.finish_startup();
+    register_fixture(&root, &private);
+    owner.send(b"R4a3");
+    wait_for_session_count(&root, &private, 1);
+    owner.send(b"\ri");
+    owner.wait_for("WRITER");
+    let mut observer = OuterTerminal::spawn(&root, &private);
+    observer.finish_startup();
+    observer.send(b"3\ri5");
+    observer.wait_for("rejected");
+    observer.send(b"3");
+    observer.wait_for("READ ONLY");
+    owner.send(&[0x1d]);
+    owner.wait_for("READ ONLY");
+    observer.send(b"i");
+    observer.wait_for("WRITER");
+    observer.send(b"transfer-confirmed\r");
+    observer.wait_for("fixture-echo-000:transfer-confirmed");
+    owner.wait_for("fixture-echo-000:transfer-confirmed");
+    observer.send(&[0x1d]);
+    observer.wait_for("READ ONLY");
+    owner.send(b"i");
+    owner.wait_for("WRITER");
+    owner.send(b"transfer-returned\r");
+    owner.wait_for("fixture-echo-001:transfer-returned");
+    owner.send(&[0x1d]);
+    owner.send(b"q");
+    owner.wait_exit();
+    observer.send(b"q");
+    observer.wait_exit();
+}
+
+#[test]
+fn attached_terminal_does_not_hide_external_agent_registration() {
+    let _native_serial = native_serial::NativeSerialGuard::acquire();
+    let _serial = NATIVE_GATE_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let scratch = Scratch::new();
+    let root = scratch.0.join("project");
+    let private = scratch.0.join("private");
+    fs::create_dir(&root).unwrap();
+    let _cleanup = DaemonCleanup {
+        root: root.clone(),
+        private: private.clone(),
+    };
+    let mut terminal = OuterTerminal::spawn(&root, &private);
+    terminal.wait_for("Initialize it?");
+    terminal.send(b"y\r");
+    terminal.finish_startup();
+    terminal.send(b"3s");
+    wait_for_session_count(&root, &private, 1);
+    terminal.send(b"\r");
+    terminal.wait_for("READ ONLY");
+    terminal.send(b"4");
+    terminal.wait_for("Agent definitions selected none");
+    register_fixture(&root, &private);
+    terminal.wait_for("Neutral fixture");
+    terminal.send(b"q");
+    terminal.wait_exit();
+}
+
+#[test]
 fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
+    let _native_serial = native_serial::NativeSerialGuard::acquire();
     let _serial = NATIVE_GATE_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -562,6 +646,7 @@ fn assert_latency(
 
 #[test]
 fn existing_daemon_reaches_usable_screen_within_budget() {
+    let _native_serial = native_serial::NativeSerialGuard::acquire();
     let _serial = NATIVE_GATE_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -710,12 +795,21 @@ fn register_fixture(root: &Path, private: &Path) {
     let status = admin(root, private, &["daemon", "status"]);
     let revision = status["result"]["revision"].as_str().unwrap();
     let definition = private.join("fixture-definition.json");
+    let executable = std::env::current_exe().unwrap();
+    let fixture_test = if executable
+        .file_stem()
+        .is_some_and(|name| name.to_string_lossy().starts_with("hardening_gate-"))
+    {
+        "tui::interactive_fixture_process"
+    } else {
+        "interactive_fixture_process"
+    };
     fs::write(
         &definition,
         serde_json::to_vec(&serde_json::json!({
             "display_name":"Neutral fixture",
-            "command":std::env::current_exe().unwrap().to_string_lossy(),
-            "arguments":["--exact","interactive_fixture_process","--ignored","--nocapture"],
+            "command":executable.to_string_lossy(),
+            "arguments":["--exact",fixture_test,"--ignored","--nocapture"],
             "environment_allowlist":[],
             "capabilities":["interactive_terminal"],
             "enabled":true

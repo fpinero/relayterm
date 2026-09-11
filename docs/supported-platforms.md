@@ -6,9 +6,9 @@ Rust 1.98.1 is the pinned compiler and initial MSRV. CI also selects current sta
 
 | OS and runner | Target | Bootstrap evidence | Interactive evidence |
 | --- | --- | --- | --- |
-| Linux, ubuntu-24.04 | x86_64-unknown-linux-gnu | Native stable and pinned-compiler CI passed | Native M07 PTY and M08 TUI gates passed; M11 pending |
-| macOS, macos-14 | aarch64-apple-darwin | Local tests and native stable CI passed | Native M07 PTY and M08 TUI gates passed; M11 pending |
-| Windows, windows-2022 | x86_64-pc-windows-msvc | Native stable CI passed | Native M07 PTY and M08 TUI gates passed; M11 pending |
+| Linux, ubuntu-24.04 | x86_64-unknown-linux-gnu | Native stable and pinned-compiler CI passed | Automated M11 PTY, TUI, offline and resource gates passed; manual terminal and SSH matrix pending |
+| macOS, macos-14 | aarch64-apple-darwin | Local tests and native stable CI passed | Automated M11 PTY, TUI, offline and resource gates passed; manual Terminal.app and SSH matrix pending |
+| Windows, windows-2022 | x86_64-pc-windows-msvc | Native stable CI passed | Automated M11 ConPTY, TUI, offline and resource gates passed; manual Windows Terminal and SSH matrix pending |
 
 The bootstrap code at `0d14f05` passed Quality run `33974825769` and Security run `33974825731` on 2026-09-05. The pinned-toolchain CI job also runs on Linux. Record actual compiler host and runner OS for each candidate. Local macOS evidence does not establish Linux or Windows success, and cross-compilation is not native behavior verification. Refer to `avances.md` for executed checks; do not infer results from the presence of workflow files.
 
@@ -161,6 +161,24 @@ Candidate `f57ce9a948da5ee3e89c0143b55aadbb3430e031` passed [Quality run 3435001
 | windows-2022 | x86_64 | 2.55.0.windows.5 | 6.806 s, 6.197 s | 6.218 s, 6.236 s | Passed |
 
 Earlier Windows candidates exposed an oversized domain command on the MSVC ABI, an inherited pipe that delayed bounded test completion, and a Git boundary that passed Rust verbatim paths directly to Git for Windows. The final implementation boxes the large payload, reads bounded administrative output to one newline, and converts verbatim disk and UNC paths through exact UTF-16 only at the Git argument boundary. The passing candidate did not extend deadlines, skip a gate, retry a failed creation, or expose native paths and Git output in ordinary diagnostics.
+
+## M11 automated hardening evidence
+
+Candidate `a5039d692744d1e6df5fbeb880fdb151dd3c8573` passed [Quality run 34427165877](https://github.com/fpinero/relayterm/actions/runs/34427165877) and [Security run 34427165842](https://github.com/fpinero/relayterm/actions/runs/34427165842) on 2026-09-10. All native stable jobs used Rust 1.98.1. Linux and macOS used Git 2.55.0; Windows used Git 2.55.0.windows.5. The pinned Linux Rust 1.98.1 job also passed formatting, checks, Clippy, inherited runtime tests, the full workspace suite, core-only tests, build and repository controls.
+
+Each stable job passed two independently reported repetitions of the integrated M11 TUI and worktree journey, protocol faults, abrupt SQLite rollback, Git cancellation, Git descendant containment, 10,000-task and 100,000-progress durable scale, credential-free offline runtime and sustained resource workload. It also passed private backup and restore with a copied `rt` binary outside the source tree. Security passed dependency, advisory, license, ban, source and secret controls.
+
+| Runner | Integrated journey, ms | Durable query p95, ms | Daemon maximum RSS or working set | TUI maximum RSS or working set | Handle delta | Output bytes/s | Result |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| ubuntu-24.04 | 2,324 / 2,342 | 3 / 3 | 347,664,384 / 347,504,640 bytes | 21,721,088 / 21,921,792 bytes | 0 / +1 | 4,024,302 / 4,031,079 | Passed |
+| macos-14 | 9,988 / 9,123 | 2 / 6 | 431,734,784 / 427,950,080 bytes | 19,202,048 / 18,251,776 bytes | 0 / 0 | 4,319,146 / 4,505,957 | Passed |
+| windows-2022 | 8,778 / 8,673 | 3 / 3 | 373,493,760 / 375,021,568 bytes | 22,294,528 / 22,298,624 bytes | +2 / 0 | 2,717,803 / 2,716,704 | Passed |
+
+All daemon and TUI samples remained under the declared 512 MiB limit. Every final steady-state median stayed within 32 MiB of its first median, all handle deltas stayed within 16, and every fixture sustained more than 2 MiB/s. Fixture-child memory was measured separately. Exact per-pass values, latency observations and acceptance mappings are recorded in `docs/acceptance-matrix.md`.
+
+The offline gate validated its process monitor with a synthetic loopback listener before observing the real daemon and synthetic child. It then completed local Git worktree creation, native IPC, real PTY or ConPTY launch, repeated client connections, live backup and fresh-home restore without finding a product TCP or UDP endpoint. This is product runtime evidence. Dependency fetching, user-configured child networking and SSH transport remain separate.
+
+Hosted automation does not identify behavior in a graphical terminal application and does not exercise an operator-controlled SSH connection. The mandatory local xterm-compatible, Terminal.app, Windows Terminal and OpenSSH observations remain open below, so M11 is not complete and the candidate is not mergeable yet.
 
 ## Remaining manual shell and terminal matrix
 

@@ -1,6 +1,6 @@
 # Security policy
 
-Relayterm is at the bootstrap stage. There is no supported production release or security sandbox. Future child processes normally inherit the launching user's OS permissions.
+Relayterm is undergoing MVP hardening and has no supported production release or security sandbox. Supervised child processes normally retain the launching user's operating-system permissions.
 
 ## Private reporting
 

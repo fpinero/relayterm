@@ -139,6 +139,13 @@ impl OuterTerminal {
         self.screen.lock().unwrap().screen().contents()
     }
 
+    #[allow(dead_code)]
+    pub fn process_id(&self) -> u32 {
+        self.control
+            .process_id()
+            .expect("native TUI process must expose its identifier")
+    }
+
     pub fn wait_exit(&mut self) {
         wait_until(
             || self.control.try_wait().unwrap().is_some(),
@@ -201,16 +208,29 @@ pub fn admin_output(root: &Path, private: &Path, args: &[&str]) -> std::process:
         .spawn()
         .unwrap();
     let stdout = child.stdout.take().unwrap();
-    let reader = std::thread::spawn(move || {
+    let (output_tx, output_rx) = std::sync::mpsc::sync_channel(1);
+    std::thread::spawn(move || {
         let mut bytes = Vec::new();
-        std::io::BufReader::new(stdout)
+        let result = std::io::BufReader::new(stdout)
             .take((OUTPUT_LIMIT + 1) as u64)
             .read_until(b'\n', &mut bytes)
-            .unwrap();
-        bytes
+            .map(|_| bytes);
+        let _ = output_tx.send(result);
     });
     let deadline = Instant::now() + DEADLINE;
+    let mut captured = None;
     let status = loop {
+        if captured.is_none()
+            && let Ok(result) = output_rx.try_recv()
+        {
+            let bytes = result.expect("administrative output could not be read");
+            if bytes.len() > OUTPUT_LIMIT {
+                let _ = child.kill();
+                let _ = child.wait();
+                panic!("administrative output exceeded its bound");
+            }
+            captured = Some(bytes);
+        }
         if let Some(status) = child.try_wait().unwrap() {
             break status;
         }
@@ -220,7 +240,12 @@ pub fn admin_output(root: &Path, private: &Path, args: &[&str]) -> std::process:
         }
         std::thread::sleep(Duration::from_millis(20));
     };
-    let stdout = reader.join().unwrap();
+    let stdout = captured.unwrap_or_else(|| {
+        output_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("administrative output remained open after the command exited")
+            .expect("administrative output could not be read")
+    });
     assert!(
         stdout.len() <= OUTPUT_LIMIT,
         "administrative output exceeded its bound"

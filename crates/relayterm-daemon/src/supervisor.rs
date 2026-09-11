@@ -1,7 +1,5 @@
 use relayterm_pty::{NativeControl, NativeSession, PtyError, SpawnRequest, write_input};
-use relayterm_terminal::{
-    DEFAULT_SCROLLBACK_BYTES, TerminalError, TerminalSnapshot, TerminalState,
-};
+use relayterm_terminal::{TerminalError, TerminalSnapshot, TerminalState};
 use std::{
     collections::{HashMap, VecDeque},
     ffi::OsString,
@@ -129,7 +127,7 @@ impl SessionSupervisor {
         let native = NativeSession::spawn(request).map_err(map_pty)?;
         let (control, writer, reader) = native.into_parts();
         let terminal = Arc::new(Mutex::new(
-            TerminalState::new(rows, columns, DEFAULT_SCROLLBACK_BYTES)
+            TerminalState::new(rows, columns, crate::TERMINAL_SCROLLBACK_BYTES)
                 .map_err(|_| SupervisorError::ResourceLimit)?,
         ));
         let (input, receiver) = mpsc::sync_channel(16);

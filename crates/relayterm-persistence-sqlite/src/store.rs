@@ -1,33 +1,225 @@
 use crate::{decode_counter, decode_timestamp, encode_counter, encode_timestamp, map_sqlx};
 use relayterm_application::{
-    Committed, DurableReadStore, EventPage, EventPageRequest, Snapshot, Store, TaskHistoryEntry,
-    TaskHistoryItem, TaskHistoryPage, TaskHistoryPageRequest,
+    Committed, DurableReadStore, EventPage, EventPageRequest, IdPage, IdPageRequest, MutationScope,
+    Snapshot, Store, TaskHistoryEntry, TaskHistoryItem, TaskHistoryPage, TaskHistoryPageRequest,
     Transaction as ApplicationTransaction, WatermarkedSnapshot, WriteBatch,
 };
 use relayterm_domain::*;
 use relayterm_platform::{decode_native_path, encode_native_path};
 use sqlx::{AssertSqlSafe, Row, SqliteConnection, SqlitePool};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+#[cfg(feature = "test-hooks")]
+use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct SqliteStore {
     pool: SqlitePool,
+    #[cfg(feature = "test-hooks")]
+    before_commit: Option<Arc<dyn Fn() + Send + Sync>>,
 }
 
 impl SqliteStore {
     pub fn new(pool: SqlitePool) -> Self {
-        Self { pool }
+        Self {
+            pool,
+            #[cfg(feature = "test-hooks")]
+            before_commit: None,
+        }
     }
     pub fn pool(&self) -> &SqlitePool {
         &self.pool
     }
+    /// Validate cross-row workspace invariants without materializing durable
+    /// history. This is used for backup publication and restore admission.
+    pub async fn validate_workspace_integrity(&self, workspace_id: WorkspaceId) -> Result<()> {
+        let mut connection = self.pool.acquire().await.map_err(domain_storage)?;
+        sqlx::query("BEGIN")
+            .execute(&mut *connection)
+            .await
+            .map_err(domain_storage)?;
+        let result = validate_workspace_integrity(&mut connection, workspace_id).await;
+        let _ = sqlx::query("ROLLBACK").execute(&mut *connection).await;
+        result
+    }
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn with_before_commit_hook(mut self, hook: Arc<dyn Fn() + Send + Sync>) -> Self {
+        self.before_commit = Some(hook);
+        self
+    }
+}
+
+async fn validate_workspace_integrity(
+    connection: &mut SqliteConnection,
+    workspace_id: WorkspaceId,
+) -> Result<()> {
+    if sqlx::query("SELECT * FROM pragma_foreign_key_check LIMIT 1")
+        .fetch_optional(&mut *connection)
+        .await
+        .map_err(domain_storage)?
+        .is_some()
+    {
+        return Err(Error::Integrity);
+    }
+
+    let workspace_bytes = id_bytes(workspace_id.as_uuid());
+    let meta = sqlx::query(
+        "SELECT revision,last_event_sequence,retained_from_sequence FROM workspace_meta WHERE singleton=1 AND workspace_id=?",
+    )
+    .bind(workspace_bytes.clone())
+    .fetch_optional(&mut *connection)
+    .await
+    .map_err(domain_storage)?
+    .ok_or(Error::Integrity)?;
+    let singleton_count: i64 = sqlx::query_scalar(
+        "SELECT (SELECT count(*) FROM workspace_meta)+(SELECT count(*) FROM workspaces)",
+    )
+    .fetch_one(&mut *connection)
+    .await
+    .map_err(domain_storage)?;
+    let workspace_exists: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM workspaces WHERE workspace_id=?")
+            .bind(workspace_bytes.clone())
+            .fetch_one(&mut *connection)
+            .await
+            .map_err(domain_storage)?;
+    if singleton_count != 2 || workspace_exists != 1 {
+        return Err(Error::Integrity);
+    }
+
+    let revision = decode_counter(
+        &meta
+            .try_get::<Vec<u8>, _>("revision")
+            .map_err(|_| Error::Integrity)?,
+    )
+    .map_err(|_| Error::Integrity)?;
+    let last_sequence = decode_counter(
+        &meta
+            .try_get::<Vec<u8>, _>("last_event_sequence")
+            .map_err(|_| Error::Integrity)?,
+    )
+    .map_err(|_| Error::Integrity)?;
+    let retained_from = decode_counter(
+        &meta
+            .try_get::<Vec<u8>, _>("retained_from_sequence")
+            .map_err(|_| Error::Integrity)?,
+    )
+    .map_err(|_| Error::Integrity)?;
+    if revision == 0 || retained_from == 0 || retained_from > last_sequence.saturating_add(1) {
+        return Err(Error::Integrity);
+    }
+
+    let logical_violation: i64 = sqlx::query_scalar(
+        "SELECT EXISTS(
+            SELECT 1 FROM tasks t
+            LEFT JOIN claims c ON c.workspace_id=t.workspace_id AND c.task_id=t.task_id AND c.closed_seconds IS NULL
+            WHERE t.workspace_id=? AND ((t.status='active')<>(c.claim_id IS NOT NULL))
+            UNION ALL
+            SELECT 1 FROM claims c JOIN agent_instances i ON i.workspace_id=c.workspace_id AND i.instance_id=c.instance_id
+            WHERE c.workspace_id=? AND c.closed_seconds IS NULL AND i.status<>'running'
+            UNION ALL
+            SELECT 1 FROM claims WHERE workspace_id=? AND closed_seconds IS NOT NULL AND
+              (closed_seconds<opened_seconds OR (closed_seconds=opened_seconds AND closed_nanoseconds<opened_nanoseconds))
+            UNION ALL
+            SELECT 1 FROM agent_instances WHERE workspace_id=? AND
+              (((status IN('exited','failed','terminated','lost'))<>(ended_seconds IS NOT NULL)) OR
+               observed_seconds<started_seconds OR
+               (observed_seconds=started_seconds AND observed_nanoseconds<started_nanoseconds) OR
+               (ended_seconds IS NOT NULL AND (ended_seconds<started_seconds OR
+                (ended_seconds=started_seconds AND ended_nanoseconds<started_nanoseconds))))
+            UNION ALL
+            SELECT 1 FROM tasks t LEFT JOIN worktrees w
+              ON w.workspace_id=t.workspace_id AND w.worktree_id=t.worktree_id AND w.task_id=t.task_id
+              WHERE t.workspace_id=? AND t.worktree_id IS NOT NULL AND w.worktree_id IS NULL
+            UNION ALL
+            SELECT 1 FROM worktrees w JOIN worktree_intents i
+              ON i.workspace_id=w.workspace_id AND i.operation_id=w.operation_id
+              WHERE w.workspace_id=? AND (i.phase<>'ready' OR i.worktree_id<>w.worktree_id OR i.task_id<>w.task_id OR i.root_id<>w.root_id)
+            LIMIT 1)",
+    )
+    .bind(workspace_bytes.clone())
+    .bind(workspace_bytes.clone())
+    .bind(workspace_bytes.clone())
+    .bind(workspace_bytes.clone())
+    .bind(workspace_bytes.clone())
+    .bind(workspace_bytes.clone())
+    .fetch_one(&mut *connection)
+    .await
+    .map_err(domain_storage)?;
+    if logical_violation != 0 {
+        return Err(Error::Integrity);
+    }
+
+    let event_count: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM workspace_events WHERE workspace_id=?")
+            .bind(workspace_bytes.clone())
+            .fetch_one(&mut *connection)
+            .await
+            .map_err(domain_storage)?;
+    let first_sequence = sqlx::query_scalar::<_, Vec<u8>>(
+        "SELECT sequence FROM workspace_events WHERE workspace_id=? ORDER BY sequence LIMIT 1",
+    )
+    .bind(workspace_bytes.clone())
+    .fetch_optional(&mut *connection)
+    .await
+    .map_err(domain_storage)?;
+    let final_sequence = sqlx::query_scalar::<_, Vec<u8>>(
+        "SELECT sequence FROM workspace_events WHERE workspace_id=? ORDER BY sequence DESC LIMIT 1",
+    )
+    .bind(workspace_bytes.clone())
+    .fetch_optional(&mut *connection)
+    .await
+    .map_err(domain_storage)?;
+    match (first_sequence, final_sequence) {
+        (None, None) if event_count == 0 && last_sequence == 0 => {}
+        (Some(first), Some(last)) => {
+            let first = decode_counter(&first).map_err(|_| Error::Integrity)?;
+            let last = decode_counter(&last).map_err(|_| Error::Integrity)?;
+            let span = last
+                .checked_sub(first)
+                .and_then(|value| value.checked_add(1))
+                .ok_or(Error::Integrity)?;
+            if last != last_sequence
+                || u64::try_from(event_count).map_err(|_| Error::Integrity)? != span
+                || retained_from < first
+            {
+                return Err(Error::Integrity);
+            }
+        }
+        _ => return Err(Error::Integrity),
+    }
+
+    let mut after = encode_counter(0).to_vec();
+    loop {
+        let rows = sqlx::query(
+            "SELECT * FROM workspace_events WHERE workspace_id=? AND sequence>? ORDER BY sequence LIMIT 200",
+        )
+        .bind(workspace_bytes.clone())
+        .bind(after.as_slice())
+        .fetch_all(&mut *connection)
+        .await
+        .map_err(domain_storage)?;
+        if rows.is_empty() {
+            break;
+        }
+        for row in rows {
+            after = row
+                .try_get::<Vec<u8>, _>("sequence")
+                .map_err(|_| Error::Integrity)?;
+            decode_event(row).map_err(|_| Error::Integrity)?;
+        }
+    }
+    Ok(())
 }
 
 pub struct SqliteTransaction {
     pool: SqlitePool,
     workspace_id: WorkspaceId,
     snapshot: Snapshot,
+    mutation_scope: Option<MutationScope>,
+    #[cfg(feature = "test-hooks")]
+    before_commit: Option<Arc<dyn Fn() + Send + Sync>>,
 }
 
 impl Store for SqliteStore {
@@ -40,6 +232,26 @@ impl Store for SqliteStore {
             pool: self.pool.clone(),
             workspace_id,
             snapshot,
+            mutation_scope: None,
+            #[cfg(feature = "test-hooks")]
+            before_commit: self.before_commit.clone(),
+        })
+    }
+
+    async fn begin_mutation(
+        &self,
+        workspace_id: WorkspaceId,
+        scope: MutationScope,
+    ) -> Result<SqliteTransaction> {
+        let mut connection = self.pool.acquire().await.map_err(domain_storage)?;
+        let snapshot = load_operational_snapshot(&mut connection, workspace_id, &scope).await?;
+        Ok(SqliteTransaction {
+            pool: self.pool.clone(),
+            workspace_id,
+            snapshot,
+            mutation_scope: Some(scope),
+            #[cfg(feature = "test-hooks")]
+            before_commit: self.before_commit.clone(),
         })
     }
 }
@@ -64,6 +276,93 @@ impl DurableReadStore for SqliteStore {
         .await;
         let _ = sqlx::query("ROLLBACK").execute(&mut *connection).await;
         result
+    }
+
+    async fn consistent_projection(
+        &self,
+        workspace_id: WorkspaceId,
+        scope: MutationScope,
+    ) -> Result<WatermarkedSnapshot> {
+        let mut connection = self.pool.acquire().await.map_err(domain_storage)?;
+        sqlx::query("BEGIN")
+            .execute(&mut *connection)
+            .await
+            .map_err(domain_storage)?;
+        let result = async {
+            let snapshot = load_operational_snapshot(&mut connection, workspace_id, &scope).await?;
+            let (last_sequence, retained_from_sequence) =
+                load_watermarks(&mut connection, workspace_id).await?;
+            Ok(WatermarkedSnapshot {
+                snapshot,
+                last_sequence,
+                retained_from_sequence,
+            })
+        }
+        .await;
+        let _ = sqlx::query("ROLLBACK").execute(&mut *connection).await;
+        result
+    }
+
+    async fn workspace_overview(
+        &self,
+        workspace_id: WorkspaceId,
+    ) -> Result<relayterm_application::WorkspaceOverview> {
+        let row = sqlx::query(
+            "SELECT w.schema_version,m.revision,m.last_event_sequence,(SELECT count(*) FROM agent_definitions WHERE workspace_id=w.workspace_id) AS definitions,(SELECT count(*) FROM tasks WHERE workspace_id=w.workspace_id) AS tasks,(SELECT count(*) FROM agent_instances WHERE workspace_id=w.workspace_id) AS instances FROM workspaces w JOIN workspace_meta m ON m.workspace_id=w.workspace_id WHERE w.workspace_id=?",
+        )
+        .bind(id_bytes(workspace_id.as_uuid()))
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(domain_storage)?
+        .ok_or(Error::Reference)?;
+        Ok(relayterm_application::WorkspaceOverview {
+            schema_version: u32::try_from(
+                row.try_get::<i64, _>("schema_version")
+                    .map_err(|_| Error::Integrity)?,
+            )
+            .map_err(|_| Error::Integrity)?,
+            revision: decode_counter(
+                &row.try_get::<Vec<u8>, _>("revision")
+                    .map_err(|_| Error::Integrity)?,
+            )
+            .map_err(|_| Error::Integrity)?,
+            last_sequence: decode_counter(
+                &row.try_get::<Vec<u8>, _>("last_event_sequence")
+                    .map_err(|_| Error::Integrity)?,
+            )
+            .map_err(|_| Error::Integrity)?,
+            definitions: usize::try_from(
+                row.try_get::<i64, _>("definitions")
+                    .map_err(|_| Error::Integrity)?,
+            )
+            .map_err(|_| Error::Integrity)?,
+            tasks: usize::try_from(
+                row.try_get::<i64, _>("tasks")
+                    .map_err(|_| Error::Integrity)?,
+            )
+            .map_err(|_| Error::Integrity)?,
+            instances: usize::try_from(
+                row.try_get::<i64, _>("instances")
+                    .map_err(|_| Error::Integrity)?,
+            )
+            .map_err(|_| Error::Integrity)?,
+        })
+    }
+
+    async fn handover_by_id(
+        &self,
+        workspace_id: WorkspaceId,
+        handover_id: HandoverId,
+    ) -> Result<Handover> {
+        let mut connection = self.pool.acquire().await.map_err(domain_storage)?;
+        let row = sqlx::query("SELECT * FROM handovers WHERE workspace_id=? AND handover_id=?")
+            .bind(id_bytes(workspace_id.as_uuid()))
+            .bind(id_bytes(handover_id.as_uuid()))
+            .fetch_optional(&mut *connection)
+            .await
+            .map_err(domain_storage)?
+            .ok_or(Error::Reference)?;
+        decode_handover(&mut connection, row, workspace_id).await
     }
 
     async fn event_page(
@@ -196,6 +495,414 @@ impl DurableReadStore for SqliteStore {
         let _ = sqlx::query("ROLLBACK").execute(&mut *connection).await;
         result
     }
+
+    async fn progress_page(
+        &self,
+        workspace_id: WorkspaceId,
+        request: IdPageRequest,
+    ) -> Result<IdPage<ProgressEntry>> {
+        let mut connection = self.pool.acquire().await.map_err(domain_storage)?;
+        sqlx::query("BEGIN")
+            .execute(&mut *connection)
+            .await
+            .map_err(domain_storage)?;
+        let result = load_progress_page(&mut connection, workspace_id, request).await;
+        let _ = sqlx::query("ROLLBACK").execute(&mut *connection).await;
+        result
+    }
+
+    async fn handover_page(
+        &self,
+        workspace_id: WorkspaceId,
+        request: IdPageRequest,
+    ) -> Result<IdPage<Handover>> {
+        let mut connection = self.pool.acquire().await.map_err(domain_storage)?;
+        sqlx::query("BEGIN")
+            .execute(&mut *connection)
+            .await
+            .map_err(domain_storage)?;
+        let result = load_handover_page(&mut connection, workspace_id, request).await;
+        let _ = sqlx::query("ROLLBACK").execute(&mut *connection).await;
+        result
+    }
+
+    async fn task_page(
+        &self,
+        workspace_id: WorkspaceId,
+        request: IdPageRequest,
+    ) -> Result<IdPage<Task>> {
+        let mut connection = self.pool.acquire().await.map_err(domain_storage)?;
+        sqlx::query("BEGIN")
+            .execute(&mut *connection)
+            .await
+            .map_err(domain_storage)?;
+        let result = load_task_page(&mut connection, workspace_id, request).await;
+        let _ = sqlx::query("ROLLBACK").execute(&mut *connection).await;
+        result
+    }
+
+    async fn claim_page(
+        &self,
+        workspace_id: WorkspaceId,
+        request: IdPageRequest,
+    ) -> Result<IdPage<Claim>> {
+        let mut connection = self.pool.acquire().await.map_err(domain_storage)?;
+        sqlx::query("BEGIN")
+            .execute(&mut *connection)
+            .await
+            .map_err(domain_storage)?;
+        let result = load_claim_page(&mut connection, workspace_id, request).await;
+        let _ = sqlx::query("ROLLBACK").execute(&mut *connection).await;
+        result
+    }
+
+    async fn definition_page(
+        &self,
+        workspace_id: WorkspaceId,
+        request: IdPageRequest,
+    ) -> Result<IdPage<AgentDefinition>> {
+        let mut connection = self.pool.acquire().await.map_err(domain_storage)?;
+        sqlx::query("BEGIN")
+            .execute(&mut *connection)
+            .await
+            .map_err(domain_storage)?;
+        let result = load_definition_page(&mut connection, workspace_id, request).await;
+        let _ = sqlx::query("ROLLBACK").execute(&mut *connection).await;
+        result
+    }
+
+    async fn worktree_page(
+        &self,
+        workspace_id: WorkspaceId,
+        task_id: Option<TaskId>,
+        request: IdPageRequest,
+    ) -> Result<IdPage<Worktree>> {
+        let mut connection = self.pool.acquire().await.map_err(domain_storage)?;
+        sqlx::query("BEGIN")
+            .execute(&mut *connection)
+            .await
+            .map_err(domain_storage)?;
+        let result = load_worktree_page(&mut connection, workspace_id, task_id, request).await;
+        let _ = sqlx::query("ROLLBACK").execute(&mut *connection).await;
+        result
+    }
+
+    async fn instance_page(
+        &self,
+        workspace_id: WorkspaceId,
+        request: IdPageRequest,
+    ) -> Result<IdPage<AgentInstance>> {
+        let mut connection = self.pool.acquire().await.map_err(domain_storage)?;
+        sqlx::query("BEGIN")
+            .execute(&mut *connection)
+            .await
+            .map_err(domain_storage)?;
+        let result = load_instance_page(&mut connection, workspace_id, request).await;
+        let _ = sqlx::query("ROLLBACK").execute(&mut *connection).await;
+        result
+    }
+}
+
+async fn page_metadata(
+    connection: &mut SqliteConnection,
+    workspace_id: WorkspaceId,
+    expected_revision: Option<u64>,
+) -> Result<(u64, u64, u64)> {
+    let revision_bytes: Vec<u8> =
+        sqlx::query_scalar("SELECT revision FROM workspace_meta WHERE workspace_id=?")
+            .bind(id_bytes(workspace_id.as_uuid()))
+            .fetch_optional(&mut *connection)
+            .await
+            .map_err(domain_storage)?
+            .ok_or(Error::Reference)?;
+    let revision = decode_counter(&revision_bytes).map_err(|_| Error::Integrity)?;
+    if expected_revision.is_some_and(|expected| expected != revision) {
+        return Err(Error::Conflict);
+    }
+    let (last_sequence, retained_from_sequence) = load_watermarks(connection, workspace_id).await?;
+    Ok((revision, last_sequence, retained_from_sequence))
+}
+
+async fn load_progress_page(
+    connection: &mut SqliteConnection,
+    workspace_id: WorkspaceId,
+    request: IdPageRequest,
+) -> Result<IdPage<ProgressEntry>> {
+    let (revision, last_sequence, retained_from_sequence) =
+        page_metadata(connection, workspace_id, request.expected_revision).await?;
+    let rows = if let Some(after) = request.after_id {
+        sqlx::query(
+            "SELECT * FROM progress_entries WHERE workspace_id=? AND progress_id>? ORDER BY progress_id LIMIT ?",
+        )
+        .bind(id_bytes(workspace_id.as_uuid()))
+        .bind(after.to_vec())
+        .bind(i64::from(request.limit) + 1)
+        .fetch_all(&mut *connection)
+        .await
+        .map_err(domain_storage)?
+    } else {
+        sqlx::query(
+            "SELECT * FROM progress_entries WHERE workspace_id=? ORDER BY progress_id LIMIT ?",
+        )
+        .bind(id_bytes(workspace_id.as_uuid()))
+        .bind(i64::from(request.limit) + 1)
+        .fetch_all(&mut *connection)
+        .await
+        .map_err(domain_storage)?
+    };
+    let has_more = rows.len() > usize::from(request.limit);
+    let items = rows
+        .into_iter()
+        .take(usize::from(request.limit))
+        .map(|row| decode_progress(row, workspace_id))
+        .collect::<Result<Vec<_>>>()?;
+    Ok(IdPage {
+        revision,
+        last_sequence,
+        retained_from_sequence,
+        items,
+        has_more,
+    })
+}
+
+async fn load_handover_page(
+    connection: &mut SqliteConnection,
+    workspace_id: WorkspaceId,
+    request: IdPageRequest,
+) -> Result<IdPage<Handover>> {
+    let (revision, last_sequence, retained_from_sequence) =
+        page_metadata(connection, workspace_id, request.expected_revision).await?;
+    let rows = if let Some(after) = request.after_id {
+        sqlx::query(
+            "SELECT * FROM handovers WHERE workspace_id=? AND handover_id>? ORDER BY handover_id LIMIT ?",
+        )
+        .bind(id_bytes(workspace_id.as_uuid()))
+        .bind(after.to_vec())
+        .bind(i64::from(request.limit) + 1)
+        .fetch_all(&mut *connection)
+        .await
+        .map_err(domain_storage)?
+    } else {
+        sqlx::query("SELECT * FROM handovers WHERE workspace_id=? ORDER BY handover_id LIMIT ?")
+            .bind(id_bytes(workspace_id.as_uuid()))
+            .bind(i64::from(request.limit) + 1)
+            .fetch_all(&mut *connection)
+            .await
+            .map_err(domain_storage)?
+    };
+    let has_more = rows.len() > usize::from(request.limit);
+    let mut items = Vec::with_capacity(rows.len().min(usize::from(request.limit)));
+    for row in rows.into_iter().take(usize::from(request.limit)) {
+        items.push(decode_handover(connection, row, workspace_id).await?);
+    }
+    Ok(IdPage {
+        revision,
+        last_sequence,
+        retained_from_sequence,
+        items,
+        has_more,
+    })
+}
+
+async fn load_task_page(
+    connection: &mut SqliteConnection,
+    workspace_id: WorkspaceId,
+    request: IdPageRequest,
+) -> Result<IdPage<Task>> {
+    let (revision, last_sequence, retained_from_sequence) =
+        page_metadata(connection, workspace_id, request.expected_revision).await?;
+    let rows = if let Some(after) = request.after_id {
+        sqlx::query("SELECT task_id,title,description,priority,status,acceptance_notes,worktree_id,created_seconds,created_nanoseconds,updated_seconds,updated_nanoseconds FROM tasks WHERE workspace_id=? AND task_id>? ORDER BY task_id LIMIT ?")
+            .bind(id_bytes(workspace_id.as_uuid()))
+            .bind(after.to_vec())
+            .bind(i64::from(request.limit) + 1)
+            .fetch_all(&mut *connection)
+            .await
+            .map_err(domain_storage)?
+    } else {
+        sqlx::query("SELECT task_id,title,description,priority,status,acceptance_notes,worktree_id,created_seconds,created_nanoseconds,updated_seconds,updated_nanoseconds FROM tasks WHERE workspace_id=? ORDER BY task_id LIMIT ?")
+            .bind(id_bytes(workspace_id.as_uuid()))
+            .bind(i64::from(request.limit) + 1)
+            .fetch_all(&mut *connection)
+            .await
+            .map_err(domain_storage)?
+    };
+    let has_more = rows.len() > usize::from(request.limit);
+    let mut items = Vec::with_capacity(rows.len().min(usize::from(request.limit)));
+    for row in rows.into_iter().take(usize::from(request.limit)) {
+        let id = task_id(
+            row.try_get::<Vec<u8>, _>("task_id")
+                .map_err(|_| Error::Storage)?,
+        )?;
+        let owner = sqlx::query_scalar::<_, Vec<u8>>(
+            "SELECT instance_id FROM claims WHERE workspace_id=? AND task_id=? AND closed_seconds IS NULL LIMIT 1",
+        )
+        .bind(id_bytes(workspace_id.as_uuid()))
+        .bind(id_bytes(id.as_uuid()))
+        .fetch_optional(&mut *connection)
+        .await
+        .map_err(domain_storage)?
+        .map(instance_id)
+        .transpose()?;
+        items.push(decode_task(connection, row, workspace_id, owner).await?);
+    }
+    Ok(IdPage {
+        revision,
+        last_sequence,
+        retained_from_sequence,
+        items,
+        has_more,
+    })
+}
+
+async fn load_claim_page(
+    connection: &mut SqliteConnection,
+    workspace_id: WorkspaceId,
+    request: IdPageRequest,
+) -> Result<IdPage<Claim>> {
+    let (revision, last_sequence, retained_from_sequence) =
+        page_metadata(connection, workspace_id, request.expected_revision).await?;
+    let rows = if let Some(after) = request.after_id {
+        sqlx::query(
+            "SELECT * FROM claims WHERE workspace_id=? AND claim_id>? ORDER BY claim_id LIMIT ?",
+        )
+        .bind(id_bytes(workspace_id.as_uuid()))
+        .bind(after.to_vec())
+        .bind(i64::from(request.limit) + 1)
+        .fetch_all(&mut *connection)
+        .await
+        .map_err(domain_storage)?
+    } else {
+        sqlx::query("SELECT * FROM claims WHERE workspace_id=? ORDER BY claim_id LIMIT ?")
+            .bind(id_bytes(workspace_id.as_uuid()))
+            .bind(i64::from(request.limit) + 1)
+            .fetch_all(&mut *connection)
+            .await
+            .map_err(domain_storage)?
+    };
+    let has_more = rows.len() > usize::from(request.limit);
+    let items = rows
+        .into_iter()
+        .take(usize::from(request.limit))
+        .map(|row| decode_claim(row, workspace_id))
+        .collect::<Result<Vec<_>>>()?;
+    Ok(IdPage {
+        revision,
+        last_sequence,
+        retained_from_sequence,
+        items,
+        has_more,
+    })
+}
+
+async fn load_definition_page(
+    connection: &mut SqliteConnection,
+    workspace_id: WorkspaceId,
+    request: IdPageRequest,
+) -> Result<IdPage<AgentDefinition>> {
+    let (revision, last_sequence, retained_from_sequence) =
+        page_metadata(connection, workspace_id, request.expected_revision).await?;
+    let rows = if let Some(after) = request.after_id {
+        sqlx::query("SELECT definition_id,display_name,command,enabled FROM agent_definitions WHERE workspace_id=? AND definition_id>? ORDER BY definition_id LIMIT ?")
+            .bind(id_bytes(workspace_id.as_uuid()))
+            .bind(after.to_vec())
+            .bind(i64::from(request.limit) + 1)
+            .fetch_all(&mut *connection)
+            .await
+            .map_err(domain_storage)?
+    } else {
+        sqlx::query("SELECT definition_id,display_name,command,enabled FROM agent_definitions WHERE workspace_id=? ORDER BY definition_id LIMIT ?")
+            .bind(id_bytes(workspace_id.as_uuid()))
+            .bind(i64::from(request.limit) + 1)
+            .fetch_all(&mut *connection)
+            .await
+            .map_err(domain_storage)?
+    };
+    let has_more = rows.len() > usize::from(request.limit);
+    let mut items = Vec::with_capacity(rows.len().min(usize::from(request.limit)));
+    for row in rows.into_iter().take(usize::from(request.limit)) {
+        items.push(decode_definition(connection, row, workspace_id).await?);
+    }
+    Ok(IdPage {
+        revision,
+        last_sequence,
+        retained_from_sequence,
+        items,
+        has_more,
+    })
+}
+
+async fn load_worktree_page(
+    connection: &mut SqliteConnection,
+    workspace_id: WorkspaceId,
+    task: Option<TaskId>,
+    request: IdPageRequest,
+) -> Result<IdPage<Worktree>> {
+    let (revision, last_sequence, retained_from_sequence) =
+        page_metadata(connection, workspace_id, request.expected_revision).await?;
+    let rows = match (task, request.after_id) {
+        (Some(task), Some(after)) => sqlx::query("SELECT * FROM worktrees WHERE workspace_id=? AND task_id=? AND worktree_id>? ORDER BY worktree_id LIMIT ?")
+            .bind(id_bytes(workspace_id.as_uuid())).bind(id_bytes(task.as_uuid())).bind(after.to_vec()).bind(i64::from(request.limit) + 1).fetch_all(&mut *connection).await,
+        (Some(task), None) => sqlx::query("SELECT * FROM worktrees WHERE workspace_id=? AND task_id=? ORDER BY worktree_id LIMIT ?")
+            .bind(id_bytes(workspace_id.as_uuid())).bind(id_bytes(task.as_uuid())).bind(i64::from(request.limit) + 1).fetch_all(&mut *connection).await,
+        (None, Some(after)) => sqlx::query("SELECT * FROM worktrees WHERE workspace_id=? AND worktree_id>? ORDER BY worktree_id LIMIT ?")
+            .bind(id_bytes(workspace_id.as_uuid())).bind(after.to_vec()).bind(i64::from(request.limit) + 1).fetch_all(&mut *connection).await,
+        (None, None) => sqlx::query("SELECT * FROM worktrees WHERE workspace_id=? ORDER BY worktree_id LIMIT ?")
+            .bind(id_bytes(workspace_id.as_uuid())).bind(i64::from(request.limit) + 1).fetch_all(&mut *connection).await,
+    }
+    .map_err(domain_storage)?;
+    let has_more = rows.len() > usize::from(request.limit);
+    let items = rows
+        .into_iter()
+        .take(usize::from(request.limit))
+        .map(|row| decode_worktree(row, workspace_id))
+        .collect::<Result<Vec<_>>>()?;
+    Ok(IdPage {
+        revision,
+        last_sequence,
+        retained_from_sequence,
+        items,
+        has_more,
+    })
+}
+
+async fn load_instance_page(
+    connection: &mut SqliteConnection,
+    workspace_id: WorkspaceId,
+    request: IdPageRequest,
+) -> Result<IdPage<AgentInstance>> {
+    let (revision, last_sequence, retained_from_sequence) =
+        page_metadata(connection, workspace_id, request.expected_revision).await?;
+    let rows = if let Some(after) = request.after_id {
+        sqlx::query("SELECT * FROM agent_instances WHERE workspace_id=? AND instance_id>? ORDER BY instance_id LIMIT ?")
+            .bind(id_bytes(workspace_id.as_uuid()))
+            .bind(after.to_vec())
+            .bind(i64::from(request.limit) + 1)
+            .fetch_all(&mut *connection)
+            .await
+            .map_err(domain_storage)?
+    } else {
+        sqlx::query(
+            "SELECT * FROM agent_instances WHERE workspace_id=? ORDER BY instance_id LIMIT ?",
+        )
+        .bind(id_bytes(workspace_id.as_uuid()))
+        .bind(i64::from(request.limit) + 1)
+        .fetch_all(&mut *connection)
+        .await
+        .map_err(domain_storage)?
+    };
+    let has_more = rows.len() > usize::from(request.limit);
+    let mut items = Vec::with_capacity(rows.len().min(usize::from(request.limit)));
+    for row in rows.into_iter().take(usize::from(request.limit)) {
+        items.push(decode_instance(connection, row, workspace_id).await?);
+    }
+    Ok(IdPage {
+        revision,
+        last_sequence,
+        retained_from_sequence,
+        items,
+        has_more,
+    })
 }
 
 async fn load_watermarks(
@@ -282,9 +989,19 @@ impl ApplicationTransaction for SqliteTransaction {
             .execute(&mut *connection)
             .await
             .map_err(domain_storage)?;
-        let result = commit_locked(&mut connection, self.workspace_id, &batch).await;
+        let result = commit_locked(
+            &mut connection,
+            self.workspace_id,
+            self.mutation_scope.as_ref(),
+            &batch,
+        )
+        .await;
         match result {
             Ok(committed) => {
+                #[cfg(feature = "test-hooks")]
+                if let Some(hook) = self.before_commit {
+                    hook();
+                }
                 sqlx::query("COMMIT")
                     .execute(&mut *connection)
                     .await
@@ -302,9 +1019,13 @@ impl ApplicationTransaction for SqliteTransaction {
 async fn commit_locked(
     connection: &mut SqliteConnection,
     workspace_id: WorkspaceId,
+    mutation_scope: Option<&MutationScope>,
     batch: &WriteBatch,
 ) -> Result<Committed> {
-    let current = load_snapshot(connection, workspace_id).await?;
+    let current = match mutation_scope {
+        Some(scope) => load_operational_snapshot(connection, workspace_id, scope).await?,
+        None => load_snapshot(connection, workspace_id).await?,
+    };
     batch.validate(&current)?;
     if batch.events().is_empty() {
         return Ok(Committed {
@@ -355,6 +1076,22 @@ async fn load_snapshot(
     connection: &mut SqliteConnection,
     expected: WorkspaceId,
 ) -> Result<Snapshot> {
+    load_snapshot_kind(connection, expected, None).await
+}
+
+async fn load_operational_snapshot(
+    connection: &mut SqliteConnection,
+    expected: WorkspaceId,
+    _scope: &MutationScope,
+) -> Result<Snapshot> {
+    load_snapshot_kind(connection, expected, Some(_scope)).await
+}
+
+async fn load_snapshot_kind(
+    connection: &mut SqliteConnection,
+    expected: WorkspaceId,
+    mutation_scope: Option<&MutationScope>,
+) -> Result<Snapshot> {
     let meta = sqlx::query("SELECT workspace_id, revision FROM workspace_meta WHERE singleton = 1")
         .fetch_optional(&mut *connection)
         .await
@@ -396,8 +1133,72 @@ async fn load_snapshot(
             .and_then(|x| u32::try_from(x).ok())
             .ok_or(Error::Storage)?,
     })?;
-    let definitions = load_definitions(connection, expected).await?;
-    let claims = load_claims(connection, expected).await?;
+    let include_immutable_history = mutation_scope.is_none();
+    let (approved_roots, worktree_intents, worktrees) =
+        load_worktree_state(connection, expected).await?;
+    let mut instances = match mutation_scope {
+        Some(scope) => load_projected_instances(connection, expected, scope).await?,
+        None => load_instances(connection, expected).await?,
+    };
+    let mut task_ids = mutation_scope
+        .map(|scope| scope.task_ids.iter().copied().collect::<HashSet<_>>())
+        .unwrap_or_default();
+    let mut definition_ids = mutation_scope
+        .map(|scope| scope.definition_ids.iter().copied().collect::<HashSet<_>>())
+        .unwrap_or_default();
+    for instance in &instances {
+        let record = instance.record();
+        task_ids.extend(record.task_id);
+        definition_ids.extend(record.agent_definition_id);
+    }
+    if mutation_scope.is_some() {
+        for intent in &worktree_intents {
+            task_ids.insert(intent.record().task_id);
+        }
+        for worktree in &worktrees {
+            task_ids.insert(worktree.record().task_id);
+        }
+    }
+    let claims = match mutation_scope {
+        Some(_) => load_projected_claims(connection, expected, &task_ids).await?,
+        None => load_claims(connection, expected).await?,
+    };
+    for claim in &claims {
+        task_ids.insert(claim.record().task_id);
+    }
+    if mutation_scope.is_some() {
+        let missing_claim_instances = claims
+            .iter()
+            .map(|claim| claim.record().instance_id)
+            .filter(|id| !instances.iter().any(|instance| instance.record().id == *id))
+            .collect::<Vec<_>>();
+        if !missing_claim_instances.is_empty() {
+            let scope = MutationScope {
+                instance_ids: missing_claim_instances,
+                ..MutationScope::default()
+            };
+            for instance in load_projected_instances(connection, expected, &scope).await? {
+                if !instances
+                    .iter()
+                    .any(|current| current.record().id == instance.record().id)
+                {
+                    instances.push(instance);
+                }
+            }
+        }
+        for instance in &instances {
+            let record = instance.record();
+            task_ids.extend(record.task_id);
+            definition_ids.extend(record.agent_definition_id);
+        }
+        instances.sort_by_key(|value| *value.record().id.as_uuid().as_bytes());
+    }
+    let definitions = match mutation_scope {
+        Some(scope) if !scope.all_definitions => {
+            load_projected_definitions(connection, expected, &definition_ids).await?
+        }
+        _ => load_definitions(connection, expected).await?,
+    };
     let owners: HashMap<TaskId, AgentInstanceId> = claims
         .iter()
         .filter_map(|claim| {
@@ -408,26 +1209,32 @@ async fn load_snapshot(
                 .then_some((record.task_id, record.instance_id))
         })
         .collect();
-    let tasks = load_tasks(connection, expected, &owners).await?;
-    let instances = load_instances(connection, expected).await?;
-    let progress = load_progress(connection, expected).await?;
-    let handovers = load_handovers(connection, expected).await?;
-    let (approved_roots, worktree_intents, worktrees) =
-        load_worktree_state(connection, expected).await?;
-    let state = WorkspaceState::restore(
-        workspace,
-        WorkspaceRows {
-            definitions,
-            tasks,
-            instances,
-            claims,
-            progress,
-            handovers,
-            approved_roots,
-            worktree_intents,
-            worktrees,
-        },
-    )?;
+    let tasks = match mutation_scope {
+        Some(_) => load_projected_tasks(connection, expected, &owners, &task_ids).await?,
+        None => load_tasks(connection, expected, &owners).await?,
+    };
+    let progress = if include_immutable_history {
+        load_progress(connection, expected).await?
+    } else {
+        Vec::new()
+    };
+    let handovers = load_handovers(connection, expected, include_immutable_history).await?;
+    let rows = WorkspaceRows {
+        definitions,
+        tasks,
+        instances,
+        claims,
+        progress,
+        handovers,
+        approved_roots,
+        worktree_intents,
+        worktrees,
+    };
+    let state = if mutation_scope.is_some() {
+        WorkspaceState::restore_projection(workspace, rows)?
+    } else {
+        WorkspaceState::restore(workspace, rows)?
+    };
     Snapshot::restore(revision, Some(state))
 }
 
@@ -535,41 +1342,45 @@ async fn load_worktree_state(
         .await
         .map_err(domain_storage)?
     {
-        worktrees.push(Worktree::restore(WorktreeRecord {
-            id: worktree_id(row.try_get("worktree_id").map_err(|_| Error::Storage)?)?,
-            workspace_id,
-            task_id: task_id(row.try_get("task_id").map_err(|_| Error::Storage)?)?,
-            operation_id: worktree_operation_id(
-                row.try_get("operation_id").map_err(|_| Error::Storage)?,
-            )?,
-            root_id: approved_root_id(row.try_get("root_id").map_err(|_| Error::Storage)?)?,
-            checkout_path: decode_native_path(
-                &row.try_get::<String, _>("checkout_codec")
-                    .map_err(|_| Error::Storage)?,
-                &row.try_get::<Vec<u8>, _>("checkout_path")
-                    .map_err(|_| Error::Storage)?,
-            )
-            .map_err(|_| Error::Storage)?,
-            common_directory_identity: decode_native_path(
-                &row.try_get::<String, _>("common_codec")
-                    .map_err(|_| Error::Storage)?,
-                &row.try_get::<Vec<u8>, _>("common_directory_identity")
-                    .map_err(|_| Error::Storage)?,
-            )
-            .map_err(|_| Error::Storage)?,
-            branch_ref: row.try_get("branch_ref").map_err(|_| Error::Storage)?,
-            initial_base_commit: row
-                .try_get("initial_base_commit")
-                .map_err(|_| Error::Storage)?,
-            health: parse_worktree_health(
-                &row.try_get::<String, _>("health")
-                    .map_err(|_| Error::Storage)?,
-            )?,
-            created_at: timestamp_row(&row, "created_seconds", "created_nanoseconds")?,
-            updated_at: timestamp_row(&row, "updated_seconds", "updated_nanoseconds")?,
-        })?);
+        worktrees.push(decode_worktree(row, workspace_id)?);
     }
     Ok((roots, intents, worktrees))
+}
+
+fn decode_worktree(row: sqlx::sqlite::SqliteRow, workspace_id: WorkspaceId) -> Result<Worktree> {
+    Worktree::restore(WorktreeRecord {
+        id: worktree_id(row.try_get("worktree_id").map_err(|_| Error::Storage)?)?,
+        workspace_id,
+        task_id: task_id(row.try_get("task_id").map_err(|_| Error::Storage)?)?,
+        operation_id: worktree_operation_id(
+            row.try_get("operation_id").map_err(|_| Error::Storage)?,
+        )?,
+        root_id: approved_root_id(row.try_get("root_id").map_err(|_| Error::Storage)?)?,
+        checkout_path: decode_native_path(
+            &row.try_get::<String, _>("checkout_codec")
+                .map_err(|_| Error::Storage)?,
+            &row.try_get::<Vec<u8>, _>("checkout_path")
+                .map_err(|_| Error::Storage)?,
+        )
+        .map_err(|_| Error::Storage)?,
+        common_directory_identity: decode_native_path(
+            &row.try_get::<String, _>("common_codec")
+                .map_err(|_| Error::Storage)?,
+            &row.try_get::<Vec<u8>, _>("common_directory_identity")
+                .map_err(|_| Error::Storage)?,
+        )
+        .map_err(|_| Error::Storage)?,
+        branch_ref: row.try_get("branch_ref").map_err(|_| Error::Storage)?,
+        initial_base_commit: row
+            .try_get("initial_base_commit")
+            .map_err(|_| Error::Storage)?,
+        health: parse_worktree_health(
+            &row.try_get::<String, _>("health")
+                .map_err(|_| Error::Storage)?,
+        )?,
+        created_at: timestamp_row(&row, "created_seconds", "created_nanoseconds")?,
+        updated_at: timestamp_row(&row, "updated_seconds", "updated_nanoseconds")?,
+    })
 }
 
 async fn load_definitions(
@@ -580,43 +1391,72 @@ async fn load_definitions(
         .bind(id_bytes(workspace_id.as_uuid())).fetch_all(&mut *connection).await.map_err(domain_storage)?;
     let mut values = Vec::with_capacity(rows.len());
     for row in rows {
-        let id = definition_id(
-            row.try_get::<Vec<u8>, _>("definition_id")
-                .map_err(|_| Error::Storage)?,
-        )?;
-        values.push(AgentDefinition::restore(AgentDefinitionRecord {
-            id,
-            workspace_id,
-            display_name: row.try_get("display_name").map_err(|_| Error::Storage)?,
-            command: row.try_get("command").map_err(|_| Error::Storage)?,
-            arguments: load_strings(
-                connection,
-                "definition_arguments",
-                "definition_id",
-                id.as_uuid(),
-                workspace_id,
-            )
-            .await?,
-            environment_allowlist: load_strings(
-                connection,
-                "definition_environment",
-                "definition_id",
-                id.as_uuid(),
-                workspace_id,
-            )
-            .await?,
-            capabilities: load_strings(
-                connection,
-                "definition_capabilities",
-                "definition_id",
-                id.as_uuid(),
-                workspace_id,
-            )
-            .await?,
-            enabled: int_bool(row.try_get("enabled").map_err(|_| Error::Storage)?)?,
-        })?);
+        values.push(decode_definition(connection, row, workspace_id).await?);
     }
     Ok(values)
+}
+
+async fn load_projected_definitions(
+    connection: &mut SqliteConnection,
+    workspace_id: WorkspaceId,
+    ids: &HashSet<AgentDefinitionId>,
+) -> Result<Vec<AgentDefinition>> {
+    let mut values = Vec::with_capacity(ids.len());
+    for id in ids {
+        let row = sqlx::query("SELECT definition_id,display_name,command,enabled FROM agent_definitions WHERE workspace_id=? AND definition_id=?")
+            .bind(id_bytes(workspace_id.as_uuid()))
+            .bind(id_bytes(id.as_uuid()))
+            .fetch_optional(&mut *connection)
+            .await
+            .map_err(domain_storage)?;
+        if let Some(row) = row {
+            values.push(decode_definition(connection, row, workspace_id).await?);
+        }
+    }
+    values.sort_by_key(|value| *value.record().id.as_uuid().as_bytes());
+    Ok(values)
+}
+
+async fn decode_definition(
+    connection: &mut SqliteConnection,
+    row: sqlx::sqlite::SqliteRow,
+    workspace_id: WorkspaceId,
+) -> Result<AgentDefinition> {
+    let id = definition_id(
+        row.try_get::<Vec<u8>, _>("definition_id")
+            .map_err(|_| Error::Storage)?,
+    )?;
+    AgentDefinition::restore(AgentDefinitionRecord {
+        id,
+        workspace_id,
+        display_name: row.try_get("display_name").map_err(|_| Error::Storage)?,
+        command: row.try_get("command").map_err(|_| Error::Storage)?,
+        arguments: load_strings(
+            connection,
+            "definition_arguments",
+            "definition_id",
+            id.as_uuid(),
+            workspace_id,
+        )
+        .await?,
+        environment_allowlist: load_strings(
+            connection,
+            "definition_environment",
+            "definition_id",
+            id.as_uuid(),
+            workspace_id,
+        )
+        .await?,
+        capabilities: load_strings(
+            connection,
+            "definition_capabilities",
+            "definition_id",
+            id.as_uuid(),
+            workspace_id,
+        )
+        .await?,
+        enabled: int_bool(row.try_get("enabled").map_err(|_| Error::Storage)?)?,
+    })
 }
 
 async fn load_tasks(
@@ -632,51 +1472,86 @@ async fn load_tasks(
             row.try_get::<Vec<u8>, _>("task_id")
                 .map_err(|_| Error::Storage)?,
         )?;
-        let dependency_rows = sqlx::query_scalar::<_, Vec<u8>>("SELECT dependency_id FROM task_dependencies WHERE workspace_id=? AND task_id=? ORDER BY ordinal")
-            .bind(id_bytes(workspace_id.as_uuid())).bind(id_bytes(id.as_uuid())).fetch_all(&mut *connection).await.map_err(domain_storage)?;
-        let dependency_ids = dependency_rows
-            .into_iter()
-            .map(task_id)
-            .collect::<Result<Vec<_>>>()?;
-        let worktree_id = row
-            .try_get::<Option<Vec<u8>>, _>("worktree_id")
-            .map_err(|_| Error::Storage)?
-            .map(worktree_id)
-            .transpose()?;
-        values.push(Task::restore(TaskRecord {
-            id,
-            workspace_id,
-            content: TaskContent {
-                title: row.try_get("title").map_err(|_| Error::Storage)?,
-                description: row.try_get("description").map_err(|_| Error::Storage)?,
-                priority: parse_priority(
-                    &row.try_get::<String, _>("priority")
-                        .map_err(|_| Error::Storage)?,
-                )?,
-                scope_paths: load_strings(
-                    connection,
-                    "task_scope_paths",
-                    "task_id",
-                    id.as_uuid(),
-                    workspace_id,
-                )
-                .await?,
-                acceptance_notes: row
-                    .try_get("acceptance_notes")
-                    .map_err(|_| Error::Storage)?,
-                dependency_ids,
-            },
-            status: parse_task_status(
-                &row.try_get::<String, _>("status")
-                    .map_err(|_| Error::Storage)?,
-            )?,
-            claimed_by_instance_id: owners.get(&id).copied(),
-            worktree_id,
-            created_at: timestamp_row(&row, "created_seconds", "created_nanoseconds")?,
-            updated_at: timestamp_row(&row, "updated_seconds", "updated_nanoseconds")?,
-        })?);
+        values.push(decode_task(connection, row, workspace_id, owners.get(&id).copied()).await?);
     }
     Ok(values)
+}
+
+async fn load_projected_tasks(
+    connection: &mut SqliteConnection,
+    workspace_id: WorkspaceId,
+    owners: &HashMap<TaskId, AgentInstanceId>,
+    ids: &HashSet<TaskId>,
+) -> Result<Vec<Task>> {
+    let mut values = Vec::with_capacity(ids.len());
+    for id in ids {
+        let row = sqlx::query("SELECT task_id,title,description,priority,status,acceptance_notes,worktree_id,created_seconds,created_nanoseconds,updated_seconds,updated_nanoseconds FROM tasks WHERE workspace_id=? AND task_id=?")
+            .bind(id_bytes(workspace_id.as_uuid()))
+            .bind(id_bytes(id.as_uuid()))
+            .fetch_optional(&mut *connection)
+            .await
+            .map_err(domain_storage)?;
+        if let Some(row) = row {
+            values.push(decode_task(connection, row, workspace_id, owners.get(id).copied()).await?);
+        }
+    }
+    values.sort_by_key(|value| *value.record().id.as_uuid().as_bytes());
+    Ok(values)
+}
+
+async fn decode_task(
+    connection: &mut SqliteConnection,
+    row: sqlx::sqlite::SqliteRow,
+    workspace_id: WorkspaceId,
+    owner: Option<AgentInstanceId>,
+) -> Result<Task> {
+    let id = task_id(
+        row.try_get::<Vec<u8>, _>("task_id")
+            .map_err(|_| Error::Storage)?,
+    )?;
+    let dependency_rows = sqlx::query_scalar::<_, Vec<u8>>("SELECT dependency_id FROM task_dependencies WHERE workspace_id=? AND task_id=? ORDER BY ordinal")
+        .bind(id_bytes(workspace_id.as_uuid())).bind(id_bytes(id.as_uuid())).fetch_all(&mut *connection).await.map_err(domain_storage)?;
+    let dependency_ids = dependency_rows
+        .into_iter()
+        .map(task_id)
+        .collect::<Result<Vec<_>>>()?;
+    let worktree_id = row
+        .try_get::<Option<Vec<u8>>, _>("worktree_id")
+        .map_err(|_| Error::Storage)?
+        .map(worktree_id)
+        .transpose()?;
+    Task::restore(TaskRecord {
+        id,
+        workspace_id,
+        content: TaskContent {
+            title: row.try_get("title").map_err(|_| Error::Storage)?,
+            description: row.try_get("description").map_err(|_| Error::Storage)?,
+            priority: parse_priority(
+                &row.try_get::<String, _>("priority")
+                    .map_err(|_| Error::Storage)?,
+            )?,
+            scope_paths: load_strings(
+                connection,
+                "task_scope_paths",
+                "task_id",
+                id.as_uuid(),
+                workspace_id,
+            )
+            .await?,
+            acceptance_notes: row
+                .try_get("acceptance_notes")
+                .map_err(|_| Error::Storage)?,
+            dependency_ids,
+        },
+        status: parse_task_status(
+            &row.try_get::<String, _>("status")
+                .map_err(|_| Error::Storage)?,
+        )?,
+        claimed_by_instance_id: owner,
+        worktree_id,
+        created_at: timestamp_row(&row, "created_seconds", "created_nanoseconds")?,
+        updated_at: timestamp_row(&row, "updated_seconds", "updated_nanoseconds")?,
+    })
 }
 
 async fn load_instances(
@@ -691,65 +1566,102 @@ async fn load_instances(
             .map_err(domain_storage)?;
     let mut values = Vec::with_capacity(rows.len());
     for row in rows {
-        let id = instance_id(
-            row.try_get::<Vec<u8>, _>("instance_id")
+        values.push(decode_instance(connection, row, workspace_id).await?);
+    }
+    Ok(values)
+}
+
+async fn load_projected_instances(
+    connection: &mut SqliteConnection,
+    workspace_id: WorkspaceId,
+    scope: &MutationScope,
+) -> Result<Vec<AgentInstance>> {
+    let mut query = sqlx::QueryBuilder::new("SELECT * FROM agent_instances WHERE workspace_id=");
+    query.push_bind(id_bytes(workspace_id.as_uuid()));
+    query.push(" AND (status IN ('starting','running')");
+    if !scope.instance_ids.is_empty() {
+        query.push(" OR instance_id IN (");
+        let mut separated = query.separated(",");
+        for id in &scope.instance_ids {
+            separated.push_bind(id_bytes(id.as_uuid()));
+        }
+        separated.push_unseparated(")");
+    }
+    query.push(") ORDER BY instance_id");
+    let rows = query
+        .build()
+        .fetch_all(&mut *connection)
+        .await
+        .map_err(domain_storage)?;
+    let mut values = Vec::with_capacity(rows.len());
+    for row in rows {
+        values.push(decode_instance(connection, row, workspace_id).await?);
+    }
+    Ok(values)
+}
+
+async fn decode_instance(
+    connection: &mut SqliteConnection,
+    row: sqlx::sqlite::SqliteRow,
+    workspace_id: WorkspaceId,
+) -> Result<AgentInstance> {
+    let id = instance_id(
+        row.try_get::<Vec<u8>, _>("instance_id")
+            .map_err(|_| Error::Storage)?,
+    )?;
+    let definition = row
+        .try_get::<Option<Vec<u8>>, _>("definition_id")
+        .map_err(|_| Error::Storage)?
+        .map(definition_id)
+        .transpose()?;
+    let launch_definition = load_launch_snapshot(connection, workspace_id, id).await?;
+    AgentInstance::restore(AgentInstanceRecord {
+        id,
+        session_id: session_id(
+            row.try_get::<Vec<u8>, _>("session_id")
                 .map_err(|_| Error::Storage)?,
-        )?;
-        let definition = row
-            .try_get::<Option<Vec<u8>>, _>("definition_id")
+        )?,
+        workspace_id,
+        agent_definition_id: definition,
+        task_id: row
+            .try_get::<Option<Vec<u8>>, _>("task_id")
             .map_err(|_| Error::Storage)?
-            .map(definition_id)
-            .transpose()?;
-        let launch_definition = load_launch_snapshot(connection, workspace_id, id).await?;
-        values.push(AgentInstance::restore(AgentInstanceRecord {
-            id,
-            session_id: session_id(
-                row.try_get::<Vec<u8>, _>("session_id")
-                    .map_err(|_| Error::Storage)?,
-            )?,
-            workspace_id,
-            agent_definition_id: definition,
-            task_id: row
-                .try_get::<Option<Vec<u8>>, _>("task_id")
-                .map_err(|_| Error::Storage)?
-                .map(task_id)
-                .transpose()?,
-            launch_definition,
-            worktree_id: row
-                .try_get::<Option<Vec<u8>>, _>("worktree_id")
-                .map_err(|_| Error::Storage)?
-                .map(worktree_id)
-                .transpose()?,
-            working_directory: decode_native_path(
-                &row.try_get::<String, _>("working_directory_codec")
-                    .map_err(|_| Error::Storage)?,
-                &row.try_get::<Vec<u8>, _>("working_directory")
+            .map(task_id)
+            .transpose()?,
+        launch_definition,
+        worktree_id: row
+            .try_get::<Option<Vec<u8>>, _>("worktree_id")
+            .map_err(|_| Error::Storage)?
+            .map(worktree_id)
+            .transpose()?,
+        working_directory: decode_native_path(
+            &row.try_get::<String, _>("working_directory_codec")
+                .map_err(|_| Error::Storage)?,
+            &row.try_get::<Vec<u8>, _>("working_directory")
+                .map_err(|_| Error::Storage)?,
+        )
+        .map_err(|_| Error::Storage)?,
+        status: parse_instance_status(
+            &row.try_get::<String, _>("status")
+                .map_err(|_| Error::Storage)?,
+        )?,
+        started_at: timestamp_row(&row, "started_seconds", "started_nanoseconds")?,
+        last_observed_at: timestamp_row(&row, "observed_seconds", "observed_nanoseconds")?,
+        ended_at: optional_timestamp_row(&row, "ended_seconds", "ended_nanoseconds")?,
+        exit_code: row.try_get("exit_code").map_err(|_| Error::Storage)?,
+        terminal_size: TerminalSize::new(
+            u16::try_from(
+                row.try_get::<i64, _>("terminal_rows")
                     .map_err(|_| Error::Storage)?,
             )
             .map_err(|_| Error::Storage)?,
-            status: parse_instance_status(
-                &row.try_get::<String, _>("status")
+            u16::try_from(
+                row.try_get::<i64, _>("terminal_columns")
                     .map_err(|_| Error::Storage)?,
-            )?,
-            started_at: timestamp_row(&row, "started_seconds", "started_nanoseconds")?,
-            last_observed_at: timestamp_row(&row, "observed_seconds", "observed_nanoseconds")?,
-            ended_at: optional_timestamp_row(&row, "ended_seconds", "ended_nanoseconds")?,
-            exit_code: row.try_get("exit_code").map_err(|_| Error::Storage)?,
-            terminal_size: TerminalSize::new(
-                u16::try_from(
-                    row.try_get::<i64, _>("terminal_rows")
-                        .map_err(|_| Error::Storage)?,
-                )
-                .map_err(|_| Error::Storage)?,
-                u16::try_from(
-                    row.try_get::<i64, _>("terminal_columns")
-                        .map_err(|_| Error::Storage)?,
-                )
-                .map_err(|_| Error::Storage)?,
-            )?,
-        })?);
-    }
-    Ok(values)
+            )
+            .map_err(|_| Error::Storage)?,
+        )?,
+    })
 }
 
 async fn load_launch_snapshot(
@@ -807,6 +1719,35 @@ async fn load_claims(
             .fetch_all(&mut *connection)
             .await
             .map_err(domain_storage)?;
+    rows.into_iter()
+        .map(|row| decode_claim(row, workspace_id))
+        .collect()
+}
+
+async fn load_projected_claims(
+    connection: &mut SqliteConnection,
+    workspace_id: WorkspaceId,
+    task_ids: &HashSet<TaskId>,
+) -> Result<Vec<Claim>> {
+    let mut query = sqlx::QueryBuilder::new(
+        "SELECT * FROM (SELECT claims.*,ROW_NUMBER() OVER (PARTITION BY task_id ORDER BY opening_event_sequence DESC) AS claim_rank FROM claims WHERE workspace_id=",
+    );
+    query.push_bind(id_bytes(workspace_id.as_uuid()));
+    query.push(") WHERE closed_seconds IS NULL");
+    if !task_ids.is_empty() {
+        query.push(" OR (claim_rank=1 AND task_id IN (");
+        let mut separated = query.separated(",");
+        for id in task_ids {
+            separated.push_bind(id_bytes(id.as_uuid()));
+        }
+        separated.push_unseparated("))");
+    }
+    query.push(" ORDER BY opening_event_sequence");
+    let rows = query
+        .build()
+        .fetch_all(&mut *connection)
+        .await
+        .map_err(domain_storage)?;
     rows.into_iter()
         .map(|row| decode_claim(row, workspace_id))
         .collect()
@@ -928,14 +1869,18 @@ async fn load_progress_entry(
 async fn load_handovers(
     connection: &mut SqliteConnection,
     workspace_id: WorkspaceId,
+    include_all: bool,
 ) -> Result<Vec<Handover>> {
-    let rows = sqlx::query(
-        "SELECT * FROM handovers WHERE workspace_id=? ORDER BY creation_event_sequence",
-    )
-    .bind(id_bytes(workspace_id.as_uuid()))
-    .fetch_all(&mut *connection)
-    .await
-    .map_err(domain_storage)?;
+    let query = if include_all {
+        "SELECT * FROM handovers WHERE workspace_id=? ORDER BY creation_event_sequence"
+    } else {
+        "SELECT handovers.* FROM handovers JOIN (SELECT task_id,closed_seconds,closed_nanoseconds,close_reason,ROW_NUMBER() OVER (PARTITION BY task_id ORDER BY opening_event_sequence DESC) AS claim_rank FROM claims WHERE workspace_id=?) AS latest_claim ON latest_claim.task_id=handovers.task_id AND latest_claim.closed_seconds=handovers.created_seconds AND latest_claim.closed_nanoseconds=handovers.created_nanoseconds WHERE latest_claim.claim_rank=1 AND latest_claim.close_reason='handover' ORDER BY handovers.creation_event_sequence"
+    };
+    let rows = sqlx::query(query)
+        .bind(id_bytes(workspace_id.as_uuid()))
+        .fetch_all(&mut *connection)
+        .await
+        .map_err(domain_storage)?;
     let mut values = Vec::with_capacity(rows.len());
     for row in rows {
         values.push(decode_handover(connection, row, workspace_id).await?);

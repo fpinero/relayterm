@@ -20,4 +20,6 @@ Secret-pattern checks cannot identify every arbitrary secret. Users must not pla
 
 Relayterm coordinates processes and is not a sandbox. Children normally have the user's filesystem and network permissions. Same-user IPC and private runtime locations do not defend against a malicious administrator or arbitrary processes already running as that user.
 
+Explicit workspace backups contain sensitive coordination data and remain outside the project. They use a private, new destination and an integrity-checked manifest, but are not encrypted. Restore writes only to a fresh private Relayterm home and does not copy source files, credentials, terminal state, or live processes. See [private backup and restore](backup-restore.md) and the [MVP threat model](threat-model.md).
+
 Repository fixtures use synthetic identities and fake values. Runtime capture, raw environments, private conversations, automatic crash uploads, and hosted dependencies are excluded. See the [environment ADR](decisions/0005-environment-privacy.md) for planned launch and diagnostic data flows.

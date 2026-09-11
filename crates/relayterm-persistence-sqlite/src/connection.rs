@@ -12,6 +12,7 @@ use std::{
 
 static REGISTRY_MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations/registry");
 static WORKSPACE_MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations/workspace");
+pub const WORKSPACE_SCHEMA_VERSION: i64 = 2;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DatabaseKind {
@@ -53,6 +54,7 @@ impl PoolSettings {
     }
 }
 
+#[derive(Clone)]
 pub struct Database {
     pool: SqlitePool,
     path: PathBuf,
@@ -146,6 +148,15 @@ impl Database {
         &self.path
     }
 
+    pub async fn schema_version(&self) -> Result<i64, StorageError> {
+        sqlx::query_scalar(
+            "SELECT COALESCE(MAX(version), 0) FROM _sqlx_migrations WHERE success = 1",
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(map_sqlx)
+    }
+
     pub async fn snapshot_to(&self, destination: &Path) -> Result<(), StorageError> {
         if self.mode == OpenMode::ReadOnly {
             return Err(StorageError::ReadOnly);
@@ -155,6 +166,9 @@ impl Database {
         }
         validate_private_dir(destination.parent().ok_or(StorageError::AccessDenied)?)
             .map_err(|_| StorageError::AccessDenied)?;
+        // Reserve the destination with private permissions before SQLite opens it.
+        // VACUUM INTO accepts an existing empty file and refuses nonempty targets.
+        drop(create_private_file(destination).map_err(|_| StorageError::AccessDenied)?);
         let destination_text = destination.to_str().ok_or(StorageError::Unavailable)?;
         sqlx::query("VACUUM INTO ?")
             .bind(destination_text)
@@ -378,6 +392,10 @@ mod tests {
                 .unwrap();
                 assert_eq!(database.mode(), OpenMode::ExplicitNew);
                 assert_eq!(
+                    database.schema_version().await.unwrap(),
+                    WORKSPACE_SCHEMA_VERSION
+                );
+                assert_eq!(
                     sqlx::query_scalar::<_, i64>("PRAGMA foreign_keys")
                         .fetch_one(database.pool())
                         .await
@@ -560,6 +578,90 @@ mod tests {
                     .await
                     .unwrap_err();
                 assert_eq!(map_sqlx(error), StorageError::ReadOnly);
+            });
+    }
+
+    #[test]
+    fn vacuum_snapshot_is_consistent_while_committed_writes_continue() {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            .build()
+            .unwrap()
+            .block_on(async {
+                let temporary = tempfile::tempdir().unwrap();
+                let private = temporary.path().join("private");
+                relayterm_platform::create_private_dir(&private).unwrap();
+                let source = private.join("live-source.sqlite3");
+                let database = Database::open(
+                    &source,
+                    DatabaseKind::Workspace,
+                    OpenMode::ExplicitNew,
+                    PoolSettings::default(),
+                )
+                .await
+                .unwrap();
+                sqlx::query("CREATE TABLE live_backup_fixture(id INTEGER PRIMARY KEY, value BLOB NOT NULL)")
+                    .execute(database.pool())
+                    .await
+                    .unwrap();
+                sqlx::query(
+                    "WITH RECURSIVE seed(value) AS (SELECT 1 UNION ALL SELECT value+1 FROM seed WHERE value<2048) INSERT INTO live_backup_fixture(id,value) SELECT value,randomblob(4096) FROM seed",
+                )
+                .execute(database.pool())
+                .await
+                .unwrap();
+
+                let writer_pool = database.pool().clone();
+                let committed = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+                let writer_committed = committed.clone();
+                let writer = tokio::spawn(async move {
+                    for id in 2049_i64..2249 {
+                        sqlx::query("INSERT INTO live_backup_fixture(id,value) VALUES(?,randomblob(64))")
+                            .bind(id)
+                            .execute(&writer_pool)
+                            .await
+                            .unwrap();
+                        writer_committed.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                        tokio::time::sleep(Duration::from_millis(1)).await;
+                    }
+                });
+                while committed.load(std::sync::atomic::Ordering::SeqCst) == 0 {
+                    tokio::task::yield_now().await;
+                }
+                let committed_before_snapshot =
+                    committed.load(std::sync::atomic::Ordering::SeqCst);
+                let backup = private.join("live-backup.sqlite3");
+                database.snapshot_to(&backup).await.unwrap();
+                let committed_after_snapshot =
+                    committed.load(std::sync::atomic::Ordering::SeqCst);
+                assert!(committed_after_snapshot > committed_before_snapshot);
+                writer.await.unwrap();
+                assert_eq!(committed.load(std::sync::atomic::Ordering::SeqCst), 200);
+
+                let backup_db = Database::open(
+                    &backup,
+                    DatabaseKind::Workspace,
+                    OpenMode::ReadOnly,
+                    PoolSettings::default(),
+                )
+                .await
+                .unwrap();
+                let captured: i64 = sqlx::query_scalar("SELECT count(*) FROM live_backup_fixture")
+                    .fetch_one(backup_db.pool())
+                    .await
+                    .unwrap();
+                let final_count: i64 =
+                    sqlx::query_scalar("SELECT count(*) FROM live_backup_fixture")
+                        .fetch_one(database.pool())
+                        .await
+                        .unwrap();
+                let integrity: String = sqlx::query_scalar("PRAGMA integrity_check")
+                    .fetch_one(backup_db.pool())
+                    .await
+                    .unwrap();
+                assert!((2048..=final_count).contains(&captured));
+                assert_eq!(final_count, 2248);
+                assert_eq!(integrity, "ok");
             });
     }
 

@@ -17,23 +17,25 @@ pub use relayterm_platform::SystemClock as RuntimeSystemClock;
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use relayterm_application::{
-    Clock, DurableReadStore, EventNotifier, EventPageRequest, IdGenerator, Request, Service, Store,
-    TaskHistoryItem, TaskHistoryPageRequest,
+    Clock, DurableReadStore, EventNotifier, EventPageRequest, IdGenerator, MutationScope, Request,
+    Service, Store, TaskHistoryItem, TaskHistoryPageRequest,
 };
 use relayterm_domain as domain;
 use relayterm_ipc::{
-    Endpoint, IpcError, LocalListener, LocalStream, MAX_CONNECTIONS, PARTIAL_FRAME_TIMEOUT,
-    read_frame, write_frame,
+    Endpoint, IpcError, LocalListener, LocalStream, MAX_CONNECTIONS, read_frame, write_frame,
 };
 use relayterm_protocol as wire;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::{
+    collections::BTreeSet,
     fmt,
+    future::Future,
     path::PathBuf,
+    pin::Pin,
     str::FromStr,
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicBool, AtomicU64, Ordering},
     },
     time::Duration,
@@ -47,7 +49,11 @@ use tokio::{
 pub const EVENT_POLL_INTERVAL: Duration = Duration::from_millis(250);
 pub const EVENT_QUEUE_ITEMS: usize = 256;
 pub const EVENT_QUEUE_BYTES: usize = 1024 * 1024;
+pub const TERMINAL_SCROLLBACK_BYTES: usize = relayterm_terminal::DEFAULT_SCROLLBACK_BYTES;
 static CONNECTION_SEQUENCE: AtomicU64 = AtomicU64::new(1);
+
+type BackupFuture = Pin<Box<dyn Future<Output = Result<BackupReport, RuntimeError>> + Send>>;
+type BackupHandler = Arc<dyn Fn(PathBuf) -> BackupFuture + Send + Sync>;
 
 #[derive(Clone)]
 pub struct DaemonControl {
@@ -153,10 +159,24 @@ pub struct ServerFaults {
     any_response: Arc<AtomicBool>,
     pause_mutation_response: Arc<AtomicBool>,
     fail_worktree_after_git: Arc<AtomicBool>,
+    pause_worktree_after_git: Arc<AtomicBool>,
+    worktree_after_git_paused: Arc<Notify>,
+    release_worktree_after_git: Arc<Notify>,
     mutation_paused: Arc<Notify>,
     release_mutation_response: Arc<Notify>,
     event_wakeup_count: Arc<AtomicU64>,
     event_wakeup_observed: Arc<Notify>,
+    connection_failure_count: Arc<AtomicU64>,
+    connection_failure_observed: Arc<Notify>,
+    connection_accept_count: Arc<AtomicU64>,
+    connection_accepted: Arc<Notify>,
+    completed_connections: Arc<Mutex<BTreeSet<u64>>>,
+    connection_completed: Arc<Notify>,
+    pause_event_writer: Arc<AtomicBool>,
+    event_writer_paused: Arc<Notify>,
+    release_event_writer: Arc<Notify>,
+    slow_subscriber_count: Arc<AtomicU64>,
+    slow_subscriber_observed: Arc<Notify>,
 }
 impl ServerFaults {
     pub fn drop_next_mutation_response(&self) {
@@ -173,6 +193,16 @@ impl ServerFaults {
     pub fn fail_next_worktree_after_git(&self) {
         self.fail_worktree_after_git.store(true, Ordering::Release)
     }
+    /// Pauses one worktree operation after Git succeeds and before final storage commit.
+    pub fn pause_next_worktree_after_git(&self) {
+        self.pause_worktree_after_git.store(true, Ordering::Release)
+    }
+    pub async fn wait_until_worktree_after_git_paused(&self) {
+        self.worktree_after_git_paused.notified().await;
+    }
+    pub fn release_worktree_after_git(&self) {
+        self.release_worktree_after_git.notify_one();
+    }
     pub async fn wait_until_mutation_response_paused(&self) {
         self.mutation_paused.notified().await;
     }
@@ -187,6 +217,50 @@ impl ServerFaults {
             self.event_wakeup_observed.notified().await;
         }
     }
+    pub fn connection_failure_count(&self) -> u64 {
+        self.connection_failure_count.load(Ordering::Acquire)
+    }
+    pub async fn wait_for_connection_failure_after(&self, previous: u64) {
+        while self.connection_failure_count() <= previous {
+            self.connection_failure_observed.notified().await;
+        }
+    }
+    pub fn connection_accept_count(&self) -> u64 {
+        self.connection_accept_count.load(Ordering::Acquire)
+    }
+    pub async fn wait_for_connection_accepted_after(&self, previous: u64) -> u64 {
+        while self.connection_accept_count() <= previous {
+            self.connection_accepted.notified().await;
+        }
+        self.connection_accept_count()
+    }
+    pub async fn wait_for_connection_completed(&self, connection: u64) {
+        while !self
+            .completed_connections
+            .lock()
+            .expect("connection completion lock poisoned")
+            .contains(&connection)
+        {
+            self.connection_completed.notified().await;
+        }
+    }
+    pub fn pause_next_event_write(&self) {
+        self.pause_event_writer.store(true, Ordering::Release)
+    }
+    pub async fn wait_until_event_writer_paused(&self) {
+        self.event_writer_paused.notified().await;
+    }
+    pub fn release_paused_event_writer(&self) {
+        self.release_event_writer.notify_one();
+    }
+    pub fn slow_subscriber_count(&self) -> u64 {
+        self.slow_subscriber_count.load(Ordering::Acquire)
+    }
+    pub async fn wait_for_slow_subscriber_after(&self, previous: u64) {
+        while self.slow_subscriber_count() <= previous {
+            self.slow_subscriber_observed.notified().await;
+        }
+    }
     async fn pause_if_requested(&self, mutation: bool) {
         if mutation && self.pause_mutation_response.swap(false, Ordering::AcqRel) {
             self.mutation_paused.notify_one();
@@ -196,6 +270,32 @@ impl ServerFaults {
     fn record_event_wakeup(&self) {
         self.event_wakeup_count.fetch_add(1, Ordering::AcqRel);
         self.event_wakeup_observed.notify_waiters();
+    }
+    fn record_connection_accepted(&self) -> u64 {
+        let connection = self.connection_accept_count.fetch_add(1, Ordering::AcqRel) + 1;
+        self.connection_accepted.notify_one();
+        connection
+    }
+    fn record_connection_completed(&self, connection: u64, failed: bool) {
+        if failed {
+            self.connection_failure_count.fetch_add(1, Ordering::AcqRel);
+            self.connection_failure_observed.notify_waiters();
+        }
+        self.completed_connections
+            .lock()
+            .expect("connection completion lock poisoned")
+            .insert(connection);
+        self.connection_completed.notify_one();
+    }
+    async fn pause_event_write_if_requested(&self) {
+        if self.pause_event_writer.swap(false, Ordering::AcqRel) {
+            self.event_writer_paused.notify_one();
+            self.release_event_writer.notified().await;
+        }
+    }
+    fn record_slow_subscriber(&self) {
+        self.slow_subscriber_count.fetch_add(1, Ordering::AcqRel);
+        self.slow_subscriber_observed.notify_waiters();
     }
     fn take_drop(&self, mutation: bool) -> bool {
         self.any_response.swap(false, Ordering::AcqRel)
@@ -233,6 +333,9 @@ pub struct WorkspaceServer<S, C, I, N> {
     resolver_jobs: Arc<Semaphore>,
     worktree_parent: Option<PathBuf>,
     git_admissions: Arc<Semaphore>,
+    git: relayterm_git::Git,
+    backup_admission: Arc<Semaphore>,
+    backup: Option<BackupHandler>,
 }
 impl<S, C, I, N> WorkspaceServer<S, C, I, N>
 where
@@ -276,6 +379,9 @@ where
             resolver_jobs: Arc::new(Semaphore::new(4)),
             worktree_parent: None,
             git_admissions: Arc::new(Semaphore::new(2)),
+            git: relayterm_git::Git::default(),
+            backup_admission: Arc::new(Semaphore::new(1)),
+            backup: None,
         }
     }
     pub fn with_event_wakeups(mut self, receiver: watch::Receiver<u64>) -> Self {
@@ -297,6 +403,16 @@ where
         self.worktree_parent = Some(parent);
         self
     }
+    pub(crate) fn with_backup(mut self, backup: BackupHandler) -> Self {
+        self.backup = Some(backup);
+        self
+    }
+    /// Replaces the Git adapter for deterministic native integration tests.
+    #[cfg(feature = "test-hooks")]
+    pub fn with_git(mut self, git: relayterm_git::Git) -> Self {
+        self.git = git;
+        self
+    }
     pub fn fault_injector(&self) -> ServerFaults {
         self.faults.clone()
     }
@@ -313,7 +429,22 @@ where
             tokio::select! {biased;
                 changed=shutdown.changed()=>{if changed.is_err()||*shutdown.borrow(){break}}
                 joined=connections.join_next(),if !connections.is_empty()=>{let _=joined;}
-                accepted=shared.listener.accept()=>{let Ok(stream)=accepted else{continue};let Ok(permit)=shared.connections.clone().try_acquire_owned()else{drop(stream);continue};let server=shared.clone();let child_shutdown=shutdown.clone();connections.spawn(async move{let _permit=permit;let _=server.connection(stream,child_shutdown).await;});}
+                accepted=shared.listener.accept()=>{
+                    let Ok(stream)=accepted else{continue};
+                    let connection=shared.faults.record_connection_accepted();
+                    let Ok(permit)=shared.connections.clone().try_acquire_owned()else{
+                        drop(stream);
+                        shared.faults.record_connection_completed(connection,false);
+                        continue
+                    };
+                    let server=shared.clone();
+                    let child_shutdown=shutdown.clone();
+                    connections.spawn(async move{
+                        let failed=server.clone().connection(stream,child_shutdown).await.is_err();
+                        drop(permit);
+                        server.faults.record_connection_completed(connection,failed);
+                    });
+                }
             }
         }
         while connections.join_next().await.is_some() {}
@@ -405,7 +536,7 @@ where
         let reader_task = tokio::spawn(async move {
             loop {
                 let frame: Result<wire::Frame, IpcError> =
-                    read_frame(&mut reader, PARTIAL_FRAME_TIMEOUT).await;
+                    relayterm_ipc::read_frame_idle(&mut reader).await;
                 let terminal = frame.is_err();
                 if incoming_tx.send(frame).await.is_err() || terminal {
                     return;
@@ -417,8 +548,12 @@ where
         let (event_tx, event_rx) = mpsc::channel(EVENT_QUEUE_ITEMS);
         let event_budget = Arc::new(Semaphore::new(EVENT_QUEUE_BYTES));
         let (writer_failed_tx, mut writer_failed_rx) = mpsc::channel(1);
+        let writer_faults = self.faults.clone();
         let writer_task = tokio::spawn(async move {
-            if writer_loop(writer, control_rx, event_rx).await.is_err() {
+            if writer_loop(writer, control_rx, event_rx, writer_faults)
+                .await
+                .is_err()
+            {
                 let _ = writer_failed_tx.send(()).await;
             }
         });
@@ -553,6 +688,7 @@ where
             let permit_count =
                 u32::try_from(bytes.len()).map_err(|_| ServerError::ResourceLimit)?;
             if !try_queue_event(event_tx, budget, bytes, permit_count) {
+                self.faults.record_slow_subscriber();
                 queue_synchronization(
                     control_tx,
                     self.wire_workspace_id,
@@ -639,6 +775,7 @@ where
                     | O::WorktreeGetOperation
                     | O::WorktreeSelect
                     | O::WorktreeReconcile
+                    | O::BackupCreate
             )
         {
             validate_reserved(request.operation, &request.params)?;
@@ -652,23 +789,21 @@ where
             O::DaemonStatus => {
                 let _: wire::DaemonStatusParams = parameters(&request.params)?;
                 let control = self.lifecycle.as_ref().ok_or_else(unavailable)?;
-                let snapshot = self
+                let overview = self
                     .reads
-                    .consistent_snapshot(self.workspace_id)
+                    .workspace_overview(self.workspace_id)
                     .await
                     .map_err(map_domain_error)?;
-                let state = snapshot.snapshot.state().map_err(map_domain_error)?;
                 serde_json::to_value(wire::DaemonStatusResult {
                     workspace_id: wire::WorkspaceId::from_uuid(self.workspace_id.as_uuid()),
                     generation: control.generation().to_owned(),
                     lifecycle: control.lifecycle().to_owned(),
                     protocol_version: wire::PROTOCOL_VERSION,
-                    schema_version: state.workspace().record().schema_version,
-                    revision: wire::DecimalU64::new(snapshot.snapshot.revision())
-                        .map_err(|_| invalid())?,
-                    definitions: state.definitions().len(),
-                    tasks: state.tasks().len(),
-                    instances: state.instances().len(),
+                    schema_version: overview.schema_version,
+                    revision: wire::DecimalU64::new(overview.revision).map_err(|_| invalid())?,
+                    definitions: overview.definitions,
+                    tasks: overview.tasks,
+                    instances: overview.instances,
                 })
                 .map_err(|_| invalid())
             }
@@ -710,6 +845,7 @@ where
                 .map_err(|_| invalid())
             }
             O::SessionCreate => self.session_create(&request.params).await,
+            O::BackupCreate => self.backup_create(&request.params).await,
             O::SessionAttach => self.session_attach(&request.params, connection_id).await,
             O::SessionReadDisplay => {
                 self.session_read_display(&request.params, connection_id)
@@ -821,7 +957,13 @@ where
                 let id = parse_id::<domain::TaskId>(&request.params, "task_id")?;
                 let snapshot = self
                     .reads
-                    .consistent_snapshot(self.workspace_id)
+                    .consistent_projection(
+                        self.workspace_id,
+                        MutationScope {
+                            task_ids: vec![id],
+                            ..MutationScope::default()
+                        },
+                    )
                     .await
                     .map_err(map_domain_error)?;
                 let task = snapshot
@@ -834,20 +976,12 @@ where
             }
             O::HandoverGet => {
                 let id = parse_id::<domain::HandoverId>(&request.params, "handover_id")?;
-                let snapshot = self
+                let item = self
                     .reads
-                    .consistent_snapshot(self.workspace_id)
+                    .handover_by_id(self.workspace_id, id)
                     .await
                     .map_err(map_domain_error)?;
-                let item = snapshot
-                    .snapshot
-                    .state()
-                    .map_err(map_domain_error)?
-                    .handovers()
-                    .iter()
-                    .find(|x| x.record().id == id)
-                    .ok_or_else(|| map_domain_error(domain::Error::Reference))?;
-                Ok(handover_dto(item))
+                Ok(handover_dto(&item))
             }
             O::TaskGetHistory | O::TaskGetClaimHistory => self.history(request).await,
             O::EventList => self.event_list(&request.params).await,
@@ -874,9 +1008,14 @@ where
 
     async fn worktree_inspect(&self, value: &Value) -> Result<Value, wire::ErrorBody> {
         let params: wire::WorktreeInspectParams = parameters(value)?;
+        let _permit = self
+            .git_admissions
+            .clone()
+            .try_acquire_owned()
+            .map_err(|_| unavailable())?;
         let snapshot = self
             .reads
-            .consistent_snapshot(self.workspace_id)
+            .consistent_projection(self.workspace_id, MutationScope::default())
             .await
             .map_err(map_domain_error)?;
         if params
@@ -893,10 +1032,10 @@ where
             .record()
             .project_root
             .clone();
-        let result =
-            tokio::task::spawn_blocking(move || relayterm_git::Git::default().inspect(&root))
-                .await
-                .map_err(|_| unavailable())?;
+        let git = self.git.clone();
+        let result = tokio::task::spawn_blocking(move || git.inspect(&root))
+            .await
+            .map_err(|_| unavailable())?;
         match result {
             Ok(repository) => Ok(
                 json!({"status":"ready","head_commit":repository.head_commit,"default_parent_display":self.worktree_parent.as_ref().map(|path|path.to_string_lossy().into_owned())}),
@@ -920,7 +1059,13 @@ where
         let expected_revision = params.expected_revision.get();
         let snapshot = self
             .reads
-            .consistent_snapshot(self.workspace_id)
+            .consistent_projection(
+                self.workspace_id,
+                MutationScope {
+                    task_ids: vec![task_id],
+                    ..MutationScope::default()
+                },
+            )
             .await
             .map_err(map_domain_error)?;
         let state = snapshot.snapshot.state().map_err(map_domain_error)?;
@@ -983,8 +1128,8 @@ where
         let discovery_branch = params.branch_name.clone();
         let repository = tokio::task::spawn_blocking({
             let root = project_root.clone();
+            let git = self.git.clone();
             move || {
-                let git = relayterm_git::Git::default();
                 let repository = git.inspect(&root)?;
                 let commit = git.resolve_commit(&root, &discovery_base)?;
                 git.branch_available(&root, &discovery_branch)?;
@@ -1051,7 +1196,13 @@ where
             Err(domain::Error::Conflict) => {
                 let current = self
                     .reads
-                    .consistent_snapshot(self.workspace_id)
+                    .consistent_projection(
+                        self.workspace_id,
+                        MutationScope {
+                            task_ids: vec![task_id],
+                            ..MutationScope::default()
+                        },
+                    )
                     .await
                     .map_err(map_domain_error)?;
                 let state = current.snapshot.state().map_err(map_domain_error)?;
@@ -1091,10 +1242,10 @@ where
         let add_result = tokio::task::spawn_blocking({
             let root = project_root;
             let destination = destination.clone();
+            let git = self.git.clone();
             move || {
-                let git = relayterm_git::Git::default();
                 git.add(&root, &destination, &add_branch, &add_commit)?;
-                git.verify_worktree(
+                git.verify_created_worktree(
                     &root,
                     &destination,
                     &add_branch,
@@ -1107,12 +1258,9 @@ where
         .map_err(|_| unavailable())?;
         if let Err(error) = add_result {
             let current = applying.committed.snapshot.revision();
-            let needs_attention = matches!(
-                error.kind(),
-                relayterm_git::ErrorKind::Timeout
-                    | relayterm_git::ErrorKind::OutputLimit
-                    | relayterm_git::ErrorKind::CommandFailed
-            );
+            // Once dispatch reached Git, even an I/O or malformed-output error
+            // cannot prove that no external worktree effect occurred.
+            let needs_attention = true;
             let _ = self
                 .service
                 .execute_domain_command_at_revision(
@@ -1126,6 +1274,14 @@ where
                 )
                 .await;
             return Err(map_git_error(error));
+        }
+        if self
+            .faults
+            .pause_worktree_after_git
+            .swap(false, Ordering::AcqRel)
+        {
+            self.faults.worktree_after_git_paused.notify_one();
+            self.faults.release_worktree_after_git.notified().await;
         }
         if self
             .faults
@@ -1167,7 +1323,12 @@ where
         let id = domain::WorktreeOperationId::from_uuid(params.operation_id.as_uuid());
         let snapshot = self
             .reads
-            .consistent_snapshot(self.workspace_id)
+            .consistent_projection(
+                self.workspace_id,
+                MutationScope {
+                    ..MutationScope::default()
+                },
+            )
             .await
             .map_err(map_domain_error)?;
         let state = snapshot.snapshot.state().map_err(map_domain_error)?;
@@ -1184,40 +1345,27 @@ where
         if params.limit == 0 || params.limit > wire::MAX_PAGE_SIZE {
             return Err(invalid_field(wire::ErrorField::PageLimit));
         }
-        let snapshot = self
-            .reads
-            .consistent_snapshot(self.workspace_id)
-            .await
-            .map_err(map_domain_error)?;
-        if params
-            .expected_revision
-            .is_some_and(|expected| expected.get() != snapshot.snapshot.revision())
-        {
-            return Err(map_domain_error(domain::Error::Conflict));
-        }
-        let state = snapshot.snapshot.state().map_err(map_domain_error)?;
         let task = params
             .task_id
             .map(|id| domain::TaskId::from_uuid(id.as_uuid()));
-        let after = params
-            .after_id
-            .map(|id| domain::WorktreeId::from_uuid(id.as_uuid()));
-        let mut owned: Vec<_> = state
-            .worktrees()
-            .iter()
-            .filter(|worktree| task.is_none_or(|id| worktree.record().task_id == id))
-            .collect();
-        owned.sort_by_key(|worktree| worktree.record().id.to_string());
-        let items: Vec<_> = owned
-            .into_iter()
-            .filter(|worktree| {
-                after.is_none_or(|id| worktree.record().id.to_string() > id.to_string())
-            })
-            .take(usize::from(params.limit))
-            .map(worktree_dto)
-            .collect();
+        let request = relayterm_application::IdPageRequest::new(
+            params.after_id.map(|id| id.as_uuid().into_bytes()),
+            params.limit,
+            params.expected_revision.map(|revision| revision.get()),
+        )
+        .map_err(map_domain_error)?;
+        let page = self
+            .reads
+            .worktree_page(self.workspace_id, task, request)
+            .await
+            .map_err(map_domain_error)?;
+        let items = page.items.iter().map(worktree_dto).collect::<Vec<_>>();
+        let next_after_id = page
+            .has_more
+            .then(|| page.items.last().map(|item| item.record().id.to_string()))
+            .flatten();
         Ok(
-            json!({"revision":snapshot.snapshot.revision().to_string(),"last_sequence":snapshot.last_sequence.to_string(),"items":items}),
+            json!({"revision":page.revision.to_string(),"last_sequence":page.last_sequence.to_string(),"items":items,"next_after_id":next_after_id}),
         )
     }
 
@@ -1244,10 +1392,20 @@ where
 
     async fn worktree_reconcile(&self, value: &Value) -> Result<Value, wire::ErrorBody> {
         let params: wire::WorktreeReconcileParams = parameters(value)?;
+        let _permit = self
+            .git_admissions
+            .clone()
+            .try_acquire_owned()
+            .map_err(|_| unavailable())?;
         let operation_id = domain::WorktreeOperationId::from_uuid(params.operation_id.as_uuid());
         let snapshot = self
             .reads
-            .consistent_snapshot(self.workspace_id)
+            .consistent_projection(
+                self.workspace_id,
+                MutationScope {
+                    ..MutationScope::default()
+                },
+            )
             .await
             .map_err(map_domain_error)?;
         if snapshot.snapshot.revision() != params.expected_revision.get() {
@@ -1269,8 +1427,9 @@ where
             return Err(map_domain_error(domain::Error::State));
         }
         let record = intent.record().clone();
+        let git = self.git.clone();
         tokio::task::spawn_blocking(move || {
-            relayterm_git::Git::default().verify_worktree(
+            git.verify_worktree(
                 &record.repository_identity,
                 &record.destination,
                 &record.branch,
@@ -1319,7 +1478,13 @@ where
         for _ in 0..8 {
             let snapshot = self
                 .reads
-                .consistent_snapshot(self.workspace_id)
+                .consistent_projection(
+                    self.workspace_id,
+                    MutationScope {
+                        task_ids: vec![worktree.record().task_id],
+                        ..MutationScope::default()
+                    },
+                )
                 .await
                 .map_err(map_domain_error)?;
             let state = snapshot.snapshot.state().map_err(map_domain_error)?;
@@ -1353,22 +1518,41 @@ where
         Err(map_domain_error(domain::Error::Conflict))
     }
 
+    async fn backup_create(&self, value: &Value) -> Result<Value, wire::ErrorBody> {
+        let params: wire::BackupCreateParams = parameters(value)?;
+        let bytes = params.destination.decode().map_err(|_| invalid())?;
+        let destination =
+            relayterm_platform::decode_native_path(&params.destination.encoding, &bytes)
+                .map_err(|_| invalid())?;
+        let _permit = admit_backup(&self.backup_admission)?;
+        let backup = self.backup.as_ref().ok_or_else(unavailable)?.clone();
+        let report = backup(destination).await.map_err(map_backup_error)?;
+        serde_json::to_value(report).map_err(|_| invalid())
+    }
+
     async fn session_create(&self, value: &Value) -> Result<Value, wire::ErrorBody> {
         let params: wire::SessionCreateParams = parameters(value)?;
         validate_reserved(wire::Operation::SessionCreate, value)?;
         let supervisor = self.supervisor.as_ref().ok_or_else(unavailable)?;
-        let before = self
-            .reads
-            .consistent_snapshot(self.workspace_id)
-            .await
-            .map_err(map_domain_error)?;
-        let state = before.snapshot.state().map_err(map_domain_error)?;
         let definition_id = params
             .definition_id
             .map(|id| domain::AgentDefinitionId::from_uuid(id.as_uuid()));
         let task_id = params
             .task_id
             .map(|id| domain::TaskId::from_uuid(id.as_uuid()));
+        let before = self
+            .reads
+            .consistent_projection(
+                self.workspace_id,
+                MutationScope {
+                    task_ids: task_id.into_iter().collect(),
+                    definition_ids: definition_id.into_iter().collect(),
+                    ..MutationScope::default()
+                },
+            )
+            .await
+            .map_err(map_domain_error)?;
+        let state = before.snapshot.state().map_err(map_domain_error)?;
         let root = match task_id {
             Some(task_id) => {
                 if state.worktree_intents().iter().any(|intent| {
@@ -1388,15 +1572,14 @@ where
                             return Err(unavailable());
                         }
                         let record = worktree.record().clone();
+                        let git = self.git.clone();
                         tokio::task::spawn_blocking(move || {
                             let path = record.checkout_path.canonicalize().map_err(|_| ())?;
-                            let repository = relayterm_git::Git::default()
-                                .inspect(&path)
-                                .map_err(|_| ())?;
+                            let repository = git.inspect(&path).map_err(|_| ())?;
                             if repository.common_directory != record.common_directory_identity {
                                 return Err(());
                             }
-                            let branch = relayterm_git::Git::default()
+                            let branch = git
                                 .list(&path)
                                 .map_err(|_| ())?
                                 .into_iter()
@@ -1598,7 +1781,15 @@ where
         let params: wire::AgentCheckDefinitionParams = parameters(value)?;
         let snapshot = self
             .reads
-            .consistent_snapshot(self.workspace_id)
+            .consistent_projection(
+                self.workspace_id,
+                MutationScope {
+                    definition_ids: vec![domain::AgentDefinitionId::from_uuid(
+                        params.definition_id.as_uuid(),
+                    )],
+                    ..MutationScope::default()
+                },
+            )
             .await
             .map_err(map_domain_error)?;
         if snapshot.snapshot.revision() != params.expected_revision.get() {
@@ -1881,9 +2072,20 @@ where
             return Err(invalid_field(wire::ErrorField::PageLimit));
         }
         let collection = forced.unwrap_or(p.collection.unwrap_or(Collection::Workspace));
+        if matches!(
+            collection,
+            Collection::Definitions
+                | Collection::Tasks
+                | Collection::Instances
+                | Collection::Claims
+                | Collection::Progress
+                | Collection::Handovers
+        ) {
+            return self.id_collection_page(collection, p).await;
+        }
         let snap = self
             .reads
-            .consistent_snapshot(self.workspace_id)
+            .consistent_projection(self.workspace_id, MutationScope::default())
             .await
             .map_err(map_domain_error)?;
         let revision = snap.snapshot.revision();
@@ -1931,6 +2133,145 @@ where
         Ok(
             json!({"revision":revision.to_string(),"last_sequence":snap.last_sequence.to_string(),"retained_from_sequence":snap.retained_from_sequence.to_string(),"collection":collection,"items":page,"next_after_id":next_after_id}),
         )
+    }
+
+    async fn id_collection_page(
+        &self,
+        collection: Collection,
+        params: SnapshotParams,
+    ) -> Result<Value, wire::ErrorBody> {
+        let after_id = params
+            .after_id
+            .as_deref()
+            .map(str::parse::<uuid::Uuid>)
+            .transpose()
+            .map_err(|_| invalid())?
+            .map(uuid::Uuid::into_bytes);
+        let expected_revision = params
+            .expected_revision
+            .as_deref()
+            .map(|value| decimal(value, false))
+            .transpose()?;
+        let request =
+            relayterm_application::IdPageRequest::new(after_id, params.limit, expected_revision)
+                .map_err(map_domain_error)?;
+        let (revision, last_sequence, retained_from_sequence, items, storage_has_more) =
+            match collection {
+                Collection::Definitions => {
+                    let page = self
+                        .reads
+                        .definition_page(self.workspace_id, request)
+                        .await
+                        .map_err(map_domain_error)?;
+                    (
+                        page.revision,
+                        page.last_sequence,
+                        page.retained_from_sequence,
+                        page.items.iter().map(definition_dto).collect::<Vec<_>>(),
+                        page.has_more,
+                    )
+                }
+                Collection::Tasks => {
+                    let page = self
+                        .reads
+                        .task_page(self.workspace_id, request)
+                        .await
+                        .map_err(map_domain_error)?;
+                    (
+                        page.revision,
+                        page.last_sequence,
+                        page.retained_from_sequence,
+                        page.items.iter().map(task_dto).collect::<Vec<_>>(),
+                        page.has_more,
+                    )
+                }
+                Collection::Instances => {
+                    let page = self
+                        .reads
+                        .instance_page(self.workspace_id, request)
+                        .await
+                        .map_err(map_domain_error)?;
+                    (
+                        page.revision,
+                        page.last_sequence,
+                        page.retained_from_sequence,
+                        page.items.iter().map(instance_dto).collect::<Vec<_>>(),
+                        page.has_more,
+                    )
+                }
+                Collection::Claims => {
+                    let page = self
+                        .reads
+                        .claim_page(self.workspace_id, request)
+                        .await
+                        .map_err(map_domain_error)?;
+                    (
+                        page.revision,
+                        page.last_sequence,
+                        page.retained_from_sequence,
+                        page.items.iter().map(claim_dto).collect::<Vec<_>>(),
+                        page.has_more,
+                    )
+                }
+                Collection::Progress => {
+                    let page = self
+                        .reads
+                        .progress_page(self.workspace_id, request)
+                        .await
+                        .map_err(map_domain_error)?;
+                    (
+                        page.revision,
+                        page.last_sequence,
+                        page.retained_from_sequence,
+                        page.items.iter().map(progress_dto).collect::<Vec<_>>(),
+                        page.has_more,
+                    )
+                }
+                Collection::Handovers => {
+                    let page = self
+                        .reads
+                        .handover_page(self.workspace_id, request)
+                        .await
+                        .map_err(map_domain_error)?;
+                    (
+                        page.revision,
+                        page.last_sequence,
+                        page.retained_from_sequence,
+                        page.items.iter().map(handover_dto).collect::<Vec<_>>(),
+                        page.has_more,
+                    )
+                }
+                _ => return Err(invalid()),
+            };
+        let available = items.len();
+        let mut page = Vec::with_capacity(available);
+        let mut encoded_bytes = 2_usize;
+        for item in items {
+            let item_bytes = serde_json::to_vec(&item).map_err(|_| invalid())?.len();
+            let separator = usize::from(!page.is_empty());
+            let next_bytes = encoded_bytes
+                .checked_add(separator)
+                .and_then(|value| value.checked_add(item_bytes))
+                .ok_or_else(resource)?;
+            if next_bytes > wire::COLLECTION_PAGE_BYTES {
+                break;
+            }
+            encoded_bytes = next_bytes;
+            page.push(item);
+        }
+        if page.is_empty() && available != 0 {
+            return Err(resource());
+        }
+        let has_more = storage_has_more || page.len() < available;
+        let next_after_id = has_more.then(|| page.last().map(entity_sort_key)).flatten();
+        Ok(json!({
+            "revision": revision.to_string(),
+            "last_sequence": last_sequence.to_string(),
+            "retained_from_sequence": retained_from_sequence.to_string(),
+            "collection": collection,
+            "items": page,
+            "next_after_id": next_after_id
+        }))
     }
 
     async fn event_list(&self, params: &Value) -> Result<Value, wire::ErrorBody> {
@@ -2040,7 +2381,7 @@ where
             Some(value) => value.get(),
             None => self
                 .reads
-                .consistent_snapshot(self.workspace_id)
+                .consistent_projection(self.workspace_id, MutationScope::default())
                 .await
                 .map_err(map_domain_error)?
                 .snapshot
@@ -2185,6 +2526,13 @@ where
     }
 }
 
+fn admit_backup(admission: &Arc<Semaphore>) -> Result<OwnedSemaphorePermit, wire::ErrorBody> {
+    admission
+        .clone()
+        .try_acquire_owned()
+        .map_err(|_| unavailable())
+}
+
 fn try_queue_event(
     sender: &mpsc::Sender<QueuedEvent>,
     budget: &Arc<Semaphore>,
@@ -2216,6 +2564,7 @@ async fn writer_loop<W: AsyncWrite + Unpin>(
     mut writer: W,
     mut controls: mpsc::Receiver<WriterControl>,
     mut events: mpsc::Receiver<QueuedEvent>,
+    faults: ServerFaults,
 ) -> Result<(), ServerError> {
     loop {
         tokio::select! {biased;
@@ -2239,7 +2588,10 @@ async fn writer_loop<W: AsyncWrite + Unpin>(
             }
             event=events.recv()=>{
                 match event {
-                    Some(event)=>write_frame(&mut writer,wire::FrameKind::Json,&event.bytes).await.map_err(|_|ServerError::Transport)?,
+                    Some(event)=>{
+                        faults.pause_event_write_if_requested().await;
+                        write_frame(&mut writer,wire::FrameKind::Json,&event.bytes).await.map_err(|_|ServerError::Transport)?
+                    },
                     None=>return Ok(()),
                 }
             }
@@ -2626,6 +2978,9 @@ fn validate_reserved(operation: wire::Operation, value: &Value) -> Result<(), wi
         O::WorktreeSelect => {
             let _: wire::WorktreeSelectParams = parameters(value)?;
         }
+        O::BackupCreate => {
+            let _: wire::BackupCreateParams = parameters(value)?;
+        }
         O::WorktreeList => {
             let params: wire::WorktreeListParams = parameters(value)?;
             if params.limit == 0 || params.limit > wire::MAX_PAGE_SIZE {
@@ -2680,6 +3035,26 @@ fn unavailable() -> wire::ErrorBody {
 }
 fn resource() -> wire::ErrorBody {
     wire::ErrorBody::not_applied(wire::ErrorCode::ResourceLimit, wire::Recovery::None)
+}
+fn map_backup_error(error: RuntimeError) -> wire::ErrorBody {
+    use wire::{ErrorCode as C, Recovery as R};
+    match error {
+        RuntimeError::InvalidLocation | RuntimeError::InvalidWorkspace => {
+            wire::ErrorBody::not_applied(C::InvalidParams, R::None)
+        }
+        RuntimeError::AccessDenied => wire::ErrorBody::not_applied(C::Unauthorized, R::None),
+        RuntimeError::Busy | RuntimeError::Timeout => {
+            wire::ErrorBody::not_applied(C::StorageBusy, R::None)
+        }
+        RuntimeError::RecoveryRequired => {
+            wire::ErrorBody::not_applied(C::IntegrityError, R::InspectState)
+        }
+        RuntimeError::Storage => wire::ErrorBody::not_applied(C::StorageError, R::InspectState),
+        RuntimeError::WorkspaceNotInitialized
+        | RuntimeError::Transport
+        | RuntimeError::Protocol
+        | RuntimeError::Spawn => unavailable(),
+    }
 }
 fn map_supervisor(error: supervisor::SupervisorError) -> wire::ErrorBody {
     match error {
@@ -2970,6 +3345,20 @@ fn entity_sort_key(value: &Value) -> String {
 mod tests {
     use super::*;
 
+    #[test]
+    fn backup_admission_is_immediate_and_exclusive() {
+        let admission = Arc::new(Semaphore::new(1));
+        let Ok(first) = admit_backup(&admission) else {
+            panic!("the first backup must be admitted");
+        };
+        let Err(error) = admit_backup(&admission) else {
+            panic!("a concurrent backup must be rejected");
+        };
+        assert_eq!(error.code, wire::ErrorCode::OperationUnavailable);
+        drop(first);
+        assert!(admit_backup(&admission).is_ok());
+    }
+
     #[tokio::test]
     async fn event_queue_enforces_item_and_byte_limits_and_releases_permits() {
         let (sender, mut receiver) = mpsc::channel(1);
@@ -2993,7 +3382,12 @@ mod tests {
             .send(WriterControl::ResetSubscription(vec![42]))
             .await
             .unwrap();
-        let writer = tokio::spawn(writer_loop(server, control_rx, event_rx));
+        let writer = tokio::spawn(writer_loop(
+            server,
+            control_rx,
+            event_rx,
+            ServerFaults::default(),
+        ));
         let frame = read_frame(&mut client, Duration::from_secs(1))
             .await
             .unwrap();

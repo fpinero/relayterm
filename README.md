@@ -87,6 +87,8 @@ The canonical user-facing executable will be `rt`. The reserved `relayterm.com` 
 - [PTY supervision and reattachment](docs/pty-supervision.md) documents the M07 real-session lifecycle, limits, administrative surface, and native gate.
 - [TUI workflow and verification](docs/tui-workflow.md) documents the interactive M08 workflow, key map, terminal profile, limits, and native gate.
 - [Git worktrees](docs/worktrees.md) documents explicit task isolation, durable receipts, conservative recovery, and launch behavior.
+- [Private backup and restore](docs/backup-restore.md) documents no-overwrite workspace recovery into a fresh private home.
+- [M11 acceptance matrix](docs/acceptance-matrix.md), [reliability workflow](docs/reliability-workflow.md), and [threat model](docs/threat-model.md) define the current hardening gate and its pending evidence.
 
 ## Current status
 

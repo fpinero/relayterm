@@ -230,6 +230,25 @@ pub async fn read_frame<R: AsyncRead + Unpin>(
         .await
         .map_err(|_| IpcError::Timeout)?
         .map_err(map_io)?;
+    read_frame_payload(reader, header).await
+}
+
+/// Wait for an established peer without treating silence as a partial frame.
+/// Once the first byte arrives, header and payload completion remain bounded.
+pub async fn read_frame_idle<R: AsyncRead + Unpin>(reader: &mut R) -> Result<Frame, IpcError> {
+    let mut header = [0_u8; HEADER_SIZE];
+    reader.read_exact(&mut header[..1]).await.map_err(map_io)?;
+    tokio::time::timeout(PARTIAL_FRAME_TIMEOUT, reader.read_exact(&mut header[1..]))
+        .await
+        .map_err(|_| IpcError::Timeout)?
+        .map_err(map_io)?;
+    read_frame_payload(reader, header).await
+}
+
+async fn read_frame_payload<R: AsyncRead + Unpin>(
+    reader: &mut R,
+    header: [u8; HEADER_SIZE],
+) -> Result<Frame, IpcError> {
     let length = u32::from_be_bytes(header[..4].try_into().expect("fixed header")) as usize;
     let mut decoder = FrameDecoder::default();
     let initial = decoder.feed(&header).map_err(map_frame)?;
@@ -541,6 +560,49 @@ mod platform {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn idle_reader_detects_closed_peer() {
+        let (mut reader, writer) = tokio::io::duplex(64);
+        drop(writer);
+        assert!(matches!(
+            tokio::time::timeout(Duration::from_secs(1), read_frame_idle(&mut reader))
+                .await
+                .unwrap(),
+            Err(IpcError::Disconnected)
+        ));
+    }
+
+    #[tokio::test]
+    async fn idle_reader_still_times_out_partial_header() {
+        let (mut reader, mut writer) = tokio::io::duplex(64);
+        writer.write_all(&[0]).await.unwrap();
+        assert!(matches!(
+            read_frame_idle(&mut reader).await,
+            Err(IpcError::Timeout)
+        ));
+    }
+
+    #[tokio::test]
+    async fn idle_reader_still_times_out_partial_payload() {
+        let (mut reader, mut writer) = tokio::io::duplex(64);
+        let bytes = encode_frame(FrameKind::Json, b"test").unwrap();
+        writer.write_all(&bytes[..HEADER_SIZE + 1]).await.unwrap();
+        assert!(matches!(
+            read_frame_idle(&mut reader).await,
+            Err(IpcError::Timeout)
+        ));
+    }
+
+    #[tokio::test]
+    async fn request_reader_still_times_out_silent_peer() {
+        let (mut reader, _writer) = tokio::io::duplex(64);
+        assert!(matches!(
+            read_frame(&mut reader, Duration::from_millis(20)).await,
+            Err(IpcError::Timeout)
+        ));
+    }
+
     #[cfg(unix)]
     fn private_temp(prefix: &str) -> tempfile::TempDir {
         tempfile::Builder::new()

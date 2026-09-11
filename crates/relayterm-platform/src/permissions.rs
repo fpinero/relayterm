@@ -48,9 +48,44 @@ pub fn create_private_file(path: &Path) -> Result<File, PrivatePathError> {
     Ok(file)
 }
 
+/// Publish an owned private directory without replacing an existing path.
+#[cfg(unix)]
+pub fn publish_private_dir(source: &Path, destination: &Path) -> Result<(), PrivatePathError> {
+    use rustix::fs::{CWD, RenameFlags, renameat_with};
+    use rustix::io::Errno;
+
+    validate_private_dir(source)?;
+    validate_private_dir(source.parent().ok_or(PrivatePathError::Unavailable)?)?;
+    validate_private_dir(destination.parent().ok_or(PrivatePathError::Unavailable)?)?;
+    if fs::symlink_metadata(destination).is_ok() {
+        return Err(PrivatePathError::InvalidType);
+    }
+    renameat_with(CWD, source, CWD, destination, RenameFlags::NOREPLACE).map_err(|error| {
+        if error == Errno::EXIST {
+            PrivatePathError::InvalidType
+        } else {
+            PrivatePathError::Unavailable
+        }
+    })?;
+    validate_private_dir(destination)
+}
+
+/// Publish an owned private directory without replacing an existing path.
+#[cfg(windows)]
+pub fn publish_private_dir(source: &Path, destination: &Path) -> Result<(), PrivatePathError> {
+    validate_private_dir(source)?;
+    validate_private_dir(source.parent().ok_or(PrivatePathError::Unavailable)?)?;
+    validate_private_dir(destination.parent().ok_or(PrivatePathError::Unavailable)?)?;
+    if fs::symlink_metadata(destination).is_ok() {
+        return Err(PrivatePathError::InvalidType);
+    }
+    fs::rename(source, destination).map_err(map_io)?;
+    validate_private_dir(destination)
+}
+
 pub fn validate_private_dir(path: &Path) -> Result<(), PrivatePathError> {
     let metadata = fs::symlink_metadata(path).map_err(map_io)?;
-    if metadata.file_type().is_symlink() {
+    if is_link_or_reparse(&metadata) {
         return Err(PrivatePathError::LinkRejected);
     }
     if !metadata.is_dir() {
@@ -64,7 +99,7 @@ pub fn validate_private_dir(path: &Path) -> Result<(), PrivatePathError> {
 
 pub fn validate_private_file(path: &Path) -> Result<(), PrivatePathError> {
     let metadata = fs::symlink_metadata(path).map_err(map_io)?;
-    if metadata.file_type().is_symlink() {
+    if is_link_or_reparse(&metadata) {
         return Err(PrivatePathError::LinkRejected);
     }
     if !metadata.is_file() {
@@ -79,7 +114,7 @@ pub fn validate_private_file(path: &Path) -> Result<(), PrivatePathError> {
 /// Secure a file created by a trusted library inside an already private directory.
 pub fn secure_generated_file(path: &Path) -> Result<(), PrivatePathError> {
     let metadata = fs::symlink_metadata(path).map_err(map_io)?;
-    if metadata.file_type().is_symlink() {
+    if is_link_or_reparse(&metadata) {
         return Err(PrivatePathError::LinkRejected);
     }
     if !metadata.is_file() {
@@ -102,6 +137,21 @@ pub fn secure_generated_file(path: &Path) -> Result<(), PrivatePathError> {
         secure_windows_handle(&mut file, false)?;
     }
     validate_private_file(path)
+}
+
+fn is_link_or_reparse(metadata: &fs::Metadata) -> bool {
+    if metadata.file_type().is_symlink() {
+        return true;
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+
+        const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0000_0400;
+        metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0
+    }
+    #[cfg(not(windows))]
+    false
 }
 
 #[cfg(unix)]
@@ -307,6 +357,26 @@ mod tests {
         validate_private_file(&file).unwrap();
     }
 
+    #[test]
+    fn private_directory_publication_never_replaces_an_existing_destination() {
+        let temporary = tempfile::tempdir().unwrap();
+        let parent = temporary.path().join("private");
+        create_private_dir(&parent).unwrap();
+        let source = parent.join("staging");
+        let destination = parent.join("published");
+        create_private_dir(&source).unwrap();
+        fs::write(source.join("source.txt"), b"source").unwrap();
+        create_private_dir(&destination).unwrap();
+        fs::write(destination.join("sentinel.txt"), b"destination").unwrap();
+
+        assert!(publish_private_dir(&source, &destination).is_err());
+        assert_eq!(fs::read(source.join("source.txt")).unwrap(), b"source");
+        assert_eq!(
+            fs::read(destination.join("sentinel.txt")).unwrap(),
+            b"destination"
+        );
+    }
+
     #[cfg(unix)]
     #[test]
     fn rejects_permissive_existing_directory() {
@@ -358,6 +428,29 @@ mod tests {
         assert_eq!(
             validate_private_dir(&directory),
             Err(PrivatePathError::AclTooBroad)
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn rejects_windows_directory_junctions() {
+        let temporary = tempfile::tempdir().unwrap();
+        let target = temporary.path().join("target");
+        let junction = temporary.path().join("junction");
+        create_private_dir(&target).unwrap();
+        let status = std::process::Command::new("cmd.exe")
+            .args(["/d", "/c", "mklink", "/J"])
+            .arg(&junction)
+            .arg(&target)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .unwrap();
+        assert!(status.success());
+        assert_eq!(
+            validate_private_dir(&junction),
+            Err(PrivatePathError::LinkRejected)
         );
     }
 }
