@@ -107,7 +107,7 @@ async fn separate_server_and_client_processes_share_durable_state() {
     .await
     .unwrap();
     let store = SqliteStore::new(database.pool().clone());
-    let workspace: WorkspaceId = "00000000-0000-4000-8000-000000000202".parse().unwrap();
+    let workspace = test_workspace_id(2);
     let service = Service::new(
         store.clone(),
         SystemClock,
@@ -239,6 +239,13 @@ fn private_temp() -> tempfile::TempDir {
     tempfile::Builder::new()
         .prefix("rt-m04-")
         .tempdir()
+        .unwrap()
+}
+
+fn test_workspace_id(discriminator: u16) -> WorkspaceId {
+    let suffix = (u64::from(std::process::id()) << 16) | u64::from(discriminator);
+    format!("00000000-0000-4000-8000-{suffix:012x}")
+        .parse()
         .unwrap()
 }
 
@@ -406,7 +413,7 @@ async fn two_clients_complete_a_durable_handover_journey() {
     .await
     .unwrap();
     let store = SqliteStore::new(database.pool().clone());
-    let workspace: WorkspaceId = "00000000-0000-4000-8000-000000000101".parse().unwrap();
+    let workspace = test_workspace_id(1);
     let (event_wakeup_tx, event_wakeup_rx) = watch::channel(0);
     let service = Arc::new(Service::new(
         store.clone(),
@@ -918,7 +925,7 @@ async fn idle_subscription_delivers_event_without_reconnecting() {
     .await
     .unwrap();
     let store = SqliteStore::new(database.pool().clone());
-    let workspace: WorkspaceId = "00000000-0000-4000-8000-000000000101".parse().unwrap();
+    let workspace = test_workspace_id(3);
     let (event_wakeup_tx, event_wakeup_rx) = watch::channel(0);
     let service = Arc::new(Service::new(
         store.clone(),
