@@ -117,7 +117,7 @@ impl OuterTerminal {
 
     pub fn wait_for(&self, marker: &str) {
         let deadline = Instant::now() + DEADLINE;
-        while !self.screen_contents().contains(marker) {
+        while !rendered_text_contains(&self.screen_contents(), marker) {
             assert!(
                 Instant::now() < deadline,
                 "timed out waiting for {marker}; screen={:?}",
@@ -152,6 +152,15 @@ impl OuterTerminal {
             "interactive client exit",
         );
     }
+}
+
+fn rendered_text_contains(screen: &str, marker: &str) -> bool {
+    screen.contains(marker)
+        || screen
+            .chars()
+            .filter(|character| !matches!(character, '\r' | '\n'))
+            .collect::<String>()
+            .contains(marker)
 }
 
 impl Drop for OuterTerminal {

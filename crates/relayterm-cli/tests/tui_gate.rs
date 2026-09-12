@@ -140,12 +140,7 @@ impl OuterTerminal {
                     String::from_utf8_lossy(&output).contains(marker)
                 } else {
                     drop(output);
-                    self.screen
-                        .lock()
-                        .unwrap()
-                        .screen()
-                        .contents()
-                        .contains(marker)
+                    rendered_text_contains(&self.screen.lock().unwrap().screen().contents(), marker)
                 }
             };
             if present {
@@ -177,6 +172,24 @@ impl OuterTerminal {
             std::thread::sleep(Duration::from_millis(20));
         }
     }
+}
+
+fn rendered_text_contains(screen: &str, marker: &str) -> bool {
+    screen.contains(marker)
+        || screen
+            .chars()
+            .filter(|character| !matches!(character, '\r' | '\n'))
+            .collect::<String>()
+            .contains(marker)
+}
+
+#[test]
+fn rendered_markers_may_span_terminal_rows() {
+    assert!(rendered_text_contains(
+        "Initi\nalize it? [y/N]",
+        "Initialize it?"
+    ));
+    assert!(!rendered_text_contains("Initialize", "Initialize it?"));
 }
 
 impl Drop for OuterTerminal {
