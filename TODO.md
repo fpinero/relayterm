@@ -40,7 +40,6 @@ Execution contract: [M11 detailed plan](docs/M11_details.md). Add its 50 atomic 
 
 ### M11 atomic execution queue
 - M11.07b: Execute the Linux local-terminal and OpenSSH matrix.
-- M11.07d: Execute the Windows Terminal and OpenSSH matrix.
 - M11.07e: Resolve failures and reconcile manual acceptance.
 - M11.10d: Reconcile all acceptance, risk, budget, and manual evidence.
 - M11.10e: Create coherent commits and the authorized implementation PR.
