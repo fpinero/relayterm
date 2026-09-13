@@ -448,3 +448,9 @@ The separate 180-second local resource gate missed only its reference throughput
 Completed M11.07b-handoff. Confirmed that `feature/m11-hardening` contains the completed macOS evidence commit `86876fd` followed by the Windows corrections and Windows evidence commit `c21e6f9`. Added `docs/m11-linux-codex-desktop-prompt.md` as a public-safe, copyable handoff for MAN-LNX-1, MAN-LNX-2, and MAN-LNX-3. The prompt preserves the fixed-candidate, synthetic-data, real terminal-window closure, fresh OpenSSH connection, identity comparison, defect correction, affected-observation repetition, and final review contracts. M11.07b and every reconciliation, review, CI, and merge task remain pending.
 
 Verification passed with `python scripts/check_repository.py`, `python scripts/check_audit_controls.py`, `python scripts/check_secrets.py`, `git diff --check`, and an explicit Unicode U+2014 scan of the new prompt.
+
+## 2026-09-13: Reconcile completed manual platform status
+
+Completed M11.07d-status. Updated the current macOS report disposition and supported-platform summary so they recognize the integrated macOS and Windows manual matrices as passed while leaving all Linux rows and final M11 gates open. Historical observations inside the chronological macOS record remain unchanged.
+
+Verification passed with `python scripts/check_repository.py`, `python scripts/check_audit_controls.py`, `python scripts/check_secrets.py`, `git diff --check`, and an explicit Unicode U+2014 scan of the changed documentation.

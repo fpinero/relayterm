@@ -7,8 +7,8 @@ Rust 1.98.1 is the pinned compiler and initial MSRV. CI also selects current sta
 | OS and runner | Target | Bootstrap evidence | Interactive evidence |
 | --- | --- | --- | --- |
 | Linux, ubuntu-24.04 | x86_64-unknown-linux-gnu | Native stable and pinned-compiler CI passed | Automated M11 PTY, TUI, offline and resource gates passed; manual terminal and SSH matrix pending |
-| macOS, macos-14 | aarch64-apple-darwin | Local tests and native stable CI passed | Automated M11 PTY, TUI, offline and resource gates passed; manual Terminal.app and SSH matrix pending |
-| Windows, windows-2022 | x86_64-pc-windows-msvc | Native stable CI passed | Automated M11 ConPTY, TUI, offline and resource gates passed; manual Windows Terminal and SSH matrix pending |
+| macOS, macos-14 | aarch64-apple-darwin | Local tests and native stable CI passed | Automated M11 PTY, TUI, offline and resource gates passed; manual Terminal.app and SSH matrix passed |
+| Windows, windows-2022 | x86_64-pc-windows-msvc | Native stable CI passed | Automated M11 ConPTY, TUI, offline and resource gates passed; manual Windows Terminal and SSH matrix passed |
 
 The bootstrap code at `0d14f05` passed Quality run `33974825769` and Security run `33974825731` on 2026-09-05. The pinned-toolchain CI job also runs on Linux. Record actual compiler host and runner OS for each candidate. Local macOS evidence does not establish Linux or Windows success, and cross-compilation is not native behavior verification. Refer to `avances.md` for executed checks; do not infer results from the presence of workflow files.
 
