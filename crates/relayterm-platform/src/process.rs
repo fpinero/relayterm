@@ -147,25 +147,50 @@ fn executable_candidates(directory: &Path, command: &str) -> Vec<PathBuf> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ProcessLaunchError;
 
+#[cfg(windows)]
+const DETACHED_PROCESS: u32 = 0x0000_0008;
+#[cfg(windows)]
+const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+#[cfg(windows)]
+const CREATE_BREAKAWAY_FROM_JOB: u32 = 0x0100_0000;
+#[cfg(windows)]
+const DETACHED_RUNTIME_FLAGS: u32 =
+    DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB;
+
 /// Start the long-lived runtime without inheriting the caller's standard streams.
 pub fn spawn_detached(
     executable: &Path,
     arguments: &[OsString],
 ) -> Result<Child, ProcessLaunchError> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        let mut command = detached_command(executable, arguments);
+        command.creation_flags(DETACHED_RUNTIME_FLAGS);
+        match command.spawn() {
+            Ok(child) => Ok(child),
+            Err(error) if error.kind() == std::io::ErrorKind::PermissionDenied => {
+                let mut fallback = detached_command(executable, arguments);
+                fallback.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
+                fallback.spawn().map_err(|_| ProcessLaunchError)
+            }
+            Err(_) => Err(ProcessLaunchError),
+        }
+    }
+    #[cfg(not(windows))]
+    detached_command(executable, arguments)
+        .spawn()
+        .map_err(|_| ProcessLaunchError)
+}
+
+fn detached_command(executable: &Path, arguments: &[OsString]) -> Command {
     let mut command = Command::new(executable);
     command
         .args(arguments)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null());
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const DETACHED_PROCESS: u32 = 0x0000_0008;
-        const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
-        command.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
-    }
-    command.spawn().map_err(|_| ProcessLaunchError)
+    command
 }
 
 /// Separate the Unix runtime from the launching session after process creation.
@@ -358,5 +383,13 @@ mod tests {
                 ExecutableStatus::UnsupportedLauncher
             );
         }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn detached_runtime_requests_job_breakaway() {
+        assert_ne!(DETACHED_RUNTIME_FLAGS & DETACHED_PROCESS, 0);
+        assert_ne!(DETACHED_RUNTIME_FLAGS & CREATE_NEW_PROCESS_GROUP, 0);
+        assert_ne!(DETACHED_RUNTIME_FLAGS & CREATE_BREAKAWAY_FROM_JOB, 0);
     }
 }
