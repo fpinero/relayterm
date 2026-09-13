@@ -1,6 +1,6 @@
 # M11 macOS manual review
 
-Status: Complete for MAN-MAC-1, MAN-MAC-2, and MAN-MAC-3. M11 remains open for the Linux manual rows, final reconciliation, CI, and independent review.
+Status: Complete for MAN-MAC-1, MAN-MAC-2, and MAN-MAC-3. M11 remains open for final acceptance, risk, and budget reconciliation, PR review, merge, and post-merge CI.
 
 This report retains the observations in chronological order. Statements about pending work in the initial sections describe the state at that point in the review; the final disposition governs the current status.
 
@@ -176,4 +176,4 @@ With explicit maintainer authorization, `rt daemon stop --terminate-sessions` th
 
 ## 2026-09-11: macOS manual matrix disposition
 
-The combined dated observations now cover the required Terminal.app Zsh, Terminal.app Bash, and fresh OpenSSH-to-macOS combinations. Shell-specific rendering and terminal behavior were observed on the original candidate, and every affected behavior was repeated on isolated post-fix candidates through v4. The observed v4 SHA-256 maps exactly to source commit `69ff8a84335811d238763691c78433de5a36d93a`. No further macOS manual behavior observation is pending unless source behavior changes. The Linux manual rows, final review, CI, and merge gates remain open, so M11 is not complete.
+The combined dated observations now cover the required Terminal.app Zsh, Terminal.app Bash, and fresh OpenSSH-to-macOS combinations. Shell-specific rendering and terminal behavior were observed on the original candidate, and every affected behavior was repeated on isolated post-fix candidates through v4. The observed v4 SHA-256 maps exactly to source commit `69ff8a84335811d238763691c78433de5a36d93a`. Later runtime changes through the completed Linux candidate are Windows-only or preserve the Unix path unchanged, so no macOS observation is invalidated. No further macOS manual behavior observation is pending unless source behavior changes. Final acceptance, risk, and budget reconciliation, PR review, merge, and post-merge CI remain open, so M11 is not complete.

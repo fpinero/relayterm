@@ -6,7 +6,7 @@ Rust 1.98.1 is the pinned compiler and initial MSRV. CI also selects current sta
 
 | OS and runner | Target | Bootstrap evidence | Interactive evidence |
 | --- | --- | --- | --- |
-| Linux, ubuntu-24.04 | x86_64-unknown-linux-gnu | Native stable and pinned-compiler CI passed | Automated M11 PTY, TUI, offline and resource gates passed; manual terminal and SSH matrix pending |
+| Linux, ubuntu-24.04 | x86_64-unknown-linux-gnu | Native stable and pinned-compiler CI passed | Automated M11 PTY, TUI, offline and resource gates passed; manual GNOME Terminal and SSH matrix passed |
 | macOS, macos-14 | aarch64-apple-darwin | Local tests and native stable CI passed | Automated M11 PTY, TUI, offline and resource gates passed; manual Terminal.app and SSH matrix passed |
 | Windows, windows-2022 | x86_64-pc-windows-msvc | Native stable CI passed | Automated M11 ConPTY, TUI, offline and resource gates passed; manual Windows Terminal and SSH matrix passed |
 
@@ -178,17 +178,17 @@ All daemon and TUI samples remained under the declared 512 MiB limit. Every fina
 
 The offline gate validated its process monitor with a synthetic loopback listener before observing the real daemon and synthetic child. It then completed local Git worktree creation, native IPC, real PTY or ConPTY launch, repeated client connections, live backup and fresh-home restore without finding a product TCP or UDP endpoint. This is product runtime evidence. Dependency fetching, user-configured child networking and SSH transport remain separate.
 
-Hosted automation does not identify behavior in a graphical terminal application and does not exercise an operator-controlled SSH connection. The mandatory local xterm-compatible, Terminal.app, Windows Terminal and OpenSSH observations remain open below, so M11 is not complete and the candidate is not mergeable yet.
+Hosted automation does not identify behavior in a graphical terminal application and does not exercise an operator-controlled SSH connection. Separate operator-controlled observations now cover the mandatory local xterm-compatible, Terminal.app, Windows Terminal, and OpenSSH rows. M11 remains open for final acceptance, risk, and budget reconciliation, PR review, merge, and post-merge CI.
 
-## Remaining manual shell and terminal matrix
+## Manual shell and terminal matrix
 
-| Platform | Shells | Terminals and connections to verify |
+| Platform | Shells | Observed terminals and connections |
 | --- | --- | --- |
 | Linux | Bash, configured generic shell | xterm-compatible local terminal and OpenSSH |
 | macOS | Zsh, Bash | Terminal.app and OpenSSH |
 | Windows | PowerShell, cmd.exe | Windows Terminal with ConPTY and supported OpenSSH configurations |
 
-Native PTY full-screen redraw, Unicode, resize, process survival, reattachment, TUI focus switching, monochrome rendering, and small-window behavior are covered by the M07 and M08 automated gates. Presentation in named terminal applications and SSH detach/reattach require later empirical tests. No terminal or architecture outside the tested matrix is claimed supported.
+Native PTY full-screen redraw, Unicode, resize, process survival, reattachment, TUI focus switching, monochrome rendering, and small-window behavior are covered by the M07 and M08 automated gates. The named-terminal and SSH presentation matrix is recorded in the M11 manual reports. No terminal or architecture outside the tested matrix is claimed supported.
 
 ## Prerequisites and limitations
 

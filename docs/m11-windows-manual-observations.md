@@ -1,6 +1,6 @@
 # M11 Windows manual review
 
-Status: Complete for MAN-WIN-1, MAN-WIN-2, and MAN-WIN-3. M11 remains open for the Linux manual rows, final reconciliation, CI, independent review, and merge.
+Status: Complete for MAN-WIN-1, MAN-WIN-2, and MAN-WIN-3. M11 remains open for final acceptance, risk, and budget reconciliation, PR review, merge, and post-merge CI.
 
 The observations were performed from 2026-09-12 through 2026-09-13 UTC. The repository maintainer operated the native terminals while the assistant supplied one action at a time and performed separate read-only administrative checks. All workspaces, titles, markers, and identifiers were synthetic. Private account names, hostnames, absolute profile paths, credentials, and screenshot locations are omitted.
 

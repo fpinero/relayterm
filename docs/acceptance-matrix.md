@@ -11,19 +11,19 @@ Evidence records include candidate commit, command or procedure, native OS and a
 | Criterion | Owner | Automated evidence | Manual evidence or limitation | Candidate | Status |
 | --- | --- | --- | --- | --- | --- |
 | AC-1 | M11 | `cli::bootstrap_rejects_invalid_input_without_side_effects`, `durable_slice::durable_handover_survives_process_restart`, and `backup_restore::private_backup_is_exclusive_integrity_checked_and_reopenable` | Clean-machine installation belongs to M12 | `a5039d6` | Passed for M11 |
-| AC-2 | M11 | Detached daemon, runtime ownership, IPC ownership and launch-console closure tests | Actual named-terminal closure is required | `a5039d6` | Blocked on manual matrix |
-| AC-3 | M11 | Real PTY, TUI and integrated worktree tests each retain three running sessions | Observe the same behavior in every named terminal | `a5039d6` | Blocked on manual matrix |
-| AC-4 | M11 | TUI workflow, terminal reconstruction and resource-runtime tests cover rendering, Unicode, input, resize, switching, exit and bounds | Local and SSH rendering observations are required | `a5039d6` | Blocked on manual matrix |
+| AC-2 | M11 | Detached daemon, runtime ownership, IPC ownership and launch-console closure tests | Actual named-terminal closure passed on [Linux](m11-linux-manual-observations.md), [macOS](m11-macos-manual-observations.md), and [Windows](m11-windows-manual-observations.md) | `a5039d6` plus manual candidates | Passed |
+| AC-3 | M11 | Real PTY, TUI and integrated worktree tests each retain three running sessions | Three-session retention passed in every required named terminal and SSH row | `a5039d6` plus manual candidates | Passed |
+| AC-4 | M11 | TUI workflow, terminal reconstruction and resource-runtime tests cover rendering, Unicode, input, resize, switching, exit and bounds | Local and SSH rendering passed across all nine required manual rows | `a5039d6` plus manual candidates | Passed |
 | AC-5 | M11 | Application and SQLite barrier races plus the integrated worktree journey prove one claim winner and no partial effects | None | `a5039d6` | Passed |
 | AC-6 | M11 | TUI forms, protocol continuity and integrated worktree tests prove progress plus atomic handover | None | `a5039d6` | Passed |
 | AC-7 | M11 | TUI, worktree and continuity gates prove attributed context transfer and completion by a second instance | None | `a5039d6` | Passed |
-| AC-8 | M11 | Abrupt TUI detach, PTY disconnect and launch-console closure tests preserve daemon-owned children and reattach | Named-terminal and SSH disconnect observations are required | `a5039d6` | Blocked on manual matrix |
+| AC-8 | M11 | Abrupt TUI detach, PTY disconnect and launch-console closure tests preserve daemon-owned children and reattach | Actual local-window and SSH-connection closure preserved daemon-owned children across the manual matrix | `a5039d6` plus manual candidates | Passed |
 | AC-9 | M11 | Startup reconciliation, abrupt SQLite rollback and durable restart tests prove honest one-time loss handling | None | `a5039d6` | Passed |
 | AC-10 | M11 | Worktree journeys, Git identity, cancellation and recovery tests prove isolation and conservative outcomes | None | `a5039d6` | Passed |
 | AC-11 | M11 | Architecture compile tests and the core-only workspace command preserve client separation | None | `a5039d6` | Passed |
 | AC-12 | M11 | Quality on Linux, macOS and Windows, pinned Rust 1.98.1 on Linux, plus Security | Clean-machine packaging belongs to M12 | `a5039d6` | Passed for M11 |
-| AC-13 | M11 | Domain privacy, daemon diagnostics, TUI safe-text, sink and source/history scan tests | Sanitized display inspection is required | `a5039d6` | Blocked on manual matrix |
-| AC-14 | M11 | Offline gate uses a positive network control and real Git, SQLite, IPC, PTY, backup and restore | Headless SSH observation is required | `a5039d6` | Blocked on SSH matrix |
+| AC-13 | M11 | Domain privacy, daemon diagnostics, TUI safe-text, sink and source/history scan tests | Sanitized display inspection passed; personal prompts and screenshot paths were excluded from public records | `a5039d6` plus manual candidates | Passed |
+| AC-14 | M11 | Offline gate uses a positive network control and real Git, SQLite, IPC, PTY, backup and restore | Fresh operator-controlled OpenSSH observations passed on Linux, macOS, and Windows | `a5039d6` plus manual candidates | Passed |
 | AC-15 | M11 | The agent-template gate configures and continues an unknown CLI through the real TUI | None | `a5039d6` | Passed |
 | AC-16 | M11 | CLI contract tests, the single binary target and repository help/version checks | PATH and installer collision checks belong to M12 | `a5039d6` | Passed for M11 |
 
@@ -92,9 +92,9 @@ Automated execution uses Ubuntu 24.04 stable, Ubuntu 24.04 with Rust 1.98.1, mac
 
 | ID | Platform and connection | Shell | Candidate | Dated observer evidence | Status |
 | --- | --- | --- | --- | --- | --- |
-| MAN-LNX-1 | Identified local xterm-compatible terminal | Bash | Pending final candidate | Pending | Blocked on environment and observer |
-| MAN-LNX-2 | Same local terminal | Configured generic shell | Pending final candidate | Pending | Blocked on environment and observer |
-| MAN-LNX-3 | Fresh OpenSSH connection to Linux | Record server shell | Pending final candidate | Pending | Blocked on authorized SSH target and observer |
+| MAN-LNX-1 | GNOME Terminal 3.52.0 with VTE 0.76.0 | Bash 5.2.21 | `05af627`, SHA-256 `8417a0998bef` | [2026-09-13 observations](m11-linux-manual-observations.md) | Passed |
+| MAN-LNX-2 | GNOME Terminal 3.52.0 with VTE 0.76.0 | Dash 0.5.12 | `05af627`, SHA-256 `8417a0998bef` | [2026-09-13 observations](m11-linux-manual-observations.md) | Passed |
+| MAN-LNX-3 | Fresh loopback OpenSSH connection to Linux from GNOME Terminal | Bash 5.2.21 | `05af627`, SHA-256 `8417a0998bef` | [2026-09-13 observations](m11-linux-manual-observations.md) | Passed |
 | MAN-MAC-1 | Terminal.app | Zsh | `69ff8a8`, matching observed v4 SHA-256 `ebf27bbd945a` | [2026-09-10 to 2026-09-11 composite observations](m11-macos-manual-observations.md) | Passed; repeat affected behavior if source changes |
 | MAN-MAC-2 | Terminal.app | Bash | `69ff8a8`, matching observed v4 SHA-256 `ebf27bbd945a` | [2026-09-10 to 2026-09-11 composite observations](m11-macos-manual-observations.md) | Passed; repeat affected behavior if source changes |
 | MAN-MAC-3 | Fresh loopback OpenSSH connection to macOS from Terminal.app | Bash 3.2.57 | `69ff8a8`, matching observed v4 SHA-256 `ebf27bbd945a` | [2026-09-10 to 2026-09-11 composite observations](m11-macos-manual-observations.md) | Passed; repeat affected behavior if source changes |
@@ -102,4 +102,4 @@ Automated execution uses Ubuntu 24.04 stable, Ubuntu 24.04 with Rust 1.98.1, mac
 | MAN-WIN-2 | Windows Terminal 1.24.11911.0 with ConPTY | cmd.exe 10.0.19045.7663 | `f3d0ca6`, SHA-256 `01effc97672f`; initial cwd failure superseded | [2026-09-12 to 2026-09-13 composite observations](m11-windows-manual-observations.md) | Passed; repeat affected behavior if source changes |
 | MAN-WIN-3 | Fresh loopback Windows OpenSSH connection from Windows Terminal | cmd.exe 10.0.19045.7663 | `136d46c`, SHA-256 `41c49871965d`; pre-fix daemon-loss evidence superseded | [2026-09-12 to 2026-09-13 composite observations](m11-windows-manual-observations.md) | Passed; repeat affected behavior if source changes |
 
-Every row covers full-screen entry and exit, Unicode wide and combining characters, resize, minimum size, focus escape, keyboard help, color-independent state, form conflicts, detach and reattach, terminal restoration, actual window or connection closure, and survival of the same children while the daemon remains alive. Record terminal, shell, OS and `rt` versions, candidate SHA, UTC date, expected and actual results, and sanitized observer confirmation. Missing rows keep M11.07 and M11.10 open.
+Every row covers full-screen entry and exit, Unicode wide and combining characters, resize, minimum size, focus escape, keyboard help, color-independent state, form conflicts, detach and reattach, terminal restoration, actual window or connection closure, and survival of the same children while the daemon remains alive. The reports record terminal, shell, OS and `rt` versions, candidate SHA, UTC date, expected and actual results, and sanitized observer confirmation. All required manual rows are complete. Affected observations must be repeated if later source changes alter their behavior.

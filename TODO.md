@@ -35,12 +35,9 @@ Outcome: demonstrated MVP behavior and recovery under faults, with bounded resou
 
 Execution contract: [M11 detailed plan](docs/M11_details.md). Add its 50 atomic implementation tasks before coding; the documentary delivery does not complete M11.01-M11.10.
 
-- M11.07: Execute the manual terminal matrix for full-screen rendering, resize, Unicode, focus escape, no-color use, small windows, and SSH detach/reattach. Attach sanitized observations and retain open tasks for any missing OS evidence.
 - M11.10: Verify the hardening gate with passing cross-platform builds, formatting, linting, unit/integration/end-to-end tests, scans, and all behavior AC evidence. Carry only installation/release-specific checks into M12; do not declare the MVP complete yet.
 
 ### M11 atomic execution queue
-- M11.07b: Execute the Linux local-terminal and OpenSSH matrix.
-- M11.07e: Resolve failures and reconcile manual acceptance.
 - M11.10d: Reconcile all acceptance, risk, budget, and manual evidence.
 - M11.10e: Create coherent commits and the authorized implementation PR.
 - M11.10f: Merge only verified M11 and synchronize main.
@@ -94,3 +91,5 @@ FR-10 remains conditional: export is deferred, and no automatic project export m
 - UX-FORM-CURSOR: Investigate the reported invisible insertion cursor in task edit forms and provide a visible editing position. Keep Ctrl-U documented as clearing the active field, not enabling editing. Scheduling remains pending.
 
 - UX-CONFLICT-MESSAGE: Replace the generic rejected-request message for a stale form submission with safe guidance that identifies a concurrent edit, states that the local draft was retained, and explains explicit discard or reconciliation. Scheduling remains pending and this proposal does not add an M11 acceptance gate.
+
+- UX-INPUT-ACQUIRE-MESSAGE: Surface a safe inline explanation when a competing input acquisition is rejected, while retaining the redacted Events diagnostic and read-only state. Scheduling remains pending and this proposal does not add an M11 acceptance gate.
