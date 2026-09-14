@@ -36,6 +36,13 @@ The native build command is:
 cargo build --locked --release -p relayterm-cli --bin rt --target <target>
 ```
 
+The checked-in wrapper enforces these inputs and writes a bounded public-safe build record:
+
+```text
+python3 scripts/build_release.py build --target <native-target> --output <empty-output-directory> --offline
+python3 scripts/build_release.py compare <first>/build-record.json <second>/build-record.json
+```
+
 After dependencies are fetched explicitly, repeat with Cargo offline. Record `rustc -vV`, `cargo -V`, the operating-system version, source commit, target, command, relevant code-generation environment, executable size, and SHA-256. Keep hostnames, usernames and native build paths out of public manifests.
 
 Build twice from separate clean checkouts and separate target directories with identical declared inputs. Compare binary and normalized archive SHA-256 values. Equal hashes prove byte identity only for those two observed builds. Different hashes require inspection and an exact explanation; a usable repeatable recipe alone is not a byte-reproducibility claim.
