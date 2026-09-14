@@ -26,6 +26,9 @@ base64.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
+blake3.workspace = true
+fs4.workspace = true
 relayterm-pty = { version = "0.1.0", path = "../relayterm-pty" }
+sqlx.workspace = true
 vt100.workspace = true
 tempfile.workspace = true

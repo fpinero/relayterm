@@ -4,10 +4,13 @@ use relayterm_daemon::WorkspaceServer;
 use relayterm_domain::{
     AgentInstanceId, EntityId, InstanceStatus, Observation, TaskStatus, TerminalSize, WorkspaceId,
 };
-use relayterm_ipc::{Endpoint, connect};
+use relayterm_ipc::{Endpoint, connect, read_frame, write_frame};
 use relayterm_persistence_sqlite::{Database, DatabaseKind, OpenMode, PoolSettings, SqliteStore};
 use relayterm_platform::{RandomIdGenerator, SystemClock, create_private_dir};
-use relayterm_protocol::{ErrorCode, Operation, WorkspaceId as WireWorkspaceId};
+use relayterm_protocol::{
+    DecimalU64, ErrorCode, FrameKind, JSON_FRAME_LIMIT, Operation, RequestEnvelope, RequestType,
+    WorkspaceId as WireWorkspaceId, encode_frame, encode_json,
+};
 use serde_json::{Value, json};
 use std::{
     io::Write,
@@ -104,7 +107,7 @@ async fn separate_server_and_client_processes_share_durable_state() {
     .await
     .unwrap();
     let store = SqliteStore::new(database.pool().clone());
-    let workspace: WorkspaceId = "00000000-0000-4000-8000-000000000202".parse().unwrap();
+    let workspace = test_workspace_id(2);
     let service = Service::new(
         store.clone(),
         SystemClock,
@@ -239,6 +242,13 @@ fn private_temp() -> tempfile::TempDir {
         .unwrap()
 }
 
+fn test_workspace_id(discriminator: u16) -> WorkspaceId {
+    let suffix = (u64::from(std::process::id()) << 16) | u64::from(discriminator);
+    format!("00000000-0000-4000-8000-{suffix:012x}")
+        .parse()
+        .unwrap()
+}
+
 #[derive(Clone, Default)]
 struct Notify(Option<watch::Sender<u64>>);
 impl EventNotifier for Notify {
@@ -252,6 +262,104 @@ impl EventNotifier for Notify {
 
 fn entity_id(value: &Value) -> String {
     value["entity_ids"][0].as_str().unwrap().to_owned()
+}
+
+async fn send_fault_and_wait(
+    endpoint: &Endpoint,
+    faults: &relayterm_daemon::ServerFaults,
+    label: &str,
+    bytes: &[u8],
+) {
+    let previous = faults.connection_accept_count();
+    let mut stream = connect(endpoint).await.unwrap();
+    let connection = tokio::time::timeout(
+        Duration::from_secs(2),
+        faults.wait_for_connection_accepted_after(previous),
+    )
+    .await
+    .unwrap();
+    stream.write_all(bytes).await.unwrap();
+    stream.shutdown().await.unwrap();
+    // Windows named pipes do not expose the truncated peer as closed until the
+    // client handle itself is released. Unix sockets observe the half-close.
+    drop(stream);
+    tokio::time::timeout(
+        Duration::from_secs(5),
+        faults.wait_for_connection_completed(connection),
+    )
+    .await
+    .unwrap_or_else(|_| panic!("server did not reject {label} before the test deadline"));
+}
+
+fn request_bytes(
+    workspace: WireWorkspaceId,
+    request_id: u64,
+    operation: Operation,
+    protocol_version: u16,
+) -> Vec<u8> {
+    let request = RequestEnvelope {
+        message_type: RequestType::Request,
+        protocol_version,
+        request_id: DecimalU64::new(request_id).unwrap(),
+        workspace_id: workspace,
+        operation,
+        params: json!({}),
+    };
+    encode_frame(FrameKind::Json, &encode_json(&request).unwrap()).unwrap()
+}
+
+async fn duplicate_request_id_and_wait(
+    endpoint: &Endpoint,
+    workspace: WireWorkspaceId,
+    faults: &relayterm_daemon::ServerFaults,
+) {
+    let previous = faults.connection_accept_count();
+    let mut stream = connect(endpoint).await.unwrap();
+    let connection = tokio::time::timeout(
+        Duration::from_secs(2),
+        faults.wait_for_connection_accepted_after(previous),
+    )
+    .await
+    .unwrap();
+    write_frame(
+        &mut stream,
+        FrameKind::Json,
+        &encode_json(&RequestEnvelope {
+            message_type: RequestType::Request,
+            protocol_version: relayterm_protocol::PROTOCOL_VERSION,
+            request_id: DecimalU64::new(1).unwrap(),
+            workspace_id: workspace,
+            operation: Operation::ProtocolHello,
+            params: json!({}),
+        })
+        .unwrap(),
+    )
+    .await
+    .unwrap();
+    read_frame(&mut stream, Duration::from_secs(2))
+        .await
+        .unwrap();
+    write_frame(
+        &mut stream,
+        FrameKind::Json,
+        &encode_json(&RequestEnvelope {
+            message_type: RequestType::Request,
+            protocol_version: relayterm_protocol::PROTOCOL_VERSION,
+            request_id: DecimalU64::new(1).unwrap(),
+            workspace_id: workspace,
+            operation: Operation::ProtocolPing,
+            params: json!({}),
+        })
+        .unwrap(),
+    )
+    .await
+    .unwrap();
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        faults.wait_for_connection_completed(connection),
+    )
+    .await
+    .unwrap();
 }
 async fn running_instance(
     service: &Service<SqliteStore, SystemClock, RandomIdGenerator, Notify>,
@@ -305,7 +413,7 @@ async fn two_clients_complete_a_durable_handover_journey() {
     .await
     .unwrap();
     let store = SqliteStore::new(database.pool().clone());
-    let workspace: WorkspaceId = "00000000-0000-4000-8000-000000000101".parse().unwrap();
+    let workspace = test_workspace_id(1);
     let (event_wakeup_tx, event_wakeup_rx) = watch::channel(0);
     let service = Arc::new(Service::new(
         store.clone(),
@@ -611,12 +719,152 @@ async fn two_clients_complete_a_durable_handover_journey() {
         .execute(store.pool())
         .await
         .unwrap();
-    let mut malformed = connect(&endpoint).await.unwrap();
-    malformed.write_all(&[0, 0, 0, 1, 0, 2, 1]).await.unwrap();
-    drop(malformed);
     let survivor = Client::connect(&endpoint, WireWorkspaceId::from_uuid(workspace.as_uuid()))
         .await
         .unwrap();
+    let before_faults: Value = survivor
+        .call(
+            Operation::WorkspaceGetSnapshot,
+            &json!({"collection":"workspace","limit":50}),
+        )
+        .await
+        .unwrap();
+    let wire_workspace = WireWorkspaceId::from_uuid(workspace.as_uuid());
+    let mut oversized = [0_u8; relayterm_protocol::HEADER_SIZE];
+    oversized[..4].copy_from_slice(&((JSON_FRAME_LIMIT + 1) as u32).to_be_bytes());
+    oversized[5] = relayterm_protocol::PROTOCOL_VERSION as u8;
+    oversized[6] = FrameKind::Json as u8;
+    let mut partial_body = request_bytes(
+        wire_workspace,
+        1,
+        Operation::ProtocolHello,
+        relayterm_protocol::PROTOCOL_VERSION,
+    );
+    partial_body.pop();
+    let unknown_field = encode_frame(
+        FrameKind::Json,
+        format!(
+            "{{\"type\":\"request\",\"protocol_version\":1,\"request_id\":\"1\",\"workspace_id\":\"{wire_workspace}\",\"operation\":\"protocol.hello\",\"params\":{{}},\"private_marker\":\"must-not-pass\"}}"
+        )
+        .as_bytes(),
+    )
+    .unwrap();
+    let malformed_cases = [
+        ("partial header", vec![0, 0, 0]),
+        ("partial body", partial_body),
+        ("oversized frame", oversized.to_vec()),
+        (
+            "invalid UTF-8",
+            encode_frame(FrameKind::Json, &[0xff]).unwrap(),
+        ),
+        ("invalid JSON", encode_frame(FrameKind::Json, b"{").unwrap()),
+        ("unknown envelope field", unknown_field),
+        (
+            "unsupported version",
+            request_bytes(wire_workspace, 1, Operation::ProtocolHello, 2),
+        ),
+    ];
+    for (label, bytes) in malformed_cases {
+        send_fault_and_wait(&endpoint, &faults, label, &bytes).await;
+        let healthy: Value = survivor
+            .call(Operation::ProtocolPing, &json!({}))
+            .await
+            .unwrap();
+        assert_eq!(healthy["ok"], true);
+    }
+    duplicate_request_id_and_wait(&endpoint, wire_workspace, &faults).await;
+    let after_faults: Value = survivor
+        .call(
+            Operation::WorkspaceGetSnapshot,
+            &json!({"collection":"workspace","limit":50}),
+        )
+        .await
+        .unwrap();
+    assert_eq!(after_faults["revision"], before_faults["revision"]);
+    assert_eq!(
+        after_faults["last_sequence"],
+        before_faults["last_sequence"]
+    );
+    let mut slow = connect(&endpoint).await.unwrap();
+    write_frame(
+        &mut slow,
+        FrameKind::Json,
+        &encode_json(&RequestEnvelope {
+            message_type: RequestType::Request,
+            protocol_version: relayterm_protocol::PROTOCOL_VERSION,
+            request_id: DecimalU64::new(1).unwrap(),
+            workspace_id: wire_workspace,
+            operation: Operation::ProtocolHello,
+            params: json!({}),
+        })
+        .unwrap(),
+    )
+    .await
+    .unwrap();
+    read_frame(&mut slow, Duration::from_secs(2)).await.unwrap();
+    write_frame(
+        &mut slow,
+        FrameKind::Json,
+        &encode_json(&RequestEnvelope {
+            message_type: RequestType::Request,
+            protocol_version: relayterm_protocol::PROTOCOL_VERSION,
+            request_id: DecimalU64::new(2).unwrap(),
+            workspace_id: wire_workspace,
+            operation: Operation::EventSubscribe,
+            params: json!({"after_sequence":before_faults["last_sequence"]}),
+        })
+        .unwrap(),
+    )
+    .await
+    .unwrap();
+    read_frame(&mut slow, Duration::from_secs(2)).await.unwrap();
+    let slow_before = faults.slow_subscriber_count();
+    faults.pause_next_event_write();
+    let _: Value = survivor
+        .call(
+            Operation::ProgressAppend,
+            &json!({"task_id":task_id,"summary":"Slow subscriber seed","verification":"Deterministic writer barrier"}),
+        )
+        .await
+        .unwrap();
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        faults.wait_until_event_writer_paused(),
+    )
+    .await
+    .unwrap();
+    for index in 0..300 {
+        let _: Value = survivor
+            .call(
+                Operation::ProgressAppend,
+                &json!({"task_id":task_id,"summary":format!("Bounded event {index}"),"verification":"Nonreading subscriber overflow"}),
+            )
+            .await
+            .unwrap();
+    }
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        faults.wait_for_slow_subscriber_after(slow_before),
+    )
+    .await
+    .unwrap();
+    let healthy_during_overflow: Value = survivor
+        .call(Operation::ProtocolPing, &json!({}))
+        .await
+        .unwrap();
+    assert_eq!(healthy_during_overflow["ok"], true);
+    faults.release_paused_event_writer();
+    let mut observed_resnapshot = false;
+    for _ in 0..3 {
+        let frame = read_frame(&mut slow, Duration::from_secs(2)).await.unwrap();
+        let value: Value = serde_json::from_slice(&frame.payload).unwrap();
+        if value["control"] == "resnapshot_required" {
+            assert_eq!(value["reason"], "slow_subscriber");
+            observed_resnapshot = true;
+            break;
+        }
+    }
+    assert!(observed_resnapshot);
     let invalid_subscription = survivor
         .call::<_, Value>(Operation::EventSubscribe, &json!({}))
         .await;
@@ -660,4 +908,92 @@ async fn two_clients_complete_a_durable_handover_journey() {
             .status,
         TaskStatus::Done
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn idle_subscription_delivers_event_without_reconnecting() {
+    let temp = private_temp();
+    let private = temp.path().join("private");
+    create_private_dir(&private).unwrap();
+    let database_path = private.join("workspace.db");
+    let database = Database::open(
+        &database_path,
+        DatabaseKind::Workspace,
+        OpenMode::ExplicitNew,
+        PoolSettings::default(),
+    )
+    .await
+    .unwrap();
+    let store = SqliteStore::new(database.pool().clone());
+    let workspace = test_workspace_id(3);
+    let (event_wakeup_tx, event_wakeup_rx) = watch::channel(0);
+    let service = Arc::new(Service::new(
+        store.clone(),
+        SystemClock,
+        RandomIdGenerator::default(),
+        Notify(Some(event_wakeup_tx)),
+    ));
+    service
+        .create_workspace_reserved(
+            workspace,
+            "Protocol fixture".into(),
+            temp.path().join("project"),
+        )
+        .await
+        .unwrap();
+    let endpoint = Endpoint::derive(
+        &temp.path().join("runtime"),
+        WireWorkspaceId::from_uuid(workspace.as_uuid()),
+    )
+    .unwrap();
+    let server = WorkspaceServer::bind(workspace, &endpoint, service.clone(), store.clone())
+        .await
+        .unwrap()
+        .with_event_wakeups(event_wakeup_rx);
+    let faults = server.fault_injector();
+    let (shutdown_tx, shutdown_rx) = watch::channel(false);
+    let task = tokio::spawn(server.run(shutdown_rx));
+    let a = Client::connect(&endpoint, WireWorkspaceId::from_uuid(workspace.as_uuid()))
+        .await
+        .unwrap();
+    let b = Client::connect(&endpoint, WireWorkspaceId::from_uuid(workspace.as_uuid()))
+        .await
+        .unwrap();
+
+    let snapshot: Value = a
+        .call(
+            Operation::WorkspaceGetSnapshot,
+            &json!({"collection":"tasks","limit":50}),
+        )
+        .await
+        .unwrap();
+    let sequence = snapshot["last_sequence"].as_str().unwrap().parse().unwrap();
+    let revision = snapshot["revision"].as_str().unwrap();
+    let b = b.with_deadline(Duration::from_millis(200));
+    b.subscribe(sequence).await.unwrap();
+    let connections = faults.connection_accept_count();
+    let (event, created) = tokio::join!(
+        tokio::time::timeout(Duration::from_secs(15), b.next_event()),
+        async {
+            tokio::time::sleep(relayterm_ipc::PARTIAL_FRAME_TIMEOUT + Duration::from_secs(1)).await;
+            a.call::<_, Value>(Operation::TaskCreate, &json!({"expected_revision":revision,"title":"After idle","description":"","priority":"normal","scope_paths":[],"acceptance_notes":"","dependency_ids":[]})).await
+        }
+    );
+    created.unwrap();
+    let event = event
+        .expect("event wait must finish")
+        .expect("idle must not disconnect");
+    assert_eq!(
+        event["sequence"].as_str().unwrap().parse::<u64>().unwrap(),
+        sequence + 1
+    );
+    assert_eq!(
+        faults.connection_accept_count(),
+        connections,
+        "idle request and event connections must remain open"
+    );
+    drop(a);
+    drop(b);
+    shutdown_tx.send(true).unwrap();
+    task.await.unwrap().unwrap();
 }

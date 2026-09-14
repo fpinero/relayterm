@@ -13,6 +13,7 @@ pub struct WorkspaceState {
     approved_roots: Vec<ApprovedRoot>,
     worktree_intents: Vec<WorktreeIntent>,
     worktrees: Vec<Worktree>,
+    complete: bool,
 }
 /// Rows loaded by an adapter; every reference is checked on reconstruction.
 #[derive(Default)]
@@ -134,6 +135,7 @@ impl WorkspaceState {
             approved_roots: vec![],
             worktree_intents: vec![],
             worktrees: vec![],
+            complete: true,
         }
     }
     pub fn restore(workspace: Workspace, rows: WorkspaceRows) -> Result<Self> {
@@ -148,6 +150,26 @@ impl WorkspaceState {
             approved_roots: rows.approved_roots,
             worktree_intents: rows.worktree_intents,
             worktrees: rows.worktrees,
+            complete: true,
+        };
+        state.validate()?;
+        Ok(state)
+    }
+    /// Restore a transaction projection. Missing unrelated entities remain
+    /// protected by adapter-side SQL constraints and revision validation.
+    pub fn restore_projection(workspace: Workspace, rows: WorkspaceRows) -> Result<Self> {
+        let state = Self {
+            workspace,
+            definitions: rows.definitions,
+            tasks: rows.tasks,
+            instances: rows.instances,
+            claims: rows.claims,
+            progress: rows.progress,
+            handovers: rows.handovers,
+            approved_roots: rows.approved_roots,
+            worktree_intents: rows.worktree_intents,
+            worktrees: rows.worktrees,
+            complete: false,
         };
         state.validate()?;
         Ok(state)
@@ -964,7 +986,11 @@ impl WorkspaceState {
                 .not_before(i.0.last_observed_at)?;
         }
         for t in &self.tasks {
-            self.dependencies(t.0.id, &t.0.content)?;
+            if self.complete {
+                self.dependencies(t.0.id, &t.0.content)?;
+            } else if t.0.content.dependency_ids.contains(&t.0.id) {
+                return Err(Error::Reference);
+            }
             t.0.created_at.not_before(self.workspace.0.created_at)?;
             self.workspace.0.updated_at.not_before(t.0.updated_at)?;
             let open: Vec<_> = self

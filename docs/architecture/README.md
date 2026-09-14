@@ -21,7 +21,7 @@ Domain, application, and protocol cannot depend on UI, SQLite, PTY, Git, or prov
 
 M02 introduces domain state machines and use-case ports. M03-M06 prove durable coordination through SQLite and IPC. M07 adds the `relayterm-pty` native adapter and provider-neutral `relayterm-terminal` state component. M08 adds `relayterm-tui` as a presentation adapter over `relayterm-client` and protocol DTOs.
 
-M10 adds the leaf `relayterm-git` adapter. It depends only on the standard library and the filesystem locking library. The daemon composes it around domain and application transactions. Core crates never invoke Git or depend on the adapter.
+M10 adds the leaf `relayterm-git` adapter. It uses filesystem locking and OS-specific process containment behind a safe library API. The daemon composes it around domain and application transactions. Core crates never invoke Git or depend on the adapter.
 
 M03 preserves these exact project edges: application to domain; platform to application and domain; configuration to domain; SQLite persistence to application, domain, and platform. M04 adds IPC to platform and protocol, and client to IPC and protocol. M05 composes the daemon and CLI. M07 adds two leaf components: `relayterm-pty` depends only on external native PTY/process libraries, and `relayterm-terminal` depends only on the external parser and serialization. The daemon composes both. M08 allows `relayterm-tui` to depend on `relayterm-client` and `relayterm-protocol`; the CLI composes it and uses `relayterm-pty` only in its native outer-terminal integration test. Domain, application, and protocol have no transitive adapter, SQLx, SQLite, Tokio, configuration-parser, PTY, parser, or UI dependency.
 

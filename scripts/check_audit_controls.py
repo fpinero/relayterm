@@ -20,7 +20,11 @@ def main():
             config.write_text(contents, encoding="utf-8")
             result = subprocess.run(
                 ["cargo", "deny", "--offline", "--locked", "--config", str(config), "check", check],
-                cwd=ROOT, capture_output=True, text=True,
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
             )
             output = result.stdout + result.stderr
             codes = re.findall(r"(?:error|warning)\[([^\]]+)\]", output)

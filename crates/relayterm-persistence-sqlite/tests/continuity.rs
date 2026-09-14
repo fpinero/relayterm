@@ -1,6 +1,6 @@
 use relayterm_application::{
-    Clock, DurableReadStore, EventNotifier, EventPageRequest, IdGenerator, LaunchContext, Request,
-    Service, Store, TaskHistoryItem, TaskHistoryPageRequest, Transaction,
+    Clock, DurableReadStore, EventNotifier, EventPageRequest, IdGenerator, IdPageRequest,
+    LaunchContext, Request, Service, Store, TaskHistoryItem, TaskHistoryPageRequest, Transaction,
 };
 use relayterm_domain::*;
 use relayterm_persistence_sqlite::{
@@ -44,6 +44,14 @@ impl EventNotifier for NoopNotifier {
     }
 }
 
+#[derive(Clone, Copy)]
+struct FailingNotifier;
+impl EventNotifier for FailingNotifier {
+    async fn notify(&self, _: WorkspaceId, _: u64) -> Result<()> {
+        Err(Error::Storage)
+    }
+}
+
 #[derive(Clone)]
 struct SynchronizedStore {
     inner: SqliteStore,
@@ -76,6 +84,171 @@ fn task_content(title: &str) -> TaskContent {
         acceptance_notes: "Verified".into(),
         dependency_ids: Vec::new(),
     }
+}
+
+#[test]
+fn bounded_integrity_validation_rejects_cross_row_state_corruption() {
+    runtime().block_on(async {
+        let temporary = tempfile::tempdir().unwrap();
+        let private = temporary.path().join("private");
+        let project = temporary.path().join("project");
+        std::fs::create_dir(&project).unwrap();
+        relayterm_platform::create_private_dir(&private).unwrap();
+        let database = Database::open(
+            &private.join("workspace.sqlite3"),
+            DatabaseKind::Workspace,
+            OpenMode::ExplicitNew,
+            PoolSettings::default(),
+        )
+        .await
+        .unwrap();
+        let store = SqliteStore::new(database.pool().clone());
+        let workspace_id: WorkspaceId = "10000000-0000-4000-8000-000000000098".parse().unwrap();
+        let service = Service::new(
+            store.clone(),
+            TestClock(Arc::new(AtomicU64::new(0))),
+            TestIds(AtomicU64::new(7_000)),
+            NoopNotifier,
+        );
+        service
+            .create_workspace_reserved(workspace_id, "Integrity fixture".into(), project)
+            .await
+            .unwrap();
+        let created = service
+            .execute(
+                workspace_id,
+                Actor::LocalUser,
+                Request::CreateTask(task_content("Cross-row integrity")),
+            )
+            .await
+            .unwrap();
+        let task_id = created.committed.snapshot.state().unwrap().tasks()[0]
+            .record()
+            .id;
+
+        store
+            .validate_workspace_integrity(workspace_id)
+            .await
+            .unwrap();
+        sqlx::query("UPDATE tasks SET status='active' WHERE workspace_id=? AND task_id=?")
+            .bind(workspace_id.as_uuid().as_bytes().to_vec())
+            .bind(task_id.as_uuid().as_bytes().to_vec())
+            .execute(database.pool())
+            .await
+            .unwrap();
+        assert_eq!(
+            store.validate_workspace_integrity(workspace_id).await,
+            Err(Error::Integrity)
+        );
+    });
+}
+
+#[test]
+fn real_sqlite_write_failure_rolls_back_and_notifier_loss_keeps_the_commit() {
+    runtime().block_on(async {
+        let temporary = tempfile::tempdir().unwrap();
+        let private = temporary.path().join("private");
+        let project = temporary.path().join("project");
+        std::fs::create_dir(&project).unwrap();
+        relayterm_platform::create_private_dir(&private).unwrap();
+        let database = Database::open(
+            &private.join("workspace.sqlite3"),
+            DatabaseKind::Workspace,
+            OpenMode::ExplicitNew,
+            PoolSettings::default(),
+        )
+        .await
+        .unwrap();
+        let store = SqliteStore::new(database.pool().clone());
+        let workspace_id: WorkspaceId =
+            "10000000-0000-4000-8000-000000000099".parse().unwrap();
+        let service = Service::new(
+            store.clone(),
+            TestClock(Arc::new(AtomicU64::new(0))),
+            TestIds(AtomicU64::new(8_000)),
+            NoopNotifier,
+        );
+        service
+            .create_workspace_reserved(workspace_id, "Fault fixture".into(), project)
+            .await
+            .unwrap();
+        let created = service
+            .execute(
+                workspace_id,
+                Actor::LocalUser,
+                Request::CreateTask(task_content("Atomic write fault")),
+            )
+            .await
+            .unwrap();
+        let task_id = created.committed.snapshot.state().unwrap().tasks()[0]
+            .record()
+            .id;
+        let revision_before = created.committed.snapshot.revision();
+        let events_before: i64 = sqlx::query_scalar(
+            "SELECT count(*) FROM workspace_events WHERE workspace_id=?",
+        )
+        .bind(workspace_id.as_uuid().as_bytes().to_vec())
+        .fetch_one(database.pool())
+        .await
+        .unwrap();
+        sqlx::query(
+            "CREATE TRIGGER inject_progress_failure BEFORE INSERT ON progress_entries BEGIN SELECT RAISE(ABORT, 'synthetic_write_failure'); END",
+        )
+        .execute(database.pool())
+        .await
+        .unwrap();
+        let rejected = service
+            .execute(
+                workspace_id,
+                Actor::LocalUser,
+                Request::Progress {
+                    task_id,
+                    summary: "Must roll back".into(),
+                    verification: "Injected SQLite trigger".into(),
+                },
+            )
+            .await;
+        assert!(matches!(rejected, Err(Error::Storage)));
+        let after_failure = store.consistent_snapshot(workspace_id).await.unwrap();
+        assert_eq!(after_failure.snapshot.revision(), revision_before);
+        assert!(after_failure.snapshot.state().unwrap().progress().is_empty());
+        let events_after: i64 = sqlx::query_scalar(
+            "SELECT count(*) FROM workspace_events WHERE workspace_id=?",
+        )
+        .bind(workspace_id.as_uuid().as_bytes().to_vec())
+        .fetch_one(database.pool())
+        .await
+        .unwrap();
+        assert_eq!(events_after, events_before);
+        sqlx::query("DROP TRIGGER inject_progress_failure")
+            .execute(database.pool())
+            .await
+            .unwrap();
+
+        let notifier_loss = Service::new(
+            store.clone(),
+            TestClock(Arc::new(AtomicU64::new(100))),
+            TestIds(AtomicU64::new(9_000)),
+            FailingNotifier,
+        )
+        .execute(
+            workspace_id,
+            Actor::LocalUser,
+            Request::Progress {
+                task_id,
+                summary: "Durable despite notification loss".into(),
+                verification: "Read back from SQLite".into(),
+            },
+        )
+        .await
+        .unwrap();
+        assert!(!notifier_loss.notification_delivered);
+        let committed_revision = notifier_loss.committed.snapshot.revision();
+        let reopened = store.consistent_snapshot(workspace_id).await.unwrap();
+        assert_eq!(reopened.snapshot.revision(), committed_revision);
+        assert_eq!(reopened.snapshot.state().unwrap().progress().len(), 1);
+        assert_eq!(reopened.last_sequence, events_before as u64 + 1);
+    });
 }
 
 #[test]
@@ -336,12 +509,142 @@ fn complete_handover_journey_survives_reopen() {
             .unwrap();
         assert_eq!(repeated.committed.snapshot.revision(), ended_revision);
         assert!(repeated.committed.events.is_empty());
+        for summary in ["Historical correction one", "Historical correction two"] {
+            service
+                .execute(
+                    workspace_id,
+                    Actor::LocalUser,
+                    Request::Progress {
+                        task_id,
+                        summary: summary.into(),
+                        verification: "Reviewed after completion".into(),
+                    },
+                )
+                .await
+                .unwrap();
+        }
+        service
+            .execute(
+                workspace_id,
+                Actor::LocalUser,
+                Request::CreateTask(task_content("Paged task")),
+            )
+            .await
+            .unwrap();
         let before = service.snapshot(workspace_id).await.unwrap();
-        assert_eq!(before.state().unwrap().progress().len(), 1);
+        assert_eq!(before.state().unwrap().progress().len(), 3);
         assert_eq!(before.state().unwrap().handovers().len(), 1);
         let revision = before.revision();
         let watermarked = store.consistent_snapshot(workspace_id).await.unwrap();
         assert_eq!(watermarked.snapshot.revision(), revision);
+        let definitions = store
+            .definition_page(
+                workspace_id,
+                IdPageRequest::new(None, 1, Some(revision)).unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(definitions.items.len(), 1);
+        assert!(!definitions.has_more);
+        let instances = store
+            .instance_page(
+                workspace_id,
+                IdPageRequest::new(None, 1, Some(revision)).unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(instances.items.len(), 1);
+        assert!(instances.has_more);
+        let instance_after = instances.items[0].record().id.as_uuid().into_bytes();
+        let instance_tail = store
+            .instance_page(
+                workspace_id,
+                IdPageRequest::new(Some(instance_after), 1, Some(revision)).unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(instance_tail.items.len(), 1);
+        assert!(!instance_tail.has_more);
+        assert_eq!(instance_tail.revision, instances.revision);
+        let tasks = store
+            .task_page(
+                workspace_id,
+                IdPageRequest::new(None, 1, Some(revision)).unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(tasks.items.len(), 1);
+        assert!(tasks.has_more);
+        let task_after = tasks.items[0].record().id.as_uuid().into_bytes();
+        let task_tail = store
+            .task_page(
+                workspace_id,
+                IdPageRequest::new(Some(task_after), 1, Some(revision)).unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(task_tail.items.len(), 1);
+        assert!(!task_tail.has_more);
+        assert_eq!(task_tail.revision, tasks.revision);
+        let claims = store
+            .claim_page(
+                workspace_id,
+                IdPageRequest::new(None, 1, Some(revision)).unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(claims.items.len(), 1);
+        assert!(claims.has_more);
+        let claim_after = claims.items[0].record().id.as_uuid().into_bytes();
+        let claim_tail = store
+            .claim_page(
+                workspace_id,
+                IdPageRequest::new(Some(claim_after), 1, Some(revision)).unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(claim_tail.items.len(), 1);
+        assert!(!claim_tail.has_more);
+        assert_eq!(claim_tail.revision, claims.revision);
+        let progress = store
+            .progress_page(
+                workspace_id,
+                IdPageRequest::new(None, 2, Some(revision)).unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(progress.items.len(), 2);
+        assert!(progress.has_more);
+        let after = progress.items[1].record().id.as_uuid().into_bytes();
+        let progress_tail = store
+            .progress_page(
+                workspace_id,
+                IdPageRequest::new(Some(after), 2, Some(revision)).unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(progress_tail.items.len(), 1);
+        assert!(!progress_tail.has_more);
+        assert_eq!(progress_tail.revision, progress.revision);
+        let handovers = store
+            .handover_page(
+                workspace_id,
+                IdPageRequest::new(None, 1, Some(revision)).unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(handovers.items.len(), 1);
+        assert!(!handovers.has_more);
+        assert_eq!(
+            store
+                .progress_page(
+                    workspace_id,
+                    IdPageRequest::new(None, 2, Some(revision - 1)).unwrap(),
+                )
+                .await
+                .err(),
+            Some(Error::Conflict)
+        );
         let history = store
             .task_history_page(
                 workspace_id,

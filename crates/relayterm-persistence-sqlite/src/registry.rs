@@ -55,6 +55,10 @@ impl Registry {
         })
     }
 
+    pub async fn close(self) {
+        self.database.pool().close().await;
+    }
+
     pub async fn reserve_or_get(
         &self,
         identity: &WorkspaceRootIdentity,

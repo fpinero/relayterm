@@ -6,9 +6,9 @@ Rust 1.98.1 is the pinned compiler and initial MSRV. CI also selects current sta
 
 | OS and runner | Target | Bootstrap evidence | Interactive evidence |
 | --- | --- | --- | --- |
-| Linux, ubuntu-24.04 | x86_64-unknown-linux-gnu | Native stable and pinned-compiler CI passed | Native M07 PTY and M08 TUI gates passed; M11 pending |
-| macOS, macos-14 | aarch64-apple-darwin | Local tests and native stable CI passed | Native M07 PTY and M08 TUI gates passed; M11 pending |
-| Windows, windows-2022 | x86_64-pc-windows-msvc | Native stable CI passed | Native M07 PTY and M08 TUI gates passed; M11 pending |
+| Linux, ubuntu-24.04 | x86_64-unknown-linux-gnu | Native stable and pinned-compiler CI passed | Automated M11 PTY, TUI, offline and resource gates passed; manual GNOME Terminal and SSH matrix passed |
+| macOS, macos-14 | aarch64-apple-darwin | Local tests and native stable CI passed | Automated M11 PTY, TUI, offline and resource gates passed; manual Terminal.app and SSH matrix passed |
+| Windows, windows-2022 | x86_64-pc-windows-msvc | Native stable CI passed | Automated M11 ConPTY, TUI, offline and resource gates passed; manual Windows Terminal and SSH matrix passed |
 
 The bootstrap code at `0d14f05` passed Quality run `33974825769` and Security run `33974825731` on 2026-09-05. The pinned-toolchain CI job also runs on Linux. Record actual compiler host and runner OS for each candidate. Local macOS evidence does not establish Linux or Windows success, and cross-compilation is not native behavior verification. Refer to `avances.md` for executed checks; do not infer results from the presence of workflow files.
 
@@ -162,15 +162,33 @@ Candidate `f57ce9a948da5ee3e89c0143b55aadbb3430e031` passed [Quality run 3435001
 
 Earlier Windows candidates exposed an oversized domain command on the MSVC ABI, an inherited pipe that delayed bounded test completion, and a Git boundary that passed Rust verbatim paths directly to Git for Windows. The final implementation boxes the large payload, reads bounded administrative output to one newline, and converts verbatim disk and UNC paths through exact UTF-16 only at the Git argument boundary. The passing candidate did not extend deadlines, skip a gate, retry a failed creation, or expose native paths and Git output in ordinary diagnostics.
 
-## Remaining manual shell and terminal matrix
+## M11 automated hardening evidence
 
-| Platform | Shells | Terminals and connections to verify |
+Candidate `d6efd7f1370c6e98aa558b1014494aa1ed61c6d3` passed [Quality run 34825227119](https://github.com/fpinero/relayterm/actions/runs/34825227119) and [Security run 34825227292](https://github.com/fpinero/relayterm/actions/runs/34825227292) on 2026-09-14. All native stable jobs used Rust 1.98.1. Linux and macOS used Git 2.55.0; Windows used Git 2.55.0.windows.5. The pinned Linux Rust 1.98.1 job also passed formatting, checks, Clippy, inherited runtime tests, the full workspace suite, core-only tests, build and repository controls.
+
+Each stable job passed two independently reported repetitions of the integrated M11 TUI and worktree journey, protocol faults, abrupt SQLite rollback, Git cancellation, Git descendant containment, 10,000-task and 100,000-progress durable scale, credential-free offline runtime and sustained resource workload. It also passed private backup and restore with a copied `rt` binary outside the source tree. Security passed dependency, advisory, license, ban, source and secret controls.
+
+| Runner | Integrated journey, ms | Durable query p95, ms | Daemon maximum RSS or working set | TUI maximum RSS or working set | Handle delta | Output bytes/s | Result |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| ubuntu-24.04 | 2,304 / 2,363 | 4 / 3 | 348,135,424 / 347,222,016 bytes | 21,798,912 / 21,794,816 bytes | +1 / 0 | 4,253,264 / 4,235,753 | Passed |
+| macos-14 | 9,380 / 7,975 | 2 / 4 | 436,649,984 / 441,565,184 bytes | 18,006,016 / 17,498,112 bytes | 0 / +2 | 4,827,924 / 4,865,431 | Passed |
+| windows-2022 | 7,229 / 7,153 | 2 / 2 | 376,545,280 / 372,883,456 bytes | 22,102,016 / 22,265,856 bytes | +5 / 0 | 3,434,472 / 3,457,845 | Passed |
+
+All daemon and TUI samples remained under the declared 512 MiB limit. Every final steady-state median stayed within 32 MiB of its first median, all handle deltas stayed within 16, and every fixture sustained more than 2 MiB/s. Fixture-child memory was measured separately. Exact per-pass values, latency observations and acceptance mappings are recorded in `docs/acceptance-matrix.md`.
+
+The offline gate validated its process monitor with a synthetic loopback listener before observing the real daemon and synthetic child. It then completed local Git worktree creation, native IPC, real PTY or ConPTY launch, repeated client connections, live backup and fresh-home restore without finding a product TCP or UDP endpoint. This is product runtime evidence. Dependency fetching, user-configured child networking and SSH transport remain separate.
+
+Hosted automation does not identify behavior in a graphical terminal application and does not exercise an operator-controlled SSH connection. Separate operator-controlled observations cover the mandatory local xterm-compatible, Terminal.app, Windows Terminal, and OpenSSH rows. The [M11 final technical review](m11-final-review.md) closes acceptance, risk, budget, and manual reconciliation. Independent PR review, merge, main synchronization, post-merge CI, and the M12 handoff remain open.
+
+## Manual shell and terminal matrix
+
+| Platform | Shells | Observed terminals and connections |
 | --- | --- | --- |
 | Linux | Bash, configured generic shell | xterm-compatible local terminal and OpenSSH |
 | macOS | Zsh, Bash | Terminal.app and OpenSSH |
 | Windows | PowerShell, cmd.exe | Windows Terminal with ConPTY and supported OpenSSH configurations |
 
-Native PTY full-screen redraw, Unicode, resize, process survival, reattachment, TUI focus switching, monochrome rendering, and small-window behavior are covered by the M07 and M08 automated gates. Presentation in named terminal applications and SSH detach/reattach require later empirical tests. No terminal or architecture outside the tested matrix is claimed supported.
+Native PTY full-screen redraw, Unicode, resize, process survival, reattachment, TUI focus switching, monochrome rendering, and small-window behavior are covered by the M07 and M08 automated gates. The named-terminal and SSH presentation matrix is recorded in the M11 manual reports. No terminal or architecture outside the tested matrix is claimed supported.
 
 ## Prerequisites and limitations
 

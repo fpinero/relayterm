@@ -106,34 +106,47 @@ impl TerminalState {
             .revision
             .checked_add(1)
             .ok_or(TerminalError::CounterOverflow)?;
-        let mut bounded = Vec::with_capacity(bytes.len().saturating_add(1));
-        for byte in bytes {
-            if *byte == 0x1b {
-                self.control_sequence_bytes = 1;
-            } else if self.control_sequence_bytes != 0 {
-                self.control_sequence_bytes = self.control_sequence_bytes.saturating_add(1);
-                if *byte == 0x07
-                    || (self.control_sequence_bytes > 2 && (0x40..=0x7e).contains(byte))
-                {
-                    self.control_sequence_bytes = 0;
-                } else if self.control_sequence_bytes >= MAX_CONTROL_SEQUENCE_BYTES {
-                    bounded.push(0x18);
-                    self.control_sequence_bytes = 0;
+        if self.control_sequence_bytes == 0 && !bytes.contains(&0x1b) {
+            self.parser.process(bytes);
+        } else {
+            let mut bounded = Vec::with_capacity(bytes.len().saturating_add(1));
+            for byte in bytes {
+                if *byte == 0x1b {
+                    self.control_sequence_bytes = 1;
+                } else if self.control_sequence_bytes != 0 {
+                    self.control_sequence_bytes = self.control_sequence_bytes.saturating_add(1);
+                    if *byte == 0x07
+                        || (self.control_sequence_bytes > 2 && (0x40..=0x7e).contains(byte))
+                    {
+                        self.control_sequence_bytes = 0;
+                    } else if self.control_sequence_bytes >= MAX_CONTROL_SEQUENCE_BYTES {
+                        bounded.push(0x18);
+                        self.control_sequence_bytes = 0;
+                    }
                 }
+                bounded.push(*byte);
             }
-            bounded.push(*byte);
+            self.parser.process(&bounded);
         }
-        self.parser.process(&bounded);
-        for byte in bytes {
-            if self.retained.len() == self.retained_limit {
-                self.retained.pop_front();
-                self.retained_from_offset = self
-                    .retained_from_offset
-                    .checked_add(1)
-                    .ok_or(TerminalError::CounterOverflow)?;
+        if bytes.len() >= self.retained_limit {
+            self.retained.clear();
+            self.retained
+                .extend(bytes[bytes.len() - self.retained_limit..].iter().copied());
+        } else {
+            let overflow = self
+                .retained
+                .len()
+                .saturating_add(bytes.len())
+                .saturating_sub(self.retained_limit);
+            if overflow != 0 {
+                self.retained.drain(..overflow);
             }
-            self.retained.push_back(*byte);
+            self.retained.extend(bytes.iter().copied());
         }
+        self.retained_from_offset = self
+            .raw_offset
+            .checked_sub(self.retained.len() as u64)
+            .ok_or(TerminalError::CounterOverflow)?;
         Ok(self.revision)
     }
 
@@ -299,6 +312,21 @@ mod tests {
         let mut terminal = TerminalState::new(2, 2, 3).unwrap();
         terminal.process(b"abcdef").unwrap();
         assert_eq!(terminal.retained_bytes(), b"def");
+    }
+
+    #[test]
+    fn retains_the_exact_suffix_across_bulk_chunks() {
+        let mut terminal = TerminalState::new(2, 8, 5).unwrap();
+        terminal.process(b"abc").unwrap();
+        terminal.process(b"defg").unwrap();
+        assert_eq!(terminal.retained_bytes(), b"cdefg");
+        assert_eq!(terminal.snapshot().unwrap().retained_from_offset, 2);
+
+        terminal.process(b"12345678").unwrap();
+        let snapshot = terminal.snapshot().unwrap();
+        assert_eq!(terminal.retained_bytes(), b"45678");
+        assert_eq!(snapshot.raw_offset, 15);
+        assert_eq!(snapshot.retained_from_offset, 10);
     }
 
     #[test]

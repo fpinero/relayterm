@@ -57,7 +57,10 @@ impl NativeSession {
             .map_err(|_| PtyError::Spawn)?;
         let mut command = CommandBuilder::new(&request.program);
         command.args(&request.arguments);
-        command.cwd(&request.working_directory);
+        command.cwd(child_working_directory(
+            &request.program,
+            &request.working_directory,
+        ));
         command.env_clear();
         for (name, value) in request.environment {
             command.env(name, value);
@@ -174,6 +177,35 @@ fn validate_size(rows: u16, columns: u16) -> Result<(), PtyError> {
     } else {
         Ok(())
     }
+}
+
+#[cfg(not(windows))]
+fn child_working_directory(_program: &OsStr, path: &Path) -> PathBuf {
+    path.to_path_buf()
+}
+
+#[cfg(windows)]
+fn child_working_directory(program: &OsStr, path: &Path) -> PathBuf {
+    use std::os::windows::ffi::{OsStrExt, OsStringExt};
+
+    let is_cmd = Path::new(program)
+        .file_name()
+        .is_some_and(|name| name.eq_ignore_ascii_case(OsStr::new("cmd.exe")));
+    if !is_cmd {
+        return path.to_path_buf();
+    }
+    let units = path.as_os_str().encode_wide().collect::<Vec<_>>();
+    let verbatim_unc = r"\\?\UNC\".encode_utf16().collect::<Vec<_>>();
+    if units.starts_with(&verbatim_unc) {
+        let mut native = r"\\".encode_utf16().collect::<Vec<_>>();
+        native.extend_from_slice(&units[verbatim_unc.len()..]);
+        return PathBuf::from(OsString::from_wide(&native));
+    }
+    let verbatim = r"\\?\".encode_utf16().collect::<Vec<_>>();
+    if units.starts_with(&verbatim) {
+        return PathBuf::from(OsString::from_wide(&units[verbatim.len()..]));
+    }
+    path.to_path_buf()
 }
 
 pub fn default_shell() -> OsString {
@@ -353,5 +385,74 @@ mod tests {
             .unwrap()
             .unwrap();
         assert!(String::from_utf8_lossy(&output).contains("relayterm-pty"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn cmd_retains_a_canonical_drive_working_directory() {
+        let working_directory = std::env::current_dir().unwrap().canonicalize().unwrap();
+        let expected = working_directory
+            .as_os_str()
+            .to_string_lossy()
+            .trim_start_matches(r"\\?\")
+            .to_owned();
+        let native = NativeSession::spawn(SpawnRequest {
+            program: OsString::from("cmd.exe"),
+            arguments: vec![
+                OsString::from("/D"),
+                OsString::from("/C"),
+                OsString::from("echo RT_CWD=%CD%"),
+            ],
+            working_directory,
+            environment: approved_environment(&[], std::env::vars_os()),
+            rows: 24,
+            columns: 80,
+        })
+        .unwrap();
+        let (mut control, writer, mut reader) = native.into_parts();
+        drop(writer);
+        let (output_tx, output_rx) = std::sync::mpsc::sync_channel(1);
+        std::thread::spawn(move || {
+            let mut output = Vec::new();
+            let result = reader.read_to_end(&mut output).map(|_| output);
+            let _ = output_tx.send(result);
+        });
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        loop {
+            if control.try_wait().unwrap().is_some() {
+                break;
+            }
+            assert!(std::time::Instant::now() < deadline, "cmd.exe did not exit");
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        drop(control);
+        let output = output_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .unwrap()
+            .unwrap();
+        let output = String::from_utf8_lossy(&output);
+        let expected = format!("RT_CWD={expected}");
+        let retained = output
+            .to_ascii_lowercase()
+            .contains(&expected.to_ascii_lowercase());
+        assert!(
+            retained,
+            "cmd.exe did not retain the requested drive working directory; unc_fallback={}",
+            output.contains("UNC paths are not supported")
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn only_cmd_receives_a_win32_working_directory() {
+        let verbatim = Path::new(r"\\?\C:\synthetic workspace");
+        assert_eq!(
+            child_working_directory(OsStr::new("CMD.EXE"), verbatim),
+            PathBuf::from(r"C:\synthetic workspace")
+        );
+        assert_eq!(
+            child_working_directory(OsStr::new("pwsh.exe"), verbatim),
+            verbatim
+        );
     }
 }

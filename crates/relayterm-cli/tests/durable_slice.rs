@@ -11,6 +11,7 @@ use std::{
     path::{Path, PathBuf},
     process::{Child, Command, Output, Stdio},
     sync::{
+        Arc, Barrier,
         atomic::{AtomicU64, Ordering},
         mpsc,
     },
@@ -558,22 +559,36 @@ fn run_journey(git: bool) {
     let race = create_task(&root, &private, "Competing claim task");
     transition(&root, &private, &race, "ready");
     let (first_race, second_race) = thread::scope(|scope| {
-        let first = scope.spawn(|| {
+        let barrier = Arc::new(Barrier::new(3));
+        let first_barrier = barrier.clone();
+        let first_root = &root;
+        let first_private = &private;
+        let first_task = &race;
+        let first_instance = &instances[0];
+        let first = scope.spawn(move || {
+            first_barrier.wait();
             run_cli(
-                &root,
-                &private,
-                &["task", "claim", &race, "--instance", &instances[0]],
+                first_root,
+                first_private,
+                &["task", "claim", first_task, "--instance", first_instance],
                 None,
             )
         });
-        let second = scope.spawn(|| {
+        let second_barrier = barrier.clone();
+        let second_root = &root;
+        let second_private = &private;
+        let second_task = &race;
+        let second_instance = &instances[1];
+        let second = scope.spawn(move || {
+            second_barrier.wait();
             run_cli(
-                &root,
-                &private,
-                &["task", "claim", &race, "--instance", &instances[1]],
+                second_root,
+                second_private,
+                &["task", "claim", second_task, "--instance", second_instance],
                 None,
             )
         });
+        barrier.wait();
         (first.join().unwrap(), second.join().unwrap())
     });
     assert_eq!(

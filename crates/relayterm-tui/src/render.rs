@@ -321,6 +321,7 @@ fn draw_sessions(frame: &mut Frame<'_>, app: &App, area: Rect) {
             area,
             terminal.input_focus,
             terminal.lease_id.is_some(),
+            terminal.uncertain_input,
             terminal.scrollback_rows,
         );
         return;
@@ -373,12 +374,18 @@ fn draw_terminal(
     area: Rect,
     input: bool,
     writer: bool,
+    uncertain_input: bool,
     scrollback_rows: u16,
 ) {
     let title = format!(
-        "Terminal [{}] [{}]{}",
+        "Terminal [{}] [{}]{}{}",
         if input { "INPUT" } else { "NAVIGATION" },
         if writer { "WRITER" } else { "READ ONLY" },
+        if uncertain_input {
+            " [RECONCILE WITH R]"
+        } else {
+            ""
+        },
         if scrollback_rows != 0 {
             format!(" [HISTORY {scrollback_rows} rows]")
         } else {
