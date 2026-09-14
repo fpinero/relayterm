@@ -13,6 +13,8 @@ Relayterm keeps domain and application logic independent from adapters. The boot
 - [0007: Worktree ownership and recovery](../decisions/0007-worktree-ownership.md), M01.07.
 - [0008: Rust, platforms, and dependency policy](../decisions/0008-rust-platforms.md), M01.08.
 
+M12 session presentation, paging, protocol compatibility, and cursor behavior are frozen in the [session presentation contract](../session-presentation-contract.md). It refines ADR 0002 and ADR 0004 without changing the core dependency graph.
+
 Each ADR records requirements, invariants, alternatives, consequences, and later empirical tests. Acceptance of an ADR is a design decision, not evidence that a future subsystem already works. The [M01 guide](../M01_details.md) defines the bootstrap gate.
 
 ## Dependency boundary

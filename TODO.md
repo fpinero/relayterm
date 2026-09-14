@@ -36,7 +36,6 @@ Outcome: a reproducible candidate with usable session identification and editing
 Execution contract: [M12 detailed plan](docs/M12_details.md). Start at M12.00a. The five usability proposals are scheduled here and do not reopen M11 acceptance.
 
 - M12.00: Complete UX-SESSION-NAMES, UX-SESSION-ORDER, UX-FORM-CURSOR, UX-CONFLICT-MESSAGE, and UX-INPUT-ACQUIRE-MESSAGE before freezing release artifacts. Preserve durable identity, bounded state, typed error semantics, and read-only input ownership.
-  - M12.00a: Freeze session metadata, ordinal, paging, typed-error and cursor layout contracts; inspect actual source. Completion proof: Written mappings, compatibility strategy and test design address all section 4 cases.
   - M12.00b: Implement private metadata, creation ordinal, migration and atomic rename through domain/application/persistence. Completion proof: Validation, competing revision, rollback, old-schema backfill, restart and backup round-trip pass.
   - M12.00c: Expose typed rename and bounded ordered reads through daemon/protocol/client/CLI. Completion proof: Capability fallback, revision/cursor contract, more than 200 rows and uncertainty tests pass without full-history loads.
   - M12.00d: Add session labels, rename form, details and stable list/page selection. Completion proof: Duplicate/clear names, background creation, rename and page transitions preserve identity and lease.
