@@ -157,6 +157,10 @@ impl OuterTerminal {
         }
     }
 
+    fn cursor_position(&self) -> (u16, u16) {
+        self.screen.lock().unwrap().screen().cursor_position()
+    }
+
     fn screen_contents(&self) -> String {
         self.screen.lock().unwrap().screen().contents()
     }
@@ -347,6 +351,38 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
     register_fixture(&root, &private);
     first.send(b"R4aa3s");
     wait_for_session_count(&root, &private, 3);
+    first.wait_for("Sessions selected");
+    let first_named_session = wait_for_selected_session_change(&first, None);
+    first.send(b"n");
+    first.wait_for("Rename session form");
+    let (cursor_row, cursor_column) = first.cursor_position();
+    assert!(cursor_row < 30 && cursor_column < 100);
+    assert!(cursor_row > 0 && cursor_column > 0);
+    first.send(b"Duplicate session\x13");
+    first.wait_for("Sessions selected");
+    first.send(next_selection_input());
+    let second_named_session = wait_for_selected_session_change(&first, Some(&first_named_session));
+    first.send(b"nDuplicate session\x13");
+    first.wait_for("Sessions selected");
+    let named = admin(&root, &private, &["session", "list-ordered"]);
+    for session_id in [&first_named_session, &second_named_session] {
+        assert!(named["result"]["items"].as_array().is_some_and(|items| {
+            items.iter().any(|item| {
+                item["instance"]["session_id"] == session_id.as_str()
+                    && item["display_name"] == "Duplicate session"
+            })
+        }));
+    }
+    first.send(previous_selection_input());
+    wait_for_selected_session(&first, &first_named_session);
+    first.send(b"n\x15\x13");
+    first.wait_for("Sessions selected");
+    let cleared = admin(&root, &private, &["session", "list-ordered"]);
+    assert!(cleared["result"]["items"].as_array().is_some_and(|items| {
+        items.iter().any(|item| {
+            item["instance"]["session_id"] == first_named_session && item["display_name"].is_null()
+        })
+    }));
     first.send(b"2nM08 task\tCoordinate three sessions\tnormal\tsrc/lib.rs\tVerified in TUI\t\x13");
     wait_for_task_status(&root, &private, "backlog");
     first.send(b"rc");

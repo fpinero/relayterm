@@ -31,6 +31,8 @@ portable-pty = { package = "portable-pty-psmux", version = "0.9.7" }
 vt100 = "0.16.2"
 crossterm = "0.29.0"
 ratatui = { version = "0.30.0", default-features = false, features = ["crossterm"] }
+unicode-segmentation = "1.13.3"
+unicode-width = "0.2.2"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

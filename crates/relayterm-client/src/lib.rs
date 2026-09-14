@@ -823,6 +823,7 @@ impl Client {
                 .clone(),
         );
         let ordered_sessions = self.supports(Operation::SessionListOrdered).await;
+        let session_rename = self.supports(Operation::SessionRename).await;
         for name in ["definitions", "tasks", "claims", "progress", "handovers"] {
             let mut after: Option<String> = None;
             let mut all = Vec::new();
@@ -913,6 +914,7 @@ impl Client {
             retained_from_sequence,
             collections,
             ordered_sessions,
+            session_rename,
             session_next,
         })
     }
@@ -935,6 +937,7 @@ pub struct ClientSnapshot {
     pub retained_from_sequence: u64,
     pub collections: BTreeMap<String, Vec<Value>>,
     pub ordered_sessions: bool,
+    pub session_rename: bool,
     pub session_next: Option<Value>,
 }
 pub struct SnapshotStaging {

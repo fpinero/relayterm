@@ -1,5 +1,6 @@
 //! Interactive Relayterm client. The daemon remains the sole owner of durable and process state.
 
+mod form_layout;
 mod input;
 mod lifecycle;
 mod model;
@@ -12,7 +13,10 @@ pub use model::{App, Form, FormKind, Freshness, Screen};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use relayterm_client::{Client, ClientError, Delivery};
-use relayterm_protocol::{ErrorCode, Operation};
+use relayterm_protocol::{
+    DecimalU64, ErrorCode, Operation, SessionListOrderedParams, SessionListOrderedResult,
+    SessionPageCursorDto,
+};
 use serde_json::{Value, json};
 use std::{
     fmt,
@@ -415,6 +419,10 @@ async fn handle_key(client: &Client, app: &mut App, key: KeyEvent) {
         KeyCode::PageUp if app.screen == Screen::Tasks => {
             app.task_scroll = app.task_scroll.saturating_sub(10)
         }
+        KeyCode::PageDown if app.screen == Screen::Sessions => next_session_page(client, app).await,
+        KeyCode::PageUp if app.screen == Screen::Sessions => {
+            previous_session_page(client, app).await
+        }
         KeyCode::Esc if app.terminal.is_some() => detach(client, app).await,
         KeyCode::Enter if app.screen == Screen::Sessions => attach_selected(client, app).await,
         KeyCode::Char('i') if app.terminal.is_some() => acquire_input(client, app).await,
@@ -442,6 +450,7 @@ async fn handle_key(client: &Client, app: &mut App, key: KeyEvent) {
         KeyCode::Char('v') if app.screen == Screen::Agents => check_agent(client, app).await,
         KeyCode::Char(' ') if app.screen == Screen::Agents => toggle_agent(client, app).await,
         KeyCode::Char('t') if app.screen == Screen::Sessions => confirm_termination(app),
+        KeyCode::Char('n') if app.screen == Screen::Sessions => open_session_rename(app),
         KeyCode::Char('n') if app.screen == Screen::Tasks => {
             let mut form = Form::task_create();
             form.base_revision = app.last_revision.clone();
@@ -623,7 +632,28 @@ async fn handle_paste(client: &Client, app: &mut App, value: &str) {
 
 async fn refresh(client: &Client, app: &mut App) -> Result<(), ClientError> {
     app.freshness = Freshness::Loading;
-    let snapshot = client.refresh_snapshot().await?;
+    let current_page = app.current_session_page_start();
+    let mut snapshot = client.refresh_snapshot().await?;
+    if snapshot.ordered_sessions && current_page.is_some() {
+        let revision = DecimalU64::new(
+            snapshot
+                .revision
+                .parse()
+                .map_err(|_| ClientError::Protocol)?,
+        )
+        .map_err(|_| ClientError::Protocol)?;
+        let page = client
+            .list_sessions_ordered(&SessionListOrderedParams {
+                after: current_page
+                    .map(serde_json::from_value)
+                    .transpose()
+                    .map_err(|_| ClientError::Protocol)?,
+                limit: 50,
+                expected_revision: Some(revision),
+            })
+            .await?;
+        replace_session_page(&mut snapshot, page)?;
+    }
     app.install_snapshot(snapshot);
     if let Ok(catalog) = client
         .call::<_, Value>(Operation::AgentListTemplates, &json!({}))
@@ -653,6 +683,124 @@ async fn refresh(client: &Client, app: &mut App) -> Result<(), ClientError> {
     } else {
         app.worktrees.clear();
     }
+    Ok(())
+}
+
+async fn next_session_page(client: &Client, app: &mut App) {
+    if !app.ordered_sessions() {
+        app.add_diagnostic(
+            "operation_unavailable",
+            "This daemon does not support ordered session pages.",
+        );
+        return;
+    }
+    let Some(next) = app
+        .snapshot
+        .as_ref()
+        .and_then(|snapshot| snapshot.session_next.clone())
+    else {
+        return;
+    };
+    let Ok(cursor) = serde_json::from_value::<SessionPageCursorDto>(next.clone()) else {
+        app.record_client_error(ClientError::Protocol);
+        return;
+    };
+    if load_session_page(client, app, Some(cursor), true).await {
+        app.session_page_starts.truncate(app.session_page_index + 1);
+        app.session_page_starts.push(Some(next));
+        app.session_page_index += 1;
+        app.selected_session = 0;
+    }
+}
+
+async fn previous_session_page(client: &Client, app: &mut App) {
+    if !app.ordered_sessions() || app.session_page_index == 0 {
+        return;
+    }
+    let previous_index = app.session_page_index - 1;
+    let cursor = app.session_page_starts[previous_index]
+        .clone()
+        .map(serde_json::from_value::<SessionPageCursorDto>)
+        .transpose();
+    let Ok(cursor) = cursor else {
+        app.record_client_error(ClientError::Protocol);
+        return;
+    };
+    if load_session_page(client, app, cursor, false).await {
+        app.session_page_index = previous_index;
+        app.selected_session = app.session_rows().len().saturating_sub(1);
+    }
+}
+
+async fn load_session_page(
+    client: &Client,
+    app: &mut App,
+    after: Option<SessionPageCursorDto>,
+    select_first: bool,
+) -> bool {
+    let Ok(revision) = app
+        .last_revision
+        .parse()
+        .ok()
+        .and_then(|value| DecimalU64::new(value).ok())
+        .ok_or(())
+    else {
+        app.record_client_error(ClientError::Protocol);
+        return false;
+    };
+    match client
+        .list_sessions_ordered(&SessionListOrderedParams {
+            after,
+            limit: 50,
+            expected_revision: Some(revision),
+        })
+        .await
+    {
+        Ok(page) => {
+            let Some(mut snapshot) = app.snapshot.clone() else {
+                app.record_client_error(ClientError::Protocol);
+                return false;
+            };
+            if replace_session_page(&mut snapshot, page).is_err() {
+                app.record_client_error(ClientError::Protocol);
+                return false;
+            }
+            app.selected_session = if select_first { 0 } else { usize::MAX };
+            app.install_snapshot(snapshot);
+            true
+        }
+        Err(error) => {
+            app.record_client_error(error);
+            let _ = refresh(client, app).await;
+            false
+        }
+    }
+}
+
+fn replace_session_page(
+    snapshot: &mut relayterm_client::ClientSnapshot,
+    page: SessionListOrderedResult,
+) -> Result<(), ClientError> {
+    if page.revision.get().to_string() != snapshot.revision
+        || page.last_sequence.get() != snapshot.last_sequence
+    {
+        return Err(ClientError::Rejected(ErrorCode::StaleRevision));
+    }
+    let sessions = page
+        .items
+        .into_iter()
+        .map(|item| serde_json::to_value(item).map_err(|_| ClientError::Protocol))
+        .collect::<Result<Vec<_>, _>>()?;
+    let instances = sessions
+        .iter()
+        .map(|row| row.get("instance").cloned().ok_or(ClientError::Protocol))
+        .collect::<Result<Vec<_>, _>>()?;
+    snapshot.collections.insert("sessions".into(), sessions);
+    snapshot.collections.insert("instances".into(), instances);
+    snapshot.session_next = page
+        .next
+        .map(|cursor| serde_json::to_value(cursor).map_err(|_| ClientError::Protocol))
+        .transpose()?;
     Ok(())
 }
 
@@ -700,7 +848,13 @@ async fn submit_form(client: &Client, app: &mut App) {
     }
     let task_id = match form.target_id.clone().or_else(|| selected_task_id(app)) {
         Some(task_id) => task_id,
-        None if matches!(form.kind, FormKind::TaskCreate | FormKind::AgentCreate) => String::new(),
+        None if matches!(
+            form.kind,
+            FormKind::TaskCreate | FormKind::AgentCreate | FormKind::SessionRename
+        ) =>
+        {
+            String::new()
+        }
         None => {
             form.error = Some("Select a task first.".into());
             app.form = Some(form);
@@ -865,6 +1019,14 @@ fn form_params(_app: &App, form: &Form, task_id: &str) -> Result<(Operation, Val
                 }),
             ))
         }
+        FormKind::SessionRename => Ok((
+            Operation::SessionRename,
+            json!({
+                "session_id":form.target_id.clone().ok_or("The session target is missing.")?,
+                "display_name":value(0),
+                "expected_revision":form.base_revision
+            }),
+        )),
         FormKind::ConfirmTerminate => Err("Use the termination confirmation action.".into()),
     }
 }
@@ -1181,7 +1343,7 @@ async fn transition(client: &Client, app: &mut App, status: &str) {
 async fn claim(client: &Client, app: &mut App) {
     let task = selected_task_id(app);
     let instance = app
-        .selected_session()
+        .selected_session_instance()
         .filter(|instance| {
             instance.get("status").and_then(Value::as_str) == Some("running")
                 && !app.collection("claims").iter().any(|claim| {
@@ -1517,6 +1679,7 @@ fn confirm_termination(app: &mut App) {
     };
     app.form = Some(Form {
         kind: FormKind::ConfirmTerminate,
+        guidance: None,
         fields: vec![model::FormField {
             label: "Type TERMINATE to confirm",
             value: String::new(),
@@ -1534,6 +1697,46 @@ fn confirm_termination(app: &mut App) {
         target_id: Some(session_id),
         base_revision: app.last_revision.clone(),
     });
+}
+
+fn open_session_rename(app: &mut App) {
+    if !app.session_rename_supported() {
+        app.add_diagnostic(
+            "operation_unavailable",
+            "Session names require a daemon that advertises session.rename.",
+        );
+        return;
+    }
+    let Some(row) = app.selected_session() else {
+        return;
+    };
+    let Some(session_id) = app.selected_session_id().map(str::to_owned) else {
+        app.record_client_error(ClientError::Protocol);
+        return;
+    };
+    let display_name = row
+        .get("display_name")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let effective_label = if display_name.is_empty() {
+        row.get("creation_ordinal")
+            .and_then(Value::as_str)
+            .map_or_else(
+                || "Legacy session".into(),
+                |value| format!("Session {value}"),
+            )
+    } else {
+        display_name.to_owned()
+    };
+    let mut form = Form::session_rename(display_name);
+    form.guidance = Some(format!(
+        "Current label: {}. Session: {}. Clear the field with Ctrl-U to restore the default label.",
+        safe_text::single_line(&effective_label, 128),
+        app.abbreviated_session_id(app.selected_session)
+    ));
+    form.target_id = Some(session_id);
+    form.base_revision = app.last_revision.clone();
+    app.form = Some(form);
 }
 
 async fn detach(client: &Client, app: &mut App) {
@@ -1616,10 +1819,7 @@ fn selected_task_id(app: &App) -> Option<String> {
         .map(str::to_owned)
 }
 fn selected_session_id(app: &App) -> Option<String> {
-    app.selected_session()
-        .and_then(|instance| instance.get("session_id"))
-        .and_then(Value::as_str)
-        .map(str::to_owned)
+    app.selected_session_id().map(str::to_owned)
 }
 fn terminal_application_cursor(app: &App) -> bool {
     app.terminal
@@ -1809,5 +2009,20 @@ mod tests {
             "00000000-0000-4000-8000-000000001710"
         );
         assert_ne!(params["parent"], Value::Null);
+    }
+
+    #[test]
+    fn session_rename_form_uses_stable_identity_and_open_revision() {
+        let app = App::default();
+        let mut form = Form::session_rename("");
+        form.target_id = Some("00000000-0000-4000-8000-000000000801".into());
+        form.base_revision = "27".into();
+        form.fields[0].value = "duplicate".into();
+
+        let (operation, params) = form_params(&app, &form, "unrelated-task").unwrap();
+        assert_eq!(operation, Operation::SessionRename);
+        assert_eq!(params["session_id"], "00000000-0000-4000-8000-000000000801");
+        assert_eq!(params["expected_revision"], "27");
+        assert_eq!(params["display_name"], "duplicate");
     }
 }
