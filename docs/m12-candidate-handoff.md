@@ -2,7 +2,7 @@
 
 ## Status
 
-This file is the prepared local handoff, not a publication record. The implementation branch has not been pushed, merged, tagged, uploaded, or released under the current authorization. Final artifacts must be frozen from a clean commit after all release privacy controls pass. Linux, macOS and Windows final artifact hashes remain pending.
+This file is the prepared local handoff, not a publication record. The implementation branch has not been pushed, merged, tagged, uploaded, or released under the current authorization. The macOS artifact is frozen against source `b6559156ce0d20b89590edb35e52eff5ebd7cc92`; this evidence-only documentation commit is its descendant and does not change executable or archive inputs. Linux and Windows final artifact hashes remain pending.
 
 M11 is complete at merge `dc5b2e6067d50345828ac175858029434ce3c081`. Its final review and acceptance matrix remain the source for behavior unaffected by M12. M12 changes session presentation, ordered paging, form cursor geometry, stale-form feedback, input-owner feedback, release tooling, installation and documentation. Those affected rows require candidate-specific evidence.
 
@@ -13,10 +13,12 @@ Version: `0.1.0`. Production features: default empty feature set. Toolchain: Rus
 | Target | Final source | Binary SHA-256 | Archive SHA-256 | Native release gate | Manual installed workflow |
 | --- | --- | --- | --- | --- | --- |
 | `x86_64-unknown-linux-gnu` | Pending | Pending | Pending | Pending | Pending |
-| `aarch64-apple-darwin` | Pending clean rebuild | Pending | Pending | Prior functional gates passed, privacy rebuild pending | Interactive observation pending |
+| `aarch64-apple-darwin` | `b6559156ce0d20b89590edb35e52eff5ebd7cc92` | `6d16cae5733c458f6749e9a5dbaa9f17f64a41e773d9b5ee727107a332dd84da` | `35329a29a5cc4ca12fa6b3699c7ff4c1e5d551e03d1b567b018e0e316c647c49` | Passed locally | Extracted smoke and complete automated TUI gate passed; interactive observation pending |
 | `x86_64-pc-windows-msvc` | Pending | Pending | Pending | Pending | Pending |
 
-The first macOS arm64 build proved functional packaging, extraction, smoke, installation collision handling and the complete automated TUI gate, but artifact inspection found native build-user paths in dependency diagnostics. That artifact is rejected. The build wrapper now remaps private source, Cargo and user-home prefixes and rejects an executable that still contains them. Final sizes and hashes will be recorded only after a clean rebuild from the committed correction.
+The final macOS arm64 build produced two identical 11,051,872-byte binaries and two identical 4,389,579-byte archives. Its extracted smoke passed help, version, initialization, detached daemon startup, a real shell PTY, clean exit, and orderly shutdown with the product `PATH` restricted to `/usr/bin:/bin`. The complete automated TUI gate also passed through the extracted candidate executable, with six tests passed and one fixture-only test ignored. It linked only `/usr/lib/libiconv.2.dylib` and `/usr/lib/libSystem.B.dylib`, with Mach-O arm64 deployment target 11.0. Installation by absolute path passed, and a second installation refused to overwrite the existing candidate executable.
+
+Artifact inspection rejected an earlier build because dependency diagnostics embedded the native build-user path. Source `b655915` remaps source, Cargo and user-home prefixes, records only public placeholders and makes the build fail if any original private prefix remains in the executable. Inspection of the rebuilt binary and packaged text found no build username, private source path, reviewer draft name or temporary candidate path.
 
 The exact archive inventory is documented in [release builds](release-builds.md). It excludes databases, logs, sockets, source, terminal captures, test executables, and debug dumps. `SHA256SUMS` and the target manifest remain beside the archive. The checksum is an integrity mechanism, not independent publisher authentication.
 
@@ -29,7 +31,7 @@ The exact archive inventory is documented in [release builds](release-builds.md)
 5. Reconcile AC-1 through AC-16 and every phase exit criterion against the frozen source and archives.
 6. Replace pending cells with actual evidence, audit the final inventory, and obtain the maintainer's publication choices.
 
-Local source verification through `3b39f03` passed formatting, all-target checks, Clippy with denied warnings, the full workspace suite, core-only tests, workspace build, cargo-deny, audit negative controls, candidate secret scanning, Gitleaks history scanning, candidate-only repository checks, and whitespace validation. The later artifact privacy finding requires a new committed source and candidate before final handoff. The ordinary repository check remains affected by the preserved unrelated untracked reviewer document and was not used to hide or delete it.
+Local source verification through `b655915` passed formatting, all-target checks, Clippy with denied warnings, the full workspace suite, core-only tests, workspace build, cargo-deny, audit negative controls, candidate secret scanning, Gitleaks history scanning, candidate-only repository checks, and whitespace validation. Focused release tests passed 14 tests before the privacy correction and 16 afterward; two platform-specific PowerShell tests were skipped on macOS. The release-specific extraction and TUI changes were additionally covered by the complete TUI gate through the final extracted candidate. The ordinary repository check remains affected by the preserved unrelated untracked reviewer document and was not used to hide or delete it.
 
 The private vulnerability reporting setting returned `enabled: true` through a read-only GitHub API query on 2026-09-14. No report or message was sent.
 

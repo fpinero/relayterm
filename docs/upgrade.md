@@ -26,6 +26,8 @@ Do not point an older binary at a home already migrated by a newer version. Stop
 
 Restore validates the exact backup inventory, BLAKE3 checksum, schema, workspace identity, event watermark, foreign keys, and domain invariants before publishing a fresh home. A corrupt or incompatible backup preserves the source, original home, and requested destination. See [private backup and restore](backup-restore.md).
 
+The native macOS candidate check used the pre-M12 binary from planning merge `96c3139` to create a schema 2 workspace with a neutral definition and real shell session, terminate it, and create a private backup. Candidate `b655915` migrated that populated home to schema 3, assigned creation ordinal 1, preserved the definition, launch snapshot, instance and session IDs, and accepted a persistent session name. Its schema 3 backup reported the same workspace identity and the new revision. After shutdown, the older binary rejected the migrated home and the database SHA-256 remained identical before and after the rejected attempt. Restoring the schema 2 backup into a fresh 0700 home let the older binary reopen the original session record. This is one native macOS old/new observation; the automated migration and backup suites retain cross-platform coverage requirements in CI.
+
 ## Failure guidance
 
 | Failure | Safe action | Recovery boundary |
