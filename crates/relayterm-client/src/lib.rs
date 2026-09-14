@@ -4,13 +4,14 @@ use relayterm_ipc::{
     Endpoint, IpcError, LocalStream, connect, read_frame, read_frame_idle, write_frame,
 };
 use relayterm_protocol::{
-    DecimalU64, ErrorBody, ErrorCode, EventEnvelope, FrameKind, Operation, PROTOCOL_VERSION,
-    RequestEnvelope, RequestType, ResponseEnvelope, SNAPSHOT_STAGING_LIMIT,
-    SessionAcquireInputParams, SessionAttachParams, SessionCreateParams, SessionCreateResult,
-    SessionInputParams, SessionLeaseResult, SessionReadOutputParams, SessionReleaseInputParams,
-    SessionResizeParams, SessionRevisionResult, SessionTerminateParams, SubscriptionId,
-    SynchronizationEnvelope, TerminalAttachmentDto, TerminalFrame, TerminalOutputDto, WorkspaceId,
-    decode_json, encode_json,
+    DecimalU64, ErrorBody, ErrorCode, EventEnvelope, FrameKind, HelloResult, MutationReceipt,
+    Operation, PROTOCOL_VERSION, RequestEnvelope, RequestType, ResponseEnvelope,
+    SNAPSHOT_STAGING_LIMIT, SessionAcquireInputParams, SessionAttachParams, SessionCreateParams,
+    SessionCreateResult, SessionInputParams, SessionLeaseResult, SessionListOrderedParams,
+    SessionListOrderedResult, SessionReadOutputParams, SessionReleaseInputParams,
+    SessionRenameParams, SessionResizeParams, SessionRevisionResult, SessionTerminateParams,
+    SubscriptionId, SynchronizationEnvelope, TerminalAttachmentDto, TerminalFrame,
+    TerminalOutputDto, WorkspaceId, decode_json, encode_json,
 };
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::Value;
@@ -118,6 +119,7 @@ pub struct Client {
     deadline: Duration,
     events: Mutex<EventState>,
     visible: Mutex<VisibleState>,
+    operations: Mutex<Vec<Operation>>,
 }
 impl Client {
     pub async fn connect(
@@ -127,7 +129,7 @@ impl Client {
         let mut stream = connect(endpoint)
             .await
             .map_err(|_| ClientError::Transport(Delivery::NotSent))?;
-        exchange(
+        let hello = exchange(
             &mut stream,
             workspace_id,
             DecimalU64::new(1).expect("one is a valid request ID"),
@@ -137,6 +139,8 @@ impl Client {
             Delivery::NotSent,
         )
         .await?;
+        let hello: HelloResult =
+            serde_json::from_value(hello).map_err(|_| ClientError::Protocol)?;
         let client = Self {
             endpoint: endpoint.clone(),
             workspace_id,
@@ -145,12 +149,37 @@ impl Client {
             deadline: DEFAULT_REQUEST_DEADLINE,
             events: Mutex::new(EventState::default()),
             visible: Mutex::new(VisibleState::default()),
+            operations: Mutex::new(hello.operations),
         };
         Ok(client)
     }
     pub fn with_deadline(mut self, deadline: Duration) -> Self {
         self.deadline = deadline;
         self
+    }
+
+    pub async fn supports(&self, operation: Operation) -> bool {
+        supports_operation(&self.operations.lock().await, operation)
+    }
+
+    pub async fn list_sessions_ordered(
+        &self,
+        params: &SessionListOrderedParams,
+    ) -> Result<SessionListOrderedResult, ClientError> {
+        if !self.supports(Operation::SessionListOrdered).await {
+            return Err(ClientError::Rejected(ErrorCode::OperationUnavailable));
+        }
+        self.call(Operation::SessionListOrdered, params).await
+    }
+
+    pub async fn rename_session(
+        &self,
+        params: &SessionRenameParams,
+    ) -> Result<MutationReceipt, ClientError> {
+        if !self.supports(Operation::SessionRename).await {
+            return Err(ClientError::Rejected(ErrorCode::OperationUnavailable));
+        }
+        self.call(Operation::SessionRename, params).await
     }
 
     /// Open an independently framed connection for subscriptions or terminal traffic.
@@ -441,7 +470,7 @@ impl Client {
             .map_err(|_| ClientError::Transport(Delivery::NotSent))?;
         let hello_id = DecimalU64::new(self.next_id.fetch_add(1, Ordering::Relaxed))
             .map_err(|_| ClientError::ResourceLimit)?;
-        exchange(
+        let hello = exchange(
             &mut stream,
             self.workspace_id,
             hello_id,
@@ -451,6 +480,8 @@ impl Client {
             Delivery::NotSent,
         )
         .await?;
+        let hello: HelloResult =
+            serde_json::from_value(hello).map_err(|_| ClientError::Protocol)?;
         let (subscribed, after) = {
             let events = self.events.lock().await;
             (events.subscribed, events.last_sequence)
@@ -471,6 +502,7 @@ impl Client {
             self.install_subscription(&result, after).await?;
         }
         *self.stream.lock().await = stream;
+        *self.operations.lock().await = hello.operations;
         self.visible.lock().await.connection = ConnectionStatus::Connected;
         Ok(())
     }
@@ -790,14 +822,8 @@ impl Client {
                 .ok_or(ClientError::Protocol)?
                 .clone(),
         );
-        for name in [
-            "definitions",
-            "tasks",
-            "instances",
-            "claims",
-            "progress",
-            "handovers",
-        ] {
+        let ordered_sessions = self.supports(Operation::SessionListOrdered).await;
+        for name in ["definitions", "tasks", "claims", "progress", "handovers"] {
             let mut after: Option<String> = None;
             let mut all = Vec::new();
             loop {
@@ -822,13 +848,77 @@ impl Client {
             }
             collections.insert(name.to_owned(), all);
         }
+        let session_next = if ordered_sessions {
+            let page = self
+                .list_sessions_ordered(&SessionListOrderedParams {
+                    after: None,
+                    limit: 50,
+                    expected_revision: Some(
+                        DecimalU64::new(revision.parse().map_err(|_| ClientError::Protocol)?)
+                            .map_err(|_| ClientError::Protocol)?,
+                    ),
+                })
+                .await?;
+            if page.revision.get().to_string() != revision
+                || page.last_sequence.get() != last_sequence
+            {
+                return Err(ClientError::Rejected(ErrorCode::Conflict));
+            }
+            let sessions = page
+                .items
+                .iter()
+                .map(|value| serde_json::to_value(value).map_err(|_| ClientError::Protocol))
+                .collect::<Result<Vec<_>, _>>()?;
+            let instances = page
+                .items
+                .iter()
+                .map(|value| {
+                    serde_json::to_value(&value.instance).map_err(|_| ClientError::Protocol)
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            collections.insert("sessions".to_owned(), sessions);
+            collections.insert("instances".to_owned(), instances);
+            page.next
+                .map(|value| serde_json::to_value(value).map_err(|_| ClientError::Protocol))
+                .transpose()?
+        } else {
+            let mut after: Option<String> = None;
+            let mut all = Vec::new();
+            loop {
+                let page:Value=self.call(Operation::WorkspaceGetSnapshot,&serde_json::json!({"collection":"instances","after_id":after,"limit":50,"expected_revision":revision})).await?;
+                if page["revision"].as_str() != Some(revision.as_str())
+                    || page["last_sequence"].as_str().and_then(|x| x.parse().ok())
+                        != Some(last_sequence)
+                {
+                    return Err(ClientError::Rejected(ErrorCode::Conflict));
+                }
+                staging.push(page.clone())?;
+                all.extend(
+                    page["items"]
+                        .as_array()
+                        .ok_or(ClientError::Protocol)?
+                        .clone(),
+                );
+                after = page["next_after_id"].as_str().map(ToOwned::to_owned);
+                if after.is_none() {
+                    break;
+                }
+            }
+            collections.insert("instances".to_owned(), all);
+            None
+        };
         Ok(ClientSnapshot {
             revision,
             last_sequence,
             retained_from_sequence,
             collections,
+            ordered_sessions,
+            session_next,
         })
     }
+}
+fn supports_operation(operations: &[Operation], operation: Operation) -> bool {
+    operations.contains(&operation)
 }
 fn map_rejection(error: ErrorBody) -> ClientError {
     match error.code {
@@ -844,6 +934,8 @@ pub struct ClientSnapshot {
     pub last_sequence: u64,
     pub retained_from_sequence: u64,
     pub collections: BTreeMap<String, Vec<Value>>,
+    pub ordered_sessions: bool,
+    pub session_next: Option<Value>,
 }
 pub struct SnapshotStaging {
     bytes: usize,
@@ -900,5 +992,20 @@ mod tests {
         let mut s = SnapshotStaging::new();
         s.push(serde_json::json!({"revision":"1"})).unwrap();
         assert_eq!(s.install().len(), 1);
+    }
+    #[test]
+    fn legacy_capability_set_selects_the_safe_session_fallback() {
+        let legacy = Operation::ALL
+            .into_iter()
+            .filter(|operation| {
+                !matches!(
+                    operation,
+                    Operation::SessionListOrdered | Operation::SessionRename
+                )
+            })
+            .collect::<Vec<_>>();
+        assert!(!supports_operation(&legacy, Operation::SessionListOrdered));
+        assert!(!supports_operation(&legacy, Operation::SessionRename));
+        assert!(supports_operation(&legacy, Operation::WorkspaceGetSnapshot));
     }
 }

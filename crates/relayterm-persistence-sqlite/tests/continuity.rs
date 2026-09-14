@@ -206,6 +206,124 @@ fn session_metadata_survives_reopen_and_vacuum_backup() {
 }
 
 #[test]
+fn ordered_session_pages_are_bounded_and_revision_consistent() {
+    runtime().block_on(async {
+        let temporary = tempfile::tempdir().unwrap();
+        let private = temporary.path().join("private");
+        let project = temporary.path().join("project");
+        std::fs::create_dir(&project).unwrap();
+        relayterm_platform::create_private_dir(&private).unwrap();
+        let database = Database::open(
+            &private.join("workspace.sqlite3"),
+            DatabaseKind::Workspace,
+            OpenMode::ExplicitNew,
+            PoolSettings::default(),
+        )
+        .await
+        .unwrap();
+        let store = SqliteStore::new(database.pool().clone());
+        let workspace_id: WorkspaceId = "10000000-0000-4000-8000-000000000096".parse().unwrap();
+        let service = Service::new(
+            store.clone(),
+            TestClock(Arc::new(AtomicU64::new(0))),
+            TestIds(AtomicU64::new(10_000)),
+            NoopNotifier,
+        );
+        service
+            .create_workspace_reserved(workspace_id, "Paged sessions".into(), project.clone())
+            .await
+            .unwrap();
+        for _ in 0..201 {
+            service
+                .register_instance(
+                    workspace_id,
+                    LaunchContext {
+                        agent_definition_id: None,
+                        task_id: None,
+                        working_directory: project.clone(),
+                        terminal_size: TerminalSize::new(24, 80).unwrap(),
+                    },
+                )
+                .await
+                .unwrap();
+        }
+        let first = store
+            .session_page(
+                workspace_id,
+                relayterm_application::SessionPageRequest::new(None, 200, None).unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(first.items.len(), 200);
+        assert!(first.has_more);
+        assert_eq!(
+            first
+                .items
+                .first()
+                .unwrap()
+                .cursor()
+                .creation_ordinal
+                .value(),
+            1
+        );
+        assert_eq!(
+            first
+                .items
+                .last()
+                .unwrap()
+                .cursor()
+                .creation_ordinal
+                .value(),
+            200
+        );
+        let second = store
+            .session_page(
+                workspace_id,
+                relayterm_application::SessionPageRequest::new(
+                    Some(first.items.last().unwrap().cursor()),
+                    50,
+                    Some(first.revision),
+                )
+                .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(second.items.len(), 1);
+        assert!(!second.has_more);
+        assert_eq!(second.items[0].cursor().creation_ordinal.value(), 201);
+
+        service
+            .execute(
+                workspace_id,
+                Actor::LocalUser,
+                Request::RenameSession {
+                    session_id: second.items[0].cursor().session_id,
+                    display_name: "Changed".into(),
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            store
+                .session_page(
+                    workspace_id,
+                    relayterm_application::SessionPageRequest::new(
+                        Some(first.items.last().unwrap().cursor()),
+                        50,
+                        Some(first.revision),
+                    )
+                    .unwrap(),
+                )
+                .await
+                .err(),
+            Some(Error::Conflict)
+        );
+        assert!(relayterm_application::SessionPageRequest::new(None, 0, None).is_err());
+        assert!(relayterm_application::SessionPageRequest::new(None, 201, None).is_err());
+    });
+}
+
+#[test]
 fn bounded_integrity_validation_rejects_cross_row_state_corruption() {
     runtime().block_on(async {
         let temporary = tempfile::tempdir().unwrap();

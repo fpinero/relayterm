@@ -230,6 +230,23 @@ enum HandoverCommand {
 #[derive(Subcommand)]
 enum SessionCommand {
     List(PageArgs),
+    ListOrdered {
+        #[arg(long)]
+        after_ordinal: Option<String>,
+        #[arg(long)]
+        after_session_id: Option<String>,
+        #[arg(long, default_value_t = 50)]
+        limit: u16,
+        #[arg(long)]
+        expected_revision: Option<String>,
+    },
+    Rename {
+        session_id: String,
+        #[arg(long)]
+        name: String,
+        #[arg(long)]
+        expected_revision: String,
+    },
     Create {
         /// Stable UUID used to inspect or retry an uncertain launch.
         #[arg(long)]
@@ -1115,6 +1132,40 @@ fn operation_and_params(command: &TopCommand) -> Result<(Operation, Value), CliE
         TopCommand::Session {
             command: SessionCommand::List(page),
         } => (Operation::SessionList, page_params(page)),
+        TopCommand::Session {
+            command:
+                SessionCommand::ListOrdered {
+                    after_ordinal,
+                    after_session_id,
+                    limit,
+                    expected_revision,
+                },
+        } => {
+            if after_ordinal.is_some() != after_session_id.is_some() {
+                return Err(CliError::Usage(
+                    "--after-ordinal and --after-session-id must be supplied together",
+                ));
+            }
+            (
+                Operation::SessionListOrdered,
+                json!({
+                    "after": after_ordinal.as_ref().zip(after_session_id.as_ref()).map(|(creation_ordinal, session_id)| json!({"creation_ordinal":creation_ordinal,"session_id":session_id})),
+                    "limit": limit,
+                    "expected_revision": expected_revision
+                }),
+            )
+        }
+        TopCommand::Session {
+            command:
+                SessionCommand::Rename {
+                    session_id,
+                    name,
+                    expected_revision,
+                },
+        } => (
+            Operation::SessionRename,
+            json!({"session_id":session_id,"display_name":name,"expected_revision":expected_revision}),
+        ),
         TopCommand::Session {
             command:
                 SessionCommand::Create {

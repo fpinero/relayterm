@@ -459,6 +459,8 @@ mod tests {
             last_sequence: 0,
             retained_from_sequence: 0,
             collections: BTreeMap::from([("instances".into(), instances)]),
+            ordered_sessions: false,
+            session_next: None,
         }
     }
 

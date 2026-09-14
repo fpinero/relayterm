@@ -170,6 +170,53 @@ pub trait DurableReadStore: Sync {
         workspace_id: WorkspaceId,
         request: IdPageRequest,
     ) -> impl Future<Output = Result<IdPage<AgentInstance>>> + Send;
+    fn session_page(
+        &self,
+        workspace_id: WorkspaceId,
+        request: SessionPageRequest,
+    ) -> impl Future<Output = Result<SessionPage>> + Send {
+        async move {
+            let snapshot = self.consistent_snapshot(workspace_id).await?;
+            if request
+                .expected_revision
+                .is_some_and(|value| value != snapshot.snapshot.revision())
+            {
+                return Err(Error::Conflict);
+            }
+            let state = snapshot.snapshot.state()?;
+            let mut items = state
+                .session_presentations()
+                .iter()
+                .map(|presentation| {
+                    let instance = state
+                        .instances()
+                        .iter()
+                        .find(|instance| {
+                            instance.record().session_id == presentation.record().session_id
+                        })
+                        .cloned()
+                        .ok_or(Error::Integrity)?;
+                    Ok(SessionSummary {
+                        instance,
+                        presentation: presentation.clone(),
+                    })
+                })
+                .collect::<Result<Vec<_>>>()?;
+            items.sort_by_key(SessionSummary::cursor);
+            if let Some(cursor) = request.after {
+                items.retain(|value| value.cursor() > cursor);
+            }
+            let has_more = items.len() > usize::from(request.limit);
+            items.truncate(usize::from(request.limit));
+            Ok(SessionPage {
+                revision: snapshot.snapshot.revision(),
+                last_sequence: snapshot.last_sequence,
+                retained_from_sequence: snapshot.retained_from_sequence,
+                items,
+                has_more,
+            })
+        }
+    }
     fn workspace_overview(
         &self,
         workspace_id: WorkspaceId,
@@ -244,6 +291,59 @@ pub struct IdPage<T> {
     pub last_sequence: u64,
     pub retained_from_sequence: u64,
     pub items: Vec<T>,
+    pub has_more: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct SessionPageCursor {
+    pub creation_ordinal: SessionCreationOrdinal,
+    pub session_id: TerminalSessionId,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SessionPageRequest {
+    pub after: Option<SessionPageCursor>,
+    pub limit: u16,
+    pub expected_revision: Option<u64>,
+}
+
+impl SessionPageRequest {
+    pub fn new(
+        after: Option<SessionPageCursor>,
+        limit: u16,
+        expected_revision: Option<u64>,
+    ) -> Result<Self> {
+        if limit == 0 || limit > 200 || expected_revision == Some(0) {
+            return Err(Error::Validation("page_limit"));
+        }
+        Ok(Self {
+            after,
+            limit,
+            expected_revision,
+        })
+    }
+}
+
+#[derive(Clone)]
+pub struct SessionSummary {
+    pub instance: AgentInstance,
+    pub presentation: SessionPresentation,
+}
+
+impl SessionSummary {
+    pub fn cursor(&self) -> SessionPageCursor {
+        SessionPageCursor {
+            creation_ordinal: self.presentation.record().creation_ordinal,
+            session_id: self.presentation.record().session_id,
+        }
+    }
+}
+
+pub struct SessionPage {
+    pub revision: u64,
+    pub last_sequence: u64,
+    pub retained_from_sequence: u64,
+    pub items: Vec<SessionSummary>,
     pub has_more: bool,
 }
 

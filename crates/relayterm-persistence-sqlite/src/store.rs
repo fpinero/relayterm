@@ -1,7 +1,8 @@
 use crate::{decode_counter, decode_timestamp, encode_counter, encode_timestamp, map_sqlx};
 use relayterm_application::{
     Committed, DurableReadStore, EventPage, EventPageRequest, IdPage, IdPageRequest, MutationScope,
-    Snapshot, Store, TaskHistoryEntry, TaskHistoryItem, TaskHistoryPage, TaskHistoryPageRequest,
+    SessionPage, SessionPageRequest, SessionSummary, Snapshot, Store, TaskHistoryEntry,
+    TaskHistoryItem, TaskHistoryPage, TaskHistoryPageRequest,
     Transaction as ApplicationTransaction, WatermarkedSnapshot, WriteBatch,
 };
 use relayterm_domain::*;
@@ -630,6 +631,21 @@ impl DurableReadStore for SqliteStore {
         let _ = sqlx::query("ROLLBACK").execute(&mut *connection).await;
         result
     }
+
+    async fn session_page(
+        &self,
+        workspace_id: WorkspaceId,
+        request: SessionPageRequest,
+    ) -> Result<SessionPage> {
+        let mut connection = self.pool.acquire().await.map_err(domain_storage)?;
+        sqlx::query("BEGIN")
+            .execute(&mut *connection)
+            .await
+            .map_err(domain_storage)?;
+        let result = load_session_page(&mut connection, workspace_id, request).await;
+        let _ = sqlx::query("ROLLBACK").execute(&mut *connection).await;
+        result
+    }
 }
 
 async fn page_metadata(
@@ -926,6 +942,64 @@ async fn load_instance_page(
         items.push(decode_instance(connection, row, workspace_id).await?);
     }
     Ok(IdPage {
+        revision,
+        last_sequence,
+        retained_from_sequence,
+        items,
+        has_more,
+    })
+}
+
+async fn load_session_page(
+    connection: &mut SqliteConnection,
+    workspace_id: WorkspaceId,
+    request: SessionPageRequest,
+) -> Result<SessionPage> {
+    let (revision, last_sequence, retained_from_sequence) =
+        page_metadata(connection, workspace_id, request.expected_revision).await?;
+    let rows = if let Some(after) = request.after {
+        sqlx::query("SELECT i.*,p.creation_ordinal,p.display_name FROM session_presentations p JOIN agent_instances i ON i.workspace_id=p.workspace_id AND i.session_id=p.session_id WHERE p.workspace_id=? AND (p.creation_ordinal>? OR (p.creation_ordinal=? AND p.session_id>?)) ORDER BY p.creation_ordinal,p.session_id LIMIT ?")
+            .bind(id_bytes(workspace_id.as_uuid()))
+            .bind(i64::try_from(after.creation_ordinal.value()).map_err(|_| Error::Storage)?)
+            .bind(i64::try_from(after.creation_ordinal.value()).map_err(|_| Error::Storage)?)
+            .bind(id_bytes(after.session_id.as_uuid()))
+            .bind(i64::from(request.limit) + 1)
+            .fetch_all(&mut *connection)
+            .await
+            .map_err(domain_storage)?
+    } else {
+        sqlx::query("SELECT i.*,p.creation_ordinal,p.display_name FROM session_presentations p JOIN agent_instances i ON i.workspace_id=p.workspace_id AND i.session_id=p.session_id WHERE p.workspace_id=? ORDER BY p.creation_ordinal,p.session_id LIMIT ?")
+            .bind(id_bytes(workspace_id.as_uuid()))
+            .bind(i64::from(request.limit) + 1)
+            .fetch_all(&mut *connection)
+            .await
+            .map_err(domain_storage)?
+    };
+    let has_more = rows.len() > usize::from(request.limit);
+    let mut items = Vec::with_capacity(rows.len().min(usize::from(request.limit)));
+    for row in rows.into_iter().take(usize::from(request.limit)) {
+        let session_id = session_id(
+            row.try_get::<Vec<u8>, _>("session_id")
+                .map_err(|_| Error::Storage)?,
+        )?;
+        let presentation = SessionPresentation::restore(SessionPresentationRecord {
+            workspace_id,
+            session_id,
+            creation_ordinal: SessionCreationOrdinal::new(
+                u64::try_from(
+                    row.try_get::<i64, _>("creation_ordinal")
+                        .map_err(|_| Error::Storage)?,
+                )
+                .map_err(|_| Error::Storage)?,
+            )?,
+            display_name: row.try_get("display_name").map_err(|_| Error::Storage)?,
+        })?;
+        items.push(SessionSummary {
+            instance: decode_instance(connection, row, workspace_id).await?,
+            presentation,
+        });
+    }
+    Ok(SessionPage {
         revision,
         last_sequence,
         retained_from_sequence,
