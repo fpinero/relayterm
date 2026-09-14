@@ -64,11 +64,16 @@ struct OuterTerminal {
     screen: Arc<Mutex<vt100::Parser>>,
 }
 
+fn rt_binary() -> OsString {
+    std::env::var_os("RELAYTERM_TEST_RT")
+        .unwrap_or_else(|| OsString::from(env!("CARGO_BIN_EXE_rt")))
+}
+
 impl OuterTerminal {
     fn spawn(root: &Path, private: &Path) -> Self {
         let environment = terminal_environment(approved_environment(&[], std::env::vars_os()));
         let session = NativeSession::spawn(SpawnRequest {
-            program: OsString::from(env!("CARGO_BIN_EXE_rt")),
+            program: rt_binary(),
             arguments: vec![
                 OsString::from("--workspace"),
                 root.as_os_str().to_owned(),
@@ -765,12 +770,13 @@ fn create_representative_workspace(root: &Path, private: &Path) {
         .build()
         .unwrap();
     runtime.block_on(async {
+        let binary = rt_binary();
         let route = relayterm_daemon::bootstrap(
             relayterm_daemon::BootstrapAction::Initialize,
             root,
             Some(private.to_owned()),
             Some("Representative workspace".into()),
-            Path::new(env!("CARGO_BIN_EXE_rt")),
+            Path::new(&binary),
             Duration::from_secs(15),
         )
         .await
@@ -914,7 +920,7 @@ fn admin(root: &Path, private: &Path, args: &[&str]) -> Value {
 }
 
 fn admin_output(root: &Path, private: &Path, args: &[&str]) -> std::process::Output {
-    Command::new(env!("CARGO_BIN_EXE_rt"))
+    Command::new(rt_binary())
         .arg("--workspace")
         .arg(root)
         .arg("--home")

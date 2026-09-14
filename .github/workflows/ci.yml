@@ -69,6 +69,21 @@ jobs:
           else
             python scripts/smoke_release.py release-package-a/relayterm-0.1.0-${{ matrix.target }}.tar.gz
           fi
+      - name: Extract reviewed release for TUI gate
+        shell: bash
+        run: |
+          if [[ "${{ matrix.target }}" == *windows* ]]; then
+            archive=release-package-a/relayterm-0.1.0-${{ matrix.target }}.zip
+            executable=rt.exe
+          else
+            archive=release-package-a/relayterm-0.1.0-${{ matrix.target }}.tar.gz
+            executable=rt
+          fi
+          python scripts/package_release.py extract "$archive" --output release-extracted
+          echo "RELAYTERM_TEST_RT=${{ github.workspace }}/release-extracted/relayterm-0.1.0-${{ matrix.target }}/$executable" >> "$GITHUB_ENV"
+      - name: Test TUI through extracted release
+        timeout-minutes: 10
+        run: cargo test -p relayterm-cli --test tui_gate --locked -- --nocapture --test-threads=1
 
   native:
     name: ${{ matrix.os }} / ${{ matrix.toolchain }}

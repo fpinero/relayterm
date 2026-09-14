@@ -334,6 +334,29 @@ def inspect_archive(path):
     print(json.dumps({"archive": path.name, "entries": sorted(members)}, sort_keys=True))
 
 
+def extract_archive(path, output):
+    output = output.resolve()
+    if output.exists() and (not output.is_dir() or any(output.iterdir())):
+        raise RuntimeError("the package output directory must be absent or empty")
+    inspect_archive(path)
+    output = ensure_empty_output(output)
+    if path.name.endswith(".tar.gz"):
+        with tarfile.open(path, "r:gz") as archive:
+            archive.extractall(output)
+    else:
+        with zipfile.ZipFile(path) as archive:
+            archive.extractall(output)
+    root = output / path.name.removesuffix(".tar.gz").removesuffix(".zip")
+    if not root.is_dir() or root.is_symlink():
+        raise RuntimeError("archive did not extract to its declared root")
+    if os.name != "nt":
+        executable = root / "rt"
+        installer = root / "install_release.sh"
+        executable.chmod(0o755)
+        installer.chmod(0o755)
+    print(json.dumps({"archive": path.name, "extracted": True}, sort_keys=True))
+
+
 def compare(first_path, second_path):
     first = read_json(first_path)
     second = read_json(second_path)
@@ -370,6 +393,9 @@ def parse_arguments():
     compare_parser = commands.add_parser("compare")
     compare_parser.add_argument("first", type=pathlib.Path)
     compare_parser.add_argument("second", type=pathlib.Path)
+    extract_parser = commands.add_parser("extract")
+    extract_parser.add_argument("archive", type=pathlib.Path)
+    extract_parser.add_argument("--output", required=True, type=pathlib.Path)
     return parser.parse_args()
 
 
@@ -380,8 +406,10 @@ def main():
             package(arguments.build, arguments.output)
         elif arguments.command == "inspect":
             inspect_archive(arguments.archive)
-        else:
+        elif arguments.command == "compare":
             compare(arguments.first, arguments.second)
+        else:
+            extract_archive(arguments.archive, arguments.output)
     except (OSError, RuntimeError, subprocess.CalledProcessError, KeyError, ValueError, json.JSONDecodeError, UnicodeDecodeError) as error:
         print(f"Release packaging failed: {error}", file=sys.stderr)
         return 1

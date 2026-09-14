@@ -53,6 +53,15 @@ class PackageReleaseTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 package_release.inspect_archive(path)
 
+    def test_extract_refuses_nonempty_destination(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = pathlib.Path(directory)
+            sentinel = output / "sentinel"
+            sentinel.write_text("keep", encoding="utf-8")
+            with self.assertRaises(RuntimeError):
+                package_release.extract_archive(output / "missing.tar.gz", output)
+            self.assertEqual(sentinel.read_text(encoding="utf-8"), "keep")
+
     def test_validate_build_rejects_modified_binary(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
