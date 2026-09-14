@@ -368,7 +368,7 @@ impl Git {
             .stdout(Stdio::null())
             .stderr(Stdio::null());
         let mut child = spawn_managed(command).map_err(map_spawn)?;
-        wait_bounded(&mut child, self.read_timeout)?
+        wait_bounded_and_terminate(&mut child, self.read_timeout)?
             .code()
             .ok_or_else(|| Error::new(ErrorKind::CommandFailed))
     }
@@ -384,7 +384,7 @@ impl Git {
             .stdout(Stdio::null())
             .stderr(Stdio::null());
         let mut child = spawn_managed(command).map_err(map_spawn)?;
-        if wait_bounded(&mut child, timeout)?.success() {
+        if wait_bounded_and_terminate(&mut child, timeout)?.success() {
             Ok(())
         } else {
             Err(Error::new(ErrorKind::CommandFailed))
@@ -495,6 +495,13 @@ fn terminate_process_group(raw_pid: u32) {
 
 #[cfg(windows)]
 fn terminate_process_group(_: u32) {}
+
+fn wait_bounded_and_terminate(child: &mut ManagedChild, timeout: Duration) -> Result<ExitStatus> {
+    let process_group = child_id(child);
+    let status = wait_bounded(child, timeout);
+    terminate_process_group(process_group);
+    status
+}
 
 #[cfg(not(windows))]
 type ManagedChild = Child;
@@ -1554,6 +1561,33 @@ mod tests {
         assert!(started.elapsed() < Duration::from_secs(2));
         thread::sleep(Duration::from_millis(400));
         assert!(!directory.path().join("git-fixture.marker").exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    #[ignore = "runs as an isolated native process-tree gate"]
+    fn completed_git_quiet_helpers_terminate_descendants() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        for helper in ["status", "quiet"] {
+            let executable = directory.path().join(format!("git-{helper}-fixture"));
+            std::fs::write(
+                &executable,
+                "#!/bin/sh\n(sleep 0.2; touch \"${0}.marker\") &\ndescendant=$!\nkill -0 \"${descendant}\"\nexit 0\n",
+            )
+            .unwrap();
+            std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o700)).unwrap();
+            let git = Git::with_executable(executable.clone());
+            if helper == "status" {
+                assert_eq!(git.run_status(directory.path(), ["ignored"]).unwrap(), 0);
+            } else {
+                git.run_quiet(directory.path(), ["ignored"], Duration::from_secs(2))
+                    .unwrap();
+            }
+            thread::sleep(Duration::from_millis(400));
+            assert!(!executable.with_extension("marker").exists());
+        }
     }
 
     #[cfg(windows)]
