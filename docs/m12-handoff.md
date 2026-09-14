@@ -6,25 +6,15 @@ M11 implementation was merged through PR #22 at `dc5b2e6067d50345828ac1758580294
 
 The sole maintainer approved delivery with assistant-assisted technical review. External human review is optional unless explicitly requested for a specific change. Do not impersonate an independent reviewer, require an alternate owner account, or add an external approval gate by inference. Preserve all technical acceptance and security controls.
 
-## Authorized next planning scope
+## Implementation starting point
 
-Start with M12.01 in [the pending queue](../TODO.md). Read project instructions, the vision, specification, supported platforms, backup and restore guide, and current CLI behavior. Check the branch and preserve local changes. Create a feature branch before implementation.
+Follow [M12_details.md](M12_details.md) and the atomic pending queue in [TODO](../TODO.md), beginning at M12.00a. The owner has scheduled all five usability proposals at the beginning of M12: editable session names, predictable session order, visible form cursor, actionable concurrent-edit guidance, and inline competing-input guidance. They do not reopen M11 acceptance.
 
-Plan and verify the seven M12 tasks in order:
+The detailed plan defines 37 atomic outcomes across M12.00 through M12.07, including persistence and protocol compatibility, bounded ordered paging, safe UI behavior, native artifacts, collision-safe installation, quick start, upgrade/rollback, evidence and local release handoff. Read repository instructions and inspect the actual source before implementing. Preserve unrelated local files and work on a feature or fix branch.
 
-1. Define supported release targets and reproducible builds for `rt` or `rt.exe`, with license notices and checksums. Verify execution without an undeclared build toolchain requirement.
-2. Document and test installation and PATH, including an existing unrelated `rt` command without overwriting it.
-3. Execute the published quick start from clean environments using synthetic agents and no hosted account.
-4. Verify upgrade, compatibility, backup, restore, shutdown, and recovery guidance.
-5. Reconcile public documentation and obtain maintainer decisions for release governance and publication.
-6. Reconcile all applicable acceptance evidence, including new clean-installation and quick-start results on Linux, macOS, and Windows.
-7. Prepare local release notes and an artifact inventory for the maintainer's publishing decision.
+Reuse candidate-mapped M11 manual evidence after reviewing changes. Repeat affected behavior and the new installation/release scenarios. Do not replace required new evidence with older results. Keep automated checks distinct from manual observations, retain fixed budgets and failed observations, and do not claim a completed release before its gate passes.
 
-Reuse candidate-mapped M11 manual evidence after reviewing changes. Repeat only affected behavior and the new installation/release scenarios; do not replace required new evidence with older results. Keep automated checks distinct from manual observations. Do not weaken budgets, silently relabel failures, or claim a completed release before its gate passes.
-
-## Retained follow-ups and limitations
-
-The TODO queue retains UX-FORM-CURSOR, UX-CONFLICT-MESSAGE, UX-INPUT-ACQUIRE-MESSAGE, UX-SESSION-NAMES, and UX-SESSION-ORDER. They are non-blocking proposals, not silently added M12 requirements. If scheduled, define scope and verify affected behavior.
+## Retained limitations and delivery boundary
 
 The two supplemental local Windows throughput misses remain documented. The reference macOS environment and all hosted native budgets passed. This does not establish universal performance on every machine.
 
