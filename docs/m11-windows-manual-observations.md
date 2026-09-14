@@ -1,6 +1,6 @@
 # M11 Windows manual review
 
-Status: Complete for MAN-WIN-1, MAN-WIN-2, and MAN-WIN-3. M11 remains open for final acceptance, risk, and budget reconciliation, PR review, merge, and post-merge CI.
+Status: Complete for MAN-WIN-1, MAN-WIN-2, and MAN-WIN-3. Final acceptance, risk, and budget reconciliation is recorded in the [M11 final technical review](m11-final-review.md). Independent PR review, merge, main synchronization, and post-merge CI remain open.
 
 The observations were performed from 2026-09-12 through 2026-09-13 UTC. The repository maintainer operated the native terminals while the assistant supplied one action at a time and performed separate read-only administrative checks. All workspaces, titles, markers, and identifiers were synthetic. Private account names, hostnames, absolute profile paths, credentials, and screenshot locations are omitted.
 

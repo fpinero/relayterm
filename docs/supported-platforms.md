@@ -164,21 +164,21 @@ Earlier Windows candidates exposed an oversized domain command on the MSVC ABI, 
 
 ## M11 automated hardening evidence
 
-Candidate `a5039d692744d1e6df5fbeb880fdb151dd3c8573` passed [Quality run 34427165877](https://github.com/fpinero/relayterm/actions/runs/34427165877) and [Security run 34427165842](https://github.com/fpinero/relayterm/actions/runs/34427165842) on 2026-09-10. All native stable jobs used Rust 1.98.1. Linux and macOS used Git 2.55.0; Windows used Git 2.55.0.windows.5. The pinned Linux Rust 1.98.1 job also passed formatting, checks, Clippy, inherited runtime tests, the full workspace suite, core-only tests, build and repository controls.
+Candidate `d6efd7f1370c6e98aa558b1014494aa1ed61c6d3` passed [Quality run 34825227119](https://github.com/fpinero/relayterm/actions/runs/34825227119) and [Security run 34825227292](https://github.com/fpinero/relayterm/actions/runs/34825227292) on 2026-09-14. All native stable jobs used Rust 1.98.1. Linux and macOS used Git 2.55.0; Windows used Git 2.55.0.windows.5. The pinned Linux Rust 1.98.1 job also passed formatting, checks, Clippy, inherited runtime tests, the full workspace suite, core-only tests, build and repository controls.
 
 Each stable job passed two independently reported repetitions of the integrated M11 TUI and worktree journey, protocol faults, abrupt SQLite rollback, Git cancellation, Git descendant containment, 10,000-task and 100,000-progress durable scale, credential-free offline runtime and sustained resource workload. It also passed private backup and restore with a copied `rt` binary outside the source tree. Security passed dependency, advisory, license, ban, source and secret controls.
 
 | Runner | Integrated journey, ms | Durable query p95, ms | Daemon maximum RSS or working set | TUI maximum RSS or working set | Handle delta | Output bytes/s | Result |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| ubuntu-24.04 | 2,324 / 2,342 | 3 / 3 | 347,664,384 / 347,504,640 bytes | 21,721,088 / 21,921,792 bytes | 0 / +1 | 4,024,302 / 4,031,079 | Passed |
-| macos-14 | 9,988 / 9,123 | 2 / 6 | 431,734,784 / 427,950,080 bytes | 19,202,048 / 18,251,776 bytes | 0 / 0 | 4,319,146 / 4,505,957 | Passed |
-| windows-2022 | 8,778 / 8,673 | 3 / 3 | 373,493,760 / 375,021,568 bytes | 22,294,528 / 22,298,624 bytes | +2 / 0 | 2,717,803 / 2,716,704 | Passed |
+| ubuntu-24.04 | 2,304 / 2,363 | 4 / 3 | 348,135,424 / 347,222,016 bytes | 21,798,912 / 21,794,816 bytes | +1 / 0 | 4,253,264 / 4,235,753 | Passed |
+| macos-14 | 9,380 / 7,975 | 2 / 4 | 436,649,984 / 441,565,184 bytes | 18,006,016 / 17,498,112 bytes | 0 / +2 | 4,827,924 / 4,865,431 | Passed |
+| windows-2022 | 7,229 / 7,153 | 2 / 2 | 376,545,280 / 372,883,456 bytes | 22,102,016 / 22,265,856 bytes | +5 / 0 | 3,434,472 / 3,457,845 | Passed |
 
 All daemon and TUI samples remained under the declared 512 MiB limit. Every final steady-state median stayed within 32 MiB of its first median, all handle deltas stayed within 16, and every fixture sustained more than 2 MiB/s. Fixture-child memory was measured separately. Exact per-pass values, latency observations and acceptance mappings are recorded in `docs/acceptance-matrix.md`.
 
 The offline gate validated its process monitor with a synthetic loopback listener before observing the real daemon and synthetic child. It then completed local Git worktree creation, native IPC, real PTY or ConPTY launch, repeated client connections, live backup and fresh-home restore without finding a product TCP or UDP endpoint. This is product runtime evidence. Dependency fetching, user-configured child networking and SSH transport remain separate.
 
-Hosted automation does not identify behavior in a graphical terminal application and does not exercise an operator-controlled SSH connection. Separate operator-controlled observations now cover the mandatory local xterm-compatible, Terminal.app, Windows Terminal, and OpenSSH rows. M11 remains open for final acceptance, risk, and budget reconciliation, PR review, merge, and post-merge CI.
+Hosted automation does not identify behavior in a graphical terminal application and does not exercise an operator-controlled SSH connection. Separate operator-controlled observations cover the mandatory local xterm-compatible, Terminal.app, Windows Terminal, and OpenSSH rows. The [M11 final technical review](m11-final-review.md) closes acceptance, risk, budget, and manual reconciliation. Independent PR review, merge, main synchronization, post-merge CI, and the M12 handoff remain open.
 
 ## Manual shell and terminal matrix
 

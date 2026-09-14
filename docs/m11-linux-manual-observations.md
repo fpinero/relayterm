@@ -1,6 +1,6 @@
 # M11 Linux manual review
 
-Status: Complete for MAN-LNX-1, MAN-LNX-2, and MAN-LNX-3. M11 remains open for final acceptance, risk, and budget reconciliation, PR review, merge, and post-merge CI.
+Status: Complete for MAN-LNX-1, MAN-LNX-2, and MAN-LNX-3. Final acceptance, risk, and budget reconciliation is recorded in the [M11 final technical review](m11-final-review.md). Independent PR review, merge, main synchronization, and post-merge CI remain open.
 
 The observations were performed on 2026-09-13 UTC. The repository maintainer operated the native terminals while the assistant supplied one action at a time and performed separate read-only administrative checks. All workspaces, titles, markers, keys, and identifiers were synthetic. Local account names, hostnames, credentials, private project paths, raw terminal transcripts, and screenshot locations are omitted.
 

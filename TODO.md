@@ -38,7 +38,6 @@ Execution contract: [M11 detailed plan](docs/M11_details.md). Add its 50 atomic 
 - M11.10: Verify the hardening gate with passing cross-platform builds, formatting, linting, unit/integration/end-to-end tests, scans, and all behavior AC evidence. Carry only installation/release-specific checks into M12; do not declare the MVP complete yet.
 
 ### M11 atomic execution queue
-- M11.10d: Reconcile all acceptance, risk, budget, and manual evidence.
 - M11.10e: Create coherent commits and the authorized implementation PR.
 - M11.10f: Merge only verified M11 and synchronize main.
 - M11.10g: Monitor post-merge CI and hand off M12 without implementing it.
