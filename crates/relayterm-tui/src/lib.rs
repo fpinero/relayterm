@@ -495,21 +495,21 @@ fn release_input_chord(key: KeyEvent) -> bool {
 
 async fn handle_form_key(client: &Client, app: &mut App, key: KeyEvent) {
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('r') {
-        if let Err(error) = refresh(client, app).await {
-            app.record_client_error(error);
-        } else if let Some(form) = app.form.as_mut() {
-            form.uncertain = false;
-            form.error =
-                Some("State refreshed. Review the draft before an explicit resubmission.".into());
-        }
+        review_or_reconcile_form(client, app).await;
         return;
     }
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('s') {
-        if app.form.as_ref().is_some_and(|form| form.uncertain) {
+        if app
+            .form
+            .as_ref()
+            .is_some_and(|form| form.uncertain || form.stale || form.reviewing)
+        {
             if let Some(form) = app.form.as_mut() {
-                form.error = Some(
-                    "Result is uncertain. Press Ctrl-R and review before resubmitting.".into(),
-                );
+                form.error = Some(if form.stale {
+                    "The workspace changed while you were editing. Your draft is kept. Review the latest state before submitting again, or press Esc to discard.".into()
+                } else {
+                    "The result is uncertain. Press Ctrl-R to load the authoritative state before deciding whether to submit again.".into()
+                });
             }
             return;
         }
@@ -520,6 +520,12 @@ async fn handle_form_key(client: &Client, app: &mut App, key: KeyEvent) {
         return;
     };
     if form.pending {
+        return;
+    }
+    if form.reviewing {
+        if key.code == KeyCode::Esc {
+            app.confirm_discard = true;
+        }
         return;
     }
     match key.code {
@@ -586,6 +592,43 @@ async fn handle_form_key(client: &Client, app: &mut App, key: KeyEvent) {
             push_form(form, character)
         }
         _ => {}
+    }
+}
+
+async fn review_or_reconcile_form(client: &Client, app: &mut App) {
+    let Some(mut form) = app.form.take() else {
+        return;
+    };
+    if form.reviewing {
+        adopt_reviewed_revision(&mut form);
+        app.form = Some(form);
+        return;
+    }
+    if let Err(error) = refresh(client, app).await {
+        app.record_client_error(error);
+    } else if form.uncertain || form.stale {
+        form.reviewing = true;
+        form.reviewed_revision = Some(app.last_revision.clone());
+        form.error = Some(
+            "Review the latest state. Press Ctrl-R again to adopt this revision, or Esc to discard the draft."
+                .into(),
+        );
+    } else {
+        form.error = Some("State refreshed. The draft revision was not changed.".into());
+    }
+    app.form = Some(form);
+}
+
+fn adopt_reviewed_revision(form: &mut Form) {
+    if let Some(revision) = form.reviewed_revision.take() {
+        form.base_revision = revision;
+        form.uncertain = false;
+        form.stale = false;
+        form.reviewing = false;
+        form.error = Some(
+            "The reviewed revision is now selected. Ctrl-S performs a new explicit submission."
+                .into(),
+        );
     }
 }
 
@@ -880,18 +923,33 @@ async fn submit_form(client: &Client, app: &mut App) {
         }
         Err(error) => {
             form.pending = false;
-            form.uncertain = matches!(
-                error,
-                ClientError::Transport(Delivery::Unknown)
-                    | ClientError::Cancelled(Delivery::Unknown)
-                    | ClientError::Rejected(ErrorCode::ResultUnknown)
-            );
-            form.error = Some(error.to_string());
+            classify_form_failure(&mut form, error);
             app.record_client_error(error);
-            let _ = refresh(client, app).await;
+            if !form.stale && !form.uncertain {
+                let _ = refresh(client, app).await;
+            }
             app.form = Some(form);
         }
     }
+}
+
+fn classify_form_failure(form: &mut Form, error: ClientError) {
+    form.uncertain = matches!(
+        error,
+        ClientError::Transport(Delivery::Unknown)
+            | ClientError::Cancelled(Delivery::Unknown)
+            | ClientError::Rejected(ErrorCode::ResultUnknown)
+    );
+    form.stale = matches!(error, ClientError::Rejected(ErrorCode::StaleRevision));
+    form.reviewing = false;
+    form.reviewed_revision = None;
+    form.error = Some(if form.stale {
+        "The workspace changed while you were editing. Your draft is kept. Review the latest state before submitting again, or press Esc to discard.".into()
+    } else if form.uncertain {
+        "The result is uncertain. Press Ctrl-R to load the authoritative state before deciding whether to submit again.".into()
+    } else {
+        error.to_string()
+    });
 }
 
 fn form_params(_app: &App, form: &Form, task_id: &str) -> Result<(Operation, Value), String> {
@@ -1516,10 +1574,26 @@ async fn acquire_input(client: &Client, app: &mut App) {
                     .map(str::to_owned);
                 terminal.input_sequence = 1;
                 terminal.input_focus = terminal.lease_id.is_some();
+                terminal.input_owned_elsewhere = false;
             }
+        }
+        Err(ClientError::Rejected(ErrorCode::InputOwned)) => {
+            if let Some(terminal) = app.terminal.as_mut() {
+                mark_input_owned_elsewhere(terminal);
+            }
+            app.add_diagnostic(
+                "input_owned",
+                "Another client controls input. This view remains read-only. Try i after that client releases input.",
+            );
         }
         Err(error) => app.record_client_error(error),
     }
+}
+
+fn mark_input_owned_elsewhere(terminal: &mut model::TerminalView) {
+    terminal.lease_id = None;
+    terminal.input_focus = false;
+    terminal.input_owned_elsewhere = true;
 }
 
 async fn release_input(client: &Client, app: &mut App) {
@@ -1612,12 +1686,14 @@ fn release_error_invalidates_lease(error: ClientError) -> bool {
 fn preserve_uncertain_input(terminal: &mut model::TerminalView) {
     terminal.input_focus = false;
     terminal.uncertain_input = true;
+    terminal.input_owned_elsewhere = false;
 }
 
 fn confirm_input_release(terminal: &mut model::TerminalView) {
     terminal.lease_id = None;
     terminal.input_focus = false;
     terminal.uncertain_input = false;
+    terminal.input_owned_elsewhere = false;
 }
 
 async fn reconcile_uncertain_input(client: &Client, app: &mut App) -> Result<(), ClientError> {
@@ -1694,6 +1770,9 @@ fn confirm_termination(app: &mut App) {
         )),
         pending: false,
         uncertain: false,
+        stale: false,
+        reviewing: false,
+        reviewed_revision: None,
         target_id: Some(session_id),
         base_revision: app.last_revision.clone(),
     });
@@ -2024,5 +2103,56 @@ mod tests {
         assert_eq!(params["session_id"], "00000000-0000-4000-8000-000000000801");
         assert_eq!(params["expected_revision"], "27");
         assert_eq!(params["display_name"], "duplicate");
+    }
+
+    #[test]
+    fn stale_and_uncertain_form_results_preserve_draft_and_remain_distinct() {
+        let mut stale = Form::session_rename("draft 界");
+        stale.base_revision = "12".into();
+        let cursor = stale.fields[0].cursor;
+        classify_form_failure(&mut stale, ClientError::Rejected(ErrorCode::StaleRevision));
+        assert!(stale.stale);
+        assert!(!stale.uncertain);
+        assert_eq!(stale.fields[0].value, "draft 界");
+        assert_eq!(stale.fields[0].cursor, cursor);
+        assert_eq!(stale.base_revision, "12");
+        assert_eq!(
+            stale.error.as_deref(),
+            Some(
+                "The workspace changed while you were editing. Your draft is kept. Review the latest state before submitting again, or press Esc to discard."
+            )
+        );
+        stale.reviewing = true;
+        stale.reviewed_revision = Some("19".into());
+        adopt_reviewed_revision(&mut stale);
+        assert_eq!(stale.base_revision, "19");
+        assert!(!stale.stale && !stale.reviewing);
+        assert_eq!(stale.fields[0].value, "draft 界");
+        assert_eq!(stale.fields[0].cursor, cursor);
+
+        let mut uncertain = Form::session_rename("unknown");
+        classify_form_failure(&mut uncertain, ClientError::Transport(Delivery::Unknown));
+        assert!(uncertain.uncertain);
+        assert!(!uncertain.stale);
+        assert!(uncertain.error.as_deref().unwrap().contains("uncertain"));
+    }
+
+    #[test]
+    fn competing_input_marks_only_the_rejected_reader() {
+        let owner = model::TerminalView {
+            lease_id: Some("owner-lease".into()),
+            input_focus: true,
+            ..model::TerminalView::default()
+        };
+        let mut reader = model::TerminalView::default();
+        mark_input_owned_elsewhere(&mut reader);
+
+        assert_eq!(owner.lease_id.as_deref(), Some("owner-lease"));
+        assert!(owner.input_focus);
+        assert!(reader.lease_id.is_none());
+        assert!(!reader.input_focus);
+        assert!(reader.input_owned_elsewhere);
+        confirm_input_release(&mut reader);
+        assert!(!reader.input_owned_elsewhere);
     }
 }

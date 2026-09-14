@@ -46,7 +46,9 @@ pub fn draw(frame: &mut Frame<'_>, app: &App) {
         Screen::Events => draw_events(frame, app, rows[1]),
         Screen::Help => draw_help(frame, rows[1]),
     }
-    let status = if app
+    let status = if app.form.as_ref().is_some_and(|form| form.reviewing) {
+        "Reviewing latest state: Ctrl-R adopt revision, Esc discard draft"
+    } else if app
         .terminal
         .as_ref()
         .is_some_and(|terminal| terminal.input_focus)
@@ -56,7 +58,9 @@ pub fn draw(frame: &mut Frame<'_>, app: &App) {
         "Tab/1-6 screen  j/k move  Enter open  ? help  q exit"
     };
     frame.render_widget(Paragraph::new(status), rows[2]);
-    if let Some(form) = &app.form {
+    if let Some(form) = &app.form
+        && !form.reviewing
+    {
         draw_form(
             frame,
             form,
@@ -320,15 +324,7 @@ fn actor_label(value: Option<&Value>) -> &'static str {
 
 fn draw_sessions(frame: &mut Frame<'_>, app: &App, area: Rect) {
     if let Some(terminal) = &app.terminal {
-        draw_terminal(
-            frame,
-            terminal.snapshot.as_ref(),
-            area,
-            terminal.input_focus,
-            terminal.lease_id.is_some(),
-            terminal.uncertain_input,
-            terminal.scrollback_rows,
-        );
+        draw_terminal(frame, terminal, area);
         return;
     }
     let rows = app.session_rows();
@@ -406,15 +402,21 @@ fn draw_sessions(frame: &mut Frame<'_>, app: &App, area: Rect) {
     );
 }
 
-fn draw_terminal(
-    frame: &mut Frame<'_>,
-    snapshot: Option<&Value>,
-    area: Rect,
-    input: bool,
-    writer: bool,
-    uncertain_input: bool,
-    scrollback_rows: u16,
-) {
+fn draw_terminal(frame: &mut Frame<'_>, terminal: &crate::model::TerminalView, area: Rect) {
+    let input = terminal.input_focus;
+    let writer = terminal.lease_id.is_some();
+    let uncertain_input = terminal.uncertain_input;
+    let input_owned_elsewhere = terminal.input_owned_elsewhere;
+    let scrollback_rows = terminal.scrollback_rows;
+    let split = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(if input_owned_elsewhere {
+            vec![Constraint::Min(3), Constraint::Length(3)]
+        } else {
+            vec![Constraint::Min(3), Constraint::Length(0)]
+        })
+        .split(area);
+    let area = split[0];
     let title = format!(
         "Terminal [{}] [{}]{}{}",
         if input { "INPUT" } else { "NAVIGATION" },
@@ -433,7 +435,7 @@ fn draw_terminal(
     let block = Block::default().borders(Borders::ALL).title(title);
     let inner = block.inner(area);
     frame.render_widget(block, area);
-    let Some(snapshot) = snapshot else {
+    let Some(snapshot) = terminal.snapshot.as_ref() else {
         frame.render_widget(Paragraph::new("Attaching..."), inner);
         return;
     };
@@ -489,6 +491,15 @@ fn draw_terminal(
         if row < inner.height && column < inner.width {
             frame.set_cursor_position((inner.x + column, inner.y + row));
         }
+    }
+    if input_owned_elsewhere {
+        frame.render_widget(
+            Paragraph::new(
+                "Another client controls input. This view remains read-only. Try i after that client releases input.",
+            )
+            .wrap(Wrap { trim: true }),
+            split[1],
+        );
     }
 }
 
@@ -653,7 +664,7 @@ fn draw_events(frame: &mut Frame<'_>, app: &App, area: Rect) {
 }
 
 fn draw_help(frame: &mut Frame<'_>, area: Rect) {
-    let help = "Global\n  1-6 / Tab: change screen   ?: help   q: quit   R: reconnect\n  j/k or arrows: move selection   Enter: open\n\nTasks\n  n: create   e: edit   r: ready/release   c: claim\n  b: block   d: complete   x: cancel   p: progress   h: handover\n  w: create worktree   o: select next owned worktree   u: clear selection\n  a: launch shell for selected task   PageUp/PageDown: task history\n\nAgents\n  n: custom   e: edit   Space: enable/disable   v: availability   a: launch\n  [ / ]: select template   p: copy selected template into a new editable definition\n\nSessions\n  s: launch shell   a: launch selected definition   Enter: attach   n: rename\n  PageUp/PageDown: session pages, or terminal history while attached\n  i: acquire input   Ctrl-]: return to navigation   Esc: detach   t: terminate\n\nForms\n  Tab/Shift-Tab: field   Ctrl-U: clear field   Ctrl-S: submit   Esc: cancel\n  Ctrl-R: reconcile an uncertain result before explicit resubmission.\n  Enter adds a newline only in multiline fields.\n\nRelayterm does not terminate sessions when the client quits.";
+    let help = "Global\n  1-6 / Tab: change screen   ?: help   q: quit   R: reconnect\n  j/k or arrows: move selection   Enter: open\n\nTasks\n  n: create   e: edit   r: ready/release   c: claim\n  b: block   d: complete   x: cancel   p: progress   h: handover\n  w: create worktree   o: select next owned worktree   u: clear selection\n  a: launch shell for selected task   PageUp/PageDown: task history\n\nAgents\n  n: custom   e: edit   Space: enable/disable   v: availability   a: launch\n  [ / ]: select template   p: copy selected template into a new editable definition\n\nSessions\n  s: launch shell   a: launch selected definition   Enter: attach   n: rename\n  PageUp/PageDown: session pages, or terminal history while attached\n  i: acquire input   Ctrl-]: return to navigation   Esc: detach   t: terminate\n\nForms\n  Tab/Shift-Tab: field   Ctrl-U: clear field   Ctrl-S: submit   Esc: cancel\n  Ctrl-R: load authoritative state, then press again to adopt its revision.\n  Enter adds a newline only in multiline fields.\n\nRelayterm does not terminate sessions when the client quits.";
     frame.render_widget(
         Paragraph::new(help).wrap(Wrap { trim: false }).block(
             Block::default()

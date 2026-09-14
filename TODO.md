@@ -36,8 +36,6 @@ Outcome: a reproducible candidate with usable session identification and editing
 Execution contract: [M12 detailed plan](docs/M12_details.md). Start at M12.00a. The five usability proposals are scheduled here and do not reopen M11 acceptance.
 
 - M12.00: Complete UX-SESSION-NAMES, UX-SESSION-ORDER, UX-FORM-CURSOR, UX-CONFLICT-MESSAGE, and UX-INPUT-ACQUIRE-MESSAGE before freezing release artifacts. Preserve durable identity, bounded state, typed error semantics, and read-only input ownership.
-  - M12.00f: Add precise stale-form feedback and explicit reconciliation. Completion proof: Two-client conflict preserves winner/draft; unknown outcome remains distinct and never replays.
-  - M12.00g: Add inline competing-input feedback with safe fallback. Completion proof: Owner retains lease, rejected reader stays read-only, subsequent explicit acquisition works.
   - M12.00h: Verify consolidated usability changes and update help/privacy/compatibility. Completion proof: Targeted native/manual matrix and affected SSH coverage recorded; unaffected M11 evidence mapped.
 
 - M12.01: Define and document supported release targets and reproducible release-build commands producing `rt` or `rt.exe`. Build candidate artifacts with license notices and checksums; verify fresh-machine execution without an undeclared runtime toolchain dependency.

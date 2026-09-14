@@ -98,6 +98,9 @@ pub struct Form {
     pub error: Option<String>,
     pub pending: bool,
     pub uncertain: bool,
+    pub stale: bool,
+    pub reviewing: bool,
+    pub reviewed_revision: Option<String>,
     pub target_id: Option<String>,
     pub base_revision: String,
 }
@@ -119,6 +122,9 @@ impl Form {
             error: None,
             pending: false,
             uncertain: false,
+            stale: false,
+            reviewing: false,
+            reviewed_revision: None,
             target_id: None,
             base_revision: String::new(),
         }
@@ -144,6 +150,9 @@ impl Form {
             error: None,
             pending: false,
             uncertain: false,
+            stale: false,
+            reviewing: false,
+            reviewed_revision: None,
             target_id: None,
             base_revision: String::new(),
         }
@@ -161,6 +170,9 @@ impl Form {
             error: None,
             pending: false,
             uncertain: false,
+            stale: false,
+            reviewing: false,
+            reviewed_revision: None,
             target_id: None,
             base_revision: String::new(),
         }
@@ -182,6 +194,9 @@ impl Form {
             error: None,
             pending: false,
             uncertain: false,
+            stale: false,
+            reviewing: false,
+            reviewed_revision: None,
             target_id: None,
             base_revision: String::new(),
         }
@@ -202,6 +217,9 @@ impl Form {
             error: None,
             pending: false,
             uncertain: false,
+            stale: false,
+            reviewing: false,
+            reviewed_revision: None,
             target_id: None,
             base_revision: String::new(),
         }
@@ -219,6 +237,9 @@ impl Form {
             error: None,
             pending: false,
             uncertain: false,
+            stale: false,
+            reviewing: false,
+            reviewed_revision: None,
             target_id: None,
             base_revision: String::new(),
         }
@@ -255,6 +276,7 @@ pub struct TerminalView {
     pub snapshot: Option<Value>,
     pub input_focus: bool,
     pub uncertain_input: bool,
+    pub input_owned_elsewhere: bool,
     pub scrollback_rows: u16,
     pub retained_scrollback_rows: u16,
 }

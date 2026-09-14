@@ -271,12 +271,34 @@ fn input_ownership_moves_between_open_tui_clients() {
     register_fixture(&root, &private);
     owner.send(b"R4a3");
     wait_for_session_count(&root, &private, 1);
-    owner.send(b"\ri");
-    owner.wait_for("WRITER");
     let mut observer = OuterTerminal::spawn(&root, &private);
     observer.finish_startup();
-    observer.send(b"3\ri5");
-    observer.wait_for("rejected");
+    observer.send(b"3");
+    owner.send(b"nLosing draft");
+    owner.wait_for("Losing draft");
+    observer.send(b"nWinning name\x13");
+    observer.wait_for("Winning name");
+    owner.send(b"\x13");
+    owner.wait_for("workspace changed while you were editing");
+    owner.wait_for("Losing draft");
+    let renamed = admin(&root, &private, &["session", "list-ordered"]);
+    assert_eq!(
+        renamed["result"]["items"][0]["display_name"],
+        "Winning name"
+    );
+    owner.send(b"\x12");
+    owner.wait_for("Reviewing latest state");
+    owner.wait_for("Winning name");
+    owner.send(b"\x12");
+    owner.wait_for("Losing draft");
+    owner.send(b"\x1b");
+    owner.wait_for("Discard draft?");
+    owner.send(b"y");
+    owner.wait_for("Sessions selected");
+    owner.send(b"\ri");
+    owner.wait_for("WRITER");
+    observer.send(b"\ri5");
+    observer.wait_for("Another client controls input");
     observer.send(b"3");
     observer.wait_for("READ ONLY");
     owner.send(&[0x1d]);
