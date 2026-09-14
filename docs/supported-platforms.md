@@ -184,7 +184,7 @@ Hosted automation does not identify behavior in a graphical terminal application
 
 M12 changes session presentation, ordered paging, all form cursor geometry, stale-form review, and competing-input feedback. The [focused verification procedure](m12-usability-verification.md) defines the affected automated and manual scope and maps unaffected M11 evidence. Native macOS automated TUI and protocol scenarios pass locally. Final candidate CI, consolidated human observations on Linux, macOS and Windows, and one focused SSH observation remain pending. No M12 cross-platform or release-candidate conclusion is claimed yet.
 
-The initial release targets, tested runtime floors, build inputs, package inventory, and current evidence boundaries are defined in the [release build contract](release-builds.md). The macOS arm64 prototype release recipe produced identical binaries twice and passed its extracted daemon and PTY smoke. Linux and Windows release artifacts, all final installed workflows, and the consolidated manual usability rows remain pending.
+The initial release targets, tested runtime floors, build inputs, package inventory, and current evidence boundaries are defined in the [release build contract](release-builds.md). The macOS arm64 candidate source `df1b02d` produced identical binaries and archives twice, passed exact inventory inspection, and passed its extracted daemon and PTY smoke. Its collision-safe POSIX installation also preserved an unrelated sentinel. Linux and Windows release artifacts, all final installed interactive workflows, and the consolidated manual usability rows remain pending.
 
 ## Manual shell and terminal matrix
 

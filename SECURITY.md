@@ -4,7 +4,7 @@ Relayterm has a hardened local MVP candidate and has no published supported prod
 
 ## Private reporting
 
-GitHub Private vulnerability reporting is enabled for this repository. The enabled setting and the public reporting entry point were verified on 2026-09-05.
+GitHub Private vulnerability reporting is enabled for this repository. The enabled setting was confirmed through the read-only GitHub API on 2026-09-14; the public reporting entry point was previously verified on 2026-09-05.
 
 Open this repository's Security tab, select Advisories, and choose Report a vulnerability. Do not put vulnerabilities, credentials, or sensitive reproduction material in public issues. If the private entry point becomes unavailable, do not submit sensitive details publicly; a public request to restore private reporting should contain no vulnerability details.
 

@@ -59,7 +59,7 @@ After dependencies are fetched explicitly, repeat with Cargo offline. Record `ru
 
 Build twice from separate clean checkouts and separate target directories with identical declared inputs. Compare binary and normalized archive SHA-256 values. Equal hashes prove byte identity only for those two observed builds. Different hashes require inspection and an exact explanation; a usable repeatable recipe alone is not a byte-reproducibility claim.
 
-On native macOS arm64, source `087c505e33c30d74a5a30e1aad6b4d449af0886a` produced two 11,051,872-byte binaries with identical SHA-256 `fef20c23a7b14ba9f4429b91b86112b8c855a56311924f46544cb7a34a864681`. Two normalized seven-entry prototype archives were also identical at that source. Those archives predate the final install and recovery inventory and are evidence for the tooling iteration, not frozen candidates. Linux and Windows repetitions remain pending until native CI can run an authorized published branch.
+On native macOS arm64, candidate source `df1b02d894730b78275053ae3332b831fb315e64` produced two 11,051,872-byte binaries with identical SHA-256 `fef20c23a7b14ba9f4429b91b86112b8c855a56311924f46544cb7a34a864681`. Its two normalized nine-entry archives were also byte-identical, with size 4,389,730 bytes and SHA-256 `8f07f0df76067107008442aab1eb227f19c24c6a9dd1571e8959a386fbd8c547`. This proves byte identity for those two macOS observations only. Linux and Windows repetitions remain pending until native CI can run an authorized published branch.
 
 ## Runtime inspection boundary
 
