@@ -43,6 +43,8 @@ python3 scripts/build_release.py build --target <native-target> --output <empty-
 python3 scripts/build_release.py compare <first>/build-record.json <second>/build-record.json
 ```
 
+The wrapper rejects non-native targets, dirty tracked source, nonempty output directories, missing regular executables, changed build inputs and private build paths in the executable. It records the source commit and timestamp, exact toolchain, target, feature set, public path-remapping flags, command, binary size and SHA-256. The isolated build remaps the source checkout, Cargo home and build-user home so public binaries do not disclose native usernames or private build paths. It never follows or replaces a destination link and never publishes an artifact.
+
 Packaging uses the corresponding checked-in tool after both native builds pass:
 
 ```text
@@ -59,7 +61,7 @@ After dependencies are fetched explicitly, repeat with Cargo offline. Record `ru
 
 Build twice from separate clean checkouts and separate target directories with identical declared inputs. Compare binary and normalized archive SHA-256 values. Equal hashes prove byte identity only for those two observed builds. Different hashes require inspection and an exact explanation; a usable repeatable recipe alone is not a byte-reproducibility claim.
 
-On native macOS arm64, candidate source `df1b02d894730b78275053ae3332b831fb315e64` produced two 11,051,872-byte binaries with identical SHA-256 `fef20c23a7b14ba9f4429b91b86112b8c855a56311924f46544cb7a34a864681`. Its two normalized nine-entry archives were also byte-identical, with size 4,389,730 bytes and SHA-256 `8f07f0df76067107008442aab1eb227f19c24c6a9dd1571e8959a386fbd8c547`. This proves byte identity for those two macOS observations only. Linux and Windows repetitions remain pending until native CI can run an authorized published branch.
+An initial native macOS repetition produced equal binaries and archives, but a subsequent privacy inspection found native build-user paths in dependency diagnostics. Those artifacts are rejected. The wrapper now remaps and checks private build prefixes. Final macOS hashes require a clean rebuild from the committed correction. Linux and Windows repetitions remain pending until native CI can run an authorized published branch.
 
 ## Runtime inspection boundary
 

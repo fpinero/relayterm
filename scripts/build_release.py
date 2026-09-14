@@ -16,6 +16,7 @@ TARGETS = {
     "aarch64-apple-darwin": ("rt", "macOS 14"),
     "x86_64-pc-windows-msvc": ("rt.exe", "Windows 10 22H2"),
 }
+ENCODED_FLAG_SEPARATOR = "\x1f"
 
 
 def run(arguments, *, cwd=ROOT, environment=None):
@@ -59,6 +60,30 @@ def prepare_output(path):
     return path
 
 
+def release_rustflags(environment):
+    home = pathlib.Path.home().resolve()
+    cargo_home = pathlib.Path(environment.get("CARGO_HOME", home / ".cargo")).resolve()
+    mappings = (
+        (ROOT.resolve(), "/source"),
+        (cargo_home, "/cargo"),
+        (home, "/build-home"),
+    )
+    flags = [f"--remap-path-prefix={source}={destination}" for source, destination in mappings]
+    public_flags = [
+        "--remap-path-prefix=<source>=/source",
+        "--remap-path-prefix=<cargo-home>=/cargo",
+        "--remap-path-prefix=<build-home>=/build-home",
+    ]
+    private_prefixes = {os.fspath(source).encode() for source, _ in mappings}
+    return flags, public_flags, private_prefixes
+
+
+def reject_private_build_paths(executable, private_prefixes):
+    content = executable.read_bytes()
+    if any(prefix and prefix in content for prefix in private_prefixes):
+        raise RuntimeError("the release executable contains a private build path")
+
+
 def package_version():
     metadata = json.loads(run(["cargo", "metadata", "--no-deps", "--format-version", "1", "--locked"]))
     package = next(item for item in metadata["packages"] if item["name"] == "relayterm-cli")
@@ -93,6 +118,9 @@ def build(target, output, offline):
     environment["CARGO_INCREMENTAL"] = "0"
     environment["CARGO_TARGET_DIR"] = os.fspath(target_dir)
     environment["SOURCE_DATE_EPOCH"] = source_epoch
+    rustflags, public_rustflags, private_prefixes = release_rustflags(environment)
+    environment.pop("RUSTFLAGS", None)
+    environment["CARGO_ENCODED_RUSTFLAGS"] = ENCODED_FLAG_SEPARATOR.join(rustflags)
     subprocess.run(command, cwd=ROOT, env=environment, check=True)
     executable_name, baseline = TARGETS[target]
     built = target_dir / target / "release" / executable_name
@@ -101,6 +129,7 @@ def build(target, output, offline):
     executable = output / executable_name
     shutil.copyfile(built, executable)
     executable.chmod(0o755)
+    reject_private_build_paths(executable, private_prefixes)
     shutil.rmtree(target_dir)
     record = {
         "format_version": 1,
@@ -115,6 +144,7 @@ def build(target, output, offline):
         "build_command": f"cargo build --locked{' --offline' if offline else ''} --release -p relayterm-cli --bin rt --target {target}",
         "rustc": run(["rustc", "--version"]),
         "cargo": run(["cargo", "--version"]),
+        "rustflags": public_rustflags,
         "binary": {
             "name": executable_name,
             "bytes": executable.stat().st_size,
@@ -131,7 +161,7 @@ def build(target, output, offline):
 def compare(first_path, second_path):
     first = json.loads(first_path.read_text(encoding="utf-8"))
     second = json.loads(second_path.read_text(encoding="utf-8"))
-    inputs = ["version", "source_sha", "source_date_epoch", "target", "profile", "features", "rustc", "cargo"]
+    inputs = ["version", "source_sha", "source_date_epoch", "target", "profile", "features", "rustc", "cargo", "rustflags"]
     mismatched = [key for key in inputs if first.get(key) != second.get(key)]
     if mismatched:
         raise RuntimeError(f"build inputs differ: {', '.join(mismatched)}")

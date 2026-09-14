@@ -2,6 +2,7 @@
 
 import importlib.util
 import json
+import os
 import pathlib
 import tempfile
 import unittest
@@ -55,6 +56,21 @@ class ReleaseBuildTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 build_release.prepare_output(output)
             self.assertEqual(sentinel.read_text(encoding="utf-8"), "keep")
+
+    def test_release_flags_remap_private_paths_without_recording_them(self):
+        flags, public_flags, private_prefixes = build_release.release_rustflags({})
+        self.assertTrue(all(flag.startswith("--remap-path-prefix=") for flag in flags))
+        self.assertTrue(any(os.fspath(pathlib.Path.home()) in flag for flag in flags))
+        self.assertTrue(all(os.fspath(pathlib.Path.home()) not in flag for flag in public_flags))
+        self.assertIn(os.fspath(pathlib.Path.home()).encode(), private_prefixes)
+
+    def test_private_build_path_is_rejected_without_echoing_it(self):
+        with tempfile.TemporaryDirectory() as directory:
+            executable = pathlib.Path(directory) / "rt"
+            executable.write_bytes(b"prefix/private/build/root/source.rs")
+            with self.assertRaisesRegex(RuntimeError, "private build path") as raised:
+                build_release.reject_private_build_paths(executable, {b"/private/build/root"})
+            self.assertNotIn("/private/build/root", str(raised.exception))
 
 
 if __name__ == "__main__":
