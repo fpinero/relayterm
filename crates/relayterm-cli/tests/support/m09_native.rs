@@ -16,6 +16,11 @@ use std::{
     time::{Duration, Instant},
 };
 
+fn rt_binary() -> OsString {
+    std::env::var_os("RELAYTERM_TEST_RT")
+        .unwrap_or_else(|| OsString::from(env!("CARGO_BIN_EXE_rt")))
+}
+
 pub const DEADLINE: Duration = Duration::from_secs(45);
 const OUTPUT_LIMIT: usize = 2 * 1024 * 1024;
 
@@ -60,7 +65,7 @@ impl OuterTerminal {
     pub fn spawn(root: &Path, private: &Path) -> Self {
         let environment = terminal_environment(approved_environment(&[], std::env::vars_os()));
         let session = NativeSession::spawn(SpawnRequest {
-            program: OsString::from(env!("CARGO_BIN_EXE_rt")),
+            program: rt_binary(),
             arguments: vec![
                 OsString::from("--workspace"),
                 root.as_os_str().to_owned(),
@@ -204,7 +209,7 @@ pub fn admin(root: &Path, private: &Path, args: &[&str]) -> Value {
 }
 
 pub fn admin_output(root: &Path, private: &Path, args: &[&str]) -> std::process::Output {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_rt"))
+    let mut child = Command::new(rt_binary())
         .arg("--workspace")
         .arg(root)
         .arg("--home")

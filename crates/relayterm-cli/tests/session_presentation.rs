@@ -1,9 +1,15 @@
 use serde_json::Value;
 use std::{
+    ffi::OsString,
     fs,
     path::{Path, PathBuf},
     process::{Command, Output, Stdio},
 };
+
+fn rt_binary() -> OsString {
+    std::env::var_os("RELAYTERM_TEST_RT")
+        .unwrap_or_else(|| OsString::from(env!("CARGO_BIN_EXE_rt")))
+}
 
 struct Scratch(PathBuf);
 
@@ -30,7 +36,7 @@ impl Drop for Scratch {
 }
 
 fn invoke(root: &Path, home: &Path, args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_rt"))
+    Command::new(rt_binary())
         .arg("--workspace")
         .arg(root)
         .arg("--home")

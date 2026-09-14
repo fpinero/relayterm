@@ -84,6 +84,15 @@ jobs:
       - name: Test TUI through extracted release
         timeout-minutes: 10
         run: cargo test -p relayterm-cli --test tui_gate --locked -- --nocapture --test-threads=1
+      - name: Test session presentation through extracted release
+        timeout-minutes: 5
+        run: cargo test -p relayterm-cli --test session_presentation --locked -- --nocapture --test-threads=1
+      - name: Test worktree journey through extracted release
+        timeout-minutes: 10
+        run: cargo test -p relayterm-cli --test worktree_gate --locked -- --nocapture --test-threads=1
+      - name: Test backup and restore through extracted release
+        timeout-minutes: 10
+        run: cargo test -p relayterm-cli --test backup_restore --locked -- --nocapture --test-threads=1
 
   native:
     name: ${{ matrix.os }} / ${{ matrix.toolchain }}

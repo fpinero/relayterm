@@ -20,6 +20,8 @@ The final macOS arm64 build produced two identical 11,051,872-byte binaries and 
 
 Artifact inspection rejected an earlier build because dependency diagnostics embedded the native build-user path. Source `b655915` remaps source, Cargo and user-home prefixes, records only public placeholders and makes the build fail if any original private prefix remains in the executable. Inspection of the rebuilt binary and packaged text found no build username, private source path, reviewer draft name or temporary candidate path.
 
+The branch descendant after `b655915` changes only integration-test executable selection, the least-privilege CI recipe, TODO evidence and documentation. It does not change the production package graph or packaged inputs. The added test selection lets session presentation, the real TUI, explicit Git worktrees, and private backup/restore run through the exact extracted candidate instead of Cargo's debug `rt`. All four extracted-candidate gates passed locally: one session-presentation test, six TUI tests with one fixture-only ignore, two worktree journeys and one backup/restore journey. The worktree journeys used Git 2.53.0 and reported 2,693 ms and 2,089 ms. This source-impact assessment permits the mapped macOS artifact to remain the local candidate. An authorized native CI run will build and hash its own exact head on every target.
+
 The exact archive inventory is documented in [release builds](release-builds.md). It excludes databases, logs, sockets, source, terminal captures, test executables, and debug dumps. `SHA256SUMS` and the target manifest remain beside the archive. The checksum is an integrity mechanism, not independent publisher authentication.
 
 ## Evidence still required
