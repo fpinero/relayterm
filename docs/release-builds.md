@@ -1,0 +1,55 @@
+# Release build contract
+
+## Candidate scope
+
+Relayterm's first local release candidate keeps package version `0.1.0`. A version does not identify an artifact by itself. Every manifest and handoff must also identify the exact source commit and target triple. No tag, signed artifact, notarization, package upload, or published release exists merely because this recipe succeeds.
+
+The production deliverable is one executable, `rt` on Unix and `rt.exe` on Windows. The `relayterm-cli` package has no feature flags. Production builds use its default feature set and must not enable dependency test hooks or build integration-test executables into the archive.
+
+## Supported artifact targets
+
+Support claims are limited to these three native artifacts and tested runtime baselines:
+
+| Target | Architecture | Tested runtime baseline | Current evidence boundary |
+| --- | --- | --- | --- |
+| `x86_64-unknown-linux-gnu` | x86-64 | Ubuntu 24.04 | M11 native CI and manual GNOME Terminal/OpenSSH behavior passed. M12 build, linkage, installed workflow, and affected usability evidence are pending. Other distributions and musl are not claimed. |
+| `aarch64-apple-darwin` | Apple arm64 | macOS 14 | M11 native CI passed on macOS 14. M11 manual behavior passed on a newer native macOS arm64 host. M12 local automated behavior passes on macOS 26.5.2; final artifact and manual evidence are pending. Intel and universal binaries are not claimed. |
+| `x86_64-pc-windows-msvc` | x86-64 | Windows 10 22H2 for desktop behavior, Windows Server 2022 for CI | M11 native CI and manual Windows Terminal, PowerShell, cmd.exe and OpenSSH behavior passed. M12 build, PE inventory, installed workflow, and affected usability evidence are pending. Windows arm64 is not claimed. |
+
+The tested baseline is also the minimum supported version for the first candidate because no older runtime has been tested. Future evidence may lower that minimum. A compiler target existing does not establish runtime support.
+
+## Fixed build inputs
+
+Use all of these inputs for each build:
+
+- Exact clean source commit.
+- Checked-in `Cargo.lock`.
+- Rust 1.98.1 with the minimal profile from `rust-toolchain.toml`.
+- One target triple from the table above.
+- Cargo release profile as committed, with no environment override that changes code generation.
+- Default production features only.
+- A fresh target directory outside any prior build output.
+
+The native build command is:
+
+```text
+cargo build --locked --release -p relayterm-cli --bin rt --target <target>
+```
+
+After dependencies are fetched explicitly, repeat with Cargo offline. Record `rustc -vV`, `cargo -V`, the operating-system version, source commit, target, command, relevant code-generation environment, executable size, and SHA-256. Keep hostnames, usernames and native build paths out of public manifests.
+
+Build twice from separate clean checkouts and separate target directories with identical declared inputs. Compare binary and normalized archive SHA-256 values. Equal hashes prove byte identity only for those two observed builds. Different hashes require inspection and an exact explanation; a usable repeatable recipe alone is not a byte-reproducibility claim.
+
+## Runtime inspection boundary
+
+Inspect the built file with native tools before packaging:
+
+- Linux: identify the ELF target, interpreter, required shared libraries and observed glibc symbol floor.
+- macOS: inspect Mach-O architecture, minimum deployment target, load commands and dynamic libraries.
+- Windows: inspect PE architecture and imported DLLs, including any Visual C++ runtime dependency.
+
+Bundled SQLite removes a separate SQLite installation requirement but does not prove that the executable has no dynamic operating-system dependencies. Git remains required only for explicit worktree features. User-selected shells and agent commands remain their own runtime prerequisites. The installed `rt` must run help, version, workspace initialization, detached daemon startup, one synthetic PTY and orderly shutdown without Cargo, rustup, Python, a source checkout, or a hosted service on PATH.
+
+## Artifact freeze rule
+
+Do not freeze or certify release artifacts until M12.00h has complete affected usability evidence. Any source change after an artifact build requires an impact assessment. A behavior change requires rebuild and affected retest. A documentation-only descendant may reuse a binary with an explicit source mapping, but an untested rebuild may not replace the reviewed artifact.

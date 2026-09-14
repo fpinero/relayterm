@@ -180,6 +180,12 @@ The offline gate validated its process monitor with a synthetic loopback listene
 
 Hosted automation does not identify behavior in a graphical terminal application and does not exercise an operator-controlled SSH connection. Separate operator-controlled observations cover the mandatory local xterm-compatible, Terminal.app, Windows Terminal, and OpenSSH rows. The [M11 final technical review](m11-final-review.md) closes acceptance, risk, budget, and manual reconciliation. The owner approved delivery and PR #22 is merged. Post-merge CI passed; M11 is complete and the [M12 handoff](m12-handoff.md) is prepared.
 
+## M12 usability evidence
+
+M12 changes session presentation, ordered paging, all form cursor geometry, stale-form review, and competing-input feedback. The [focused verification procedure](m12-usability-verification.md) defines the affected automated and manual scope and maps unaffected M11 evidence. Native macOS automated TUI and protocol scenarios pass locally. Final candidate CI, consolidated human observations on Linux, macOS and Windows, and one focused SSH observation remain pending. No M12 cross-platform or release-candidate conclusion is claimed yet.
+
+The initial release targets, tested runtime floors, build inputs, and current evidence boundaries are defined in the [release build contract](release-builds.md).
+
 ## Manual shell and terminal matrix
 
 | Platform | Shells | Observed terminals and connections |

@@ -39,7 +39,6 @@ Execution contract: [M12 detailed plan](docs/M12_details.md). Start at M12.00a. 
   - M12.00h: Verify consolidated usability changes and update help/privacy/compatibility. Completion proof: Targeted native/manual matrix and affected SSH coverage recorded; unaffected M11 evidence mapped.
 
 - M12.01: Define and document supported release targets and reproducible release-build commands producing `rt` or `rt.exe`. Build candidate artifacts with license notices and checksums; verify fresh-machine execution without an undeclared runtime toolchain dependency.
-  - M12.01a: Freeze release targets, runtime baselines, version and production feature set. Completion proof: Evidence-backed target table distinguishes tested and minimum OS; no unsupported architecture claims.
   - M12.01b: Implement repeatable native release build recipe. Completion proof: Clean locked builds twice per target; hashes compared and differences explained.
   - M12.01c: Assemble bounded portable archives, manifests and notices. Completion proof: Exact safe inventory, executable bits, hashes and transitive/native license obligations verified.
   - M12.01d: Inspect runtime dependencies and execute extracted smoke tests. Completion proof: No hidden build-tree/toolchain dependency; native daemon/PTY/shutdown proof per target.

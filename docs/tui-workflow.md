@@ -34,6 +34,8 @@ Essential state always has a text label. Color is supplementary.
 | Tasks | `p`, `h` | Append progress or prepare an atomic structured handover |
 | Task detail | PageUp, PageDown | Read ordered claim, progress, and handover history |
 | Sessions | `s`, `a` | Launch the default shell or selected enabled definition |
+| Sessions | `n` | Rename the selected session, or clear its custom name with Ctrl-U before submitting |
+| Sessions | PageUp, PageDown | Move through bounded creation-ordered session pages |
 | Agents | `n`, `e`, Space, `v`, `a` | Create, edit, enable or disable, check, and launch one neutral definition |
 | Agents | `[`, `]`, `p` | Select an embedded template and copy it into a new editable disabled definition |
 | Sessions | Enter, Escape | Attach read-only or detach |
@@ -45,12 +47,14 @@ Essential state always has a text label. Color is supplementary.
 | Forms | Left, Right, Home, End, Backspace, Delete | Edit at UTF-8 character boundaries |
 | Multiline forms | Enter | Insert a newline |
 | Forms | `Ctrl-S` | Submit exactly once |
-| Forms | `Ctrl-R` | Reconcile an uncertain result, then require review before explicit resubmission |
+| Forms | `Ctrl-R` | Load authoritative state for review, then press again to adopt that revision before an explicit submission |
 | Forms | Escape, `Ctrl-C` | Ask before discarding the in-memory draft |
 
 Task claims use the instance represented by the selected session. Launch context does not claim a task. Task dependencies remain informational. A release blocks active work; making it available again is a separate ready action. Task detail exposes immutable claim attribution and close reasons, progress verification, and every structured handover field, including verification and recommended next action.
 
 Termination requires typing `TERMINATE`. Closing the TUI, detaching, losing a read-only attachment, or releasing input never terminates a child.
+
+Session rows use a durable optional display name and remain addressed by session ID. Duplicate names are valid. An unnamed row derives `Session N` from its immutable workspace creation ordinal. The list shows a collision-safe abbreviated session ID, while Details shows the complete session and instance IDs. Renaming does not change a process, launch snapshot, task, worktree, status, attachment, or input lease. A server without the additive ordered-list and rename capabilities retains legacy ID ordering and disables rename with an explanatory diagnostic.
 
 ## Child terminal input profile
 
@@ -91,7 +95,13 @@ Established IPC connections may remain idle without reporting a transport failur
 
 Reads may reconnect automatically. Mutations and terminal input never retry automatically after delivery becomes uncertain. The TUI labels the state stale, retains a form draft where applicable, refreshes authoritative state, and requires a deliberate user decision before another submission. Form submission is disabled while its request is pending. Revision-bearing task edits use the revision captured by the coherent snapshot, so a concurrent edit is rejected instead of overwritten.
 
+A typed stale revision keeps the original draft, byte cursor, target ID, and submission revision. Ctrl-R first loads and exposes the latest workspace for review without changing the draft. A second Ctrl-R explicitly adopts the reviewed revision. Ctrl-S then represents a new user decision. Unknown delivery remains distinct and is never converted into a definitive conflict or replayed automatically.
+
+All form kinds use one cell-aware editor layout for displayed lines and the physical terminal cursor. UTF-8 byte offsets remain the editing representation. Wide and combining graphemes, exact wrap boundaries, trailing newlines, clipping, and resize are mapped to terminal cells without changing draft text. The cursor is hidden under minimum-size guidance and discard dialogs.
+
 If terminal input or explicit input release has an uncertain result, the terminal changes to navigation mode, retains the unresolved lease identity, labels the attachment `RECONCILE WITH R`, and blocks another acquisition. Pressing `R` explicitly replaces the authenticated connection, which releases its ephemeral daemon lease, refreshes the workspace, and creates a fresh read-only attachment to the same session. Relayterm does not replay the uncertain input or release request.
+
+When a typed acquisition result proves another client owns input, the rejected view remains read-only and displays: `Another client controls input. This view remains read-only. Try i after that client releases input.` The owner keeps its lease, output continues to refresh, and the reader receives no lease. Older generic conflict results keep generic safe guidance.
 
 Diagnostics contain allowlisted categories and sequence or opaque identity context. They do not retain drafts, terminal cells, child output, command arguments, environment values, raw errors, or native paths. Diagnostics retain at most 1,000 entries and 1 MiB. All form drafts together are limited to 256 KiB and exist only in client memory.
 
@@ -126,6 +136,8 @@ The measured fixture output rates were 5,168,912 and 3,904,205 bytes per second.
 The 100 ms navigation and 250 ms input targets are enforced on the documented reference native environment. Hosted CI runners always report the same measurements and enforce explicit 500 ms navigation and one-second input guardrails because shared-runner scheduling is not a stable hardware reference. A hosted target miss remains visible as `reference_target_met=false` in the job log and must be included in the evidence record. This distinction does not change marker or process deadlines and does not permit retries to replace either required CI pass.
 
 CI run links, runner versions, and both native repetitions are recorded in `docs/supported-platforms.md` after the final candidate passes. Hosted console automation is native PTY or ConPTY evidence, but it is not a claim that Terminal.app, Windows Terminal's graphical interface, xterm, or SSH was manually tested. M11 requires those named-terminal and SSH checks. Any unavailable environment remains an open acceptance blocker.
+
+The focused M12 procedure for session presentation, form cursor, stale edits, competing input, and SSH is in [M12 usability verification](m12-usability-verification.md).
 
 ## Limitations
 
