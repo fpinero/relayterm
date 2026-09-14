@@ -89,6 +89,7 @@ The canonical user-facing executable is `rt`. The reserved `relayterm.com` domai
 - [Git worktrees](docs/worktrees.md) documents explicit task isolation, durable receipts, conservative recovery, and launch behavior.
 - [Private backup and restore](docs/backup-restore.md) documents no-overwrite workspace recovery into a fresh private home.
 - [Portable installation](docs/install.md), [installed quick start](docs/quick-start.md), [upgrade and rollback](docs/upgrade.md), and [release build contract](docs/release-builds.md) define the local M12 candidate workflow.
+- [Candidate notes](docs/release-notes-0.1.0.md) and the [local candidate handoff](docs/m12-candidate-handoff.md) distinguish prepared work from final native evidence and publication.
 - [M11 acceptance matrix](docs/acceptance-matrix.md), [reliability workflow](docs/reliability-workflow.md), and [threat model](docs/threat-model.md) define the current hardening gate and its pending evidence.
 
 ## Current status

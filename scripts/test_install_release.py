@@ -70,6 +70,55 @@ class InstallReleaseTests(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertFalse((destination / "rt").exists())
 
+
+@unittest.skipUnless(os.name == "nt", "PowerShell installer tests run on Windows")
+class PowerShellInstallReleaseTests(unittest.TestCase):
+    def fixture(self, root):
+        release = root / "release λ"
+        destination = root / "destination λ"
+        release.mkdir()
+        destination.mkdir()
+        (release / "rt.exe").write_bytes(b"fixture-executable")
+        for name in (
+            "LICENSE",
+            "THIRD_PARTY_NOTICES.txt",
+            "THIRD_PARTY_LICENSES.txt",
+            "INSTALL.md",
+            "RECOVERY.md",
+            "manifest.json",
+            "install_release.sh",
+            "install_release.ps1",
+        ):
+            (release / name).write_text("fixture", encoding="utf-8")
+        return release, destination
+
+    def invoke(self, release, destination):
+        return subprocess.run(
+            [
+                "powershell.exe",
+                "-NoProfile",
+                "-NonInteractive",
+                "-File",
+                os.fspath(SCRIPT.with_suffix(".ps1")),
+                "-ReleaseRoot",
+                os.fspath(release),
+                "-Destination",
+                os.fspath(destination),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    def test_install_and_existing_destination_preservation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            release, destination = self.fixture(pathlib.Path(directory))
+            self.assertEqual(self.invoke(release, destination).returncode, 0)
+            target = destination / "rt.exe"
+            target.write_bytes(b"unrelated-command")
+            self.assertNotEqual(self.invoke(release, destination).returncode, 0)
+            self.assertEqual(target.read_bytes(), b"unrelated-command")
+
     def test_partial_inventory_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             release, destination = self.fixture(pathlib.Path(directory))
