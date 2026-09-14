@@ -1,6 +1,6 @@
 # M11 macOS manual review
 
-Status: Complete for MAN-MAC-1, MAN-MAC-2, and MAN-MAC-3. Final acceptance, risk, and budget reconciliation is recorded in the [M11 final technical review](m11-final-review.md). Independent PR review, merge, main synchronization, and post-merge CI remain open.
+Status: Complete for MAN-MAC-1, MAN-MAC-2, and MAN-MAC-3. Final acceptance, risk, and budget reconciliation is recorded in the [M11 final technical review](m11-final-review.md). The owner approved delivery and PR #22 is merged. Post-merge CI passed; M11 is complete.
 
 This report retains the observations in chronological order. Statements about pending work in the initial sections describe the state at that point in the review; the final disposition governs the current status.
 

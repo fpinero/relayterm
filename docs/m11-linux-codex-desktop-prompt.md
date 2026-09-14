@@ -1,5 +1,6 @@
 # M11 Linux Codex Desktop handoff prompt
 
+Historical handoff: the owner subsequently approved M11 delivery without mandatory external human review. The current decision is recorded in [the final review](m11-final-review.md); earlier review instructions below are superseded.
 Communicate with me in Spanish. Write repository documentation and code comments in English. Do not use the Unicode em dash character.
 
 Work in a local Linux clone of `https://github.com/fpinero/relayterm` through Codex Desktop. Git is the source of truth for the code and evidence.

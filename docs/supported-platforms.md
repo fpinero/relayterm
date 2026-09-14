@@ -178,7 +178,7 @@ All daemon and TUI samples remained under the declared 512 MiB limit. Every fina
 
 The offline gate validated its process monitor with a synthetic loopback listener before observing the real daemon and synthetic child. It then completed local Git worktree creation, native IPC, real PTY or ConPTY launch, repeated client connections, live backup and fresh-home restore without finding a product TCP or UDP endpoint. This is product runtime evidence. Dependency fetching, user-configured child networking and SSH transport remain separate.
 
-Hosted automation does not identify behavior in a graphical terminal application and does not exercise an operator-controlled SSH connection. Separate operator-controlled observations cover the mandatory local xterm-compatible, Terminal.app, Windows Terminal, and OpenSSH rows. The [M11 final technical review](m11-final-review.md) closes acceptance, risk, budget, and manual reconciliation. Independent PR review, merge, main synchronization, post-merge CI, and the M12 handoff remain open.
+Hosted automation does not identify behavior in a graphical terminal application and does not exercise an operator-controlled SSH connection. Separate operator-controlled observations cover the mandatory local xterm-compatible, Terminal.app, Windows Terminal, and OpenSSH rows. The [M11 final technical review](m11-final-review.md) closes acceptance, risk, budget, and manual reconciliation. The owner approved delivery and PR #22 is merged. Post-merge CI passed; M11 is complete and the [M12 handoff](m12-handoff.md) is prepared.
 
 ## Manual shell and terminal matrix
 

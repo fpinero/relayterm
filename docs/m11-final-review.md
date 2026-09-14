@@ -1,6 +1,6 @@
 # M11 final technical review
 
-Status: M11.10d passed on 2026-09-14. M11.10e through M11.10g remain open for independent review, merge, main synchronization, post-merge CI, and the M12 handoff.
+Status: M11 is complete. The owner approved delivery after assistant-assisted technical review. PR #22 is merged, post-merge Quality and Security passed, and the M12 handoff is prepared.
 
 ## Reviewed candidate
 
@@ -22,7 +22,7 @@ All nine mandatory manual rows passed with dated, candidate-mapped observations:
 | macOS | Terminal.app with Zsh and Bash | Fresh loopback OpenSSH connection | Passed |
 | Windows | Windows Terminal with PowerShell and cmd.exe | Fresh loopback Windows OpenSSH connection | Passed |
 
-The complete 50-task M11 plan is accounted for. M11.01 through M11.09 and M11.10a through M11.10d have implementation or evidence. M11.10e through M11.10g remain visible because independent review, merge, main synchronization, post-merge CI, and handoff have not happened.
+The complete 50-task M11 plan is accounted for. M11.01 through M11.09 and M11.10a through M11.10d have implementation or evidence. The owner approved M11.10e and PR #22 was merged under M11.10f. M11.10g is complete with passing post-merge CI and the documented M12 handoff.
 
 ## Risk reconciliation
 
@@ -62,4 +62,6 @@ Local macOS verification on the final source passed formatting, all-target check
 
 No unresolved acceptance blocker, critical or high security finding, or unreviewed security exception remains in M11. The generic stale-conflict message, competing-input explanation, session names, session ordering, and form-cursor visibility remain explicit non-blocking usability proposals.
 
-M11.10d is complete. PR #22 can become ready for review after this evidence-only descendant passes Quality and Security. The PR must then receive an independent approval on the final evidence commit from an eligible GitHub account. The implementation account cannot satisfy that requirement by approving its own PR. Merge, local and remote `main` synchronization, post-merge CI, and the M12 handoff remain pending.
+The sole maintainer explicitly approved delivery after assistant-assisted technical review and completed automated and manual evidence. This supersedes the earlier external-approval requirement. No independent human review is claimed, and no alternate account is needed. No acceptance threshold or security control changed.
+
+PR #22 was merged as `dc5b2e6067d50345828ac175858029434ce3c081`. Local and remote main were synchronized. [Post-merge Quality](https://github.com/fpinero/relayterm/actions/runs/34833773372) and [Security](https://github.com/fpinero/relayterm/actions/runs/34833773375) passed on that merge commit. The [M12 handoff](m12-handoff.md) is prepared; no M12 implementation or release publication is included.

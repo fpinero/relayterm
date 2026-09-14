@@ -257,6 +257,8 @@ Manual observations are not inferred from CI and must remain separate rows. Reus
 
 ## 9. Review, delivery, and blockers
 
+For this sole-maintainer MVP, the owner may approve delivery after assistant-assisted technical review and verified automated and manual evidence. External human review is optional unless the maintainer explicitly requires it for a specific change. An alternate owner account or assisting agent must never be represented as an independent reviewer. This governance clarification changes no acceptance thresholds or security controls.
+
 Before finalization, reconcile every atomic task, AC clause, risk R1-R11, budget and manual cell against evidence. Review public descriptions against demonstrated behavior. Do not declare a defect fixed because a test was relaxed to fit it.
 
 Critical/high security findings require a fix or an explicit maintainer-reviewed exception identifying impact, scope, rationale, mitigation, expiry/follow-up and reviewer. An agent cannot self-approve a risk exception. Acceptance-blocking behavior remains blocking regardless of severity; an exception cannot silently override the user/specification. Do not place sensitive vulnerability detail in public PRs.

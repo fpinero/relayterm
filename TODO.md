@@ -27,21 +27,6 @@ Public export and disk-backed scrollback are optional and are deferred from this
 
 Keep task dependencies informational, as defined in the specification and [M02 storage contract](docs/M02_storage_contract.md); do not introduce a scheduler. Git worktree creation is included because AC-10 requires it, even though several related requirements use SHOULD.
 
-## M11: Reliability, privacy, and complete acceptance [PLAN]
-
-Depends on: M09 and M10. Specification phase: 5. Coverage: FR-1 through FR-9; NFR-1 through NFR-8; all ACs, with distribution checks completed in M12.
-
-Outcome: demonstrated MVP behavior and recovery under faults, with bounded resources and public-safe diagnostics.
-
-Execution contract: [M11 detailed plan](docs/M11_details.md). Add its 50 atomic implementation tasks before coding; the documentary delivery does not complete M11.01-M11.10.
-
-- M11.10: Verify the hardening gate with passing cross-platform builds, formatting, linting, unit/integration/end-to-end tests, scans, and all behavior AC evidence. Carry only installation/release-specific checks into M12; do not declare the MVP complete yet.
-
-### M11 atomic execution queue
-- M11.10e: Create coherent commits and the authorized implementation PR.
-- M11.10f: Merge only verified M11 and synchronize main.
-- M11.10g: Monitor post-merge CI and hand off M12 without implementing it.
-
 ## M12: Installable release candidate and final handoff
 
 Depends on: M11. Specification phase: 5 final gate. Coverage: NFR-1, NFR-4; AC-12, AC-16 and final AC-1 through AC-16 sign-off.
@@ -62,24 +47,11 @@ This index identifies the planned proof for each specification criterion. As mil
 
 | Criterion | Planned implementation | Required proof |
 | --- | --- | --- |
-| AC-1: Private workspace initialization | M05 | M06.03; M11.02; M12.03 |
-| AC-2: Independent daemon and restricted IPC through `rt` | M05, M08 | M05.02; M08.10; M11.05 |
-| AC-3: Three real concurrent sessions | M07 | M07.10; M11.02 |
-| AC-4: Full-screen input, resize, switching, exit, bounds | M07, M08 | M07.10; M08.10; M11.04; M11.07 |
-| AC-5: Exclusive instance claim | M05 | M06.02; M11.02 |
-| AC-6: Progress and structured handover | M08 | M06.02; M08.06; M11.02 |
-| AC-7: Another instance resumes shared work | M05, M08 | M06.02; M08.10; M11.02 |
-| AC-8: TUI detach and reattach preserves children | M05, M07, M08 | M07.10; M08.10; M11.07 |
-| AC-9: Durable restart and honest session loss | M05, M07 | M06.03; M07.09; M11.03 |
-| AC-10: Task session in an explicit worktree | M11 | M11.02 |
-| AC-11: Core and protocol independent from TUI | M06, M11 | M06.04; M11.10 |
-| AC-12: Cross-platform CI and quality checks | All remaining implementation milestones | M11.10; M12.06 |
-| AC-13: No injected secrets, personal paths, or transcripts in logs/artifacts | M05, M07, M08 | M11.05; M11.09 |
-| AC-14: No hosted service, API key, or graphical requirement | M05, M07, M09 | M09.05; M11.06; M12.03 |
-| AC-15: Unknown CLI requires no domain/TUI changes | M07, M09 | M09.05 |
-| AC-16: Single `rt` executable and naming conflict guidance | M05, M12 | M12.01; M12.02 |
+| AC-1 through AC-16 | M12.06 | Reconcile existing M11 evidence with the release candidate and repeat affected behavior only. |
+| AC-1, AC-14 | M12.03 | Execute the published quick start from a clean installation without hosted accounts. |
+| AC-12, AC-16 | M12.01, M12.02 | Verify release artifacts, clean installation, PATH, and an existing unrelated command. |
 
-FR-10 remains conditional: export is deferred, and no automatic project export may be introduced. Remaining NFR coverage is carried by M12 (platforms), M03-M07/M11 (reliability), M07-M08/M11 (performance), M03-M04/M12 (compatibility), M05/M11 (observability), M08/M11 (accessibility), M06 (maintainability), and M03-M04/M07/M11 (resource limits).
+FR-10 export remains deferred. M12 retains installation, compatibility, documentation, and release acceptance work; completed behavior evidence is in the acceptance matrix and delivery log.
 
 ## Usability follow-up proposals
 
