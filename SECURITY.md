@@ -1,6 +1,6 @@
 # Security policy
 
-Relayterm is undergoing MVP hardening and has no supported production release or security sandbox. Supervised child processes normally retain the launching user's operating-system permissions.
+Relayterm has a hardened local MVP candidate and has no published supported production release or security sandbox. Supervised child processes normally retain the launching user's operating-system permissions.
 
 ## Private reporting
 

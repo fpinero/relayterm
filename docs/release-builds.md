@@ -43,9 +43,23 @@ python3 scripts/build_release.py build --target <native-target> --output <empty-
 python3 scripts/build_release.py compare <first>/build-record.json <second>/build-record.json
 ```
 
+Packaging uses the corresponding checked-in tool after both native builds pass:
+
+```text
+python3 scripts/package_release.py create --build <first> --output <first-package>
+python3 scripts/package_release.py create --build <second> --output <second-package>
+python3 scripts/package_release.py compare <first-manifest> <second-manifest>
+python3 scripts/package_release.py inspect <archive>
+python3 scripts/smoke_release.py <archive>
+```
+
+The package tool reads the locked, target-specific normal Cargo graph. It includes each dependency's SPDX expression and packaged license files, calls out bundled SQLite, and conservatively retains proc-macro packages even though they are build-time tooling. It excludes test-only and Cargo build-dependency edges. Missing license metadata or text fails packaging. Notice material is bounded at 8 MiB.
+
 After dependencies are fetched explicitly, repeat with Cargo offline. Record `rustc -vV`, `cargo -V`, the operating-system version, source commit, target, command, relevant code-generation environment, executable size, and SHA-256. Keep hostnames, usernames and native build paths out of public manifests.
 
 Build twice from separate clean checkouts and separate target directories with identical declared inputs. Compare binary and normalized archive SHA-256 values. Equal hashes prove byte identity only for those two observed builds. Different hashes require inspection and an exact explanation; a usable repeatable recipe alone is not a byte-reproducibility claim.
+
+On native macOS arm64, source `087c505e33c30d74a5a30e1aad6b4d449af0886a` produced two 11,051,872-byte binaries with identical SHA-256 `fef20c23a7b14ba9f4429b91b86112b8c855a56311924f46544cb7a34a864681`. Two normalized seven-entry prototype archives were also identical at that source. Those archives predate the final install and recovery inventory and are evidence for the tooling iteration, not frozen candidates. Linux and Windows repetitions remain pending until native CI can run an authorized published branch.
 
 ## Runtime inspection boundary
 
@@ -56,6 +70,21 @@ Inspect the built file with native tools before packaging:
 - Windows: inspect PE architecture and imported DLLs, including any Visual C++ runtime dependency.
 
 Bundled SQLite removes a separate SQLite installation requirement but does not prove that the executable has no dynamic operating-system dependencies. Git remains required only for explicit worktree features. User-selected shells and agent commands remain their own runtime prerequisites. The installed `rt` must run help, version, workspace initialization, detached daemon startup, one synthetic PTY and orderly shutdown without Cargo, rustup, Python, a source checkout, or a hosted service on PATH.
+
+The observed prototype macOS executable is Mach-O arm64 with deployment target 11.0. It links `/usr/lib/libiconv.2.dylib` and `/usr/lib/libSystem.B.dylib`; SQLite is bundled. The declared macOS 14 floor remains the oldest tested runtime, regardless of the lower linker deployment field. The extracted smoke passed on macOS 26.5.2 with only `/usr/bin:/bin` on `PATH` for the product process. A short private test root under `/tmp` was required because Unix-domain socket paths are length-bounded. Production default private locations are compact; an excessively long explicit `--home` can fail with `daemon_unavailable` and should be replaced with a shorter private path.
+
+## Portable archive inventory
+
+Each archive has one target-specific root and exactly these nine regular files:
+
+- `rt` or `rt.exe`.
+- `LICENSE`.
+- `THIRD_PARTY_NOTICES.txt` and `THIRD_PARTY_LICENSES.txt`.
+- `INSTALL.md` and `RECOVERY.md`.
+- `install_release.sh` and `install_release.ps1`.
+- `manifest.json`.
+
+The executable and POSIX installer have mode 0755; other entries have mode 0644. Tar and ZIP entry order, timestamps, ownership fields, modes, compression settings, and root name are normalized. The inspector rejects links, directories, absolute paths, traversal, duplicate or extra inventory, and an unexpected binary name. The package output also contains an external target manifest and `SHA256SUMS`; those are verified before extraction and are intentionally outside the self-referential archive hash.
 
 ## Artifact freeze rule
 
