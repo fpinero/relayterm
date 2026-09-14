@@ -12,7 +12,7 @@ use std::{
 
 static REGISTRY_MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations/registry");
 static WORKSPACE_MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations/workspace");
-pub const WORKSPACE_SCHEMA_VERSION: i64 = 2;
+pub const WORKSPACE_SCHEMA_VERSION: i64 = 3;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DatabaseKind {
@@ -368,6 +368,50 @@ fn map_migration(error: sqlx::migrate::MigrateError) -> StorageError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn session_presentation_migration_backfills_equal_timestamps_deterministically() {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            .build()
+            .unwrap()
+            .block_on(async {
+                let mut connection = SqliteConnection::connect("sqlite::memory:").await.unwrap();
+                sqlx::raw_sql(
+                    "CREATE TABLE workspace_meta(singleton INTEGER PRIMARY KEY,workspace_id BLOB NOT NULL);\
+                     CREATE TABLE agent_instances(workspace_id BLOB NOT NULL,instance_id BLOB NOT NULL,session_id BLOB NOT NULL,started_seconds INTEGER NOT NULL,started_nanoseconds INTEGER NOT NULL,PRIMARY KEY(workspace_id,instance_id),UNIQUE(workspace_id,session_id));\
+                     INSERT INTO workspace_meta VALUES(1,x'10000000000040008000000000000001');\
+                     INSERT INTO agent_instances VALUES(x'10000000000040008000000000000001',x'30000000000040008000000000000003',x'40000000000040008000000000000003',7,9);\
+                     INSERT INTO agent_instances VALUES(x'10000000000040008000000000000001',x'30000000000040008000000000000001',x'40000000000040008000000000000001',7,9);\
+                     INSERT INTO agent_instances VALUES(x'10000000000040008000000000000001',x'30000000000040008000000000000002',x'40000000000040008000000000000002',7,9);",
+                )
+                .execute(&mut connection)
+                .await
+                .unwrap();
+                sqlx::raw_sql(include_str!(
+                    "../migrations/workspace/0003_session_presentation.sql"
+                ))
+                .execute(&mut connection)
+                .await
+                .unwrap();
+                let rows: Vec<(Vec<u8>, i64)> = sqlx::query_as(
+                    "SELECT session_id,creation_ordinal FROM session_presentations ORDER BY creation_ordinal",
+                )
+                .fetch_all(&mut connection)
+                .await
+                .unwrap();
+                assert_eq!(rows.iter().map(|row| row.1).collect::<Vec<_>>(), vec![1, 2, 3]);
+                assert_eq!(rows[0].0[15], 1);
+                assert_eq!(rows[1].0[15], 2);
+                assert_eq!(rows[2].0[15], 3);
+                let next: i64 =
+                    sqlx::query_scalar("SELECT next_session_ordinal FROM workspace_meta")
+                        .fetch_one(&mut connection)
+                        .await
+                        .unwrap();
+                assert_eq!(next, 4);
+            });
+    }
 
     #[test]
     fn bundled_engine_is_patched_and_workspace_pragmas_are_verified() {
@@ -801,7 +845,7 @@ mod tests {
                         .fetch_one(reopened.pool())
                         .await
                         .unwrap();
-                assert_eq!(migrations, 2);
+                assert_eq!(migrations, 3);
             });
     }
 }

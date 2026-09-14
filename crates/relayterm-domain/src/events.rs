@@ -24,11 +24,17 @@ pub enum DefinitionField {
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+pub enum SessionField {
+    DisplayName,
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum EntityId {
     Workspace(WorkspaceId),
     Definition(AgentDefinitionId),
     Task(TaskId),
     Instance(AgentInstanceId),
+    Session(TerminalSessionId),
     Claim(ClaimId),
     Progress(ProgressEntryId),
     Handover(HandoverId),
@@ -47,6 +53,7 @@ pub enum EventType {
     TaskTransitioned,
     InstanceRegistered,
     InstanceObserved,
+    SessionRenamed,
     ClaimOpened,
     ClaimClosed,
     ProgressAdded,
@@ -89,6 +96,10 @@ pub enum EventPayload {
         id: AgentInstanceId,
         from: InstanceStatus,
         to: InstanceStatus,
+    },
+    SessionRenamed {
+        session_id: TerminalSessionId,
+        fields: Vec<SessionField>,
     },
     ClaimOpened {
         id: ClaimId,
@@ -140,6 +151,7 @@ impl EventPayload {
             Self::TaskTransitioned { .. } => EventType::TaskTransitioned,
             Self::InstanceRegistered { .. } => EventType::InstanceRegistered,
             Self::InstanceObserved { .. } => EventType::InstanceObserved,
+            Self::SessionRenamed { .. } => EventType::SessionRenamed,
             Self::ClaimOpened { .. } => EventType::ClaimOpened,
             Self::ClaimClosed { .. } => EventType::ClaimClosed,
             Self::ProgressAdded { .. } => EventType::ProgressAdded,
@@ -162,6 +174,7 @@ impl EventPayload {
             Self::InstanceRegistered { id, .. } | Self::InstanceObserved { id, .. } => {
                 EntityId::Instance(*id)
             }
+            Self::SessionRenamed { session_id, .. } => EntityId::Session(*session_id),
             Self::ClaimOpened { id, .. } | Self::ClaimClosed { id, .. } => EntityId::Claim(*id),
             Self::ProgressAdded { id, .. } => EntityId::Progress(*id),
             Self::HandoverPrepared { id, .. } => EntityId::Handover(*id),
@@ -231,6 +244,9 @@ impl TryFrom<EventRecord> for WorkspaceEvent {
         match &record.payload {
             EventPayload::TaskEdited { fields, .. } => crate::validation::set(fields, "fields")?,
             EventPayload::DefinitionUpdated { fields, .. } => {
+                crate::validation::set(fields, "fields")?
+            }
+            EventPayload::SessionRenamed { fields, .. } => {
                 crate::validation::set(fields, "fields")?
             }
             _ => {}

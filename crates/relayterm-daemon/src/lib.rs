@@ -3205,6 +3205,7 @@ fn entity_uuid(id: domain::EntityId) -> uuid::Uuid {
         domain::EntityId::Definition(v) => v.as_uuid(),
         domain::EntityId::Task(v) => v.as_uuid(),
         domain::EntityId::Instance(v) => v.as_uuid(),
+        domain::EntityId::Session(v) => v.as_uuid(),
         domain::EntityId::Claim(v) => v.as_uuid(),
         domain::EntityId::Progress(v) => v.as_uuid(),
         domain::EntityId::Handover(v) => v.as_uuid(),

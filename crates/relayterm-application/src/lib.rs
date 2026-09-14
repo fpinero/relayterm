@@ -35,6 +35,7 @@ pub struct MutationScope {
     pub task_ids: Vec<TaskId>,
     pub definition_ids: Vec<AgentDefinitionId>,
     pub instance_ids: Vec<AgentInstanceId>,
+    pub session_ids: Vec<TerminalSessionId>,
     pub all_definitions: bool,
 }
 
@@ -77,6 +78,7 @@ impl MutationScope {
             } => {
                 scope.task_ids.push(*task_id);
             }
+            Command::RenameSession { session_id, .. } => scope.session_ids.push(*session_id),
         }
         scope
     }
@@ -427,6 +429,10 @@ pub enum Request {
         task_id: TaskId,
         content: HandoverContent,
     },
+    RenameSession {
+        session_id: TerminalSessionId,
+        display_name: String,
+    },
 }
 /// Metadata received by the future supervisor before attempting launch.
 pub struct LaunchContext {
@@ -626,6 +632,13 @@ impl<S: Store, C: Clock, I: IdGenerator, N: EventNotifier> Service<S, C, I, N> {
                 id: HandoverId::from_uuid(self.ids.next()?.as_uuid()),
                 task_id,
                 content,
+            },
+            Request::RenameSession {
+                session_id,
+                display_name,
+            } => Command::RenameSession {
+                session_id,
+                display_name: normalize_session_display_name(&display_name)?,
             },
         };
         let scope = MutationScope::command(&command);

@@ -100,6 +100,38 @@ pub(crate) fn text(
     }
     Ok(())
 }
+
+/// Normalize and validate user-visible session metadata without exposing it in errors.
+pub fn normalize_session_display_name(value: &str) -> Result<Option<String>> {
+    let normalized = value.trim();
+    if normalized.is_empty() {
+        return Ok(None);
+    }
+    validate_session_display_name(normalized)?;
+    Ok(Some(normalized.to_owned()))
+}
+
+pub(crate) fn validate_session_display_name(value: &str) -> Result<()> {
+    if value.is_empty()
+        || value.len() > 128
+        || value.trim() != value
+        || value.chars().any(|character| {
+            character.is_control()
+                || matches!(
+                    character,
+                    '\u{061c}'
+                        | '\u{200e}'
+                        | '\u{200f}'
+                        | '\u{202a}'..='\u{202e}'
+                        | '\u{2066}'..='\u{2069}'
+                )
+        })
+    {
+        Err(Error::Validation("session_display_name"))
+    } else {
+        Ok(())
+    }
+}
 pub(crate) fn set<T: PartialEq>(values: &[T], field: &'static str) -> Result<()> {
     if values.len() > 128
         || values

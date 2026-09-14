@@ -331,6 +331,14 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
                 .unwrap();
             connection.execute("PRAGMA foreign_keys=OFF").await.unwrap();
             connection.execute("BEGIN IMMEDIATE").await.unwrap();
+            connection
+                .execute("DROP TABLE session_presentations")
+                .await
+                .unwrap();
+            connection
+                .execute("ALTER TABLE workspace_meta DROP COLUMN next_session_ordinal")
+                .await
+                .unwrap();
             connection.execute("DROP TABLE worktrees").await.unwrap();
             connection
                 .execute("DROP TABLE worktree_intents")
@@ -345,7 +353,7 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
                 .await
                 .unwrap();
             connection
-                .execute("DELETE FROM _sqlx_migrations WHERE version=2")
+                .execute("DELETE FROM _sqlx_migrations WHERE version>=2")
                 .await
                 .unwrap();
             connection.execute("COMMIT").await.unwrap();

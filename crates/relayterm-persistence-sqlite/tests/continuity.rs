@@ -87,6 +87,125 @@ fn task_content(title: &str) -> TaskContent {
 }
 
 #[test]
+fn session_metadata_survives_reopen_and_vacuum_backup() {
+    runtime().block_on(async {
+        let temporary = tempfile::tempdir().unwrap();
+        let private = temporary.path().join("private");
+        let project = temporary.path().join("project");
+        std::fs::create_dir(&project).unwrap();
+        relayterm_platform::create_private_dir(&private).unwrap();
+        let source = private.join("workspace.sqlite3");
+        let database = Database::open(
+            &source,
+            DatabaseKind::Workspace,
+            OpenMode::ExplicitNew,
+            PoolSettings::default(),
+        )
+        .await
+        .unwrap();
+        let store = SqliteStore::new(database.pool().clone());
+        let workspace_id: WorkspaceId = "10000000-0000-4000-8000-000000000097".parse().unwrap();
+        let service = Service::new(
+            store.clone(),
+            TestClock(Arc::new(AtomicU64::new(0))),
+            TestIds(AtomicU64::new(6_000)),
+            NoopNotifier,
+        );
+        service
+            .create_workspace_reserved(workspace_id, "Session metadata".into(), project.clone())
+            .await
+            .unwrap();
+        let registered = service
+            .register_instance(
+                workspace_id,
+                LaunchContext {
+                    agent_definition_id: None,
+                    task_id: None,
+                    working_directory: project,
+                    terminal_size: TerminalSize::new(24, 80).unwrap(),
+                },
+            )
+            .await
+            .unwrap();
+        let session_id = registered.committed.snapshot.state().unwrap().instances()[0]
+            .record()
+            .session_id;
+        let revision = registered.committed.snapshot.revision();
+        service
+            .execute_at_revision(
+                workspace_id,
+                Actor::LocalUser,
+                Request::RenameSession {
+                    session_id,
+                    display_name: "  Durable e\u{301}  ".into(),
+                },
+                revision,
+            )
+            .await
+            .unwrap();
+        store
+            .validate_workspace_integrity(workspace_id)
+            .await
+            .unwrap();
+
+        let backup = private.join("backup.sqlite3");
+        database.snapshot_to(&backup).await.unwrap();
+        database.pool().close().await;
+        let reopened = Database::open(
+            &source,
+            DatabaseKind::Workspace,
+            OpenMode::Reopen,
+            PoolSettings::default(),
+        )
+        .await
+        .unwrap();
+        let reopened_state = SqliteStore::new(reopened.pool().clone())
+            .consistent_snapshot(workspace_id)
+            .await
+            .unwrap()
+            .snapshot
+            .state()
+            .unwrap()
+            .clone();
+        assert_eq!(
+            reopened_state
+                .session_presentation(session_id)
+                .unwrap()
+                .record()
+                .display_name
+                .as_deref(),
+            Some("Durable e\u{301}")
+        );
+        assert_eq!(reopened_state.next_session_ordinal().value(), 2);
+        reopened.pool().close().await;
+
+        let backup_database = Database::open(
+            &backup,
+            DatabaseKind::Workspace,
+            OpenMode::ReadOnly,
+            PoolSettings::default(),
+        )
+        .await
+        .unwrap();
+        let backup_state = SqliteStore::new(backup_database.pool().clone())
+            .consistent_snapshot(workspace_id)
+            .await
+            .unwrap()
+            .snapshot
+            .state()
+            .unwrap()
+            .clone();
+        assert_eq!(
+            backup_state
+                .session_presentation(session_id)
+                .unwrap()
+                .effective_label(),
+            "Durable e\u{301}"
+        );
+    });
+}
+
+#[test]
 fn bounded_integrity_validation_rejects_cross_row_state_corruption() {
     runtime().block_on(async {
         let temporary = tempfile::tempdir().unwrap();
