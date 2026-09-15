@@ -77,6 +77,8 @@ Bundled SQLite removes a separate SQLite installation requirement but does not p
 
 The release CI extracts the inspected archive and routes the session-presentation, full TUI, two-worktree, and private backup/restore gates through that exact executable. Each gate is a separate step, so one failure cannot be hidden by a later command. The harness binaries and fixtures remain Cargo test outputs outside the archive; only the production `rt` comes from the candidate package.
 
+On pull requests, general quality jobs validate GitHub's proposed merge commit while the release jobs explicitly check out the pull request head. This keeps integration coverage and makes each build record identify the stable candidate source SHA. Push-triggered release jobs use the pushed commit. Native release jobs print and validate ELF, Mach-O, or PE architecture and runtime dependency metadata before packaging. Every installed command in the extracted smoke has a 30-second bound, and the complete smoke step has a three-minute bound.
+
 The observed prototype macOS executable is Mach-O arm64 with deployment target 11.0. It links `/usr/lib/libiconv.2.dylib` and `/usr/lib/libSystem.B.dylib`; SQLite is bundled. The declared macOS 14 floor remains the oldest tested runtime, regardless of the lower linker deployment field. The extracted smoke passed on macOS 26.5.2 with only `/usr/bin:/bin` on `PATH` for the product process. A short private test root under `/tmp` was required because Unix-domain socket paths are length-bounded. Production default private locations are compact; an excessively long explicit `--home` can fail with `daemon_unavailable` and should be replaced with a shorter private path.
 
 ## Portable archive inventory

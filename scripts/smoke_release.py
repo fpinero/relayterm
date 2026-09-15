@@ -15,6 +15,8 @@ import zipfile
 
 import package_release
 
+COMMAND_TIMEOUT_SECONDS = 30
+
 
 def windows_system_root(environment):
     for name, value in environment.items():
@@ -68,6 +70,7 @@ def invoke(binary, project, home, arguments, *, input_text=None, expect=0):
         text=True,
         env=environment,
         check=False,
+        timeout=COMMAND_TIMEOUT_SECONDS,
     )
     if result.returncode != expect:
         raise RuntimeError(f"installed command failed in stage {arguments[0]}")
@@ -99,6 +102,7 @@ def smoke(archive):
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE,
                 check=False,
+                timeout=COMMAND_TIMEOUT_SECONDS,
             )
             if result.returncode != 0:
                 raise RuntimeError(f"installed {argument} failed")

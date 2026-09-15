@@ -2,8 +2,10 @@
 
 import importlib.util
 import pathlib
+import subprocess
 import sys
 import unittest
+from unittest import mock
 
 
 MODULE_PATH = pathlib.Path(__file__).with_name("smoke_release.py")
@@ -28,6 +30,14 @@ class SmokeReleaseTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "Windows system directory") as raised:
             smoke_release.windows_system_root({"PRIVATE_VALUE": "sensitive"})
         self.assertNotIn("sensitive", str(raised.exception))
+
+    def test_invoke_bounds_installed_command_runtime(self):
+        completed = subprocess.CompletedProcess([], 0, '{"ok":true,"result":{}}\n', "")
+        with mock.patch.object(smoke_release, "constrained_environment", return_value={}), mock.patch.object(
+            smoke_release.subprocess, "run", return_value=completed
+        ) as run:
+            smoke_release.invoke(pathlib.Path("rt"), pathlib.Path("project"), pathlib.Path("home"), ["workspace", "status"])
+        self.assertEqual(run.call_args.kwargs["timeout"], smoke_release.COMMAND_TIMEOUT_SECONDS)
 
 
 if __name__ == "__main__":

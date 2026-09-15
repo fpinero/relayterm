@@ -70,6 +70,14 @@ class InstallReleaseTests(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertFalse((destination / "rt").exists())
 
+    def test_partial_inventory_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            release, destination = self.fixture(pathlib.Path(directory))
+            (release / "manifest.json").unlink()
+            result = self.invoke(release, destination)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertFalse((destination / "rt").exists())
+
 
 @unittest.skipUnless(os.name == "nt", "PowerShell installer tests run on Windows")
 class PowerShellInstallReleaseTests(unittest.TestCase):
@@ -125,7 +133,7 @@ class PowerShellInstallReleaseTests(unittest.TestCase):
             (release / "manifest.json").unlink()
             result = self.invoke(release, destination)
             self.assertNotEqual(result.returncode, 0)
-            self.assertFalse((destination / "rt").exists())
+            self.assertFalse((destination / "rt.exe").exists())
 
 
 if __name__ == "__main__":

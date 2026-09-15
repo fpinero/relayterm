@@ -35,6 +35,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       - name: Install pinned compiler
         run: rustup toolchain install 1.98.1 --profile minimal
       - name: Fetch complete locked graph
@@ -47,6 +48,35 @@ jobs:
           python scripts/build_release.py build --target ${{ matrix.target }} --output release-build-b --offline
       - name: Compare release executables
         run: python scripts/build_release.py compare release-build-a/build-record.json release-build-b/build-record.json
+      - name: Inspect ELF runtime dependencies
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        shell: bash
+        run: |
+          file release-build-a/rt
+          readelf --file-header --program-headers --dynamic release-build-a/rt
+          objdump --dynamic-syms release-build-a/rt | grep -E 'GLIBC_[0-9]'
+      - name: Inspect Mach-O runtime dependencies
+        if: matrix.target == 'aarch64-apple-darwin'
+        run: |
+          file release-build-a/rt
+          otool -hv release-build-a/rt
+          otool -L release-build-a/rt
+          otool -l release-build-a/rt
+      - name: Inspect PE runtime dependencies
+        if: matrix.target == 'x86_64-pc-windows-msvc'
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $installation = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $installation) { throw "Visual Studio C++ tools were not found." }
+          $dumpbin = Get-ChildItem -Path (Join-Path $installation "VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe") | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $dumpbin) { throw "dumpbin.exe was not found." }
+          $inspection = & $dumpbin.FullName /headers /imports release-build-a/rt.exe
+          $inspection
+          if ($LASTEXITCODE -ne 0) { throw "dumpbin.exe failed." }
+          if ($inspection -notmatch "machine \(x64\)" -or $inspection -notmatch "Section contains the following imports") {
+            throw "The PE inspection did not report the expected architecture and import table."
+          }
       - name: Package release twice
         run: |
           python scripts/package_release.py create --build release-build-a --output release-package-a
@@ -62,6 +92,7 @@ jobs:
             python scripts/package_release.py inspect release-package-a/relayterm-0.1.0-${{ matrix.target }}.tar.gz
           fi
       - name: Smoke-test extracted release
+        timeout-minutes: 3
         shell: bash
         run: |
           if [[ "${{ matrix.target }}" == *windows* ]]; then
