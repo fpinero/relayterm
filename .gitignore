@@ -40,6 +40,7 @@ relayterm.local.toml
 
 # Local verification output
 /coverage/
+/dist/
 *.profraw
 *.profdata
 __pycache__/

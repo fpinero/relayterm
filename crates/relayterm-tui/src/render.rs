@@ -46,7 +46,9 @@ pub fn draw(frame: &mut Frame<'_>, app: &App) {
         Screen::Events => draw_events(frame, app, rows[1]),
         Screen::Help => draw_help(frame, rows[1]),
     }
-    let status = if app
+    let status = if app.form.as_ref().is_some_and(|form| form.reviewing) {
+        "Reviewing latest state: Ctrl-R adopt revision, Esc discard draft"
+    } else if app
         .terminal
         .as_ref()
         .is_some_and(|terminal| terminal.input_focus)
@@ -56,8 +58,15 @@ pub fn draw(frame: &mut Frame<'_>, app: &App) {
         "Tab/1-6 screen  j/k move  Enter open  ? help  q exit"
     };
     frame.render_widget(Paragraph::new(status), rows[2]);
-    if let Some(form) = &app.form {
-        draw_form(frame, form, centered(area, 76, 80));
+    if let Some(form) = &app.form
+        && !form.reviewing
+    {
+        draw_form(
+            frame,
+            form,
+            centered(area, 76, 80),
+            !app.confirm_quit && !app.confirm_discard,
+        );
     }
     if app.confirm_quit {
         let dialog = Paragraph::new(
@@ -315,68 +324,99 @@ fn actor_label(value: Option<&Value>) -> &'static str {
 
 fn draw_sessions(frame: &mut Frame<'_>, app: &App, area: Rect) {
     if let Some(terminal) = &app.terminal {
-        draw_terminal(
-            frame,
-            terminal.snapshot.as_ref(),
-            area,
-            terminal.input_focus,
-            terminal.lease_id.is_some(),
-            terminal.uncertain_input,
-            terminal.scrollback_rows,
-        );
+        draw_terminal(frame, terminal, area);
         return;
     }
-    let items = app
-        .collection("instances")
-        .iter()
-        .enumerate()
-        .map(|(index, instance)| {
-            let marker = if index == app.selected_session {
-                ">"
-            } else {
-                " "
-            };
-            ListItem::new(safe_text::single_line(
-                &format!(
-                    "{marker} [{}] session {} instance {}",
-                    field(instance, "status"),
-                    field(instance, "session_id"),
-                    field(instance, "id")
-                ),
-                512,
-            ))
-        });
+    let rows = app.session_rows();
+    let items = rows.iter().enumerate().map(|(index, row)| {
+        let marker = if index == app.selected_session {
+            ">"
+        } else {
+            " "
+        };
+        let instance = crate::model::session_instance(row);
+        let label = row
+            .get("display_name")
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+            .or_else(|| {
+                row.get("creation_ordinal")
+                    .and_then(Value::as_str)
+                    .map(|ordinal| format!("Session {ordinal}"))
+            })
+            .unwrap_or_else(|| "Legacy session".into());
+        ListItem::new(safe_text::single_line(
+            &format!(
+                "{marker} [{}] {} ({})",
+                field(instance, "status"),
+                label,
+                app.abbreviated_session_id(index)
+            ),
+            512,
+        ))
+    });
     let rows = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(3), Constraint::Length(1)])
+        .constraints([
+            Constraint::Min(3),
+            Constraint::Length(5),
+            Constraint::Length(1),
+        ])
         .split(area);
-    let selected = app.selected_session().map_or_else(
-        || "none".to_owned(),
-        |session| field(session, "session_id").to_owned(),
-    );
+    let selected = app.selected_session_instance();
+    let selected_id = selected.map_or("none", |instance| field(instance, "session_id"));
     frame.render_widget(
-        List::new(items).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(format!("Sessions selected {selected}")),
-        ),
+        List::new(items).block(Block::default().borders(Borders::ALL).title(format!(
+            "Sessions selected {} page {} [{}]",
+            selected_id,
+            app.session_page_index + 1,
+            if app.ordered_sessions() {
+                "creation order"
+            } else {
+                "legacy order"
+            }
+        ))),
         rows[0],
     );
+    let details = selected.map_or_else(
+        || "No session selected.".to_owned(),
+        |instance| {
+            format!(
+                "Session ID: {}\nInstance ID: {}\nStatus: {}",
+                field(instance, "session_id"),
+                field(instance, "id"),
+                field(instance, "status")
+            )
+        },
+    );
     frame.render_widget(
-        Paragraph::new("Enter attach, s shell, a agent, t terminate"),
+        Paragraph::new(safe_text::narrative(&details, 1024))
+            .block(Block::default().borders(Borders::ALL).title("Details")),
         rows[1],
+    );
+    frame.render_widget(
+        Paragraph::new(
+            "Enter attach, n rename, PageUp/PageDown pages, s shell, a agent, t terminate",
+        ),
+        rows[2],
     );
 }
 
-fn draw_terminal(
-    frame: &mut Frame<'_>,
-    snapshot: Option<&Value>,
-    area: Rect,
-    input: bool,
-    writer: bool,
-    uncertain_input: bool,
-    scrollback_rows: u16,
-) {
+fn draw_terminal(frame: &mut Frame<'_>, terminal: &crate::model::TerminalView, area: Rect) {
+    let input = terminal.input_focus;
+    let writer = terminal.lease_id.is_some();
+    let uncertain_input = terminal.uncertain_input;
+    let input_owned_elsewhere = terminal.input_owned_elsewhere;
+    let scrollback_rows = terminal.scrollback_rows;
+    let split = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(if input_owned_elsewhere {
+            vec![Constraint::Min(3), Constraint::Length(3)]
+        } else {
+            vec![Constraint::Min(3), Constraint::Length(0)]
+        })
+        .split(area);
+    let area = split[0];
     let title = format!(
         "Terminal [{}] [{}]{}{}",
         if input { "INPUT" } else { "NAVIGATION" },
@@ -395,7 +435,7 @@ fn draw_terminal(
     let block = Block::default().borders(Borders::ALL).title(title);
     let inner = block.inner(area);
     frame.render_widget(block, area);
-    let Some(snapshot) = snapshot else {
+    let Some(snapshot) = terminal.snapshot.as_ref() else {
         frame.render_widget(Paragraph::new("Attaching..."), inner);
         return;
     };
@@ -451,6 +491,15 @@ fn draw_terminal(
         if row < inner.height && column < inner.width {
             frame.set_cursor_position((inner.x + column, inner.y + row));
         }
+    }
+    if input_owned_elsewhere {
+        frame.render_widget(
+            Paragraph::new(
+                "Another client controls input. This view remains read-only. Try i after that client releases input.",
+            )
+            .wrap(Wrap { trim: true }),
+            split[1],
+        );
     }
 }
 
@@ -615,7 +664,7 @@ fn draw_events(frame: &mut Frame<'_>, app: &App, area: Rect) {
 }
 
 fn draw_help(frame: &mut Frame<'_>, area: Rect) {
-    let help = "Global\n  1-6 / Tab: change screen   ?: help   q: quit   R: reconnect\n  j/k or arrows: move selection   Enter: open\n\nTasks\n  n: create   e: edit   r: ready/release   c: claim\n  b: block   d: complete   x: cancel   p: progress   h: handover\n  w: create worktree   o: select next owned worktree   u: clear selection\n  a: launch shell for selected task   PageUp/PageDown: task history\n\nAgents\n  n: custom   e: edit   Space: enable/disable   v: availability   a: launch\n  [ / ]: select template   p: copy selected template into a new editable definition\n\nSessions\n  s: launch shell   a: launch selected definition   Enter: attach\n  PageUp/PageDown: terminal history   i: acquire input\n  Ctrl-]: return to navigation   Esc: detach   t: terminate\n\nForms\n  Tab/Shift-Tab: field   Ctrl-U: clear field   Ctrl-S: submit   Esc: cancel\n  Ctrl-R: reconcile an uncertain result before explicit resubmission.\n  Enter adds a newline only in multiline fields.\n\nRelayterm does not terminate sessions when the client quits.";
+    let help = "Global\n  1-6 / Tab: change screen   ?: help   q: quit   R: reconnect\n  j/k or arrows: move selection   Enter: open\n\nTasks\n  n: create   e: edit   r: ready/release   c: claim\n  b: block   d: complete   x: cancel   p: progress   h: handover\n  w: create worktree   o: select next owned worktree   u: clear selection\n  a: launch shell for selected task   PageUp/PageDown: task history\n\nAgents\n  n: custom   e: edit   Space: enable/disable   v: availability   a: launch\n  [ / ]: select template   p: copy selected template into a new editable definition\n\nSessions\n  s: launch shell   a: launch selected definition   Enter: attach   n: rename\n  PageUp/PageDown: session pages, or terminal history while attached\n  i: acquire input   Ctrl-]: return to navigation   Esc: detach   t: terminate\n\nForms\n  Tab/Shift-Tab: field   Ctrl-U: clear field   Ctrl-S: submit   Esc: cancel\n  Ctrl-R: load authoritative state, then press again to adopt its revision.\n  Enter adds a newline only in multiline fields.\n\nRelayterm does not terminate sessions when the client quits.";
     frame.render_widget(
         Paragraph::new(help).wrap(Wrap { trim: false }).block(
             Block::default()
@@ -626,41 +675,26 @@ fn draw_help(frame: &mut Frame<'_>, area: Rect) {
     );
 }
 
-fn draw_form(frame: &mut Frame<'_>, form: &crate::model::Form, area: Rect) {
+fn draw_form(frame: &mut Frame<'_>, form: &crate::model::Form, area: Rect, show_cursor: bool) {
     frame.render_widget(Clear, area);
-    let mut lines = Vec::new();
-    for (index, field) in form.fields.iter().enumerate() {
-        let marker = if index == form.selected { ">" } else { " " };
-        lines.push(Line::from(vec![Span::styled(
-            format!(
-                "{marker} {} ({}/{})",
-                field.label,
-                field.value.len(),
-                field.limit
-            ),
-            Style::default().add_modifier(Modifier::BOLD),
-        )]));
-        lines.push(Line::raw(safe_text::narrative(&field.value, field.limit)));
-    }
-    if let Some(error) = &form.error {
-        lines.push(Line::raw(format!(
-            "Error: {}",
-            safe_text::single_line(error, 512)
-        )));
-    }
-    lines.push(Line::raw(
-        "Ctrl-S submit, Ctrl-U clear field, Esc cancel, Tab next field, Ctrl-R reconcile",
-    ));
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(form_title(form.kind));
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+    let editor = crate::form_layout::editor_layout(form, inner.width, inner.height);
     frame.render_widget(
-        Paragraph::new(Text::from(lines))
-            .wrap(Wrap { trim: false })
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title(form_title(form.kind)),
-            ),
-        area,
+        Paragraph::new(Text::from(
+            editor.lines.into_iter().map(Line::raw).collect::<Vec<_>>(),
+        )),
+        inner,
     );
+    if show_cursor && inner.width != 0 && inner.height != 0 {
+        frame.set_cursor_position((
+            inner.x.saturating_add(editor.cursor_column),
+            inner.y.saturating_add(editor.cursor_row),
+        ));
+    }
 }
 
 fn form_title(kind: crate::model::FormKind) -> &'static str {
@@ -673,6 +707,7 @@ fn form_title(kind: crate::model::FormKind) -> &'static str {
         FormKind::TaskEdit => "Edit task form",
         FormKind::Progress => "Progress form",
         FormKind::Handover => "Handover form",
+        FormKind::SessionRename => "Rename session form",
         FormKind::ConfirmTerminate => "Terminate session form",
     }
 }
@@ -703,7 +738,10 @@ fn centered(area: Rect, percent_x: u16, percent_y: u16) -> Rect {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ratatui::{Terminal, backend::TestBackend};
+    use ratatui::{
+        Terminal,
+        backend::{Backend, TestBackend},
+    };
 
     #[test]
     fn compact_and_subminimum_layouts_render_without_color_dependency() {
@@ -724,5 +762,25 @@ mod tests {
                 "Relayterm"
             }));
         }
+    }
+
+    #[test]
+    fn editable_form_places_a_physical_cursor_and_dialog_hides_it() {
+        let mut app = App {
+            width: 100,
+            height: 30,
+            form: Some(crate::model::Form::session_rename("wide 界e\u{301}")),
+            ..App::default()
+        };
+        let backend = TestBackend::new(app.width, app.height);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|frame| draw(frame, &app)).unwrap();
+        assert!(terminal.backend().cursor_visible());
+        let position = terminal.backend_mut().get_cursor_position().unwrap();
+        assert!(position.x < app.width && position.y < app.height);
+
+        app.confirm_discard = true;
+        terminal.draw(|frame| draw(frame, &app)).unwrap();
+        assert!(!terminal.backend().cursor_visible());
     }
 }

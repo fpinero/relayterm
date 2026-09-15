@@ -180,6 +180,12 @@ The offline gate validated its process monitor with a synthetic loopback listene
 
 Hosted automation does not identify behavior in a graphical terminal application and does not exercise an operator-controlled SSH connection. Separate operator-controlled observations cover the mandatory local xterm-compatible, Terminal.app, Windows Terminal, and OpenSSH rows. The [M11 final technical review](m11-final-review.md) closes acceptance, risk, budget, and manual reconciliation. The owner approved delivery and PR #22 is merged. Post-merge CI passed; M11 is complete and the [M12 handoff](m12-handoff.md) is prepared.
 
+## M12 usability evidence
+
+M12 changes session presentation, ordered paging, all form cursor geometry, stale-form review, and competing-input feedback. The [focused verification procedure](m12-usability-verification.md) defines the affected automated and manual scope and maps unaffected M11 evidence. Source `491d5f1037450c362525b289fa6361d834fc0b6f` passed the complete native [Quality workflow](https://github.com/fpinero/relayterm/actions/runs/34947043434) and [Security workflow](https://github.com/fpinero/relayterm/actions/runs/34947043380). Stable Linux, macOS, and Windows jobs each passed two independently reported complete TUI repetitions. Consolidated human observations on those three systems and one focused SSH observation remain pending, so no final M12 usability conclusion is claimed yet.
+
+The initial release targets, tested runtime floors, build inputs, package inventory, and current evidence boundaries are defined in the [release build contract](release-builds.md). Native release jobs built and packaged `491d5f1` twice on Ubuntu 24.04 x86-64, macOS 14 arm64, and Windows Server 2022 x64. Each target produced byte-identical executable copies and byte-identical normalized archive copies, passed native dependency and exact-inventory inspection, and completed extracted daemon, PTY or ConPTY, TUI, session presentation, worktree, and backup/restore gates. The [candidate handoff](m12-candidate-handoff.md) records exact hashes, sizes, linkage, measurements, and evidence links. Automated collision-safe installation also passed locally on macOS. Operator-controlled clean installation, interactive quick start, upgrade, removal, and changed usability observations remain pending on the retained candidates.
+
 ## Manual shell and terminal matrix
 
 | Platform | Shells | Observed terminals and connections |

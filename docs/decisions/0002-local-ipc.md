@@ -32,6 +32,8 @@ M08 uses separate client connections for control calls and event subscription so
 
 M10 advertises `worktrees_v1` and activates strict additive worktree requests. Create uses a durable operation ID independent of connection request IDs. A client may poll that receipt after uncertain delivery but does not automatically submit another create. List and reconciliation remain authenticated, bounded, and revision checked. Native path DTOs preserve platform encoding, while ordinary events exclude path, branch, base, and Git output content.
 
+M12 keeps protocol version 1 and the legacy `session.list` shape unchanged. It advertises additive `session.list_ordered` and `session.rename` operations. Ordered pages use a creation-ordinal and session-ID keyset cursor under one expected workspace revision. Capability absence keeps the legacy display and disables rename before mutation. Allowlisted typed conflict reasons distinguish a stale revision and a competing input owner for supporting peers; unknown reasons retain generic safe guidance. Names never appear in durable events, diagnostics, or error text. The full contract is defined in [the session presentation contract](../session-presentation-contract.md).
+
 ## Alternatives
 
 TCP would expand the trust boundary. Newline-only text framing is unsuitable for opaque terminal bytes. Unbounded queues and blind retries can corrupt perceived state or exhaust memory.

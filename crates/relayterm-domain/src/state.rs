@@ -7,6 +7,8 @@ pub struct WorkspaceState {
     definitions: Vec<AgentDefinition>,
     tasks: Vec<Task>,
     instances: Vec<AgentInstance>,
+    session_presentations: Vec<SessionPresentation>,
+    next_session_ordinal: SessionCreationOrdinal,
     claims: Vec<Claim>,
     progress: Vec<ProgressEntry>,
     handovers: Vec<Handover>,
@@ -16,17 +18,35 @@ pub struct WorkspaceState {
     complete: bool,
 }
 /// Rows loaded by an adapter; every reference is checked on reconstruction.
-#[derive(Default)]
 pub struct WorkspaceRows {
     pub definitions: Vec<AgentDefinition>,
     pub tasks: Vec<Task>,
     pub instances: Vec<AgentInstance>,
+    pub session_presentations: Vec<SessionPresentation>,
+    pub next_session_ordinal: SessionCreationOrdinal,
     pub claims: Vec<Claim>,
     pub progress: Vec<ProgressEntry>,
     pub handovers: Vec<Handover>,
     pub approved_roots: Vec<ApprovedRoot>,
     pub worktree_intents: Vec<WorktreeIntent>,
     pub worktrees: Vec<Worktree>,
+}
+impl Default for WorkspaceRows {
+    fn default() -> Self {
+        Self {
+            definitions: Vec::new(),
+            tasks: Vec::new(),
+            instances: Vec::new(),
+            session_presentations: Vec::new(),
+            next_session_ordinal: SessionCreationOrdinal::FIRST,
+            claims: Vec::new(),
+            progress: Vec::new(),
+            handovers: Vec::new(),
+            approved_roots: Vec::new(),
+            worktree_intents: Vec::new(),
+            worktrees: Vec::new(),
+        }
+    }
 }
 /// User-facing intent cannot carry the internal System actor.
 pub enum Command {
@@ -85,6 +105,10 @@ pub enum Command {
         task_id: TaskId,
         worktree_id: Option<WorktreeId>,
     },
+    RenameSession {
+        session_id: TerminalSessionId,
+        display_name: Option<String>,
+    },
 }
 /// Supervisor-only observations, routed separately from client commands.
 pub enum Observation {
@@ -129,6 +153,8 @@ impl WorkspaceState {
             definitions: vec![],
             tasks: vec![],
             instances: vec![],
+            session_presentations: vec![],
+            next_session_ordinal: SessionCreationOrdinal::FIRST,
             claims: vec![],
             progress: vec![],
             handovers: vec![],
@@ -144,6 +170,8 @@ impl WorkspaceState {
             definitions: rows.definitions,
             tasks: rows.tasks,
             instances: rows.instances,
+            session_presentations: rows.session_presentations,
+            next_session_ordinal: rows.next_session_ordinal,
             claims: rows.claims,
             progress: rows.progress,
             handovers: rows.handovers,
@@ -163,6 +191,8 @@ impl WorkspaceState {
             definitions: rows.definitions,
             tasks: rows.tasks,
             instances: rows.instances,
+            session_presentations: rows.session_presentations,
+            next_session_ordinal: rows.next_session_ordinal,
             claims: rows.claims,
             progress: rows.progress,
             handovers: rows.handovers,
@@ -185,6 +215,18 @@ impl WorkspaceState {
     }
     pub fn instances(&self) -> &[AgentInstance] {
         &self.instances
+    }
+    pub fn session_presentations(&self) -> &[SessionPresentation] {
+        &self.session_presentations
+    }
+    pub fn next_session_ordinal(&self) -> SessionCreationOrdinal {
+        self.next_session_ordinal
+    }
+    pub fn session_presentation(&self, id: TerminalSessionId) -> Result<&SessionPresentation> {
+        self.session_presentations
+            .iter()
+            .find(|value| value.record().session_id == id)
+            .ok_or(Error::Reference)
     }
     pub fn claims(&self) -> &[Claim] {
         &self.claims
@@ -755,6 +797,23 @@ impl WorkspaceState {
                     worktree_id,
                 });
             }
+            Command::RenameSession {
+                session_id,
+                display_name,
+            } => {
+                actor.user()?;
+                let presentation = self
+                    .session_presentations
+                    .iter_mut()
+                    .find(|value| value.record().session_id == session_id)
+                    .ok_or(Error::Reference)?;
+                if presentation.rename(display_name)? {
+                    events.push(EventPayload::SessionRenamed {
+                        session_id,
+                        fields: vec![SessionField::DisplayName],
+                    });
+                }
+            }
         }
         Ok(())
     }
@@ -796,7 +855,23 @@ impl WorkspaceState {
                     id: instance.0.id,
                     session_id: instance.0.session_id,
                 });
+                let ordinal = after.next_session_ordinal;
+                let next = ordinal.checked_next()?;
                 after.instances.push(instance);
+                after
+                    .session_presentations
+                    .push(SessionPresentation::restore(SessionPresentationRecord {
+                        workspace_id: self.workspace.0.id,
+                        session_id: after
+                            .instances
+                            .last()
+                            .expect("inserted instance")
+                            .0
+                            .session_id,
+                        creation_ordinal: ordinal,
+                        display_name: None,
+                    })?);
+                after.next_session_ordinal = next;
             }
             Observation::Status {
                 id,
@@ -899,6 +974,38 @@ impl WorkspaceState {
         unique!(self.claims);
         unique!(self.progress);
         unique!(self.handovers);
+        for (index, presentation) in self.session_presentations.iter().enumerate() {
+            let record = presentation.record();
+            if record.workspace_id != wid
+                || self.session_presentations[..index].iter().any(|candidate| {
+                    candidate.record().session_id == record.session_id
+                        || candidate.record().creation_ordinal == record.creation_ordinal
+                })
+                || !self
+                    .instances
+                    .iter()
+                    .any(|instance| instance.record().session_id == record.session_id)
+            {
+                return Err(Error::Reference);
+            }
+        }
+        if self.complete
+            && (self.session_presentations.len() != self.instances.len()
+                || self.instances.iter().any(|instance| {
+                    !self.session_presentations.iter().any(|presentation| {
+                        presentation.record().session_id == instance.record().session_id
+                    })
+                }))
+        {
+            return Err(Error::Reference);
+        }
+        if self
+            .session_presentations
+            .iter()
+            .any(|presentation| presentation.record().creation_ordinal >= self.next_session_ordinal)
+        {
+            return Err(Error::State);
+        }
         for (index, root) in self.approved_roots.iter().enumerate() {
             if root.record().workspace_id != wid
                 || self.approved_roots[..index]

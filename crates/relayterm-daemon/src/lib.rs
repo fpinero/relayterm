@@ -18,7 +18,7 @@ pub use relayterm_platform::SystemClock as RuntimeSystemClock;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use relayterm_application::{
     Clock, DurableReadStore, EventNotifier, EventPageRequest, IdGenerator, MutationScope, Request,
-    Service, Store, TaskHistoryItem, TaskHistoryPageRequest,
+    Service, SessionPageCursor, SessionPageRequest, Store, TaskHistoryItem, TaskHistoryPageRequest,
 };
 use relayterm_domain as domain;
 use relayterm_ipc::{
@@ -867,7 +867,7 @@ where
                     .as_ref()
                     .ok_or_else(unavailable)?
                     .acquire_input(params.session_id.as_uuid(), connection_id.as_uuid())
-                    .map_err(map_supervisor)?;
+                    .map_err(map_input_acquire_error)?;
                 Ok(json!({"lease_id":lease.to_string(),"next_input_sequence":"1"}))
             }
             O::SessionReleaseInput => {
@@ -953,6 +953,8 @@ where
                 self.snapshot_page(&request.params, Some(Collection::Instances))
                     .await
             }
+            O::SessionListOrdered => self.session_list_ordered(&request.params).await,
+            O::SessionRename => self.session_rename(&request.params).await,
             O::TaskGet => {
                 let id = parse_id::<domain::TaskId>(&request.params, "task_id")?;
                 let snapshot = self
@@ -2292,6 +2294,107 @@ where
             json!({"events":page.events.iter().map(event_dto).collect::<Vec<_>>(),"last_sequence":page.last_sequence.to_string(),"retained_from_sequence":page.retained_from_sequence.to_string()}),
         )
     }
+
+    async fn session_list_ordered(&self, value: &Value) -> Result<Value, wire::ErrorBody> {
+        let params: wire::SessionListOrderedParams = parameters(value)?;
+        params
+            .validate()
+            .map_err(|_| invalid_field(wire::ErrorField::PageLimit))?;
+        let after = params
+            .after
+            .map(|cursor| {
+                Ok(SessionPageCursor {
+                    creation_ordinal: domain::SessionCreationOrdinal::new(
+                        cursor.creation_ordinal.get(),
+                    )
+                    .map_err(map_domain_error)?,
+                    session_id: domain::TerminalSessionId::from_uuid(cursor.session_id.as_uuid()),
+                })
+            })
+            .transpose()?;
+        let page_result = self
+            .reads
+            .session_page(
+                self.workspace_id,
+                SessionPageRequest::new(
+                    after,
+                    params.limit,
+                    params.expected_revision.map(wire::DecimalU64::get),
+                )
+                .map_err(map_domain_error)?,
+            )
+            .await;
+        let page = match page_result {
+            Ok(page) => page,
+            Err(domain::Error::Conflict) => {
+                return Err(wire::ErrorBody::not_applied(
+                    wire::ErrorCode::StaleRevision,
+                    wire::Recovery::Refresh,
+                ));
+            }
+            Err(error) => return Err(map_domain_error(error)),
+        };
+        let available = page.items.len();
+        let mut items = Vec::new();
+        let mut encoded_bytes = 2_usize;
+        let mut last_cursor = None;
+        for item in &page.items {
+            let dto = session_summary_dto(item)?;
+            let item_bytes = serde_json::to_vec(&dto).map_err(|_| invalid())?.len();
+            let next_bytes = encoded_bytes
+                .checked_add(usize::from(!items.is_empty()))
+                .and_then(|value| value.checked_add(item_bytes))
+                .ok_or_else(resource)?;
+            if next_bytes > wire::COLLECTION_PAGE_BYTES {
+                break;
+            }
+            encoded_bytes = next_bytes;
+            last_cursor = Some(item.cursor());
+            items.push(dto);
+        }
+        if items.is_empty() && available != 0 {
+            return Err(resource());
+        }
+        let has_more = page.has_more || items.len() < available;
+        let next = has_more.then_some(last_cursor).flatten();
+        let result = wire::SessionListOrderedResult {
+            revision: wire::DecimalU64::new(page.revision).map_err(|_| invalid())?,
+            last_sequence: wire::DecimalU64::new(page.last_sequence).map_err(|_| invalid())?,
+            retained_from_sequence: wire::DecimalU64::new(page.retained_from_sequence)
+                .map_err(|_| invalid())?,
+            items,
+            next: next.map(|cursor| wire::SessionPageCursorDto {
+                creation_ordinal: wire::DecimalU64::new(cursor.creation_ordinal.value())
+                    .expect("validated ordinal"),
+                session_id: wire::SessionId::from_uuid(cursor.session_id.as_uuid()),
+            }),
+        };
+        serde_json::to_value(result).map_err(|_| invalid())
+    }
+
+    async fn session_rename(&self, value: &Value) -> Result<Value, wire::ErrorBody> {
+        let params: wire::SessionRenameParams = parameters(value)?;
+        let result = self
+            .service
+            .execute_at_revision(
+                self.workspace_id,
+                domain::Actor::LocalUser,
+                Request::RenameSession {
+                    session_id: domain::TerminalSessionId::from_uuid(params.session_id.as_uuid()),
+                    display_name: params.display_name,
+                },
+                params.expected_revision.get(),
+            )
+            .await;
+        match result {
+            Ok(outcome) => Ok(receipt(&outcome)),
+            Err(domain::Error::Conflict) => Err(wire::ErrorBody::not_applied(
+                wire::ErrorCode::StaleRevision,
+                wire::Recovery::Refresh,
+            )),
+            Err(error) => Err(map_domain_error(error)),
+        }
+    }
     async fn history(&self, request: &wire::RequestEnvelope) -> Result<Value, wire::ErrorBody> {
         let p: HistoryParams = parameters(&request.params)?;
         let task = p.task_id.parse().map_err(|_| invalid())?;
@@ -3066,6 +3169,13 @@ fn map_supervisor(error: supervisor::SupervisorError) -> wire::ErrorBody {
         supervisor::SupervisorError::ResnapshotRequired(_) => resource(),
     }
 }
+fn map_input_acquire_error(error: supervisor::SupervisorError) -> wire::ErrorBody {
+    if error == supervisor::SupervisorError::Conflict {
+        wire::ErrorBody::not_applied(wire::ErrorCode::InputOwned, wire::Recovery::None)
+    } else {
+        map_supervisor(error)
+    }
+}
 fn map_domain_error(error: domain::Error) -> wire::ErrorBody {
     use domain::Error as D;
     use wire::{ErrorCode as C, Recovery as R};
@@ -3205,6 +3315,7 @@ fn entity_uuid(id: domain::EntityId) -> uuid::Uuid {
         domain::EntityId::Definition(v) => v.as_uuid(),
         domain::EntityId::Task(v) => v.as_uuid(),
         domain::EntityId::Instance(v) => v.as_uuid(),
+        domain::EntityId::Session(v) => v.as_uuid(),
         domain::EntityId::Claim(v) => v.as_uuid(),
         domain::EntityId::Progress(v) => v.as_uuid(),
         domain::EntityId::Handover(v) => v.as_uuid(),
@@ -3320,6 +3431,18 @@ fn instance_dto(value: &domain::AgentInstance) -> Value {
         })
     });
     json!({"id":r.id.to_string(),"session_id":r.session_id.to_string(),"workspace_id":r.workspace_id.to_string(),"agent_definition_id":r.agent_definition_id.map(|x|x.to_string()),"task_id":r.task_id.map(|x|x.to_string()),"worktree_id":r.worktree_id.map(|x|x.to_string()),"launch_definition":launch_definition,"working_directory":path,"status":r.status,"started_at":timestamp(r.started_at),"last_observed_at":timestamp(r.last_observed_at),"ended_at":r.ended_at.map(timestamp),"exit_code":r.exit_code,"terminal_size":{"rows":r.terminal_size.rows(),"columns":r.terminal_size.columns()}})
+}
+fn session_summary_dto(
+    value: &relayterm_application::SessionSummary,
+) -> Result<wire::SessionSummaryDto, wire::ErrorBody> {
+    Ok(wire::SessionSummaryDto {
+        instance: serde_json::from_value(instance_dto(&value.instance)).map_err(|_| invalid())?,
+        display_name: value.presentation.record().display_name.clone(),
+        creation_ordinal: wire::DecimalU64::new(
+            value.presentation.record().creation_ordinal.value(),
+        )
+        .map_err(|_| invalid())?,
+    })
 }
 fn claim_dto(value: &domain::Claim) -> Value {
     let r = value.record();

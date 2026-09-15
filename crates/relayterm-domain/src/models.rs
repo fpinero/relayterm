@@ -3,6 +3,45 @@ use crate::*;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+/// Stable per-workspace order assigned when a session is registered.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[serde(try_from = "u64", into = "u64")]
+pub struct SessionCreationOrdinal(u64);
+
+impl SessionCreationOrdinal {
+    pub const FIRST: Self = Self(1);
+
+    pub fn new(value: u64) -> Result<Self> {
+        if value == 0 || value > i64::MAX as u64 {
+            Err(Error::Validation("session_creation_ordinal"))
+        } else {
+            Ok(Self(value))
+        }
+    }
+
+    pub fn value(self) -> u64 {
+        self.0
+    }
+
+    pub fn checked_next(self) -> Result<Self> {
+        Self::new(self.0.checked_add(1).ok_or(Error::State)?)
+    }
+}
+
+impl TryFrom<u64> for SessionCreationOrdinal {
+    type Error = Error;
+
+    fn try_from(value: u64) -> Result<Self> {
+        Self::new(value)
+    }
+}
+
+impl From<SessionCreationOrdinal> for u64 {
+    fn from(value: SessionCreationOrdinal) -> Self {
+        value.value()
+    }
+}
+
 macro_rules! record {
     ($entity:ident, $record:ident { $($field:ident: $ty:ty),* $(,)? }) => {
         /// Boundary record; reconstruction must pass the entity validator.
@@ -378,6 +417,42 @@ impl AgentInstance {
         r.ended_at = status.is_final().then_some(at);
         r.exit_code = exit_code;
         *self = Self::restore(r)?;
+        Ok(true)
+    }
+}
+
+record!(SessionPresentation, SessionPresentationRecord {
+    workspace_id: WorkspaceId,
+    session_id: TerminalSessionId,
+    creation_ordinal: SessionCreationOrdinal,
+    display_name: Option<String>,
+});
+impl SessionPresentation {
+    fn validate(&self) -> Result<()> {
+        if let Some(name) = &self.0.display_name {
+            crate::validation::validate_session_display_name(name)?;
+        }
+        Ok(())
+    }
+
+    pub fn effective_label(&self) -> String {
+        self.0
+            .display_name
+            .clone()
+            .unwrap_or_else(|| format!("Session {}", self.0.creation_ordinal.value()))
+    }
+
+    pub(crate) fn rename(&mut self, display_name: Option<String>) -> Result<bool> {
+        if self.0.display_name == display_name {
+            return Ok(false);
+        }
+        let replacement = Self::restore(SessionPresentationRecord {
+            workspace_id: self.0.workspace_id,
+            session_id: self.0.session_id,
+            creation_ordinal: self.0.creation_ordinal,
+            display_name,
+        })?;
+        *self = replacement;
         Ok(true)
     }
 }

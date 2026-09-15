@@ -1,5 +1,6 @@
 //! Interactive Relayterm client. The daemon remains the sole owner of durable and process state.
 
+mod form_layout;
 mod input;
 mod lifecycle;
 mod model;
@@ -12,7 +13,10 @@ pub use model::{App, Form, FormKind, Freshness, Screen};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use relayterm_client::{Client, ClientError, Delivery};
-use relayterm_protocol::{ErrorCode, Operation};
+use relayterm_protocol::{
+    DecimalU64, ErrorCode, Operation, SessionListOrderedParams, SessionListOrderedResult,
+    SessionPageCursorDto,
+};
 use serde_json::{Value, json};
 use std::{
     fmt,
@@ -415,6 +419,10 @@ async fn handle_key(client: &Client, app: &mut App, key: KeyEvent) {
         KeyCode::PageUp if app.screen == Screen::Tasks => {
             app.task_scroll = app.task_scroll.saturating_sub(10)
         }
+        KeyCode::PageDown if app.screen == Screen::Sessions => next_session_page(client, app).await,
+        KeyCode::PageUp if app.screen == Screen::Sessions => {
+            previous_session_page(client, app).await
+        }
         KeyCode::Esc if app.terminal.is_some() => detach(client, app).await,
         KeyCode::Enter if app.screen == Screen::Sessions => attach_selected(client, app).await,
         KeyCode::Char('i') if app.terminal.is_some() => acquire_input(client, app).await,
@@ -442,6 +450,7 @@ async fn handle_key(client: &Client, app: &mut App, key: KeyEvent) {
         KeyCode::Char('v') if app.screen == Screen::Agents => check_agent(client, app).await,
         KeyCode::Char(' ') if app.screen == Screen::Agents => toggle_agent(client, app).await,
         KeyCode::Char('t') if app.screen == Screen::Sessions => confirm_termination(app),
+        KeyCode::Char('n') if app.screen == Screen::Sessions => open_session_rename(app),
         KeyCode::Char('n') if app.screen == Screen::Tasks => {
             let mut form = Form::task_create();
             form.base_revision = app.last_revision.clone();
@@ -486,21 +495,21 @@ fn release_input_chord(key: KeyEvent) -> bool {
 
 async fn handle_form_key(client: &Client, app: &mut App, key: KeyEvent) {
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('r') {
-        if let Err(error) = refresh(client, app).await {
-            app.record_client_error(error);
-        } else if let Some(form) = app.form.as_mut() {
-            form.uncertain = false;
-            form.error =
-                Some("State refreshed. Review the draft before an explicit resubmission.".into());
-        }
+        review_or_reconcile_form(client, app).await;
         return;
     }
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('s') {
-        if app.form.as_ref().is_some_and(|form| form.uncertain) {
+        if app
+            .form
+            .as_ref()
+            .is_some_and(|form| form.uncertain || form.stale || form.reviewing)
+        {
             if let Some(form) = app.form.as_mut() {
-                form.error = Some(
-                    "Result is uncertain. Press Ctrl-R and review before resubmitting.".into(),
-                );
+                form.error = Some(if form.stale {
+                    "The workspace changed while you were editing. Your draft is kept. Review the latest state before submitting again, or press Esc to discard.".into()
+                } else {
+                    "The result is uncertain. Press Ctrl-R to load the authoritative state before deciding whether to submit again.".into()
+                });
             }
             return;
         }
@@ -511,6 +520,12 @@ async fn handle_form_key(client: &Client, app: &mut App, key: KeyEvent) {
         return;
     };
     if form.pending {
+        return;
+    }
+    if form.reviewing {
+        if key.code == KeyCode::Esc {
+            app.confirm_discard = true;
+        }
         return;
     }
     match key.code {
@@ -580,6 +595,43 @@ async fn handle_form_key(client: &Client, app: &mut App, key: KeyEvent) {
     }
 }
 
+async fn review_or_reconcile_form(client: &Client, app: &mut App) {
+    let Some(mut form) = app.form.take() else {
+        return;
+    };
+    if form.reviewing {
+        adopt_reviewed_revision(&mut form);
+        app.form = Some(form);
+        return;
+    }
+    if let Err(error) = refresh(client, app).await {
+        app.record_client_error(error);
+    } else if form.uncertain || form.stale {
+        form.reviewing = true;
+        form.reviewed_revision = Some(app.last_revision.clone());
+        form.error = Some(
+            "Review the latest state. Press Ctrl-R again to adopt this revision, or Esc to discard the draft."
+                .into(),
+        );
+    } else {
+        form.error = Some("State refreshed. The draft revision was not changed.".into());
+    }
+    app.form = Some(form);
+}
+
+fn adopt_reviewed_revision(form: &mut Form) {
+    if let Some(revision) = form.reviewed_revision.take() {
+        form.base_revision = revision;
+        form.uncertain = false;
+        form.stale = false;
+        form.reviewing = false;
+        form.error = Some(
+            "The reviewed revision is now selected. Ctrl-S performs a new explicit submission."
+                .into(),
+        );
+    }
+}
+
 fn push_form(form: &mut Form, character: char) {
     let total = form.bytes();
     let field = &mut form.fields[form.selected];
@@ -623,7 +675,28 @@ async fn handle_paste(client: &Client, app: &mut App, value: &str) {
 
 async fn refresh(client: &Client, app: &mut App) -> Result<(), ClientError> {
     app.freshness = Freshness::Loading;
-    let snapshot = client.refresh_snapshot().await?;
+    let current_page = app.current_session_page_start();
+    let mut snapshot = client.refresh_snapshot().await?;
+    if snapshot.ordered_sessions && current_page.is_some() {
+        let revision = DecimalU64::new(
+            snapshot
+                .revision
+                .parse()
+                .map_err(|_| ClientError::Protocol)?,
+        )
+        .map_err(|_| ClientError::Protocol)?;
+        let page = client
+            .list_sessions_ordered(&SessionListOrderedParams {
+                after: current_page
+                    .map(serde_json::from_value)
+                    .transpose()
+                    .map_err(|_| ClientError::Protocol)?,
+                limit: 50,
+                expected_revision: Some(revision),
+            })
+            .await?;
+        replace_session_page(&mut snapshot, page)?;
+    }
     app.install_snapshot(snapshot);
     if let Ok(catalog) = client
         .call::<_, Value>(Operation::AgentListTemplates, &json!({}))
@@ -653,6 +726,124 @@ async fn refresh(client: &Client, app: &mut App) -> Result<(), ClientError> {
     } else {
         app.worktrees.clear();
     }
+    Ok(())
+}
+
+async fn next_session_page(client: &Client, app: &mut App) {
+    if !app.ordered_sessions() {
+        app.add_diagnostic(
+            "operation_unavailable",
+            "This daemon does not support ordered session pages.",
+        );
+        return;
+    }
+    let Some(next) = app
+        .snapshot
+        .as_ref()
+        .and_then(|snapshot| snapshot.session_next.clone())
+    else {
+        return;
+    };
+    let Ok(cursor) = serde_json::from_value::<SessionPageCursorDto>(next.clone()) else {
+        app.record_client_error(ClientError::Protocol);
+        return;
+    };
+    if load_session_page(client, app, Some(cursor), true).await {
+        app.session_page_starts.truncate(app.session_page_index + 1);
+        app.session_page_starts.push(Some(next));
+        app.session_page_index += 1;
+        app.selected_session = 0;
+    }
+}
+
+async fn previous_session_page(client: &Client, app: &mut App) {
+    if !app.ordered_sessions() || app.session_page_index == 0 {
+        return;
+    }
+    let previous_index = app.session_page_index - 1;
+    let cursor = app.session_page_starts[previous_index]
+        .clone()
+        .map(serde_json::from_value::<SessionPageCursorDto>)
+        .transpose();
+    let Ok(cursor) = cursor else {
+        app.record_client_error(ClientError::Protocol);
+        return;
+    };
+    if load_session_page(client, app, cursor, false).await {
+        app.session_page_index = previous_index;
+        app.selected_session = app.session_rows().len().saturating_sub(1);
+    }
+}
+
+async fn load_session_page(
+    client: &Client,
+    app: &mut App,
+    after: Option<SessionPageCursorDto>,
+    select_first: bool,
+) -> bool {
+    let Ok(revision) = app
+        .last_revision
+        .parse()
+        .ok()
+        .and_then(|value| DecimalU64::new(value).ok())
+        .ok_or(())
+    else {
+        app.record_client_error(ClientError::Protocol);
+        return false;
+    };
+    match client
+        .list_sessions_ordered(&SessionListOrderedParams {
+            after,
+            limit: 50,
+            expected_revision: Some(revision),
+        })
+        .await
+    {
+        Ok(page) => {
+            let Some(mut snapshot) = app.snapshot.clone() else {
+                app.record_client_error(ClientError::Protocol);
+                return false;
+            };
+            if replace_session_page(&mut snapshot, page).is_err() {
+                app.record_client_error(ClientError::Protocol);
+                return false;
+            }
+            app.selected_session = if select_first { 0 } else { usize::MAX };
+            app.install_snapshot(snapshot);
+            true
+        }
+        Err(error) => {
+            app.record_client_error(error);
+            let _ = refresh(client, app).await;
+            false
+        }
+    }
+}
+
+fn replace_session_page(
+    snapshot: &mut relayterm_client::ClientSnapshot,
+    page: SessionListOrderedResult,
+) -> Result<(), ClientError> {
+    if page.revision.get().to_string() != snapshot.revision
+        || page.last_sequence.get() != snapshot.last_sequence
+    {
+        return Err(ClientError::Rejected(ErrorCode::StaleRevision));
+    }
+    let sessions = page
+        .items
+        .into_iter()
+        .map(|item| serde_json::to_value(item).map_err(|_| ClientError::Protocol))
+        .collect::<Result<Vec<_>, _>>()?;
+    let instances = sessions
+        .iter()
+        .map(|row| row.get("instance").cloned().ok_or(ClientError::Protocol))
+        .collect::<Result<Vec<_>, _>>()?;
+    snapshot.collections.insert("sessions".into(), sessions);
+    snapshot.collections.insert("instances".into(), instances);
+    snapshot.session_next = page
+        .next
+        .map(|cursor| serde_json::to_value(cursor).map_err(|_| ClientError::Protocol))
+        .transpose()?;
     Ok(())
 }
 
@@ -700,7 +891,13 @@ async fn submit_form(client: &Client, app: &mut App) {
     }
     let task_id = match form.target_id.clone().or_else(|| selected_task_id(app)) {
         Some(task_id) => task_id,
-        None if matches!(form.kind, FormKind::TaskCreate | FormKind::AgentCreate) => String::new(),
+        None if matches!(
+            form.kind,
+            FormKind::TaskCreate | FormKind::AgentCreate | FormKind::SessionRename
+        ) =>
+        {
+            String::new()
+        }
         None => {
             form.error = Some("Select a task first.".into());
             app.form = Some(form);
@@ -726,18 +923,33 @@ async fn submit_form(client: &Client, app: &mut App) {
         }
         Err(error) => {
             form.pending = false;
-            form.uncertain = matches!(
-                error,
-                ClientError::Transport(Delivery::Unknown)
-                    | ClientError::Cancelled(Delivery::Unknown)
-                    | ClientError::Rejected(ErrorCode::ResultUnknown)
-            );
-            form.error = Some(error.to_string());
+            classify_form_failure(&mut form, error);
             app.record_client_error(error);
-            let _ = refresh(client, app).await;
+            if !form.stale && !form.uncertain {
+                let _ = refresh(client, app).await;
+            }
             app.form = Some(form);
         }
     }
+}
+
+fn classify_form_failure(form: &mut Form, error: ClientError) {
+    form.uncertain = matches!(
+        error,
+        ClientError::Transport(Delivery::Unknown)
+            | ClientError::Cancelled(Delivery::Unknown)
+            | ClientError::Rejected(ErrorCode::ResultUnknown)
+    );
+    form.stale = matches!(error, ClientError::Rejected(ErrorCode::StaleRevision));
+    form.reviewing = false;
+    form.reviewed_revision = None;
+    form.error = Some(if form.stale {
+        "The workspace changed while you were editing. Your draft is kept. Review the latest state before submitting again, or press Esc to discard.".into()
+    } else if form.uncertain {
+        "The result is uncertain. Press Ctrl-R to load the authoritative state before deciding whether to submit again.".into()
+    } else {
+        error.to_string()
+    });
 }
 
 fn form_params(_app: &App, form: &Form, task_id: &str) -> Result<(Operation, Value), String> {
@@ -865,6 +1077,14 @@ fn form_params(_app: &App, form: &Form, task_id: &str) -> Result<(Operation, Val
                 }),
             ))
         }
+        FormKind::SessionRename => Ok((
+            Operation::SessionRename,
+            json!({
+                "session_id":form.target_id.clone().ok_or("The session target is missing.")?,
+                "display_name":value(0),
+                "expected_revision":form.base_revision
+            }),
+        )),
         FormKind::ConfirmTerminate => Err("Use the termination confirmation action.".into()),
     }
 }
@@ -1181,7 +1401,7 @@ async fn transition(client: &Client, app: &mut App, status: &str) {
 async fn claim(client: &Client, app: &mut App) {
     let task = selected_task_id(app);
     let instance = app
-        .selected_session()
+        .selected_session_instance()
         .filter(|instance| {
             instance.get("status").and_then(Value::as_str) == Some("running")
                 && !app.collection("claims").iter().any(|claim| {
@@ -1354,10 +1574,26 @@ async fn acquire_input(client: &Client, app: &mut App) {
                     .map(str::to_owned);
                 terminal.input_sequence = 1;
                 terminal.input_focus = terminal.lease_id.is_some();
+                terminal.input_owned_elsewhere = false;
             }
+        }
+        Err(ClientError::Rejected(ErrorCode::InputOwned)) => {
+            if let Some(terminal) = app.terminal.as_mut() {
+                mark_input_owned_elsewhere(terminal);
+            }
+            app.add_diagnostic(
+                "input_owned",
+                "Another client controls input. This view remains read-only. Try i after that client releases input.",
+            );
         }
         Err(error) => app.record_client_error(error),
     }
+}
+
+fn mark_input_owned_elsewhere(terminal: &mut model::TerminalView) {
+    terminal.lease_id = None;
+    terminal.input_focus = false;
+    terminal.input_owned_elsewhere = true;
 }
 
 async fn release_input(client: &Client, app: &mut App) {
@@ -1450,12 +1686,14 @@ fn release_error_invalidates_lease(error: ClientError) -> bool {
 fn preserve_uncertain_input(terminal: &mut model::TerminalView) {
     terminal.input_focus = false;
     terminal.uncertain_input = true;
+    terminal.input_owned_elsewhere = false;
 }
 
 fn confirm_input_release(terminal: &mut model::TerminalView) {
     terminal.lease_id = None;
     terminal.input_focus = false;
     terminal.uncertain_input = false;
+    terminal.input_owned_elsewhere = false;
 }
 
 async fn reconcile_uncertain_input(client: &Client, app: &mut App) -> Result<(), ClientError> {
@@ -1517,6 +1755,7 @@ fn confirm_termination(app: &mut App) {
     };
     app.form = Some(Form {
         kind: FormKind::ConfirmTerminate,
+        guidance: None,
         fields: vec![model::FormField {
             label: "Type TERMINATE to confirm",
             value: String::new(),
@@ -1531,9 +1770,52 @@ fn confirm_termination(app: &mut App) {
         )),
         pending: false,
         uncertain: false,
+        stale: false,
+        reviewing: false,
+        reviewed_revision: None,
         target_id: Some(session_id),
         base_revision: app.last_revision.clone(),
     });
+}
+
+fn open_session_rename(app: &mut App) {
+    if !app.session_rename_supported() {
+        app.add_diagnostic(
+            "operation_unavailable",
+            "Session names require a daemon that advertises session.rename.",
+        );
+        return;
+    }
+    let Some(row) = app.selected_session() else {
+        return;
+    };
+    let Some(session_id) = app.selected_session_id().map(str::to_owned) else {
+        app.record_client_error(ClientError::Protocol);
+        return;
+    };
+    let display_name = row
+        .get("display_name")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let effective_label = if display_name.is_empty() {
+        row.get("creation_ordinal")
+            .and_then(Value::as_str)
+            .map_or_else(
+                || "Legacy session".into(),
+                |value| format!("Session {value}"),
+            )
+    } else {
+        display_name.to_owned()
+    };
+    let mut form = Form::session_rename(display_name);
+    form.guidance = Some(format!(
+        "Current label: {}. Session: {}. Clear the field with Ctrl-U to restore the default label.",
+        safe_text::single_line(&effective_label, 128),
+        app.abbreviated_session_id(app.selected_session)
+    ));
+    form.target_id = Some(session_id);
+    form.base_revision = app.last_revision.clone();
+    app.form = Some(form);
 }
 
 async fn detach(client: &Client, app: &mut App) {
@@ -1616,10 +1898,7 @@ fn selected_task_id(app: &App) -> Option<String> {
         .map(str::to_owned)
 }
 fn selected_session_id(app: &App) -> Option<String> {
-    app.selected_session()
-        .and_then(|instance| instance.get("session_id"))
-        .and_then(Value::as_str)
-        .map(str::to_owned)
+    app.selected_session_id().map(str::to_owned)
 }
 fn terminal_application_cursor(app: &App) -> bool {
     app.terminal
@@ -1809,5 +2088,71 @@ mod tests {
             "00000000-0000-4000-8000-000000001710"
         );
         assert_ne!(params["parent"], Value::Null);
+    }
+
+    #[test]
+    fn session_rename_form_uses_stable_identity_and_open_revision() {
+        let app = App::default();
+        let mut form = Form::session_rename("");
+        form.target_id = Some("00000000-0000-4000-8000-000000000801".into());
+        form.base_revision = "27".into();
+        form.fields[0].value = "duplicate".into();
+
+        let (operation, params) = form_params(&app, &form, "unrelated-task").unwrap();
+        assert_eq!(operation, Operation::SessionRename);
+        assert_eq!(params["session_id"], "00000000-0000-4000-8000-000000000801");
+        assert_eq!(params["expected_revision"], "27");
+        assert_eq!(params["display_name"], "duplicate");
+    }
+
+    #[test]
+    fn stale_and_uncertain_form_results_preserve_draft_and_remain_distinct() {
+        let mut stale = Form::session_rename("draft 界");
+        stale.base_revision = "12".into();
+        let cursor = stale.fields[0].cursor;
+        classify_form_failure(&mut stale, ClientError::Rejected(ErrorCode::StaleRevision));
+        assert!(stale.stale);
+        assert!(!stale.uncertain);
+        assert_eq!(stale.fields[0].value, "draft 界");
+        assert_eq!(stale.fields[0].cursor, cursor);
+        assert_eq!(stale.base_revision, "12");
+        assert_eq!(
+            stale.error.as_deref(),
+            Some(
+                "The workspace changed while you were editing. Your draft is kept. Review the latest state before submitting again, or press Esc to discard."
+            )
+        );
+        stale.reviewing = true;
+        stale.reviewed_revision = Some("19".into());
+        adopt_reviewed_revision(&mut stale);
+        assert_eq!(stale.base_revision, "19");
+        assert!(!stale.stale && !stale.reviewing);
+        assert_eq!(stale.fields[0].value, "draft 界");
+        assert_eq!(stale.fields[0].cursor, cursor);
+
+        let mut uncertain = Form::session_rename("unknown");
+        classify_form_failure(&mut uncertain, ClientError::Transport(Delivery::Unknown));
+        assert!(uncertain.uncertain);
+        assert!(!uncertain.stale);
+        assert!(uncertain.error.as_deref().unwrap().contains("uncertain"));
+    }
+
+    #[test]
+    fn competing_input_marks_only_the_rejected_reader() {
+        let owner = model::TerminalView {
+            lease_id: Some("owner-lease".into()),
+            input_focus: true,
+            ..model::TerminalView::default()
+        };
+        let mut reader = model::TerminalView::default();
+        mark_input_owned_elsewhere(&mut reader);
+
+        assert_eq!(owner.lease_id.as_deref(), Some("owner-lease"));
+        assert!(owner.input_focus);
+        assert!(reader.lease_id.is_none());
+        assert!(!reader.input_focus);
+        assert!(reader.input_owned_elsewhere);
+        confirm_input_release(&mut reader);
+        assert!(!reader.input_owned_elsewhere);
     }
 }

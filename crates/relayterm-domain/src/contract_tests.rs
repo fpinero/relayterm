@@ -101,6 +101,53 @@ fn text_boundaries_utf8_controls_and_secrets_are_validated_without_echo() {
     assert_eq!(error, Error::Validation("summary"));
     assert!(!format!("{error:?} {error}").contains(&synthetic));
 }
+
+#[test]
+fn session_presentation_names_and_ordinals_are_canonical_and_bounded() {
+    assert_eq!(
+        normalize_session_display_name("  Build e\u{301}  ").unwrap(),
+        Some("Build e\u{301}".into())
+    );
+    assert_eq!(normalize_session_display_name(" \t ").unwrap(), None);
+    assert!(normalize_session_display_name(&"é".repeat(64)).is_ok());
+    for invalid in [
+        "line\nname",
+        "escape\u{1b}",
+        "hidden\u{202e}name",
+        &"a".repeat(129),
+    ] {
+        let error = normalize_session_display_name(invalid).unwrap_err();
+        assert_eq!(error, Error::Validation("session_display_name"));
+        assert!(!error.to_string().contains(invalid));
+    }
+    assert!(SessionCreationOrdinal::new(0).is_err());
+    assert!(SessionCreationOrdinal::new(i64::MAX as u64).is_ok());
+    assert!(SessionCreationOrdinal::new(i64::MAX as u64 + 1).is_err());
+    assert!(
+        SessionCreationOrdinal::new(i64::MAX as u64)
+            .unwrap()
+            .checked_next()
+            .is_err()
+    );
+
+    let presentation = SessionPresentation::restore(SessionPresentationRecord {
+        workspace_id: id(1),
+        session_id: id(2),
+        creation_ordinal: SessionCreationOrdinal::FIRST,
+        display_name: Some("Canonical".into()),
+    })
+    .unwrap();
+    assert_eq!(presentation.effective_label(), "Canonical");
+    assert!(
+        SessionPresentation::restore(SessionPresentationRecord {
+            workspace_id: id(1),
+            session_id: id(2),
+            creation_ordinal: SessionCreationOrdinal::FIRST,
+            display_name: Some(" padded ".into()),
+        })
+        .is_err()
+    );
+}
 #[test]
 fn definition_list_and_command_limits_are_enforced_without_normalization() {
     let mut r = definition();
@@ -408,6 +455,10 @@ fn every_event_variant_round_trips_with_strict_versions_and_safe_errors() {
             id: id(4),
             from: InstanceStatus::Running,
             to: InstanceStatus::Lost,
+        },
+        EventPayload::SessionRenamed {
+            session_id: id(5),
+            fields: vec![SessionField::DisplayName],
         },
         EventPayload::ClaimOpened {
             id: id(6),

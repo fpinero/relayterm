@@ -4,10 +4,10 @@
 
 Relayterm is an open-source workspace where Claude Code, Codex, OpenCode, and future command-line agents can enter, leave, receive tasks, record progress, and hand work over without making the project dependent on any single provider.
 
-The planned user-facing command is `rt`, designed for frequent use in local shells and over SSH.
+The user-facing command is `rt`, designed for frequent use in local shells and over SSH.
 
 > [!NOTE]
-> Relayterm is in its initial design and implementation stage. The documents in this repository define the intended product and MVP, not an already released tool.
+> Relayterm has a locally prepared MVP implementation. M12 is preparing and verifying portable release-candidate artifacts. No public release or supported package is published yet.
 
 ## Why Relayterm
 
@@ -26,9 +26,9 @@ The goal is dependable continuity:
 
 ## TUI-first, not TUI-only
 
-Relayterm will begin with a terminal user interface because the target audience already works in shells, remote hosts, and SSH sessions. The TUI will be a client, not the product's architectural foundation.
+Relayterm begins with a terminal user interface because the target audience already works in shells, remote hosts, and SSH sessions. The TUI is a client, not the product's architectural foundation.
 
-The core daemon will independently own:
+The core daemon independently owns:
 
 - Persistent workspace state.
 - Task and handover workflows.
@@ -37,11 +37,11 @@ The core daemon will independently own:
 - Local inter-process communication.
 - Optional Git worktree coordination.
 
-This separation will allow future desktop, web, mobile, and automation clients to use the same domain model and versioned protocol.
+This separation allows future desktop, web, mobile, and automation clients to use the same domain model and versioned protocol.
 
 ## MVP direction
 
-The initial MVP is designed for one local operating-system user and will focus on:
+The initial MVP is designed for one local operating-system user and includes:
 
 - A persistent workspace rooted in an existing software project.
 - A background daemon with SQLite-backed state.
@@ -68,7 +68,7 @@ The MVP will not provide autonomous agent swarms, remote multi-user hosting, clo
 
 ## Technology direction
 
-Relayterm is planned in Rust, using:
+Relayterm is implemented in Rust, using:
 
 - Ratatui and Crossterm for the terminal client.
 - `portable-pty` for cross-platform pseudo-terminal management.
@@ -76,7 +76,7 @@ Relayterm is planned in Rust, using:
 - SQLite for transactional local persistence.
 - Git worktrees when task isolation is useful.
 
-The canonical user-facing executable will be `rt`. The reserved `relayterm.com` domain is intended for a future landing page, but the local product will not depend on that website or any hosted Relayterm service.
+The canonical user-facing executable is `rt`. The reserved `relayterm.com` domain is intended for a future landing page, but the local product does not depend on that website or any hosted Relayterm service.
 
 ## Documentation
 
@@ -88,7 +88,9 @@ The canonical user-facing executable will be `rt`. The reserved `relayterm.com` 
 - [TUI workflow and verification](docs/tui-workflow.md) documents the interactive M08 workflow, key map, terminal profile, limits, and native gate.
 - [Git worktrees](docs/worktrees.md) documents explicit task isolation, durable receipts, conservative recovery, and launch behavior.
 - [Private backup and restore](docs/backup-restore.md) documents no-overwrite workspace recovery into a fresh private home.
-- [M11 acceptance matrix](docs/acceptance-matrix.md), [reliability workflow](docs/reliability-workflow.md), and [threat model](docs/threat-model.md) define the current hardening gate and its pending evidence.
+- [Portable installation](docs/install.md), [installed quick start](docs/quick-start.md), [upgrade and rollback](docs/upgrade.md), and [release build contract](docs/release-builds.md) define the local M12 candidate workflow.
+- [Candidate notes](docs/release-notes-0.1.0.md) and the [local candidate handoff](docs/m12-candidate-handoff.md) distinguish prepared work from final native evidence and publication.
+- [Acceptance matrix](docs/acceptance-matrix.md), [reliability workflow](docs/reliability-workflow.md), and [threat model](docs/threat-model.md) record the completed M11 hardening gate and the candidate-specific M12 evidence boundary.
 
 ## Current status
 
@@ -105,7 +107,7 @@ cargo run -p relayterm-cli --bin rt -- --version
 
 Running `rt` without a subcommand opens the workspace for the current directory, prompts before first initialization, and enters the TUI after connecting to the detached daemon. Use `--workspace PATH` to select another project. Noninteractive no-command use fails before side effects. Administrative commands, help, version, and JSON output remain separate from terminal mode.
 
-See [contributing](CONTRIBUTING.md), [agent templates and custom CLIs](docs/agent-templates.md), [Git worktrees](docs/worktrees.md), [architecture decisions](docs/architecture/README.md), [privacy](docs/privacy.md), and [platform evidence](docs/supported-platforms.md). The [pending queue](TODO.md) distinguishes implemented foundations from the remaining hardening and release milestones.
+See [contributing](CONTRIBUTING.md), [agent templates and custom CLIs](docs/agent-templates.md), [Git worktrees](docs/worktrees.md), [architecture decisions](docs/architecture/README.md), [privacy](docs/privacy.md), and [platform evidence](docs/supported-platforms.md). The [pending queue](TODO.md) distinguishes implemented foundations from the remaining release acceptance work.
 
 Contributions and technical discussion are welcome, but interfaces and behavior should be considered unstable until the first working release and stable protocol are defined.
 

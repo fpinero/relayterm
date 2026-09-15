@@ -1,7 +1,8 @@
 use crate::{decode_counter, decode_timestamp, encode_counter, encode_timestamp, map_sqlx};
 use relayterm_application::{
     Committed, DurableReadStore, EventPage, EventPageRequest, IdPage, IdPageRequest, MutationScope,
-    Snapshot, Store, TaskHistoryEntry, TaskHistoryItem, TaskHistoryPage, TaskHistoryPageRequest,
+    SessionPage, SessionPageRequest, SessionSummary, Snapshot, Store, TaskHistoryEntry,
+    TaskHistoryItem, TaskHistoryPage, TaskHistoryPageRequest,
     Transaction as ApplicationTransaction, WatermarkedSnapshot, WriteBatch,
 };
 use relayterm_domain::*;
@@ -65,7 +66,7 @@ async fn validate_workspace_integrity(
 
     let workspace_bytes = id_bytes(workspace_id.as_uuid());
     let meta = sqlx::query(
-        "SELECT revision,last_event_sequence,retained_from_sequence FROM workspace_meta WHERE singleton=1 AND workspace_id=?",
+        "SELECT revision,last_event_sequence,retained_from_sequence,next_session_ordinal FROM workspace_meta WHERE singleton=1 AND workspace_id=?",
     )
     .bind(workspace_bytes.clone())
     .fetch_optional(&mut *connection)
@@ -107,6 +108,35 @@ async fn validate_workspace_integrity(
     )
     .map_err(|_| Error::Integrity)?;
     if revision == 0 || retained_from == 0 || retained_from > last_sequence.saturating_add(1) {
+        return Err(Error::Integrity);
+    }
+    let next_session_ordinal = meta
+        .try_get::<i64, _>("next_session_ordinal")
+        .ok()
+        .and_then(|value| u64::try_from(value).ok())
+        .and_then(|value| SessionCreationOrdinal::new(value).ok())
+        .ok_or(Error::Integrity)?;
+    let presentation_counts = sqlx::query(
+        "SELECT (SELECT count(*) FROM agent_instances WHERE workspace_id=?) AS instances,(SELECT count(*) FROM session_presentations WHERE workspace_id=?) AS presentations,COALESCE((SELECT max(creation_ordinal) FROM session_presentations WHERE workspace_id=?),0) AS maximum",
+    )
+    .bind(workspace_bytes.clone())
+    .bind(workspace_bytes.clone())
+    .bind(workspace_bytes.clone())
+    .fetch_one(&mut *connection)
+    .await
+    .map_err(domain_storage)?;
+    let instance_count: i64 = presentation_counts
+        .try_get("instances")
+        .map_err(|_| Error::Integrity)?;
+    let presentation_count: i64 = presentation_counts
+        .try_get("presentations")
+        .map_err(|_| Error::Integrity)?;
+    let maximum: i64 = presentation_counts
+        .try_get("maximum")
+        .map_err(|_| Error::Integrity)?;
+    if instance_count != presentation_count
+        || u64::try_from(maximum).map_err(|_| Error::Integrity)? >= next_session_ordinal.value()
+    {
         return Err(Error::Integrity);
     }
 
@@ -601,6 +631,21 @@ impl DurableReadStore for SqliteStore {
         let _ = sqlx::query("ROLLBACK").execute(&mut *connection).await;
         result
     }
+
+    async fn session_page(
+        &self,
+        workspace_id: WorkspaceId,
+        request: SessionPageRequest,
+    ) -> Result<SessionPage> {
+        let mut connection = self.pool.acquire().await.map_err(domain_storage)?;
+        sqlx::query("BEGIN")
+            .execute(&mut *connection)
+            .await
+            .map_err(domain_storage)?;
+        let result = load_session_page(&mut connection, workspace_id, request).await;
+        let _ = sqlx::query("ROLLBACK").execute(&mut *connection).await;
+        result
+    }
 }
 
 async fn page_metadata(
@@ -905,6 +950,64 @@ async fn load_instance_page(
     })
 }
 
+async fn load_session_page(
+    connection: &mut SqliteConnection,
+    workspace_id: WorkspaceId,
+    request: SessionPageRequest,
+) -> Result<SessionPage> {
+    let (revision, last_sequence, retained_from_sequence) =
+        page_metadata(connection, workspace_id, request.expected_revision).await?;
+    let rows = if let Some(after) = request.after {
+        sqlx::query("SELECT i.*,p.creation_ordinal,p.display_name FROM session_presentations p JOIN agent_instances i ON i.workspace_id=p.workspace_id AND i.session_id=p.session_id WHERE p.workspace_id=? AND (p.creation_ordinal>? OR (p.creation_ordinal=? AND p.session_id>?)) ORDER BY p.creation_ordinal,p.session_id LIMIT ?")
+            .bind(id_bytes(workspace_id.as_uuid()))
+            .bind(i64::try_from(after.creation_ordinal.value()).map_err(|_| Error::Storage)?)
+            .bind(i64::try_from(after.creation_ordinal.value()).map_err(|_| Error::Storage)?)
+            .bind(id_bytes(after.session_id.as_uuid()))
+            .bind(i64::from(request.limit) + 1)
+            .fetch_all(&mut *connection)
+            .await
+            .map_err(domain_storage)?
+    } else {
+        sqlx::query("SELECT i.*,p.creation_ordinal,p.display_name FROM session_presentations p JOIN agent_instances i ON i.workspace_id=p.workspace_id AND i.session_id=p.session_id WHERE p.workspace_id=? ORDER BY p.creation_ordinal,p.session_id LIMIT ?")
+            .bind(id_bytes(workspace_id.as_uuid()))
+            .bind(i64::from(request.limit) + 1)
+            .fetch_all(&mut *connection)
+            .await
+            .map_err(domain_storage)?
+    };
+    let has_more = rows.len() > usize::from(request.limit);
+    let mut items = Vec::with_capacity(rows.len().min(usize::from(request.limit)));
+    for row in rows.into_iter().take(usize::from(request.limit)) {
+        let session_id = session_id(
+            row.try_get::<Vec<u8>, _>("session_id")
+                .map_err(|_| Error::Storage)?,
+        )?;
+        let presentation = SessionPresentation::restore(SessionPresentationRecord {
+            workspace_id,
+            session_id,
+            creation_ordinal: SessionCreationOrdinal::new(
+                u64::try_from(
+                    row.try_get::<i64, _>("creation_ordinal")
+                        .map_err(|_| Error::Storage)?,
+                )
+                .map_err(|_| Error::Storage)?,
+            )?,
+            display_name: row.try_get("display_name").map_err(|_| Error::Storage)?,
+        })?;
+        items.push(SessionSummary {
+            instance: decode_instance(connection, row, workspace_id).await?,
+            presentation,
+        });
+    }
+    Ok(SessionPage {
+        revision,
+        last_sequence,
+        retained_from_sequence,
+        items,
+        has_more,
+    })
+}
+
 async fn load_watermarks(
     connection: &mut SqliteConnection,
     workspace_id: WorkspaceId,
@@ -1092,7 +1195,7 @@ async fn load_snapshot_kind(
     expected: WorkspaceId,
     mutation_scope: Option<&MutationScope>,
 ) -> Result<Snapshot> {
-    let meta = sqlx::query("SELECT workspace_id, revision FROM workspace_meta WHERE singleton = 1")
+    let meta = sqlx::query("SELECT workspace_id, revision, next_session_ordinal FROM workspace_meta WHERE singleton = 1")
         .fetch_optional(&mut *connection)
         .await
         .map_err(domain_storage)?;
@@ -1112,6 +1215,13 @@ async fn load_snapshot_kind(
             .map_err(|_| Error::Storage)?,
     )
     .map_err(|_| Error::Storage)?;
+    let next_session_ordinal = SessionCreationOrdinal::new(
+        u64::try_from(
+            meta.try_get::<i64, _>("next_session_ordinal")
+                .map_err(|_| Error::Storage)?,
+        )
+        .map_err(|_| Error::Storage)?,
+    )?;
     let row = sqlx::query("SELECT display_name, root_codec, project_root, created_seconds, created_nanoseconds, updated_seconds, updated_nanoseconds, schema_version FROM workspaces WHERE workspace_id = ?")
         .bind(id_bytes(expected.as_uuid())).fetch_one(&mut *connection).await.map_err(domain_storage)?;
     let workspace = Workspace::restore(WorkspaceRecord {
@@ -1140,6 +1250,12 @@ async fn load_snapshot_kind(
         Some(scope) => load_projected_instances(connection, expected, scope).await?,
         None => load_instances(connection, expected).await?,
     };
+    let mut session_presentations = load_session_presentations(
+        connection,
+        expected,
+        mutation_scope.map(|_| instances.as_slice()),
+    )
+    .await?;
     let mut task_ids = mutation_scope
         .map(|scope| scope.task_ids.iter().copied().collect::<HashSet<_>>())
         .unwrap_or_default();
@@ -1185,6 +1301,8 @@ async fn load_snapshot_kind(
                     instances.push(instance);
                 }
             }
+            session_presentations =
+                load_session_presentations(connection, expected, Some(&instances)).await?;
         }
         for instance in &instances {
             let record = instance.record();
@@ -1223,6 +1341,8 @@ async fn load_snapshot_kind(
         definitions,
         tasks,
         instances,
+        session_presentations,
+        next_session_ordinal,
         claims,
         progress,
         handovers,
@@ -1236,6 +1356,53 @@ async fn load_snapshot_kind(
         WorkspaceState::restore(workspace, rows)?
     };
     Snapshot::restore(revision, Some(state))
+}
+
+async fn load_session_presentations(
+    connection: &mut SqliteConnection,
+    workspace_id: WorkspaceId,
+    projected_instances: Option<&[AgentInstance]>,
+) -> Result<Vec<SessionPresentation>> {
+    let mut query = sqlx::QueryBuilder::new(
+        "SELECT session_id,creation_ordinal,display_name FROM session_presentations WHERE workspace_id=",
+    );
+    query.push_bind(id_bytes(workspace_id.as_uuid()));
+    if let Some(instances) = projected_instances {
+        if instances.is_empty() {
+            return Ok(Vec::new());
+        }
+        query.push(" AND session_id IN (");
+        let mut separated = query.separated(",");
+        for instance in instances {
+            separated.push_bind(id_bytes(instance.record().session_id.as_uuid()));
+        }
+        separated.push_unseparated(")");
+    }
+    query.push(" ORDER BY creation_ordinal,session_id");
+    let rows = query
+        .build()
+        .fetch_all(&mut *connection)
+        .await
+        .map_err(domain_storage)?;
+    rows.into_iter()
+        .map(|row| {
+            SessionPresentation::restore(SessionPresentationRecord {
+                workspace_id,
+                session_id: session_id(
+                    row.try_get::<Vec<u8>, _>("session_id")
+                        .map_err(|_| Error::Storage)?,
+                )?,
+                creation_ordinal: SessionCreationOrdinal::new(
+                    u64::try_from(
+                        row.try_get::<i64, _>("creation_ordinal")
+                            .map_err(|_| Error::Storage)?,
+                    )
+                    .map_err(|_| Error::Storage)?,
+                )?,
+                display_name: row.try_get("display_name").map_err(|_| Error::Storage)?,
+            })
+        })
+        .collect()
 }
 
 async fn load_worktree_state(
@@ -1583,6 +1750,14 @@ async fn load_projected_instances(
         query.push(" OR instance_id IN (");
         let mut separated = query.separated(",");
         for id in &scope.instance_ids {
+            separated.push_bind(id_bytes(id.as_uuid()));
+        }
+        separated.push_unseparated(")");
+    }
+    if !scope.session_ids.is_empty() {
+        query.push(" OR session_id IN (");
+        let mut separated = query.separated(",");
+        for id in &scope.session_ids {
             separated.push_bind(id_bytes(id.as_uuid()));
         }
         separated.push_unseparated(")");
@@ -2004,12 +2179,13 @@ async fn persist_state(
             .execute(&mut *connection)
             .await
             .map_err(domain_storage)?;
-        sqlx::query("INSERT INTO workspace_meta VALUES(1,?,?,?,?,?)")
+        sqlx::query("INSERT INTO workspace_meta(singleton,workspace_id,revision,last_event_sequence,retained_from_sequence,model_schema_version,next_session_ordinal) VALUES(1,?,?,?,?,?,?)")
             .bind(id_bytes(workspace_id.as_uuid()))
             .bind(encode_counter(revision).to_vec())
             .bind(encode_counter(u64::try_from(events.len()).map_err(|_| Error::Storage)?).to_vec())
             .bind(encode_counter(1).to_vec())
             .bind(1_i64)
+            .bind(i64::try_from(after.next_session_ordinal().value()).map_err(|_| Error::Storage)?)
             .execute(&mut *connection)
             .await
             .map_err(domain_storage)?;
@@ -2042,6 +2218,15 @@ async fn persist_state(
         workspace_id,
     )
     .await?;
+    persist_session_presentations(
+        connection,
+        before
+            .map(WorkspaceState::session_presentations)
+            .unwrap_or(&[]),
+        after.session_presentations(),
+        workspace_id,
+    )
+    .await?;
     persist_claims(
         connection,
         before.map(WorkspaceState::claims).unwrap_or(&[]),
@@ -2070,13 +2255,51 @@ async fn persist_state(
         insert_event(connection, event).await?;
     }
     let last = events.last().ok_or(Error::Storage)?.record().sequence;
-    sqlx::query("UPDATE workspace_meta SET revision=?,last_event_sequence=? WHERE workspace_id=?")
+    sqlx::query("UPDATE workspace_meta SET revision=?,last_event_sequence=?,next_session_ordinal=? WHERE workspace_id=?")
         .bind(encode_counter(revision).to_vec())
         .bind(encode_counter(last).to_vec())
+        .bind(i64::try_from(after.next_session_ordinal().value()).map_err(|_| Error::Storage)?)
         .bind(id_bytes(workspace_id.as_uuid()))
         .execute(&mut *connection)
         .await
         .map_err(domain_storage)?;
+    Ok(())
+}
+
+async fn persist_session_presentations(
+    connection: &mut SqliteConnection,
+    before: &[SessionPresentation],
+    after: &[SessionPresentation],
+    workspace_id: WorkspaceId,
+) -> Result<()> {
+    for presentation in after {
+        let record = presentation.record();
+        match before
+            .iter()
+            .find(|value| value.record().session_id == record.session_id)
+        {
+            Some(previous) if previous == presentation => continue,
+            Some(_) => {
+                sqlx::query("UPDATE session_presentations SET display_name=? WHERE workspace_id=? AND session_id=?")
+                    .bind(record.display_name.as_deref())
+                    .bind(id_bytes(workspace_id.as_uuid()))
+                    .bind(id_bytes(record.session_id.as_uuid()))
+                    .execute(&mut *connection)
+                    .await
+                    .map_err(domain_storage)?;
+            }
+            None => {
+                sqlx::query("INSERT INTO session_presentations(workspace_id,session_id,creation_ordinal,display_name) VALUES(?,?,?,?)")
+                    .bind(id_bytes(workspace_id.as_uuid()))
+                    .bind(id_bytes(record.session_id.as_uuid()))
+                    .bind(i64::try_from(record.creation_ordinal.value()).map_err(|_| Error::Storage)?)
+                    .bind(record.display_name.as_deref())
+                    .execute(&mut *connection)
+                    .await
+                    .map_err(domain_storage)?;
+            }
+        }
+    }
     Ok(())
 }
 
@@ -2840,6 +3063,7 @@ fn entity_parts(entity: EntityId) -> (&'static str, Uuid) {
         EntityId::Definition(id) => ("definition", id.as_uuid()),
         EntityId::Task(id) => ("task", id.as_uuid()),
         EntityId::Instance(id) => ("instance", id.as_uuid()),
+        EntityId::Session(id) => ("session", id.as_uuid()),
         EntityId::Claim(id) => ("claim", id.as_uuid()),
         EntityId::Progress(id) => ("progress", id.as_uuid()),
         EntityId::Handover(id) => ("handover", id.as_uuid()),
@@ -2858,6 +3082,7 @@ fn event_type_name(value: EventType) -> &'static str {
         EventType::TaskTransitioned => "task_transitioned",
         EventType::InstanceRegistered => "instance_registered",
         EventType::InstanceObserved => "instance_observed",
+        EventType::SessionRenamed => "session_renamed",
         EventType::ClaimOpened => "claim_opened",
         EventType::ClaimClosed => "claim_closed",
         EventType::ProgressAdded => "progress_added",
@@ -2878,6 +3103,7 @@ fn parse_event_type(value: &str) -> Result<EventType> {
         "task_transitioned" => Ok(EventType::TaskTransitioned),
         "instance_registered" => Ok(EventType::InstanceRegistered),
         "instance_observed" => Ok(EventType::InstanceObserved),
+        "session_renamed" => Ok(EventType::SessionRenamed),
         "claim_opened" => Ok(EventType::ClaimOpened),
         "claim_closed" => Ok(EventType::ClaimClosed),
         "progress_added" => Ok(EventType::ProgressAdded),
@@ -2895,6 +3121,7 @@ fn parse_entity(kind: &str, bytes: Vec<u8>) -> Result<EntityId> {
         "definition" => EntityId::Definition(definition_id(bytes)?),
         "task" => EntityId::Task(task_id(bytes)?),
         "instance" => EntityId::Instance(instance_id(bytes)?),
+        "session" => EntityId::Session(session_id(bytes)?),
         "claim" => EntityId::Claim(claim_id(bytes)?),
         "progress" => EntityId::Progress(progress_id(bytes)?),
         "handover" => EntityId::Handover(handover_id(bytes)?),

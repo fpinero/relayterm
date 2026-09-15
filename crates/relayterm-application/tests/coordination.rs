@@ -28,6 +28,90 @@ fn client_revision_precondition_is_checked_before_mutation() {
 }
 
 #[test]
+fn session_rename_is_normalized_revision_checked_private_and_idempotent() {
+    let fixture = Fixture::new();
+    let instance_id = fixture.instance(None);
+    let state = fixture.state();
+    let session_id = state.instance(instance_id).unwrap().record().session_id;
+    let initial = state.session_presentation(session_id).unwrap();
+    assert_eq!(initial.effective_label(), "Session 1");
+    let revision = block_on(fixture.service.snapshot(fixture.workspace))
+        .unwrap()
+        .revision();
+
+    let renamed = block_on(fixture.service.execute_at_revision(
+        fixture.workspace,
+        Actor::LocalUser,
+        Request::RenameSession {
+            session_id,
+            display_name: "  Build e\u{301}  ".into(),
+        },
+        revision,
+    ))
+    .unwrap();
+    assert_eq!(
+        renamed
+            .committed
+            .snapshot
+            .state()
+            .unwrap()
+            .session_presentation(session_id)
+            .unwrap()
+            .record()
+            .display_name
+            .as_deref(),
+        Some("Build e\u{301}")
+    );
+    assert!(matches!(
+        &renamed.committed.events[0].record().payload,
+        EventPayload::SessionRenamed { fields, .. }
+            if fields == &[SessionField::DisplayName]
+    ));
+    let encoded = serde_json::to_string(&renamed.committed.events[0]).unwrap();
+    assert!(!encoded.contains("Build"));
+
+    let current = renamed.committed.snapshot.revision();
+    let unchanged = block_on(fixture.service.execute_at_revision(
+        fixture.workspace,
+        Actor::LocalUser,
+        Request::RenameSession {
+            session_id,
+            display_name: "Build e\u{301}".into(),
+        },
+        current,
+    ))
+    .unwrap();
+    assert_eq!(unchanged.committed.snapshot.revision(), current);
+    assert!(unchanged.committed.events.is_empty());
+
+    assert_eq!(
+        block_on(fixture.service.execute_at_revision(
+            fixture.workspace,
+            Actor::LocalUser,
+            Request::RenameSession {
+                session_id,
+                display_name: "Stale".into(),
+            },
+            revision,
+        ))
+        .err(),
+        Some(Error::Conflict)
+    );
+    assert_eq!(
+        fixture
+            .run(
+                Actor::Instance(instance_id),
+                Request::RenameSession {
+                    session_id,
+                    display_name: "Agent attempt".into(),
+                },
+            )
+            .err(),
+        Some(Error::Unauthorized)
+    );
+}
+
+#[test]
 fn stable_definition_import_is_revision_checked_atomic_and_idempotent() {
     let fixture = Fixture::new();
     fixture
@@ -810,6 +894,8 @@ fn reconstruction_checks_history_and_round_trips_committed_entities() {
             definitions: state.definitions().to_vec(),
             tasks: state.tasks().to_vec(),
             instances: state.instances().to_vec(),
+            session_presentations: state.session_presentations().to_vec(),
+            next_session_ordinal: state.next_session_ordinal(),
             claims: state.claims().to_vec(),
             progress: state.progress().to_vec(),
             handovers: state.handovers().to_vec(),

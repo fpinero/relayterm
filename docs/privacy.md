@@ -6,7 +6,9 @@ The `rt` executable connects to one detached daemon per initialized workspace th
 
 ## Durable state
 
-The daemon stores workspace identities, definitions, task and claim history, progress, handovers, session metadata, immutable launch snapshots, worktree intents, approved worktree roots, and task worktree associations in private OS application data. Native paths are necessary for workspace, process, and worktree recovery. They are not written into project files automatically. Configuration, application data, runtime endpoints, and cache have separate logical locations.
+The daemon stores workspace identities, definitions, task and claim history, progress, handovers, session metadata, optional session display names, immutable launch snapshots, worktree intents, approved worktree roots, and task worktree associations in private OS application data. Native paths are necessary for workspace, process, and worktree recovery. They are not written into project files automatically. Configuration, application data, runtime endpoints, and cache have separate logical locations.
+
+Session names are private coordination text. Rename events contain only opaque identity and the changed field name. Diagnostics, logs, release evidence, and repository fixtures must not copy a session name or form draft. Authorized list and detail queries return the name to the current local user under the same IPC boundary as other workspace data.
 
 Worktree events contain IDs, phases, reason enums, and changed field names. They exclude checkout paths, branch labels, base expressions, and Git output. Authorized worktree detail queries include the local path and branch needed by the current user. Runtime databases, sockets, logs, and worktree metadata are excluded from version control.
 

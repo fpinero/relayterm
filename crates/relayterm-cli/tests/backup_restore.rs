@@ -1,6 +1,7 @@
 use serde_json::Value;
 use sqlx::{ConnectOptions, Connection, Executor};
 use std::{
+    ffi::OsString,
     fs,
     io::{BufRead, Read},
     path::{Path, PathBuf},
@@ -9,6 +10,11 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
+
+fn rt_binary() -> OsString {
+    std::env::var_os("RELAYTERM_TEST_RT")
+        .unwrap_or_else(|| OsString::from(env!("CARGO_BIN_EXE_rt")))
+}
 
 struct Scratch(PathBuf);
 
@@ -55,7 +61,7 @@ impl Drop for DaemonCleanup {
 }
 
 fn invoke(root: &Path, home: &Path, args: &[&str]) -> Output {
-    invoke_binary(Path::new(env!("CARGO_BIN_EXE_rt")), root, home, args)
+    invoke_binary(Path::new(&rt_binary()), root, home, args)
 }
 
 fn invoke_binary(binary: &Path, root: &Path, home: &Path, args: &[&str]) -> Output {
@@ -232,7 +238,7 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
         assert!(status.success());
     }
     let redirected_destination_result = bounded_output(
-        Command::new(env!("CARGO_BIN_EXE_rt"))
+        Command::new(rt_binary())
             .arg("--workspace")
             .arg(&root)
             .arg("--home")
@@ -258,7 +264,7 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
     let sentinel = existing_home.join("preserved.txt");
     fs::write(&sentinel, b"preserve existing destination").unwrap();
     let existing_result = bounded_output(
-        Command::new(env!("CARGO_BIN_EXE_rt"))
+        Command::new(rt_binary())
             .arg("--workspace")
             .arg(&root)
             .args(["--format", "json", "backup", "restore", "--source"])
@@ -286,7 +292,7 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
     let installed_directory = scratch.0.join("installed");
     fs::create_dir(&installed_directory).unwrap();
     let installed_binary = installed_directory.join(if cfg!(windows) { "rt.exe" } else { "rt" });
-    fs::copy(env!("CARGO_BIN_EXE_rt"), &installed_binary).unwrap();
+    fs::copy(rt_binary(), &installed_binary).unwrap();
     let restored_result = success_binary(
         &installed_binary,
         &root,
@@ -331,6 +337,14 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
                 .unwrap();
             connection.execute("PRAGMA foreign_keys=OFF").await.unwrap();
             connection.execute("BEGIN IMMEDIATE").await.unwrap();
+            connection
+                .execute("DROP TABLE session_presentations")
+                .await
+                .unwrap();
+            connection
+                .execute("ALTER TABLE workspace_meta DROP COLUMN next_session_ordinal")
+                .await
+                .unwrap();
             connection.execute("DROP TABLE worktrees").await.unwrap();
             connection
                 .execute("DROP TABLE worktree_intents")
@@ -345,7 +359,7 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
                 .await
                 .unwrap();
             connection
-                .execute("DELETE FROM _sqlx_migrations WHERE version=2")
+                .execute("DELETE FROM _sqlx_migrations WHERE version>=2")
                 .await
                 .unwrap();
             connection.execute("COMMIT").await.unwrap();
@@ -415,7 +429,7 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
     fs::write(unexpected.join("unexpected.txt"), b"synthetic member").unwrap();
     let unexpected_home = recovery.join("u");
     let unexpected_result = bounded_output(
-        Command::new(env!("CARGO_BIN_EXE_rt"))
+        Command::new(rt_binary())
             .arg("--workspace")
             .arg(&root)
             .args(["--format", "json", "backup", "restore", "--source"])
@@ -444,7 +458,7 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
     .unwrap();
     let newer_home = recovery.join("n");
     let newer_result = bounded_output(
-        Command::new(env!("CARGO_BIN_EXE_rt"))
+        Command::new(rt_binary())
             .arg("--workspace")
             .arg(&root)
             .args(["--format", "json", "backup", "restore", "--source"])
@@ -548,7 +562,7 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
     database.write_all(b"synthetic-corruption").unwrap();
     database.sync_all().unwrap();
     let rejected = bounded_output(
-        Command::new(env!("CARGO_BIN_EXE_rt"))
+        Command::new(rt_binary())
             .arg("--workspace")
             .arg(&root)
             .args(["--format", "json", "backup", "restore", "--source"])
@@ -587,7 +601,7 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
     .unwrap();
     let corrupt_structure_home = recovery.join("s");
     let corrupt_structure_result = bounded_output(
-        Command::new(env!("CARGO_BIN_EXE_rt"))
+        Command::new(rt_binary())
             .arg("--workspace")
             .arg(&root)
             .args(["--format", "json", "backup", "restore", "--source"])
@@ -647,7 +661,7 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
     .unwrap();
     let inconsistent_home = recovery.join("x");
     let inconsistent_result = bounded_output(
-        Command::new(env!("CARGO_BIN_EXE_rt"))
+        Command::new(rt_binary())
             .arg("--workspace")
             .arg(&root)
             .args(["--format", "json", "backup", "restore", "--source"])
