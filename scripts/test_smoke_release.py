@@ -1,0 +1,34 @@
+"""Focused tests for the installed release smoke environment."""
+
+import importlib.util
+import pathlib
+import sys
+import unittest
+
+
+MODULE_PATH = pathlib.Path(__file__).with_name("smoke_release.py")
+sys.path.insert(0, str(MODULE_PATH.parent))
+SPEC = importlib.util.spec_from_file_location("smoke_release", MODULE_PATH)
+smoke_release = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(smoke_release)
+
+
+class SmokeReleaseTests(unittest.TestCase):
+    def test_windows_system_root_lookup_is_case_insensitive(self):
+        self.assertEqual(
+            smoke_release.windows_system_root({"SYSTEMROOT": "C:/Windows"}),
+            pathlib.Path("C:/Windows"),
+        )
+        self.assertEqual(
+            smoke_release.windows_system_root({"windir": "C:/Alternate"}),
+            pathlib.Path("C:/Alternate"),
+        )
+
+    def test_missing_windows_system_root_has_value_free_error(self):
+        with self.assertRaisesRegex(RuntimeError, "Windows system directory") as raised:
+            smoke_release.windows_system_root({"PRIVATE_VALUE": "sensitive"})
+        self.assertNotIn("sensitive", str(raised.exception))
+
+
+if __name__ == "__main__":
+    unittest.main()

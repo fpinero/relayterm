@@ -16,6 +16,26 @@ import zipfile
 import package_release
 
 
+def windows_system_root(environment):
+    for name, value in environment.items():
+        if name.casefold() in ("systemroot", "windir") and value:
+            return pathlib.Path(value)
+    raise RuntimeError("the Windows system directory is unavailable")
+
+
+def constrained_environment():
+    environment = os.environ.copy()
+    if os.name == "nt":
+        system_root = windows_system_root(environment)
+        environment["SystemRoot"] = os.fspath(system_root)
+        environment["PATH"] = os.pathsep.join(
+            [os.fspath(system_root / "System32"), os.fspath(system_root)]
+        )
+    else:
+        environment["PATH"] = "/usr/bin:/bin"
+    return environment
+
+
 def extract(archive, destination):
     package_release.inspect_archive(archive)
     if archive.name.endswith(".tar.gz"):
@@ -31,14 +51,7 @@ def extract(archive, destination):
 
 
 def invoke(binary, project, home, arguments, *, input_text=None, expect=0):
-    environment = os.environ.copy()
-    if os.name == "nt":
-        system_root = pathlib.Path(environment["SystemRoot"])
-        environment["PATH"] = os.pathsep.join(
-            [os.fspath(system_root / "System32"), os.fspath(system_root)]
-        )
-    else:
-        environment["PATH"] = "/usr/bin:/bin"
+    environment = constrained_environment()
     result = subprocess.run(
         [
             os.fspath(binary),
@@ -75,25 +88,14 @@ def smoke(archive):
     extracted.mkdir()
     release_root = extract(archive.resolve(), extracted)
     binary = release_root / ("rt.exe" if os.name == "nt" else "rt")
+    environment = constrained_environment()
     daemon_started = False
     try:
         for argument in ("--help", "--version"):
             result = subprocess.run(
                 [os.fspath(binary), argument],
                 cwd=temporary,
-                env={
-                    **os.environ,
-                    "PATH": (
-                        os.pathsep.join(
-                            [
-                                os.fspath(pathlib.Path(os.environ["SystemRoot"]) / "System32"),
-                                os.fspath(pathlib.Path(os.environ["SystemRoot"])),
-                            ]
-                        )
-                        if os.name == "nt"
-                        else "/usr/bin:/bin"
-                    ),
-                },
+                env=environment,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE,
                 check=False,
@@ -107,7 +109,7 @@ def smoke(archive):
         status = invoke(binary, project, home, ["workspace", "status"])
         revision = status["revision"]
         if os.name == "nt":
-            command = os.fspath(pathlib.Path(os.environ["SystemRoot"]) / "System32" / "cmd.exe")
+            command = os.fspath(windows_system_root(environment) / "System32" / "cmd.exe")
             arguments = ["/Q"]
             input_text = "echo release-smoke-ok\r\nexit\r\n"
         else:
