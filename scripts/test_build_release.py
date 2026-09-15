@@ -58,11 +58,21 @@ class ReleaseBuildTests(unittest.TestCase):
             self.assertEqual(sentinel.read_text(encoding="utf-8"), "keep")
 
     def test_release_flags_remap_private_paths_without_recording_them(self):
-        flags, public_flags, private_prefixes = build_release.release_rustflags({})
+        flags, public_flags, private_prefixes = build_release.release_rustflags(
+            {}, "aarch64-apple-darwin"
+        )
         self.assertTrue(all(flag.startswith("--remap-path-prefix=") for flag in flags))
         self.assertTrue(any(os.fspath(pathlib.Path.home()) in flag for flag in flags))
         self.assertTrue(all(os.fspath(pathlib.Path.home()) not in flag for flag in public_flags))
         self.assertIn(os.fspath(pathlib.Path.home()).encode(), private_prefixes)
+
+    def test_windows_release_flags_make_linker_metadata_repeatable(self):
+        flags, public_flags, _ = build_release.release_rustflags(
+            {}, "x86_64-pc-windows-msvc"
+        )
+        self.assertIn("link-arg=/Brepro", flags)
+        self.assertIn("link-arg=/PDBALTPATH:%_PDB%", flags)
+        self.assertEqual(flags[3:], public_flags[3:])
 
     def test_private_build_path_is_rejected_without_echoing_it(self):
         with tempfile.TemporaryDirectory() as directory:

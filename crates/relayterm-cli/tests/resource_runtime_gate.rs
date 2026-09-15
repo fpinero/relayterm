@@ -276,10 +276,7 @@ fn sustained_output_memory_and_reconnect_resources_are_bounded() {
 fn select_rendered_running_session(tui: &mut OuterTerminal, session_count: usize) {
     for _ in 0..session_count {
         let screen = tui.screen_contents();
-        if screen
-            .lines()
-            .any(|line| line.contains("> [running] session "))
-        {
+        if screen.lines().any(|line| line.contains("Status: running")) {
             return;
         }
         let previous = rendered_selected_session_id(&screen).map(str::to_owned);
