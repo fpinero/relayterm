@@ -52,7 +52,7 @@ Open the TUI with the same workspace and home:
 "$RT" --workspace "$project_root" --home "$private_root"
 ```
 
-On the Agents screen, create three definitions for commands available on the machine. Use `/bin/sh` on Unix or `%SystemRoot%\System32\cmd.exe` on Windows for the first. Two additional synthetic interactive executables may be copied test fixtures in a disposable directory. Keep definitions neutral, check availability with `v`, enable with Space, then launch with `a`. No production fake-session switch exists.
+On the Agents screen, press `n` three times to create three neutral definitions for the native shell. Give them distinct synthetic display names. Use `/bin/sh` with no arguments on Linux or macOS. On Windows, resolve the system root before opening Relayterm, then enter the resulting absolute path, commonly `C:\Windows\System32\cmd.exe`, with one `/Q` argument. Relayterm does not expand `%SystemRoot%` in an executable field. Arguments are entered one item per line. Check each definition with `v`, enable it with Space, and launch it with `a`. Reusing the native shell keeps the installed journey independent of test fixtures, provider CLIs, and hosted accounts. No production fake-session switch exists.
 
 On Sessions, confirm oldest-first creation order. Press `n` to name each session. Duplicate names are allowed, clearing restores `Session N`, and the adjacent abbreviated ID distinguishes rows. Confirm the full session and instance IDs in details. PageUp and PageDown move through bounded pages without replacing identity.
 
@@ -62,7 +62,7 @@ Press Enter to attach, `i` to acquire input, and Ctrl-Space to detach. Resize th
 
 Create a task from Tasks with `n`. The physical cursor must follow the active field through wide and combining text, wrapping, Tab, Shift-Tab, Home, End, Backspace, Delete, multiline input, Ctrl-U, resize, validation failure, and cancellation.
 
-Make the task ready, claim it for the first running instance, and verify a competing claim for the second instance is rejected. Append progress with a nonempty summary and explicit verification. Prepare a structured handover, which atomically closes the first claim and leaves the task `handover_ready`. Claim from the second instance, read the prior progress and handover, then complete the task.
+With the task selected, press `r` to make it ready. Select the first running session and press `c` on the task to claim it. Select the second session and press `c` again, then verify the competing claim is rejected. Return to the first session, press `p`, and append progress with a nonempty summary and explicit verification. Press `h` and prepare a structured handover, which atomically closes the first claim and leaves the task `handover_ready`. Select the second session, press `c`, read the prior progress and handover with PageUp and PageDown, then press `d` to complete the task.
 
 For a stale-form check, open the same editable form in two clients. Save from one client, then submit the other. The losing draft remains intact and no overwrite occurs. Ctrl-R first shows authoritative state for review. A second Ctrl-R adopts its revision while retaining the draft. A later Ctrl-S is the only deliberate resubmission. A result whose delivery is unknown remains separate and is never replayed automatically.
 
