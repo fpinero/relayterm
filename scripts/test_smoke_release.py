@@ -32,12 +32,15 @@ class SmokeReleaseTests(unittest.TestCase):
         self.assertNotIn("sensitive", str(raised.exception))
 
     def test_invoke_bounds_installed_command_runtime(self):
-        completed = subprocess.CompletedProcess([], 0, '{"ok":true,"result":{}}\n', "")
-        with mock.patch.object(smoke_release, "constrained_environment", return_value={}), mock.patch.object(
-            smoke_release.subprocess, "run", return_value=completed
-        ) as run:
-            smoke_release.invoke(pathlib.Path("rt"), pathlib.Path("project"), pathlib.Path("home"), ["workspace", "status"])
+        completed = subprocess.CompletedProcess([], 0)
+        with mock.patch.object(smoke_release.subprocess, "run", return_value=completed) as run:
+            returncode, output = smoke_release.run_bounded(["rt"], {})
+        self.assertEqual(returncode, 0)
+        self.assertEqual(output, "")
         self.assertEqual(run.call_args.kwargs["timeout"], smoke_release.COMMAND_TIMEOUT_SECONDS)
+        self.assertIs(run.call_args.kwargs["stdin"], subprocess.DEVNULL)
+        self.assertIsNot(run.call_args.kwargs["stdout"], subprocess.PIPE)
+        self.assertIsNot(run.call_args.kwargs["stderr"], subprocess.PIPE)
 
 
 if __name__ == "__main__":

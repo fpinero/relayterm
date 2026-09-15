@@ -43,5 +43,6 @@ The native macOS candidate check used the pre-M12 binary from planning merge `96
 | Missing shell, agent, or Git | Correct the neutral definition or install the prerequisite deliberately, then run availability checks again. | Relayterm does not install or authenticate providers. Git is optional outside worktree commands. |
 | Wrong permissions | Restore current-user private ownership and restrictive access without making state public. | Do not bypass private-state checks. |
 | Partial installation or wrong architecture | Preserve existing installation, remove only the failed staging file, and install a verified matching archive into a new directory. | Never report success from another `rt` found on `PATH`. |
+| Missing Windows Visual C++ runtime | Install or repair the supported Microsoft Visual C++ v14 Redistributable for x64 according to local policy, then retry the exact candidate path. | Relayterm does not fetch system prerequisites or treat a different `rt` as success. |
 
 Diagnostics are private, bounded, and intentionally omit command arguments, terminal output, environment values, task prose, names, and raw paths. Preserve relevant data before investigation. Relayterm cannot recover lost terminal history or serve as a security sandbox.

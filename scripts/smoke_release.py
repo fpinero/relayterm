@@ -1,6 +1,7 @@
 """Smoke-test an extracted Relayterm archive outside the source checkout."""
 
 import argparse
+import contextlib
 import json
 import os
 import pathlib
@@ -16,6 +17,7 @@ import zipfile
 import package_release
 
 COMMAND_TIMEOUT_SECONDS = 30
+COMMAND_OUTPUT_LIMIT = 4 * 1024 * 1024
 
 
 def windows_system_root(environment):
@@ -38,6 +40,33 @@ def constrained_environment():
     return environment
 
 
+def run_bounded(arguments, environment, *, cwd=None, input_text=None):
+    with contextlib.ExitStack() as stack:
+        output = stack.enter_context(tempfile.TemporaryFile())
+        errors = stack.enter_context(tempfile.TemporaryFile())
+        if input_text is None:
+            input_stream = subprocess.DEVNULL
+        else:
+            input_stream = stack.enter_context(tempfile.TemporaryFile())
+            input_stream.write(input_text.encode("utf-8"))
+            input_stream.seek(0)
+        result = subprocess.run(
+            arguments,
+            stdin=input_stream,
+            stdout=output,
+            stderr=errors,
+            cwd=cwd,
+            env=environment,
+            check=False,
+            timeout=COMMAND_TIMEOUT_SECONDS,
+        )
+        output.seek(0)
+        content = output.read(COMMAND_OUTPUT_LIMIT + 1)
+        if len(content) > COMMAND_OUTPUT_LIMIT:
+            raise RuntimeError("installed command output exceeded the smoke limit")
+        return result.returncode, content.decode("utf-8")
+
+
 def extract(archive, destination):
     package_release.inspect_archive(archive)
     if archive.name.endswith(".tar.gz"):
@@ -54,7 +83,7 @@ def extract(archive, destination):
 
 def invoke(binary, project, home, arguments, *, input_text=None, expect=0):
     environment = constrained_environment()
-    result = subprocess.run(
+    returncode, output = run_bounded(
         [
             os.fspath(binary),
             "--workspace",
@@ -65,16 +94,13 @@ def invoke(binary, project, home, arguments, *, input_text=None, expect=0):
             "json",
             *arguments,
         ],
-        input=input_text,
-        capture_output=True,
-        text=True,
-        env=environment,
-        check=False,
-        timeout=COMMAND_TIMEOUT_SECONDS,
+        environment,
+        cwd=project,
+        input_text=input_text,
     )
-    if result.returncode != expect:
+    if returncode != expect:
         raise RuntimeError(f"installed command failed in stage {arguments[0]}")
-    value = json.loads(result.stdout)
+    value = json.loads(output)
     if expect == 0 and not value.get("ok"):
         raise RuntimeError(f"installed command rejected stage {arguments[0]}")
     return value.get("result")
@@ -95,16 +121,12 @@ def smoke(archive):
     daemon_started = False
     try:
         for argument in ("--help", "--version"):
-            result = subprocess.run(
+            returncode, _ = run_bounded(
                 [os.fspath(binary), argument],
+                environment,
                 cwd=temporary,
-                env=environment,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,
-                check=False,
-                timeout=COMMAND_TIMEOUT_SECONDS,
             )
-            if result.returncode != 0:
+            if returncode != 0:
                 raise RuntimeError(f"installed {argument} failed")
         initialized = invoke(binary, project, home, ["workspace", "init", "--name", "Release smoke"])
         daemon_started = True

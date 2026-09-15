@@ -105,6 +105,8 @@ Paths containing spaces and ordinary non-ASCII characters are supported. Always 
 
 The initial local candidate is unsigned. macOS Gatekeeper and Windows reputation controls may warn or block it depending on how it was obtained and local policy. Inspect the candidate hash and source mapping. Do not disable global platform protections. Signing and notarization require a later maintainer publication decision.
 
+The Windows x64 candidate dynamically imports `VCRUNTIME140.dll` and Universal CRT components. Before treating a Windows installation as complete, confirm the latest supported Microsoft Visual C++ v14 Redistributable for x64 is present. Microsoft documents the supported package and architecture requirement in its [official download guidance](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170). If Windows reports a missing runtime DLL, stop and install or repair the official x64 prerequisite according to local system policy, then run the absolute candidate path again. Relayterm never downloads or installs this prerequisite.
+
 ## Remove only the installed executable
 
 Stop each selected workspace daemon deliberately before removing the binary. Do not kill processes by name.

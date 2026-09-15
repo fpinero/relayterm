@@ -33,6 +33,7 @@ The local candidate is unsigned. Checksums detect corruption but do not independ
 - Live processes and terminal contents survive client closure only while the owning daemon remains alive. Daemon or host restart records unrecoverable sessions as lost.
 - Terminal scrollback is bounded in daemon memory and is not a persistent recording.
 - Git is required only for worktree features. Provider commands and authentication remain user-managed prerequisites.
+- The Windows x64 artifact dynamically requires the supported Microsoft Visual C++ v14 Redistributable for x64. Relayterm does not install it.
 - Unix socket paths are bounded. An excessively long explicit private home can make the daemon endpoint unavailable; use a shorter private location and preserve the original state.
 - The two supplemental Windows throughput misses retained from M11 remain documented. They did not change the fixed acceptance thresholds and are not a waiver for candidate regressions.
 
