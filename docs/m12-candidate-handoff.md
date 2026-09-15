@@ -2,7 +2,7 @@
 
 ## Status
 
-This is a technical candidate handoff, not a release publication record. Source `491d5f1037450c362525b289fa6361d834fc0b6f` passed the complete native Quality and Security workflows. Later changes in this handoff commit affect only the quick-start wording, evidence documents, TODO, and the append-only logbook. They do not alter Rust production code, release scripts, packaged installation or recovery text, dependencies, or the executable behavior tested at `491d5f1`.
+This is a technical candidate handoff, not a release publication record. Source `491d5f1037450c362525b289fa6361d834fc0b6f` passed the complete native Quality and Security workflows. Its later documentation-only descendants affect the quick start, evidence documents, TODO, and the append-only logbook. They do not alter Rust production code, release scripts, packaged installation or recovery text, dependencies, or the executable behavior tested at `491d5f1`.
 
 The implementation is available in draft PR [#24](https://github.com/fpinero/relayterm/pull/24). It has not been merged, tagged, uploaded as a package, or published as a release. The CI archives were tested before their ephemeral workspaces ended and were not uploaded. The local macOS archive described below remains outside version control.
 

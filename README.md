@@ -90,7 +90,7 @@ The canonical user-facing executable is `rt`. The reserved `relayterm.com` domai
 - [Private backup and restore](docs/backup-restore.md) documents no-overwrite workspace recovery into a fresh private home.
 - [Portable installation](docs/install.md), [installed quick start](docs/quick-start.md), [upgrade and rollback](docs/upgrade.md), and [release build contract](docs/release-builds.md) define the local M12 candidate workflow.
 - [Candidate notes](docs/release-notes-0.1.0.md) and the [local candidate handoff](docs/m12-candidate-handoff.md) distinguish prepared work from final native evidence and publication.
-- [M11 acceptance matrix](docs/acceptance-matrix.md), [reliability workflow](docs/reliability-workflow.md), and [threat model](docs/threat-model.md) define the current hardening gate and its pending evidence.
+- [Acceptance matrix](docs/acceptance-matrix.md), [reliability workflow](docs/reliability-workflow.md), and [threat model](docs/threat-model.md) record the completed M11 hardening gate and the candidate-specific M12 evidence boundary.
 
 ## Current status
 
@@ -107,7 +107,7 @@ cargo run -p relayterm-cli --bin rt -- --version
 
 Running `rt` without a subcommand opens the workspace for the current directory, prompts before first initialization, and enters the TUI after connecting to the detached daemon. Use `--workspace PATH` to select another project. Noninteractive no-command use fails before side effects. Administrative commands, help, version, and JSON output remain separate from terminal mode.
 
-See [contributing](CONTRIBUTING.md), [agent templates and custom CLIs](docs/agent-templates.md), [Git worktrees](docs/worktrees.md), [architecture decisions](docs/architecture/README.md), [privacy](docs/privacy.md), and [platform evidence](docs/supported-platforms.md). The [pending queue](TODO.md) distinguishes implemented foundations from the remaining hardening and release milestones.
+See [contributing](CONTRIBUTING.md), [agent templates and custom CLIs](docs/agent-templates.md), [Git worktrees](docs/worktrees.md), [architecture decisions](docs/architecture/README.md), [privacy](docs/privacy.md), and [platform evidence](docs/supported-platforms.md). The [pending queue](TODO.md) distinguishes implemented foundations from the remaining release acceptance work.
 
 Contributions and technical discussion are welcome, but interfaces and behavior should be considered unstable until the first working release and stable protocol are defined.
 
