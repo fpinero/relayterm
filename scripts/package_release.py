@@ -19,6 +19,12 @@ import zipfile
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 MAX_NOTICE_BYTES = 8 * 1024 * 1024
 LICENSE_NAMES = re.compile(r"^(licen[cs]e|copying|notice)([-._].*)?$", re.IGNORECASE)
+SUPPLEMENTAL_LICENSES = {
+    ("windows-permissions", "0.2.4"): ROOT
+    / "third_party"
+    / "licenses"
+    / "windows-permissions-0.2.4.txt",
+}
 
 
 def sha256_bytes(value):
@@ -94,6 +100,17 @@ def license_files(package):
             if b"\0" in value:
                 raise RuntimeError("a dependency license file is not text")
             files.append((relative.as_posix(), value.decode("utf-8", errors="strict")))
+    supplemental = SUPPLEMENTAL_LICENSES.get((package["name"], package["version"]))
+    if not files and supplemental is not None:
+        value = supplemental.read_bytes()
+        if b"\0" in value:
+            raise RuntimeError("a supplemental dependency license file is not text")
+        files.append(
+            (
+                f"relayterm-supplement/{supplemental.name}",
+                value.decode("utf-8", errors="strict"),
+            )
+        )
     if not files:
         raise RuntimeError(
             f"dependency {package['name']} {package['version']} has no packaged license text"

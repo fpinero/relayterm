@@ -386,11 +386,21 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
     assert!(cursor_row < 30 && cursor_column < 100);
     assert!(cursor_row > 0 && cursor_column > 0);
     first.send(b"Duplicate session\x13");
-    first.wait_for("Sessions selected");
+    wait_for_session_display_name(
+        &root,
+        &private,
+        &first_named_session,
+        Some("Duplicate session"),
+    );
     first.send(next_selection_input());
     let second_named_session = wait_for_selected_session_change(&first, Some(&first_named_session));
     first.send(b"nDuplicate session\x13");
-    first.wait_for("Sessions selected");
+    wait_for_session_display_name(
+        &root,
+        &private,
+        &second_named_session,
+        Some("Duplicate session"),
+    );
     let named = admin(&root, &private, &["session", "list-ordered"]);
     for session_id in [&first_named_session, &second_named_session] {
         assert!(named["result"]["items"].as_array().is_some_and(|items| {
@@ -403,7 +413,7 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
     first.send(previous_selection_input());
     wait_for_selected_session(&first, &first_named_session);
     first.send(b"n\x15\x13");
-    first.wait_for("Sessions selected");
+    wait_for_session_display_name(&root, &private, &first_named_session, None);
     let cleared = admin(&root, &private, &["session", "list-ordered"]);
     assert!(cleared["result"]["items"].as_array().is_some_and(|items| {
         items.iter().any(|item| {
@@ -959,6 +969,30 @@ fn wait_for_session_status(root: &Path, private: &Path, session_id: &str, status
                 .is_some_and(|item| item["status"] == status)
         },
         "session status",
+    );
+}
+
+fn wait_for_session_display_name(
+    root: &Path,
+    private: &Path,
+    session_id: &str,
+    expected: Option<&str>,
+) {
+    wait_until(
+        || {
+            admin(root, private, &["session", "list-ordered"])["result"]["items"]
+                .as_array()
+                .and_then(|items| {
+                    items
+                        .iter()
+                        .find(|item| item["instance"]["session_id"] == session_id)
+                })
+                .is_some_and(|item| match expected {
+                    Some(expected) => item["display_name"] == expected,
+                    None => item["display_name"].is_null(),
+                })
+        },
+        "session display name",
     );
 }
 

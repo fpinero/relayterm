@@ -17,6 +17,25 @@ SPEC.loader.exec_module(package_release)
 
 
 class PackageReleaseTests(unittest.TestCase):
+    def test_missing_upstream_license_uses_only_the_reviewed_versioned_supplement(self):
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = pathlib.Path(directory) / "Cargo.toml"
+            manifest.write_text("[package]\n", encoding="utf-8")
+            package = {
+                "name": "windows-permissions",
+                "version": "0.2.4",
+                "manifest_path": str(manifest),
+            }
+            files = package_release.license_files(package)
+            self.assertEqual(
+                files[0][0],
+                "relayterm-supplement/windows-permissions-0.2.4.txt",
+            )
+            self.assertIn("MIT License", files[0][1])
+            package["version"] = "0.2.5"
+            with self.assertRaisesRegex(RuntimeError, "no packaged license text"):
+                package_release.license_files(package)
+
     def test_tar_output_is_byte_identical_and_has_normalized_metadata(self):
         entries = [("relayterm/rt", b"binary", 0o755), ("relayterm/LICENSE", b"license", 0o644)]
         with tempfile.TemporaryDirectory() as directory:
