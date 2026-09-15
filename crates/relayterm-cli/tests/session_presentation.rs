@@ -2,8 +2,11 @@ use serde_json::Value;
 use std::{
     ffi::OsString,
     fs,
+    io::{BufRead, Read},
     path::{Path, PathBuf},
     process::{Command, Output, Stdio},
+    thread,
+    time::{Duration, Instant},
 };
 
 fn rt_binary() -> OsString {
@@ -36,7 +39,7 @@ impl Drop for Scratch {
 }
 
 fn invoke(root: &Path, home: &Path, args: &[&str]) -> Output {
-    Command::new(rt_binary())
+    let mut child = Command::new(rt_binary())
         .arg("--workspace")
         .arg(root)
         .arg("--home")
@@ -44,8 +47,49 @@ fn invoke(root: &Path, home: &Path, args: &[&str]) -> Output {
         .args(["--format", "json", "--timeout", "10"])
         .args(args)
         .stdin(Stdio::null())
-        .output()
-        .unwrap()
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+
+    const DEADLINE: Duration = Duration::from_secs(30);
+    const OUTPUT_LIMIT: usize = 64 * 1024;
+    let stdout = child.stdout.take().unwrap();
+    let (output_tx, output_rx) = std::sync::mpsc::sync_channel(1);
+    thread::spawn(move || {
+        let mut bytes = Vec::new();
+        let result = std::io::BufReader::new(stdout)
+            .take((OUTPUT_LIMIT + 1) as u64)
+            .read_until(b'\n', &mut bytes)
+            .map(|_| bytes);
+        let _ = output_tx.send(result);
+    });
+
+    let deadline = Instant::now() + DEADLINE;
+    let status = loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            break status;
+        }
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            panic!("session presentation command did not terminate before its deadline");
+        }
+        thread::sleep(Duration::from_millis(10));
+    };
+    let stdout = output_rx
+        .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+        .expect("session presentation output did not arrive before its deadline")
+        .expect("session presentation output could not be read");
+    assert!(
+        stdout.len() <= OUTPUT_LIMIT,
+        "session presentation output exceeded its bound"
+    );
+    Output {
+        status,
+        stdout,
+        stderr: Vec::new(),
+    }
 }
 
 fn success(root: &Path, home: &Path, args: &[&str]) -> Value {
