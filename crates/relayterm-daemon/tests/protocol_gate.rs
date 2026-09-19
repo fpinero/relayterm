@@ -634,7 +634,18 @@ async fn two_clients_complete_a_durable_handover_journey() {
     let progress:Value=a.call(Operation::ProgressAppend,&json!({"task_id":task_id,"summary":"Implementation advanced","verification":"cargo test"})).await.unwrap();
     revision = progress["revision"].as_str().unwrap().to_owned();
     let handover:Value=a.call(Operation::HandoverCreate,&json!({"task_id":task_id,"expected_revision":revision,"summary":"Ready for continuation","decisions":"Keep protocol neutral","changed_paths":["src/lib.rs"],"verification_performed":"cargo test","open_questions":"","recommended_next_action":"Complete the task"})).await.unwrap();
-    let _ = handover;
+    // Refresh before another claim can hide an incomplete handover projection.
+    for client in [&a, &b] {
+        let snapshot = client.refresh_snapshot().await.unwrap();
+        assert_eq!(snapshot.revision, handover["revision"].as_str().unwrap());
+        let task = snapshot.collections["tasks"]
+            .iter()
+            .find(|task| task["id"] == task_id)
+            .unwrap();
+        assert_eq!(task["status"], "handover_ready");
+        assert!(task["claimed_by_instance_id"].is_null());
+        assert_eq!(snapshot.collections["handovers"].len(), 1);
+    }
     let resumed: Value = b
         .call(
             Operation::TaskClaim,

@@ -1336,7 +1336,7 @@ async fn load_snapshot_kind(
     } else {
         Vec::new()
     };
-    let handovers = load_handovers(connection, expected, include_immutable_history).await?;
+    let handovers = load_handovers(connection, expected, mutation_scope.map(|_| &task_ids)).await?;
     let rows = WorkspaceRows {
         definitions,
         tasks,
@@ -2044,15 +2044,31 @@ async fn load_progress_entry(
 async fn load_handovers(
     connection: &mut SqliteConnection,
     workspace_id: WorkspaceId,
-    include_all: bool,
+    projected_tasks: Option<&HashSet<TaskId>>,
 ) -> Result<Vec<Handover>> {
-    let query = if include_all {
-        "SELECT * FROM handovers WHERE workspace_id=? ORDER BY creation_event_sequence"
+    if projected_tasks.is_some_and(HashSet::is_empty) {
+        return Ok(Vec::new());
+    }
+    let mut query = if let Some(task_ids) = projected_tasks {
+        let mut query = sqlx::QueryBuilder::new(
+            "SELECT handovers.* FROM handovers JOIN (SELECT task_id,closed_seconds,closed_nanoseconds,close_reason,ROW_NUMBER() OVER (PARTITION BY task_id ORDER BY opening_event_sequence DESC) AS claim_rank FROM claims WHERE workspace_id=",
+        );
+        query.push_bind(id_bytes(workspace_id.as_uuid()));
+        query.push(") AS latest_claim ON latest_claim.task_id=handovers.task_id AND latest_claim.closed_seconds=handovers.created_seconds AND latest_claim.closed_nanoseconds=handovers.created_nanoseconds WHERE latest_claim.claim_rank=1 AND latest_claim.close_reason='handover' AND handovers.task_id IN (");
+        let mut separated = query.separated(",");
+        for id in task_ids {
+            separated.push_bind(id_bytes(id.as_uuid()));
+        }
+        separated.push_unseparated(") ORDER BY handovers.creation_event_sequence");
+        query
     } else {
-        "SELECT handovers.* FROM handovers JOIN (SELECT task_id,closed_seconds,closed_nanoseconds,close_reason,ROW_NUMBER() OVER (PARTITION BY task_id ORDER BY opening_event_sequence DESC) AS claim_rank FROM claims WHERE workspace_id=?) AS latest_claim ON latest_claim.task_id=handovers.task_id AND latest_claim.closed_seconds=handovers.created_seconds AND latest_claim.closed_nanoseconds=handovers.created_nanoseconds WHERE latest_claim.claim_rank=1 AND latest_claim.close_reason='handover' ORDER BY handovers.creation_event_sequence"
+        let mut query = sqlx::QueryBuilder::new("SELECT * FROM handovers WHERE workspace_id=");
+        query.push_bind(id_bytes(workspace_id.as_uuid()));
+        query.push(" ORDER BY creation_event_sequence");
+        query
     };
-    let rows = sqlx::query(query)
-        .bind(id_bytes(workspace_id.as_uuid()))
+    let rows = query
+        .build()
         .fetch_all(&mut *connection)
         .await
         .map_err(domain_storage)?;

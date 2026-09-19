@@ -664,6 +664,33 @@ fn complete_handover_journey_survives_reopen() {
             )
             .await
             .unwrap();
+        // A task-neutral session must not break the workspace-wide refresh after handover.
+        let projected = store
+            .consistent_projection(workspace_id, Default::default())
+            .await
+            .unwrap();
+        let projected_state = projected.snapshot.state().unwrap();
+        assert!(projected_state.tasks().is_empty());
+        assert!(projected_state.claims().is_empty());
+        assert!(projected_state.handovers().is_empty());
+        let scoped = store
+            .consistent_projection(
+                workspace_id,
+                relayterm_application::MutationScope {
+                    task_ids: vec![task_id],
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        let scoped_state = scoped.snapshot.state().unwrap();
+        assert_eq!(scoped_state.tasks().len(), 1);
+        assert_eq!(
+            scoped_state.tasks()[0].record().status,
+            TaskStatus::HandoverReady
+        );
+        assert_eq!(scoped_state.claims().len(), 1);
+        assert_eq!(scoped_state.handovers().len(), 1);
         service
             .register_instance(
                 workspace_id,
