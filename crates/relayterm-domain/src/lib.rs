@@ -17,7 +17,18 @@ use uuid::Uuid;
 macro_rules! identifier {
     ($name:ident, $description:literal) => {
         #[doc = $description]
-        #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, serde::Serialize, serde::Deserialize)]
+        #[derive(
+            Clone,
+            Copy,
+            Debug,
+            Eq,
+            Hash,
+            Ord,
+            PartialEq,
+            PartialOrd,
+            serde::Serialize,
+            serde::Deserialize,
+        )]
         pub struct $name(Uuid);
 
         impl $name {

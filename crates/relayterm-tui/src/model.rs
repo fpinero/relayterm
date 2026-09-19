@@ -75,6 +75,7 @@ pub enum FormKind {
     TaskEdit,
     Progress,
     Handover,
+    SessionRename,
     ConfirmTerminate,
     WorktreeCreate,
 }
@@ -91,11 +92,15 @@ pub struct FormField {
 #[derive(Clone, Eq, PartialEq)]
 pub struct Form {
     pub kind: FormKind,
+    pub guidance: Option<String>,
     pub fields: Vec<FormField>,
     pub selected: usize,
     pub error: Option<String>,
     pub pending: bool,
     pub uncertain: bool,
+    pub stale: bool,
+    pub reviewing: bool,
+    pub reviewed_revision: Option<String>,
     pub target_id: Option<String>,
     pub base_revision: String,
 }
@@ -104,6 +109,7 @@ impl Form {
     pub fn task_create() -> Self {
         Self {
             kind: FormKind::TaskCreate,
+            guidance: None,
             fields: vec![
                 field("Title", false, 256),
                 field("Description", true, 16 * 1024),
@@ -116,6 +122,9 @@ impl Form {
             error: None,
             pending: false,
             uncertain: false,
+            stale: false,
+            reviewing: false,
+            reviewed_revision: None,
             target_id: None,
             base_revision: String::new(),
         }
@@ -124,6 +133,7 @@ impl Form {
     pub fn agent_create() -> Self {
         Self {
             kind: FormKind::AgentCreate,
+            guidance: None,
             fields: vec![
                 field("Display name", false, 256),
                 field("Command", false, 4 * 1024),
@@ -140,6 +150,9 @@ impl Form {
             error: None,
             pending: false,
             uncertain: false,
+            stale: false,
+            reviewing: false,
+            reviewed_revision: None,
             target_id: None,
             base_revision: String::new(),
         }
@@ -148,6 +161,7 @@ impl Form {
     pub fn progress() -> Self {
         Self {
             kind: FormKind::Progress,
+            guidance: None,
             fields: vec![
                 field("Summary", true, 8 * 1024),
                 field("Verification", true, 8 * 1024),
@@ -156,6 +170,9 @@ impl Form {
             error: None,
             pending: false,
             uncertain: false,
+            stale: false,
+            reviewing: false,
+            reviewed_revision: None,
             target_id: None,
             base_revision: String::new(),
         }
@@ -164,6 +181,7 @@ impl Form {
     pub fn handover() -> Self {
         Self {
             kind: FormKind::Handover,
+            guidance: None,
             fields: vec![
                 field("Summary", true, 8 * 1024),
                 field("Decisions", true, 16 * 1024),
@@ -176,6 +194,9 @@ impl Form {
             error: None,
             pending: false,
             uncertain: false,
+            stale: false,
+            reviewing: false,
+            reviewed_revision: None,
             target_id: None,
             base_revision: String::new(),
         }
@@ -184,6 +205,7 @@ impl Form {
     pub fn worktree_create() -> Self {
         Self {
             kind: FormKind::WorktreeCreate,
+            guidance: None,
             fields: vec![
                 field("Base reference", false, 256),
                 field("New branch", false, 256),
@@ -195,6 +217,29 @@ impl Form {
             error: None,
             pending: false,
             uncertain: false,
+            stale: false,
+            reviewing: false,
+            reviewed_revision: None,
+            target_id: None,
+            base_revision: String::new(),
+        }
+    }
+
+    pub fn session_rename(display_name: &str) -> Self {
+        let mut name = field("Display name (Ctrl-U clears)", false, 128);
+        name.value = display_name.to_owned();
+        name.cursor = name.value.len();
+        Self {
+            kind: FormKind::SessionRename,
+            guidance: None,
+            fields: vec![name],
+            selected: 0,
+            error: None,
+            pending: false,
+            uncertain: false,
+            stale: false,
+            reviewing: false,
+            reviewed_revision: None,
             target_id: None,
             base_revision: String::new(),
         }
@@ -231,6 +276,7 @@ pub struct TerminalView {
     pub snapshot: Option<Value>,
     pub input_focus: bool,
     pub uncertain_input: bool,
+    pub input_owned_elsewhere: bool,
     pub scrollback_rows: u16,
     pub retained_scrollback_rows: u16,
 }
@@ -244,6 +290,8 @@ pub struct App {
     pub selected_session: usize,
     pub selected_agent: usize,
     pub selected_template: usize,
+    pub session_page_index: usize,
+    pub session_page_starts: Vec<Option<Value>>,
     pub templates: Vec<Value>,
     pub worktrees: Vec<Value>,
     pub agent_availability: Option<(String, String, String, String, Instant)>,
@@ -270,6 +318,8 @@ impl Default for App {
             selected_session: 0,
             selected_agent: 0,
             selected_template: 0,
+            session_page_index: 0,
+            session_page_starts: vec![None],
             templates: Vec::new(),
             worktrees: Vec::new(),
             agent_availability: None,
@@ -294,15 +344,15 @@ impl App {
             self.agent_availability = None;
         }
         let selected_task = selected_identity(self.collection("tasks"), self.selected_task, "id");
-        let selected_session = selected_identity(
-            self.collection("instances"),
-            self.selected_session,
-            "session_id",
-        );
+        let selected_session = self.selected_session_id().map(str::to_owned);
         let selected_agent =
             selected_identity(self.collection("definitions"), self.selected_agent, "id");
         sort_collection(&mut snapshot, "tasks", "id");
-        sort_collection(&mut snapshot, "instances", "session_id");
+        if !snapshot.ordered_sessions {
+            sort_collection(&mut snapshot, "instances", "session_id");
+            self.session_page_index = 0;
+            self.session_page_starts = vec![None];
+        }
         sort_collection(&mut snapshot, "definitions", "id");
         self.last_revision = snapshot.revision.clone();
         self.snapshot = Some(snapshot);
@@ -314,11 +364,10 @@ impl App {
             selected_task.as_deref(),
             "id",
         );
-        self.selected_session = restored_selection(
-            self.collection("instances"),
+        self.selected_session = restored_session_selection(
+            self.session_rows(),
             self.selected_session,
             selected_session.as_deref(),
-            "session_id",
         );
         self.selected_agent = restored_selection(
             self.collection("definitions"),
@@ -340,7 +389,75 @@ impl App {
     }
 
     pub fn selected_session(&self) -> Option<&Value> {
-        self.collection("instances").get(self.selected_session)
+        self.session_rows().get(self.selected_session)
+    }
+
+    pub fn selected_session_instance(&self) -> Option<&Value> {
+        self.selected_session().map(session_instance)
+    }
+
+    pub fn selected_session_id(&self) -> Option<&str> {
+        self.selected_session_instance()
+            .and_then(|instance| instance.get("session_id"))
+            .and_then(Value::as_str)
+    }
+
+    pub fn session_rows(&self) -> &[Value] {
+        if self
+            .snapshot
+            .as_ref()
+            .is_some_and(|snapshot| snapshot.ordered_sessions)
+        {
+            self.collection("sessions")
+        } else {
+            self.collection("instances")
+        }
+    }
+
+    pub fn ordered_sessions(&self) -> bool {
+        self.snapshot
+            .as_ref()
+            .is_some_and(|snapshot| snapshot.ordered_sessions)
+    }
+
+    pub fn session_rename_supported(&self) -> bool {
+        self.snapshot
+            .as_ref()
+            .is_some_and(|snapshot| snapshot.session_rename)
+    }
+
+    pub fn current_session_page_start(&self) -> Option<Value> {
+        self.session_page_starts
+            .get(self.session_page_index)
+            .cloned()
+            .flatten()
+    }
+
+    pub fn abbreviated_session_id(&self, index: usize) -> String {
+        let rows = self.session_rows();
+        let identity = rows
+            .get(index)
+            .map(session_instance)
+            .and_then(|instance| instance.get("session_id"))
+            .and_then(Value::as_str)
+            .unwrap_or("unknown");
+        for length in 8..=identity.len() {
+            if !identity.is_char_boundary(length) {
+                continue;
+            }
+            let prefix = &identity[..length];
+            if rows.iter().enumerate().all(|(other_index, row)| {
+                other_index == index
+                    || !session_instance(row)
+                        .get("session_id")
+                        .and_then(Value::as_str)
+                        .unwrap_or("unknown")
+                        .starts_with(prefix)
+            }) {
+                return prefix.to_owned();
+            }
+        }
+        identity.to_owned()
     }
 
     pub fn selected_agent(&self) -> Option<&Value> {
@@ -405,7 +522,7 @@ impl App {
 
     fn clamp_selections(&mut self) {
         self.selected_task = clamp(self.selected_task, self.collection("tasks").len());
-        self.selected_session = clamp(self.selected_session, self.collection("instances").len());
+        self.selected_session = clamp(self.selected_session, self.session_rows().len());
         self.selected_agent = clamp(self.selected_agent, self.collection("definitions").len());
     }
 }
@@ -447,6 +564,27 @@ fn restored_selection(
         .unwrap_or(selected)
 }
 
+fn restored_session_selection(
+    collection: &[Value],
+    selected: usize,
+    identity: Option<&str>,
+) -> usize {
+    identity
+        .and_then(|identity| {
+            collection.iter().position(|item| {
+                session_instance(item)
+                    .get("session_id")
+                    .and_then(Value::as_str)
+                    == Some(identity)
+            })
+        })
+        .unwrap_or(selected)
+}
+
+pub fn session_instance(row: &Value) -> &Value {
+    row.get("instance").unwrap_or(row)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -459,6 +597,27 @@ mod tests {
             last_sequence: 0,
             retained_from_sequence: 0,
             collections: BTreeMap::from([("instances".into(), instances)]),
+            ordered_sessions: false,
+            session_rename: false,
+            session_next: None,
+        }
+    }
+
+    fn ordered_snapshot(revision: &str, sessions: Vec<Value>) -> ClientSnapshot {
+        ClientSnapshot {
+            revision: revision.into(),
+            last_sequence: 0,
+            retained_from_sequence: 0,
+            collections: BTreeMap::from([
+                ("sessions".into(), sessions.clone()),
+                (
+                    "instances".into(),
+                    sessions.iter().map(|row| row["instance"].clone()).collect(),
+                ),
+            ]),
+            ordered_sessions: true,
+            session_rename: true,
+            session_next: None,
         }
     }
 
@@ -518,5 +677,38 @@ mod tests {
         changed.revision = "2".into();
         app.install_snapshot(changed);
         assert!(app.agent_availability.is_none());
+    }
+
+    #[test]
+    fn ordered_refresh_preserves_identity_across_names_and_background_creation() {
+        let session = |id: &str, ordinal: &str, name: Value| {
+            json!({
+                "instance":{"session_id":id,"id":format!("instance-{id}"),"status":"running"},
+                "display_name":name,
+                "creation_ordinal":ordinal
+            })
+        };
+        let first = session("session-first", "1", json!("duplicate"));
+        let second = session("session-second", "2", json!("duplicate"));
+        let mut app = App::default();
+        app.install_snapshot(ordered_snapshot("1", vec![first.clone(), second.clone()]));
+        app.selected_session = 1;
+
+        let renamed = session("session-second", "2", Value::Null);
+        let background = session("session-third", "3", json!("background"));
+        app.install_snapshot(ordered_snapshot("2", vec![first, renamed, background]));
+
+        assert_eq!(app.selected_session_id(), Some("session-second"));
+        assert_eq!(app.selected_session, 1);
+        assert!(app.selected_session().unwrap()["display_name"].is_null());
+    }
+
+    #[test]
+    fn rename_form_keeps_the_utf8_byte_cursor_and_clear_contract() {
+        let form = Form::session_rename("Build e\u{301}");
+        assert_eq!(form.kind, FormKind::SessionRename);
+        assert_eq!(form.fields[0].cursor, "Build e\u{301}".len());
+        assert_eq!(form.fields[0].limit, 128);
+        assert!(form.fields[0].label.contains("Ctrl-U"));
     }
 }

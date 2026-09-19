@@ -152,6 +152,8 @@ pub enum Operation {
     TaskGetHistory,
     TaskGetClaimHistory,
     SessionList,
+    SessionListOrdered,
+    SessionRename,
     EventList,
     EventSubscribe,
     EventUnsubscribe,
@@ -175,7 +177,7 @@ pub enum Operation {
     Unknown,
 }
 impl Operation {
-    pub const ALL: [Self; 44] = [
+    pub const ALL: [Self; 46] = [
         Self::ProtocolHello,
         Self::ProtocolPing,
         Self::DaemonStatus,
@@ -200,6 +202,8 @@ impl Operation {
         Self::TaskGetHistory,
         Self::TaskGetClaimHistory,
         Self::SessionList,
+        Self::SessionListOrdered,
+        Self::SessionRename,
         Self::EventList,
         Self::EventSubscribe,
         Self::EventUnsubscribe,
@@ -247,6 +251,8 @@ impl Operation {
             Self::TaskGetHistory => "task.get_history",
             Self::TaskGetClaimHistory => "task.get_claim_history",
             Self::SessionList => "session.list",
+            Self::SessionListOrdered => "session.list_ordered",
+            Self::SessionRename => "session.rename",
             Self::EventList => "event.list",
             Self::EventSubscribe => "event.subscribe",
             Self::EventUnsubscribe => "event.unsubscribe",
@@ -307,6 +313,7 @@ impl Operation {
                 | Self::ProgressAppend
                 | Self::HandoverCreate
                 | Self::SessionCreate
+                | Self::SessionRename
                 | Self::SessionInput
                 | Self::SessionResize
                 | Self::SessionTerminate
@@ -465,6 +472,8 @@ pub enum ErrorCode {
     InvalidState,
     InvalidReference,
     Conflict,
+    StaleRevision,
+    InputOwned,
     InvalidTime,
     StorageBusy,
     ReadOnly,
@@ -604,6 +613,7 @@ pub struct MutationReceipt {
     pub changed: bool,
     pub first_sequence: Option<DecimalU64>,
     pub last_sequence: Option<DecimalU64>,
+    pub notification_delivered: bool,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -837,6 +847,18 @@ pub struct TerminalSizeDto {
 }
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct LaunchDefinitionSnapshotDto {
+    pub definition_id: AgentDefinitionId,
+    pub display_name: String,
+    pub command: String,
+    pub arguments: Vec<String>,
+    pub environment_allowlist: Vec<String>,
+    pub capabilities: Vec<String>,
+    pub enabled: bool,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct AgentInstanceDto {
     pub id: AgentInstanceId,
     pub session_id: SessionId,
@@ -844,6 +866,7 @@ pub struct AgentInstanceDto {
     pub agent_definition_id: Option<AgentDefinitionId>,
     pub task_id: Option<TaskId>,
     pub worktree_id: Option<WorktreeId>,
+    pub launch_definition: Option<LaunchDefinitionSnapshotDto>,
     pub working_directory: NativePathDto,
     pub status: InstanceStatus,
     pub started_at: TimestampDto,
@@ -851,6 +874,60 @@ pub struct AgentInstanceDto {
     pub ended_at: Option<TimestampDto>,
     pub exit_code: Option<i32>,
     pub terminal_size: TerminalSizeDto,
+}
+
+#[derive(Clone, Copy, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SessionPageCursorDto {
+    pub creation_ordinal: DecimalU64,
+    pub session_id: SessionId,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SessionListOrderedParams {
+    #[serde(default)]
+    pub after: Option<SessionPageCursorDto>,
+    #[serde(default = "default_page_size")]
+    pub limit: u16,
+    #[serde(default)]
+    pub expected_revision: Option<DecimalU64>,
+}
+
+impl SessionListOrderedParams {
+    pub fn validate(&self) -> Result<(), MessageError> {
+        if self.limit == 0 || self.limit > MAX_PAGE_SIZE {
+            Err(MessageError::InvalidPage)
+        } else {
+            Ok(())
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SessionSummaryDto {
+    pub instance: AgentInstanceDto,
+    pub display_name: Option<String>,
+    pub creation_ordinal: DecimalU64,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SessionListOrderedResult {
+    pub revision: DecimalU64,
+    pub last_sequence: DecimalU64,
+    pub retained_from_sequence: DecimalU64,
+    pub items: Vec<SessionSummaryDto>,
+    pub next: Option<SessionPageCursorDto>,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SessionRenameParams {
+    pub session_id: SessionId,
+    pub display_name: String,
+    pub expected_revision: DecimalU64,
 }
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -1397,6 +1474,43 @@ mod tests {
     use serde_json::json;
     fn workspace() -> WorkspaceId {
         "00000000-0000-4000-8000-000000000001".parse().unwrap()
+    }
+    #[test]
+    fn ordered_session_and_rename_contracts_are_strict_and_advertised() {
+        assert!(Operation::ALL.contains(&Operation::SessionListOrdered));
+        assert!(Operation::ALL.contains(&Operation::SessionRename));
+        assert_eq!(
+            serde_json::to_string(&Operation::SessionListOrdered).unwrap(),
+            "\"session.list_ordered\""
+        );
+        assert!(Operation::SessionRename.is_mutation());
+        assert!(!Operation::SessionListOrdered.is_mutation());
+
+        let params: SessionListOrderedParams = decode_json(
+            br#"{"after":{"creation_ordinal":"200","session_id":"00000000-0000-4000-8000-000000000002"},"limit":200,"expected_revision":"9"}"#,
+            false,
+        )
+        .unwrap();
+        params.validate().unwrap();
+        assert_eq!(params.after.unwrap().creation_ordinal.get(), 200);
+        assert!(
+            decode_json::<SessionListOrderedParams>(br#"{"limit":201,"unexpected":true}"#, false)
+                .is_err()
+        );
+        assert!(
+            decode_json::<SessionRenameParams>(
+                br#"{"session_id":"00000000-0000-4000-8000-000000000002","display_name":"Private","expected_revision":"9","extra":1}"#,
+                false
+            )
+            .is_err()
+        );
+        for code in [ErrorCode::StaleRevision, ErrorCode::InputOwned] {
+            let encoded =
+                serde_json::to_vec(&ErrorBody::not_applied(code, Recovery::Refresh)).unwrap();
+            let decoded: ErrorBody = decode_json(&encoded, false).unwrap();
+            assert_eq!(decoded.code, code);
+            assert!(!String::from_utf8(encoded).unwrap().contains("Private"));
+        }
     }
     #[test]
     fn golden_hello_round_trip() {

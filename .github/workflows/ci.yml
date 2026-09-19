@@ -15,6 +15,117 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  release:
+    name: Release / ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+          - os: macos-14
+            target: aarch64-apple-darwin
+          - os: windows-2022
+            target: x86_64-pc-windows-msvc
+    env:
+      RUSTUP_TOOLCHAIN: 1.98.1
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      - name: Install pinned compiler
+        run: rustup toolchain install 1.98.1 --profile minimal
+      - name: Fetch complete locked graph
+        run: cargo fetch --locked
+      - name: Test release tooling
+        run: python -m unittest scripts/test_build_release.py scripts/test_package_release.py scripts/test_install_release.py scripts/test_smoke_release.py
+      - name: Build release twice
+        run: |
+          python scripts/build_release.py build --target ${{ matrix.target }} --output release-build-a --offline
+          python scripts/build_release.py build --target ${{ matrix.target }} --output release-build-b --offline
+      - name: Compare release executables
+        run: python scripts/build_release.py compare release-build-a/build-record.json release-build-b/build-record.json
+      - name: Inspect ELF runtime dependencies
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        shell: bash
+        run: |
+          file release-build-a/rt
+          readelf --file-header --program-headers --dynamic release-build-a/rt
+          objdump --dynamic-syms release-build-a/rt | grep -E 'GLIBC_[0-9]'
+      - name: Inspect Mach-O runtime dependencies
+        if: matrix.target == 'aarch64-apple-darwin'
+        run: |
+          file release-build-a/rt
+          otool -hv release-build-a/rt
+          otool -L release-build-a/rt
+          otool -l release-build-a/rt
+      - name: Inspect PE runtime dependencies
+        if: matrix.target == 'x86_64-pc-windows-msvc'
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $installation = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $installation) { throw "Visual Studio C++ tools were not found." }
+          $dumpbin = Get-ChildItem -Path (Join-Path $installation "VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe") | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $dumpbin) { throw "dumpbin.exe was not found." }
+          $inspection = & $dumpbin.FullName /headers /imports release-build-a/rt.exe
+          $inspection
+          if ($LASTEXITCODE -ne 0) { throw "dumpbin.exe failed." }
+          $inspectionText = $inspection -join "`n"
+          if ($inspectionText -notmatch "machine \(x64\)" -or $inspectionText -notmatch "Section contains the following imports") {
+            throw "The PE inspection did not report the expected architecture and import table."
+          }
+      - name: Package release twice
+        run: |
+          python scripts/package_release.py create --build release-build-a --output release-package-a
+          python scripts/package_release.py create --build release-build-b --output release-package-b
+      - name: Compare release archives
+        run: python scripts/package_release.py compare release-package-a/relayterm-0.1.0-${{ matrix.target }}.manifest.json release-package-b/relayterm-0.1.0-${{ matrix.target }}.manifest.json
+      - name: Inspect exact archive inventory
+        shell: bash
+        run: |
+          if [[ "${{ matrix.target }}" == *windows* ]]; then
+            python scripts/package_release.py inspect release-package-a/relayterm-0.1.0-${{ matrix.target }}.zip
+          else
+            python scripts/package_release.py inspect release-package-a/relayterm-0.1.0-${{ matrix.target }}.tar.gz
+          fi
+      - name: Smoke-test extracted release
+        timeout-minutes: 3
+        shell: bash
+        run: |
+          if [[ "${{ matrix.target }}" == *windows* ]]; then
+            python scripts/smoke_release.py release-package-a/relayterm-0.1.0-${{ matrix.target }}.zip
+          else
+            python scripts/smoke_release.py release-package-a/relayterm-0.1.0-${{ matrix.target }}.tar.gz
+          fi
+      - name: Extract reviewed release for TUI gate
+        shell: bash
+        run: |
+          if [[ "${{ matrix.target }}" == *windows* ]]; then
+            archive=release-package-a/relayterm-0.1.0-${{ matrix.target }}.zip
+            executable=rt.exe
+          else
+            archive=release-package-a/relayterm-0.1.0-${{ matrix.target }}.tar.gz
+            executable=rt
+          fi
+          python scripts/package_release.py extract "$archive" --output release-extracted
+          echo "RELAYTERM_TEST_RT=${{ github.workspace }}/release-extracted/relayterm-0.1.0-${{ matrix.target }}/$executable" >> "$GITHUB_ENV"
+      - name: Test TUI through extracted release
+        timeout-minutes: 10
+        run: cargo test -p relayterm-cli --test tui_gate --locked -- --nocapture --test-threads=1
+      - name: Test session presentation through extracted release
+        timeout-minutes: 5
+        run: cargo test -p relayterm-cli --test session_presentation --locked -- --nocapture --test-threads=1
+      - name: Test worktree journey through extracted release
+        timeout-minutes: 10
+        run: cargo test -p relayterm-cli --test worktree_gate --locked -- --nocapture --test-threads=1
+      - name: Test backup and restore through extracted release
+        timeout-minutes: 10
+        run: cargo test -p relayterm-cli --test backup_restore --locked -- --nocapture --test-threads=1
+
   native:
     name: ${{ matrix.os }} / ${{ matrix.toolchain }}
     runs-on: ${{ matrix.os }}

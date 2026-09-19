@@ -64,11 +64,16 @@ struct OuterTerminal {
     screen: Arc<Mutex<vt100::Parser>>,
 }
 
+fn rt_binary() -> OsString {
+    std::env::var_os("RELAYTERM_TEST_RT")
+        .unwrap_or_else(|| OsString::from(env!("CARGO_BIN_EXE_rt")))
+}
+
 impl OuterTerminal {
     fn spawn(root: &Path, private: &Path) -> Self {
         let environment = terminal_environment(approved_environment(&[], std::env::vars_os()));
         let session = NativeSession::spawn(SpawnRequest {
-            program: OsString::from(env!("CARGO_BIN_EXE_rt")),
+            program: rt_binary(),
             arguments: vec![
                 OsString::from("--workspace"),
                 root.as_os_str().to_owned(),
@@ -155,6 +160,10 @@ impl OuterTerminal {
             }
             std::thread::sleep(Duration::from_millis(20));
         }
+    }
+
+    fn cursor_position(&self) -> (u16, u16) {
+        self.screen.lock().unwrap().screen().cursor_position()
     }
 
     fn screen_contents(&self) -> String {
@@ -267,12 +276,34 @@ fn input_ownership_moves_between_open_tui_clients() {
     register_fixture(&root, &private);
     owner.send(b"R4a3");
     wait_for_session_count(&root, &private, 1);
-    owner.send(b"\ri");
-    owner.wait_for("WRITER");
     let mut observer = OuterTerminal::spawn(&root, &private);
     observer.finish_startup();
-    observer.send(b"3\ri5");
-    observer.wait_for("rejected");
+    observer.send(b"3");
+    owner.send(b"nLosing draft");
+    owner.wait_for("Losing draft");
+    observer.send(b"nWinning name\x13");
+    observer.wait_for("Winning name");
+    owner.send(b"\x13");
+    owner.wait_for("workspace changed while you were editing");
+    owner.wait_for("Losing draft");
+    let renamed = admin(&root, &private, &["session", "list-ordered"]);
+    assert_eq!(
+        renamed["result"]["items"][0]["display_name"],
+        "Winning name"
+    );
+    owner.send(b"\x12");
+    owner.wait_for("Reviewing latest state");
+    owner.wait_for("Winning name");
+    owner.send(b"\x12");
+    owner.wait_for("Losing draft");
+    owner.send(b"\x1b");
+    owner.wait_for("Discard draft?");
+    owner.send(b"y");
+    owner.wait_for("Sessions selected");
+    owner.send(b"\ri");
+    owner.wait_for("WRITER");
+    observer.send(b"\ri5");
+    observer.wait_for("Another client controls input");
     observer.send(b"3");
     observer.wait_for("READ ONLY");
     owner.send(&[0x1d]);
@@ -347,6 +378,48 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
     register_fixture(&root, &private);
     first.send(b"R4aa3s");
     wait_for_session_count(&root, &private, 3);
+    first.wait_for("Sessions selected");
+    let first_named_session = wait_for_selected_session_change(&first, None);
+    first.send(b"n");
+    first.wait_for("Rename session form");
+    let (cursor_row, cursor_column) = first.cursor_position();
+    assert!(cursor_row < 30 && cursor_column < 100);
+    assert!(cursor_row > 0 && cursor_column > 0);
+    first.send(b"Duplicate session\x13");
+    wait_for_session_display_name(
+        &root,
+        &private,
+        &first_named_session,
+        Some("Duplicate session"),
+    );
+    first.send(next_selection_input());
+    let second_named_session = wait_for_selected_session_change(&first, Some(&first_named_session));
+    first.send(b"nDuplicate session\x13");
+    wait_for_session_display_name(
+        &root,
+        &private,
+        &second_named_session,
+        Some("Duplicate session"),
+    );
+    let named = admin(&root, &private, &["session", "list-ordered"]);
+    for session_id in [&first_named_session, &second_named_session] {
+        assert!(named["result"]["items"].as_array().is_some_and(|items| {
+            items.iter().any(|item| {
+                item["instance"]["session_id"] == session_id.as_str()
+                    && item["display_name"] == "Duplicate session"
+            })
+        }));
+    }
+    first.send(previous_selection_input());
+    wait_for_selected_session(&first, &first_named_session);
+    first.send(b"n\x15\x13");
+    wait_for_session_display_name(&root, &private, &first_named_session, None);
+    let cleared = admin(&root, &private, &["session", "list-ordered"]);
+    assert!(cleared["result"]["items"].as_array().is_some_and(|items| {
+        items.iter().any(|item| {
+            item["instance"]["session_id"] == first_named_session && item["display_name"].is_null()
+        })
+    }));
     first.send(b"2nM08 task\tCoordinate three sessions\tnormal\tsrc/lib.rs\tVerified in TUI\t\x13");
     wait_for_task_status(&root, &private, "backlog");
     first.send(b"rc");
@@ -707,12 +780,13 @@ fn create_representative_workspace(root: &Path, private: &Path) {
         .build()
         .unwrap();
     runtime.block_on(async {
+        let binary = rt_binary();
         let route = relayterm_daemon::bootstrap(
             relayterm_daemon::BootstrapAction::Initialize,
             root,
             Some(private.to_owned()),
             Some("Representative workspace".into()),
-            Path::new(env!("CARGO_BIN_EXE_rt")),
+            Path::new(&binary),
             Duration::from_secs(15),
         )
         .await
@@ -856,7 +930,7 @@ fn admin(root: &Path, private: &Path, args: &[&str]) -> Value {
 }
 
 fn admin_output(root: &Path, private: &Path, args: &[&str]) -> std::process::Output {
-    Command::new(env!("CARGO_BIN_EXE_rt"))
+    Command::new(rt_binary())
         .arg("--workspace")
         .arg(root)
         .arg("--home")
@@ -895,6 +969,30 @@ fn wait_for_session_status(root: &Path, private: &Path, session_id: &str, status
                 .is_some_and(|item| item["status"] == status)
         },
         "session status",
+    );
+}
+
+fn wait_for_session_display_name(
+    root: &Path,
+    private: &Path,
+    session_id: &str,
+    expected: Option<&str>,
+) {
+    wait_until(
+        || {
+            admin(root, private, &["session", "list-ordered"])["result"]["items"]
+                .as_array()
+                .and_then(|items| {
+                    items
+                        .iter()
+                        .find(|item| item["instance"]["session_id"] == session_id)
+                })
+                .is_some_and(|item| match expected {
+                    Some(expected) => item["display_name"] == expected,
+                    None => item["display_name"].is_null(),
+                })
+        },
+        "session display name",
     );
 }
 

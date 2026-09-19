@@ -87,6 +87,243 @@ fn task_content(title: &str) -> TaskContent {
 }
 
 #[test]
+fn session_metadata_survives_reopen_and_vacuum_backup() {
+    runtime().block_on(async {
+        let temporary = tempfile::tempdir().unwrap();
+        let private = temporary.path().join("private");
+        let project = temporary.path().join("project");
+        std::fs::create_dir(&project).unwrap();
+        relayterm_platform::create_private_dir(&private).unwrap();
+        let source = private.join("workspace.sqlite3");
+        let database = Database::open(
+            &source,
+            DatabaseKind::Workspace,
+            OpenMode::ExplicitNew,
+            PoolSettings::default(),
+        )
+        .await
+        .unwrap();
+        let store = SqliteStore::new(database.pool().clone());
+        let workspace_id: WorkspaceId = "10000000-0000-4000-8000-000000000097".parse().unwrap();
+        let service = Service::new(
+            store.clone(),
+            TestClock(Arc::new(AtomicU64::new(0))),
+            TestIds(AtomicU64::new(6_000)),
+            NoopNotifier,
+        );
+        service
+            .create_workspace_reserved(workspace_id, "Session metadata".into(), project.clone())
+            .await
+            .unwrap();
+        let registered = service
+            .register_instance(
+                workspace_id,
+                LaunchContext {
+                    agent_definition_id: None,
+                    task_id: None,
+                    working_directory: project,
+                    terminal_size: TerminalSize::new(24, 80).unwrap(),
+                },
+            )
+            .await
+            .unwrap();
+        let session_id = registered.committed.snapshot.state().unwrap().instances()[0]
+            .record()
+            .session_id;
+        let revision = registered.committed.snapshot.revision();
+        service
+            .execute_at_revision(
+                workspace_id,
+                Actor::LocalUser,
+                Request::RenameSession {
+                    session_id,
+                    display_name: "  Durable e\u{301}  ".into(),
+                },
+                revision,
+            )
+            .await
+            .unwrap();
+        store
+            .validate_workspace_integrity(workspace_id)
+            .await
+            .unwrap();
+
+        let backup = private.join("backup.sqlite3");
+        database.snapshot_to(&backup).await.unwrap();
+        database.pool().close().await;
+        let reopened = Database::open(
+            &source,
+            DatabaseKind::Workspace,
+            OpenMode::Reopen,
+            PoolSettings::default(),
+        )
+        .await
+        .unwrap();
+        let reopened_state = SqliteStore::new(reopened.pool().clone())
+            .consistent_snapshot(workspace_id)
+            .await
+            .unwrap()
+            .snapshot
+            .state()
+            .unwrap()
+            .clone();
+        assert_eq!(
+            reopened_state
+                .session_presentation(session_id)
+                .unwrap()
+                .record()
+                .display_name
+                .as_deref(),
+            Some("Durable e\u{301}")
+        );
+        assert_eq!(reopened_state.next_session_ordinal().value(), 2);
+        reopened.pool().close().await;
+
+        let backup_database = Database::open(
+            &backup,
+            DatabaseKind::Workspace,
+            OpenMode::ReadOnly,
+            PoolSettings::default(),
+        )
+        .await
+        .unwrap();
+        let backup_state = SqliteStore::new(backup_database.pool().clone())
+            .consistent_snapshot(workspace_id)
+            .await
+            .unwrap()
+            .snapshot
+            .state()
+            .unwrap()
+            .clone();
+        assert_eq!(
+            backup_state
+                .session_presentation(session_id)
+                .unwrap()
+                .effective_label(),
+            "Durable e\u{301}"
+        );
+    });
+}
+
+#[test]
+fn ordered_session_pages_are_bounded_and_revision_consistent() {
+    runtime().block_on(async {
+        let temporary = tempfile::tempdir().unwrap();
+        let private = temporary.path().join("private");
+        let project = temporary.path().join("project");
+        std::fs::create_dir(&project).unwrap();
+        relayterm_platform::create_private_dir(&private).unwrap();
+        let database = Database::open(
+            &private.join("workspace.sqlite3"),
+            DatabaseKind::Workspace,
+            OpenMode::ExplicitNew,
+            PoolSettings::default(),
+        )
+        .await
+        .unwrap();
+        let store = SqliteStore::new(database.pool().clone());
+        let workspace_id: WorkspaceId = "10000000-0000-4000-8000-000000000096".parse().unwrap();
+        let service = Service::new(
+            store.clone(),
+            TestClock(Arc::new(AtomicU64::new(0))),
+            TestIds(AtomicU64::new(10_000)),
+            NoopNotifier,
+        );
+        service
+            .create_workspace_reserved(workspace_id, "Paged sessions".into(), project.clone())
+            .await
+            .unwrap();
+        for _ in 0..201 {
+            service
+                .register_instance(
+                    workspace_id,
+                    LaunchContext {
+                        agent_definition_id: None,
+                        task_id: None,
+                        working_directory: project.clone(),
+                        terminal_size: TerminalSize::new(24, 80).unwrap(),
+                    },
+                )
+                .await
+                .unwrap();
+        }
+        let first = store
+            .session_page(
+                workspace_id,
+                relayterm_application::SessionPageRequest::new(None, 200, None).unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(first.items.len(), 200);
+        assert!(first.has_more);
+        assert_eq!(
+            first
+                .items
+                .first()
+                .unwrap()
+                .cursor()
+                .creation_ordinal
+                .value(),
+            1
+        );
+        assert_eq!(
+            first
+                .items
+                .last()
+                .unwrap()
+                .cursor()
+                .creation_ordinal
+                .value(),
+            200
+        );
+        let second = store
+            .session_page(
+                workspace_id,
+                relayterm_application::SessionPageRequest::new(
+                    Some(first.items.last().unwrap().cursor()),
+                    50,
+                    Some(first.revision),
+                )
+                .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(second.items.len(), 1);
+        assert!(!second.has_more);
+        assert_eq!(second.items[0].cursor().creation_ordinal.value(), 201);
+
+        service
+            .execute(
+                workspace_id,
+                Actor::LocalUser,
+                Request::RenameSession {
+                    session_id: second.items[0].cursor().session_id,
+                    display_name: "Changed".into(),
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            store
+                .session_page(
+                    workspace_id,
+                    relayterm_application::SessionPageRequest::new(
+                        Some(first.items.last().unwrap().cursor()),
+                        50,
+                        Some(first.revision),
+                    )
+                    .unwrap(),
+                )
+                .await
+                .err(),
+            Some(Error::Conflict)
+        );
+        assert!(relayterm_application::SessionPageRequest::new(None, 0, None).is_err());
+        assert!(relayterm_application::SessionPageRequest::new(None, 201, None).is_err());
+    });
+}
+
+#[test]
 fn bounded_integrity_validation_rejects_cross_row_state_corruption() {
     runtime().block_on(async {
         let temporary = tempfile::tempdir().unwrap();
@@ -427,6 +664,33 @@ fn complete_handover_journey_survives_reopen() {
             )
             .await
             .unwrap();
+        // A task-neutral session must not break the workspace-wide refresh after handover.
+        let projected = store
+            .consistent_projection(workspace_id, Default::default())
+            .await
+            .unwrap();
+        let projected_state = projected.snapshot.state().unwrap();
+        assert!(projected_state.tasks().is_empty());
+        assert!(projected_state.claims().is_empty());
+        assert!(projected_state.handovers().is_empty());
+        let scoped = store
+            .consistent_projection(
+                workspace_id,
+                relayterm_application::MutationScope {
+                    task_ids: vec![task_id],
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        let scoped_state = scoped.snapshot.state().unwrap();
+        assert_eq!(scoped_state.tasks().len(), 1);
+        assert_eq!(
+            scoped_state.tasks()[0].record().status,
+            TaskStatus::HandoverReady
+        );
+        assert_eq!(scoped_state.claims().len(), 1);
+        assert_eq!(scoped_state.handovers().len(), 1);
         service
             .register_instance(
                 workspace_id,

@@ -9,7 +9,8 @@ use relayterm_persistence_sqlite::{Database, DatabaseKind, OpenMode, PoolSetting
 use relayterm_platform::{RandomIdGenerator, SystemClock, create_private_dir};
 use relayterm_protocol::{
     DecimalU64, ErrorCode, FrameKind, JSON_FRAME_LIMIT, Operation, RequestEnvelope, RequestType,
-    WorkspaceId as WireWorkspaceId, encode_frame, encode_json,
+    SessionListOrderedParams, SessionRenameParams, WorkspaceId as WireWorkspaceId, encode_frame,
+    encode_json,
 };
 use serde_json::{Value, json};
 use std::{
@@ -449,6 +450,62 @@ async fn two_clients_complete_a_durable_handover_journey() {
     let b = Client::connect(&endpoint, WireWorkspaceId::from_uuid(workspace.as_uuid()))
         .await
         .unwrap();
+    assert!(a.supports(Operation::SessionListOrdered).await);
+    assert!(a.supports(Operation::SessionRename).await);
+    let initial_sessions = a
+        .list_sessions_ordered(&SessionListOrderedParams {
+            after: None,
+            limit: 50,
+            expected_revision: None,
+        })
+        .await
+        .unwrap();
+    assert_eq!(initial_sessions.items.len(), 2);
+    assert_eq!(initial_sessions.items[0].creation_ordinal.get(), 1);
+    assert_eq!(initial_sessions.items[1].creation_ordinal.get(), 2);
+    let session_id = initial_sessions.items[0].instance.session_id;
+    let renamed = a
+        .rename_session(&SessionRenameParams {
+            session_id,
+            display_name: "Protocol session".into(),
+            expected_revision: initial_sessions.revision,
+        })
+        .await
+        .unwrap();
+    assert!(renamed.changed);
+    assert!(matches!(
+        b.rename_session(&SessionRenameParams {
+            session_id,
+            display_name: "Stale session".into(),
+            expected_revision: initial_sessions.revision,
+        })
+        .await,
+        Err(ClientError::Rejected(ErrorCode::StaleRevision))
+    ));
+    faults.drop_next_mutation_response();
+    let uncertain = a
+        .rename_session(&SessionRenameParams {
+            session_id,
+            display_name: "Unknown result".into(),
+            expected_revision: renamed.revision,
+        })
+        .await;
+    assert!(matches!(
+        uncertain,
+        Err(ClientError::Transport(Delivery::Unknown))
+    ));
+    let readback = b
+        .list_sessions_ordered(&SessionListOrderedParams {
+            after: None,
+            limit: 50,
+            expected_revision: None,
+        })
+        .await
+        .unwrap();
+    assert_eq!(
+        readback.items[0].display_name.as_deref(),
+        Some("Unknown result")
+    );
     let catalog: Value = a
         .call(Operation::AgentListTemplates, &json!({}))
         .await
@@ -577,7 +634,18 @@ async fn two_clients_complete_a_durable_handover_journey() {
     let progress:Value=a.call(Operation::ProgressAppend,&json!({"task_id":task_id,"summary":"Implementation advanced","verification":"cargo test"})).await.unwrap();
     revision = progress["revision"].as_str().unwrap().to_owned();
     let handover:Value=a.call(Operation::HandoverCreate,&json!({"task_id":task_id,"expected_revision":revision,"summary":"Ready for continuation","decisions":"Keep protocol neutral","changed_paths":["src/lib.rs"],"verification_performed":"cargo test","open_questions":"","recommended_next_action":"Complete the task"})).await.unwrap();
-    let _ = handover;
+    // Refresh before another claim can hide an incomplete handover projection.
+    for client in [&a, &b] {
+        let snapshot = client.refresh_snapshot().await.unwrap();
+        assert_eq!(snapshot.revision, handover["revision"].as_str().unwrap());
+        let task = snapshot.collections["tasks"]
+            .iter()
+            .find(|task| task["id"] == task_id)
+            .unwrap();
+        assert_eq!(task["status"], "handover_ready");
+        assert!(task["claimed_by_instance_id"].is_null());
+        assert_eq!(snapshot.collections["handovers"].len(), 1);
+    }
     let resumed: Value = b
         .call(
             Operation::TaskClaim,
