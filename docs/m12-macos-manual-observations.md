@@ -87,16 +87,84 @@ projection retains the handover and closed claim, and that two protocol clients
 refresh successfully before the next claim. Source validation passed the full
 workspace test suite, the updated targeted protocol journey, Clippy with denied
 warnings, formatting, secret checks, audit negative controls, candidate-only
-repository checks, and whitespace checks. Candidate replacement and manual
-retesting remain tracked in TODO. The installed original binary and the operator's workspace have
-not been replaced or modified by the diagnostic probe. This report does not
-claim that the correction has passed the installed manual journey.
+repository checks, and whitespace checks. The diagnostic probe did not modify the original installation or workspace.
+The separately identified corrected-candidate retest is recorded below; the
+original candidate failure remains part of the evidence.
+
+## Corrected candidate preparation
+
+On 2026-09-19 source `d7605541bfa829cfab6d8a3c53b87ad6e0f7b4fa` was built
+twice offline using the release wrapper, two clean detached clones, and separate
+fresh target directories. Both binaries and both normalized archives matched.
+The unsigned arm64 candidate retains version `0.1.0` and empty production features.
+
+- Executable: 11,051,968 bytes; SHA-256 `4de8d6f45c8cc375c3b71c3ad05515cbdbc91f282120d0fb351bdaeae98bc7c7`.
+- Archive: 4,388,092 bytes; SHA-256 `129c925e7d03c2acd2a333ad5832927672dc809cfaf704aa6a4f71fff40c27bf`.
+- Toolchain: Rust and Cargo 1.98.1; native SDK 26.5; Mach-O deployment target 11.0.
+- Dynamic libraries: system libiconv and libSystem only. This does not lower the
+  declared runtime baseline.
+
+Archive inventory inspection and extracted smoke passed help, version,
+initialization, detached daemon, real PTY, and orderly shutdown with a constrained
+runtime PATH. A separate versioned user-local installation preserved the executable
+hash. Its exact executable passed `session_presentation`, `tui_gate` (six tests,
+one fixture ignored), and `backup_restore` using `RELAYTERM_TEST_RT` and
+`cargo test -p relayterm-cli --test session_presentation --test tui_gate --test backup_restore --locked -- --test-threads=1`.
+The archive, manifest, checksums, and build record were retained outside Git.
+
+Before switching candidates, a live backup from the original binary captured
+schema 3, revision 29, event watermark 32. The original daemon, home, and binary
+were retained during preparation. Assistant-driven installation checks verified
+that a repeat install refused the existing binary without changing its hash,
+and that an unrelated synthetic `rt` resolved in an isolated zsh PATH and was
+not overwritten by the installer. These are automated local observations.
+
+## Corrected candidate manual retest
+
+The operator quit both original clients and explicitly stopped the original
+daemon with session termination. The assistant restored the live backup into a
+fresh private home using the corrected executable and verified successful
+workspace and collection snapshots. The operator reopened the restored workspace
+and observed CURRENT, the saved handover, unclaimed handover-ready status, and
+all three original sessions marked lost. The original backup and home were retained.
+
+The operator launched two new task-neutral shell sessions, Session 4 and
+Session 5. Session 4 claimed the restored task, submitted a new handover with
+Ctrl-S, and immediately saw handover_ready and unclaimed with the new handover
+visible. CURRENT was confirmed before the next claim, without a repair refresh.
+Session 5 then claimed the task: active status, a different owner, CURRENT, and
+retained progress and handover were visible. Pressing d completed the task,
+cleared its owner, and closed the new claim for completion. Quitting with q and
+reopening the same corrected executable preserved done, CURRENT, and history.
+This is client reopen evidence, not an additional daemon-restart test.
+
+Independent read-only `task list` and `task history` readback at revision 38,
+event watermark 48, confirmed done with no owner, three closed claims (two
+handovers and one completion), the original progress record, and both handovers.
+The affected installed handover, continuation, completion, backup recovery, and
+client-reopen retest passed. Earlier observations remain attributed to their
+original executable; the correction changes persistence projection filtering,
+and exact-candidate automated TUI and session-presentation gates provide the
+additional regression evidence. Cross-platform acceptance remains open.
+
+The operator also verified that `command -v rt` produced no resolution while
+the corrected absolute executable returned `rt 0.1.0`. The installation uses
+explicit paths and has not changed shell profiles or global PATH.
+
+## Scoped removal observation
+
+A disposable installation from the corrected extracted archive was created and
+its executable checksum verified. No daemon was launched from that copy. The
+operator removed only its executable and empty install directory with the
+documented POSIX commands, then successfully queried the retained candidate's
+version. Independent verification confirmed the disposable directory was absent,
+the retained candidate checksum was unchanged, the backup directory remained,
+and the restored task was still done and unclaimed. No shell profile or PATH
+entry was changed. Collision refusal remains attributed to the assistant-driven
+checks described above, rather than to an operator keyboard observation.
 
 ## Remaining observations
 
-- Repeat the affected handover refresh, second-session resume, completion, and
-  persistence checks with a separately identified corrected candidate.
-- Finish installation collision, discovery, recovery, and scoped removal checks.
 - Perform the focused SSH observation on one authorized supported host.
 - Complete Windows and Linux observations and reconcile the final artifact and
   acceptance matrices before closing M12.
