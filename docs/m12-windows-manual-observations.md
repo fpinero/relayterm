@@ -11,7 +11,8 @@ impact mapping remain preserved in their existing records.
 Work proceeds on a dedicated Windows evidence branch. Two clean detached clones,
 fresh build directories, packages, and private runtime state are outside Git.
 Physical terminal observations must be supplied by the operator and are recorded
-separately from assistant-driven checks. Windows acceptance is not complete.
+separately from assistant-driven checks. The local Windows journey and affected
+retests are complete as recorded below; global M12 acceptance remains open.
 
 ## Environment inspected by the assistant
 
@@ -382,7 +383,27 @@ Both clean source clones remained unchanged. A new disposable writer-test
 workspace was initialized with this installed candidate, separately from the
 retained restored workspace, for the operator's next checkpoint.
 
+The operator opened a wide client A and a measured 80 by 24 client B on the
+same new session. Without corrective window resizing, initial acquisition in B
+wrapped a newly entered long command completely and produced the expected
+synthetic output. After explicit release, A acquired input and displayed its
+complete new command while B stayed read-only. After another explicit release,
+B reacquired input and again wrapped and executed a complete long command while
+A stayed read-only. Both views retained CURRENT. Independent installed live
+snapshot readback after the return to B reported 17 rows by 78 columns, matching
+the inner viewport of the 80 by 24 client. First acquisition and both transfer
+directions passed physical Windows observation. The operator then resized only
+read-only client A while B retained input. B's newly entered long command remained
+complete and wrapped correctly, its expected output appeared in both clients,
+and both retained CURRENT. A remained read-only. Independent installed snapshot
+readback still reported 17 rows by 78 columns. Read-only resize isolation passed.
+
 ## Pending evidence
 
-The physical writer-size retest remains
-pending. Linux, SSH, and global M12 acceptance remain open independently.
+No further physical Windows checkpoint is pending for the changes tested here.
+The native journey uses d760554 evidence for unchanged behavior, 0bc4b63 for the
+header observation, and 9cf91f7 for writer-size acceptance and installed gates.
+Linux native acceptance, affected macOS header/writer-size retests, focused SSH,
+independent clean-machine evidence where required, and final global M12
+reconciliation remain open. Any further behavioral change needs impact analysis
+and affected retesting; this record does not freeze or publish a release.

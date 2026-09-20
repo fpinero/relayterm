@@ -35,7 +35,7 @@ and corrected-candidate scoped removal. See [the detailed observations](m12-maco
 for source mapping and the distinction between operator and assistant checks.
 Archives and metadata are retained outside Git. Corrected Windows preparation is
 recorded below. The Windows manual journey on d760554 is recorded separately
-from the pending header retest; the Linux current-candidate build and journey,
+from the completed header and writer-size retests; the Linux current-candidate build and journey,
 and focused SSH observation remain required. Use
 [the continuation instructions](m12-native-continuation.md).
 
@@ -61,7 +61,8 @@ required Visual C++ x64 runtime. Artifacts and metadata are
 retained outside Git. The operator subsequently completed the handover,
 session, editing, client reopen, and restored-state journeys on this developer
 host. Width testing exposed header clipping and command clipping on writer
-acquisition. These defects prevent complete Windows acceptance. See
+acquisition. The later candidates and affected Windows retests below address
+both defects. See
 [the Windows record](m12-windows-manual-observations.md) for exact boundaries.
 
 ## Minimum-width candidate
@@ -93,7 +94,7 @@ The Windows operator subsequently confirmed its header/footer at 80 by 24 in
 Overview, Tasks, and Sessions.
 Linux must build the current source identified above and complete its native
 journey; macOS needs affected header and writer-size retests. M12.WIN-SIZE was
-subsequently corrected in source at 9cf91f7 and awaits physical acceptance.
+subsequently corrected in source at 9cf91f7 and passed Windows physical acceptance.
 Follow the existing
 [Linux task prompt](m12-native-continuation.md#linux-task-prompt).
 
@@ -115,8 +116,11 @@ Build/package comparisons, checksum verification before extraction, nine-member
 inventory, PE inspection, extracted ConPTY smoke, and separate installed
 help/version/hash checks passed. The regression failed against 0bc4b63 and
 passed after the correction; full source TUI integration, 24 TUI unit tests,
-and TUI/CLI Clippy with denied warnings passed. Physical writer-size retests
-remain required. Prior header observations are unaffected by this source change.
+and TUI/CLI Clippy with denied warnings passed. Windows physical first
+acquisition, transfers in both directions, and read-only resize isolation passed.
+Independent snapshot reads retained 17 by 78 for the narrow writer after the
+observer was resized. Other-platform affected retests remain required. Prior
+header observations are unaffected by this source change.
 The exact installed candidate passed all ten session presentation, TUI,
 backup/restore, and worktree tests, including the new dimension regression;
 one fixture helper was ignored. Startup p95 was 186 ms, navigation p95 21 ms,
@@ -152,7 +156,7 @@ The ordinary repository check remains affected only by the preserved unrelated u
 
 ## Evidence still required
 
-1. Complete the Linux consolidated native journey and the affected macOS header/writer-size retest. Repeat affected native writer-size checks on 9cf91f7 before closing M12.WIN-SIZE or freezing artifacts. Windows header observation passed on 0bc4b63.
+1. Complete the Linux consolidated native journey and the affected macOS header/writer-size retest on 9cf91f7. Windows header observation passed on 0bc4b63 and writer-size physical acceptance passed on 9cf91f7. The source mapping is documented; global artifact freeze remains pending.
 2. Complete the focused SSH observation through an already authorized SSH service.
 3. Retain current Windows and Linux artifacts and complete missing installed-candidate evidence. Windows d760554 installation, collision refusal, quick start, backup/fresh-home restore, and scoped removal passed with operator/assistant boundaries recorded. Repeat affected checks for subsequent code changes. The local macOS evidence is recorded above. Developer hosts and CI are not independent clean-machine proof; historical CI archives were not uploaded.
 4. Reconcile AC-1 through AC-16 and the final artifact inventory after those rows pass.
@@ -161,7 +165,7 @@ The ordinary repository check remains affected only by the preserved unrelated u
 The earlier macOS probe found no authorized local SSH listener and computer
 control refused Terminal.app automation. A native Windows 10 host is now
 available for the continuation recorded above. Linux and focused SSH evidence,
-affected header observations, the writer-size correction, and final reconciliation
+affected macOS header/writer-size observations and final reconciliation
 remain pending.
 
 ## Publication choices

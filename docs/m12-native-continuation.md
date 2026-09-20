@@ -27,8 +27,11 @@ freshness states at 80 by 24. The operator subsequently confirmed the header and
 footer on Windows in Overview, Tasks, and Sessions. Physical header/footer
 verification remains open on macOS and belongs in the Linux native journey. The
 writer-size source correction has native two-client regression coverage that
-failed on 0bc4b63 and passed after correction. M12.WIN-SIZE remains open for
-affected physical acceptance. Do not freeze M12 before those observations pass.
+failed on 0bc4b63 and passed after correction. Windows physical observation on
+9cf91f7 passed first acquisition, both transfer directions, and read-only resize
+isolation; independent snapshot reads confirmed the narrow writer's dimensions.
+The remaining Linux/macOS/SSH observations are tracked in M12.NATIVE. Do not
+freeze M12 before those observations and global reconciliation pass.
 
 Build in clean isolated checkouts at the corrected source, outside the evidence
 working tree. Inspect the checked-in release scripts and their help rather than
@@ -72,8 +75,8 @@ without resizing the window after acquisition. Newly entered long commands must
 wrap within the writer's viewport. A read-only client's resize or rejected input
 acquisition must not resize the shared child. Read actual terminal snapshot
 dimensions, not the durable session creation dimensions. Include this affected
-check in native Linux/macOS and the focused SSH row; Windows physical retest is
-tracked in its observation document.
+check in native Linux/macOS and the focused SSH row; the completed Windows
+physical retest is tracked in its observation document.
 
 The critical corrected journey is a claim from a task-neutral session, progress,
 and Ctrl-S handover. Before any new claim, confirm CURRENT, handover_ready, no

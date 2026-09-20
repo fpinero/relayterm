@@ -79,7 +79,7 @@ required; the old Windows screenshot cannot certify the new layout.
 | Handover correction and retained history | Observed on d760554 | Observed on d760554 | Native journey pending |
 | Prior session and editing journey | Observed, deviations recorded | Observed, source mapping retained | Native journey pending |
 | Header/footer at exactly 80 by 24 on 0bc4b63 | Automated rendering and operator observation passed | Rebuild and physical retest pending | Include in new native and focused SSH observations |
-| Command clipping after writer acquisition | Reproduced on 0bc4b63; source regression passes on 9cf91f7; physical retest pending | Rebuild and affected writer-transfer observation pending | Exercise differently sized clients with 9cf91f7 |
+| Command clipping after writer acquisition | Regression and physical retest passed on 9cf91f7, including read-only resize isolation | Rebuild and affected writer-transfer observation pending | Exercise differently sized clients with 9cf91f7 |
 
 Use the updated [native continuation instructions](m12-native-continuation.md),
 including the existing Linux task prompt. No separate prompt document is needed.
