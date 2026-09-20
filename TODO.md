@@ -35,7 +35,7 @@ Outcome: a reproducible candidate with usable session identification and editing
 
 Execution contract: [M12 detailed plan](docs/M12_details.md). Continue at M12.00h. The five usability proposals are scheduled here and do not reopen M11 acceptance.
 
-- M12.WIN: Build and identify a corrected Windows candidate and repeat native header acceptance at 80 by 24. Finish sanitized Windows evidence reconciliation; keep cross-platform and SSH gates open. Preserve the retained candidate identified in docs/m12-windows-manual-observations.md.
+- M12.WIN: Repeat physical Windows header/footer acceptance at 80 by 24 using candidate 0bc4b63, then reconcile affected evidence. Preserve both retained candidates identified in docs/m12-windows-manual-observations.md. Keep Linux, macOS header retest, SSH, and global acceptance open; use docs/m12-native-continuation.md for the existing Linux task prompt.
 
 - M12.WIN-SIZE: Fix command-line clipping when acquiring input in a narrower client. Input acquisition does not invoke the existing lease-owned resize path; verify live PTY dimensions independently of stored creation dimensions. Synchronize terminal dimensions on successful writer acquisition with regression coverage for differently sized clients and read-only ownership. Assess candidate rebuild and retest impact before closing this issue.
 

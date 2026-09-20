@@ -2,7 +2,7 @@
 
 ## Shared contract
 
-Continue from `feature/m12-usability-release`. Read AGENTS.md, PROJECT_VISION.md,
+Continue from the fetched `feature/m12-windows-native` branch. Read AGENTS.md, PROJECT_VISION.md,
 MVP_TECHNICAL_SPEC.md, README.md, TODO.md, docs/M12_details.md,
 docs/m12-candidate-handoff.md, docs/m12-macos-manual-observations.md,
 docs/m12-usability-verification.md, docs/release-builds.md, docs/install.md,
@@ -10,11 +10,22 @@ and docs/quick-start.md before execution. Communicate with the operator in
 Spanish; write repository evidence and comments in English. Follow the pending
 TODO and append-only avances workflow. Do not edit main or discard user changes.
 
-The corrected production source is
-`d7605541bfa829cfab6d8a3c53b87ad6e0f7b4fa`. Later evidence-only commits do not
-replace that artifact identity. Inspect the source diff before relying on that
-statement. The original candidate at 491d5f1 has a confirmed handover projection
-failure and must not be used to sign off the corrected workflow.
+The current production candidate source is
+`0bc4b6384adf37dbdd9939e840d9c3e14e86d9e1`. It retains the handover correction
+from `d760554` and fixes the minimum-width header by moving the product name to
+the footer and reserving space for the full freshness label. Later evidence-only
+commits do not replace that artifact identity. Inspect the source diff before
+reusing artifacts. The original candidate at 491d5f1 has a confirmed handover
+projection failure and must not be used to sign off the corrected workflow.
+
+Read [the Windows observations](m12-windows-manual-observations.md) before
+continuing. The prior Windows manual journey used d760554; its completed backup,
+handover, and session checks are not physical proof of the new header. The new
+header passed all 24 TUI unit tests, including every screen and all eight
+freshness states at 80 by 24. Physical header/footer verification remains open
+on Windows and macOS and must be included in the Linux native journey. The
+separate command-line clipping defect on writer acquisition remains open as
+M12.WIN-SIZE. Do not describe this candidate as fixing that defect or freeze M12.
 
 Build in clean isolated checkouts at the corrected source, outside the evidence
 working tree. Inspect the checked-in release scripts and their help rather than
@@ -46,8 +57,10 @@ Execute the consolidated native observation and installed quick start: three
 neutral sessions; distinct stable IDs and creation order; duplicate and cleared
 names; ASCII, wide and combining Unicode form cursor; resize; two-client stale
 rename rejection and two-step Ctrl-R review; competing input warning and explicit
-writer transfer; detach, reattach, and client quit/reopen. The task claim status
-is active, not in_progress. Observe competing claim rejection in Events when
+writer transfer; detach, reattach, and client quit/reopen. At exactly
+80 by 24, verify all six tabs, the complete freshness label, and the footer name
+and shortcuts in Tasks and Sessions, then shrink below minimum and enlarge.
+The task claim status is active, not in_progress. Observe competing claim rejection in Events when
 Tasks has no inline warning. Input release is Ctrl-]; Ctrl-5 was not equivalent
 on the observed Spanish Mac keyboard, so verify actual native keys.
 
@@ -78,8 +91,8 @@ files; reconcile shared documents without overwriting the other platform's work.
 
 Continue Relayterm M12 native acceptance on this Windows host using the shared
 contract in docs/m12-native-continuation.md. Work on an appropriate feature branch
-based on the fetched feature/m12-usability-release evidence. Build the exact
-corrected source d7605541bfa829cfab6d8a3c53b87ad6e0f7b4fa natively for
+based on the fetched feature/m12-windows-native evidence. Build the exact
+candidate source 0bc4b6384adf37dbdd9939e840d9c3e14e86d9e1 natively for
 x86_64-pc-windows-msvc; do not use WSL as Windows evidence. Inspect the actual OS,
 architecture, terminal, PowerShell and cmd.exe versions and MSVC toolchain.
 Verify the Visual C++ x64 runtime dependency from the candidate's PE imports.
@@ -99,8 +112,8 @@ remaining limitations, and a focused evidence commit ready for review.
 
 Continue Relayterm M12 native acceptance on this Linux host using the shared
 contract in docs/m12-native-continuation.md. Work on an appropriate feature branch
-based on the fetched feature/m12-usability-release evidence. Build the exact
-corrected source d7605541bfa829cfab6d8a3c53b87ad6e0f7b4fa natively for
+based on the fetched feature/m12-windows-native evidence. Build the exact
+candidate source 0bc4b6384adf37dbdd9939e840d9c3e14e86d9e1 natively for
 x86_64-unknown-linux-gnu. Inspect actual distribution, architecture, terminal,
 shell, compiler, ELF interpreter, shared libraries, and glibc requirements.
 Ubuntu 24.04 is the declared baseline; do not silently generalize another host

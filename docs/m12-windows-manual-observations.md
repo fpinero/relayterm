@@ -292,6 +292,40 @@ coverage exercises all six screens and eight freshness labels at 80 by 24.
 The installed candidate has not been replaced; corrected-artifact native retest
 remains pending.
 
+## Prepared header candidate
+
+After the operator requested candidate preparation and branch publication, two
+new clean detached clones built source
+`0bc4b6384adf37dbdd9939e840d9c3e14e86d9e1` offline for
+`x86_64-pc-windows-msvc`. The same inspected Windows, MSVC, SDK, and Rust/Cargo
+environment above was used. Build comparison confirmed equal executables:
+11,882,496 bytes, SHA-256
+`8a6e231f253c83321aaabbd97318a613e13c68d56eb3859c1f204aa0436b1fd4`.
+Package comparison confirmed equal ZIP archives: 4,511,842 bytes, SHA-256
+`e3008b927f077b768c261a2fe0568e8a0a73db96d8492293640d03d5b86a9128`.
+Version is 0.1.0, default empty production features, unsigned.
+
+External manifest and archive checksums passed before extraction. The inspector
+confirmed exactly nine expected members. Native PE inspection confirmed x64,
+linker 14.29, VCRUNTIME140.dll, and UCRT dependencies; Authenticode reported
+NotSigned. Extracted smoke passed help, version, initialization, detached daemon,
+real ConPTY child, and orderly shutdown. The packaged helper installed a separate
+copy; installed SHA-256, help, and version passed. The previously tested install,
+original runtime home, restored home, and backup were preserved. Build records,
+archives, manifests, logs, and native inspection remain outside version control.
+
+The header change passed all 24 TUI tests and Clippy with denied warnings.
+With RELAYTERM_TEST_RT set to the new installed executable, the clean source
+passed `cargo test -p relayterm-cli --test session_presentation --test tui_gate
+--test backup_restore --test worktree_gate --locked --offline -- --nocapture
+--test-threads=1`: ten tests passed and one fixture helper was ignored. Startup
+p95 was 206 ms, navigation p95 21 ms, input echo p95 126 ms, and flood throughput
+2,431,049 bytes/s. The worktree scenarios exercised two isolated worktrees,
+three sessions, two claims, restart recovery, and the non-Git boundary.
+Its affected physical 80 by 24 observation remains open. The prior operator
+report of no platform warnings applies to the prior installation; it is not
+relabelled as an observation of this new install.
+
 ## Pending evidence
 
 Corrected-artifact header acceptance and the command-line clipping correction remain

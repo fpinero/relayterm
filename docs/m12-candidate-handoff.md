@@ -2,7 +2,7 @@
 
 ## Status
 
-This is a technical candidate handoff, not a release publication record. Source `491d5f1037450c362525b289fa6361d834fc0b6f` passed the complete native Quality and Security workflows. Before the correction described below, its documentation-only descendants affected the quick start, evidence documents, TODO, and the append-only logbook. The subsequent production correction at `d760554` supersedes that original executable for continued acceptance testing; the original hashes and workflow results below remain historical evidence.
+This is a technical candidate handoff, not a release publication record. Source `491d5f1037450c362525b289fa6361d834fc0b6f` passed the complete native Quality and Security workflows. The handover correction at `d760554` superseded that original executable. The current candidate source is `0bc4b6384adf37dbdd9939e840d9c3e14e86d9e1`, which also fixes freshness clipping at the minimum terminal width. Continue from `feature/m12-windows-native`; the older hashes and workflow results below remain historical evidence.
 
 The implementation is available in draft PR [#24](https://github.com/fpinero/relayterm/pull/24). It has not been merged, tagged, uploaded as a package, or published as a release. The CI archives were tested before their ephemeral workspaces ended and were not uploaded. The local macOS archive described below remains outside version control.
 
@@ -34,8 +34,9 @@ stale rename review, competing input, detach, reattach, installation, discovery,
 and corrected-candidate scoped removal. See [the detailed observations](m12-macos-manual-observations.md)
 for source mapping and the distinction between operator and assistant checks.
 Archives and metadata are retained outside Git. Corrected Windows preparation is
-recorded below; its manual journey, the Linux corrected build and journey, and
-focused SSH observation remain required. Use
+recorded below. The Windows manual journey on d760554 is recorded separately
+from the pending header retest; the Linux current-candidate build and journey,
+and focused SSH observation remain required. Use
 [the continuation instructions](m12-native-continuation.md).
 
 ### Corrected Windows candidate
@@ -57,9 +58,41 @@ invocation, collision preservation, and a spaces/Unicode install passed.
 The exact installed executable also passed session presentation, backup/restore,
 and all six TUI scenarios (one fixture helper ignored). The system has the
 required Visual C++ x64 runtime. Artifacts and metadata are
-retained outside Git. This is assistant-driven preparation on a developer host;
-physical terminal acceptance remains pending. See
+retained outside Git. The operator subsequently completed the handover,
+session, editing, client reopen, and restored-state journeys on this developer
+host. Width testing exposed header clipping and command clipping on writer
+acquisition. These defects prevent complete Windows acceptance. See
 [the Windows record](m12-windows-manual-observations.md) for exact boundaries.
+
+## Current minimum-width candidate
+
+Source `0bc4b6384adf37dbdd9939e840d9c3e14e86d9e1` moves Relayterm to the
+footer and reserves header space for the full freshness label. On the same
+Windows 10 host and toolchain documented above, two fresh clean detached clones
+built offline and produced identical executables and normalized ZIP archives.
+Version remains 0.1.0 with default empty features and no signature.
+
+| Artifact | Bytes | SHA-256 |
+| --- | --- | --- |
+| Executable | 11,882,496 | `8a6e231f253c83321aaabbd97318a613e13c68d56eb3859c1f204aa0436b1fd4` |
+| ZIP archive | 4,511,842 | `e3008b927f077b768c261a2fe0568e8a0a73db96d8492293640d03d5b86a9128` |
+
+Build and package comparisons, nine-member inspection, external manifest and
+archive checksums, native x64 PE inspection, and extracted ConPTY smoke passed.
+PE imports retain VCRUNTIME140.dll and UCRT dependencies. Installation into a
+new dedicated directory preserved the earlier candidate and matched the new
+hash. All 24 TUI tests and Clippy passed before the clean builds.
+The exact installed executable passed session presentation, all six TUI
+scenarios, private backup/restore, and both worktree gates: ten tests passed,
+with one fixture helper ignored. Startup p95 was 206 ms, navigation p95 21 ms,
+and input echo p95 126 ms. The detailed Windows record lists commands and
+observation boundaries.
+
+The candidate is prepared for continued acceptance, not frozen or released.
+The Windows operator has not yet observed its header/footer at 80 by 24.
+Linux must build this exact source and complete its native journey; macOS needs
+an affected header retest. M12.WIN-SIZE remains unfixed. Follow the existing
+[Linux task prompt](m12-native-continuation.md#linux-task-prompt).
 
 ## Original native artifact evidence
 
@@ -91,16 +124,17 @@ The ordinary repository check remains affected only by the preserved unrelated u
 
 ## Evidence still required
 
-1. Complete the Linux and Windows consolidated native observations against corrected retained candidates, and reconcile the macOS source-impact mapping recorded above.
+1. Complete the Linux consolidated native journey on 0bc4b63 and the affected Windows/macOS header retest. Fix M12.WIN-SIZE, rebuild, and repeat affected writer-size checks before freezing artifacts.
 2. Complete the focused SSH observation through an already authorized SSH service.
-3. Retain corrected Windows and Linux artifacts and execute checksum verification, collision-safe user-local installation, the complete interactive quick start, upgrade/backup/fresh-home restore, and scoped removal on those targets. The local macOS evidence is recorded above. CI proved extracted execution, but its runners are not the required operator-controlled clean environments and their archives were not uploaded.
+3. Retain current Windows and Linux artifacts and complete missing installed-candidate evidence. Windows d760554 installation, collision refusal, quick start, backup/fresh-home restore, and scoped removal passed with operator/assistant boundaries recorded. Repeat affected checks for subsequent code changes. The local macOS evidence is recorded above. Developer hosts and CI are not independent clean-machine proof; historical CI archives were not uploaded.
 4. Reconcile AC-1 through AC-16 and the final artifact inventory after those rows pass.
 5. Obtain the maintainer's publication choices. A tag, package upload, and public release remain outside this handoff.
 
 The earlier macOS probe found no authorized local SSH listener and computer
 control refused Terminal.app automation. A native Windows 10 host is now
 available for the continuation recorded above. Linux and focused SSH evidence,
-Windows operator observations, and final reconciliation remain pending.
+affected header observations, the writer-size correction, and final reconciliation
+remain pending.
 
 ## Publication choices
 

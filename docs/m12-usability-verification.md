@@ -51,14 +51,37 @@ The gates used real `rt` or `rt.exe`, SQLite, native IPC, outer PTY or ConPTY, t
 
 One installed macOS arm64 artifact built from the same source passed the session presentation, complete TUI, two real worktree, and private backup/restore gates. It reported startup p95 77 ms, navigation p95 30 ms, input-to-rendered-echo p95 122 ms, and flood throughput 64,108,771 bytes/s. This is automated native evidence through an installed executable, not the physical Terminal.app observation required below.
 
-The Linux and Windows human-observation rows remain pending. Corrected-source
-Windows build and installation preparation is tracked in
-[the Windows observations](m12-windows-manual-observations.md), separately from
-operator-controlled checks. The macOS observation and corrected-candidate impact
+The Linux human-observation row remains pending. Windows installation, session
+identity, Unicode editing, stale review, input exclusion and transfer, client
+reopen, handover, successor claim, completion, and fresh-home recovery were
+observed on d760554. [The Windows observations](m12-windows-manual-observations.md)
+separate operator observations from assistant checks and record the exposed
+header and terminal-width defects. The macOS observation and corrected-candidate impact
 mapping are recorded below. The focused SSH row also remains pending. Computer
 control identified Terminal.app on the earlier macOS host but refused automation
 of that application for safety reasons. OpenSSH 10.2p1 was installed during the
 earlier probe, but no authorized local TCP port 22 listener was present. No
 service was enabled or modified.
+
+## Header correction impact
+
+Source `0bc4b6384adf37dbdd9939e840d9c3e14e86d9e1` changes only TUI rendering
+and its regression coverage relative to the prior production source. It reserves
+space for freshness and moves Relayterm to the footer. All 24 TUI tests and
+Clippy passed on Windows, including all six screens and eight freshness states
+at 80 by 24. Existing daemon, persistence, and protocol behavior is unchanged.
+The old physical observations remain valid only for their stated unchanged
+boundaries. A new native artifact and affected header/footer observation are
+required; the old Windows screenshot cannot certify the new layout.
+
+| Evidence | Windows | macOS | Linux / SSH |
+| --- | --- | --- | --- |
+| Handover correction and retained history | Observed on d760554 | Observed on d760554 | Native journey pending |
+| Prior session and editing journey | Observed, deviations recorded | Observed, source mapping retained | Native journey pending |
+| Header/footer at exactly 80 by 24 on 0bc4b63 | Automated rendering passed; physical retest pending | Rebuild and physical retest pending | Include in new native and focused SSH observations |
+| Command clipping after writer acquisition | Reproduced, M12.WIN-SIZE open | Affected cross-platform path, assess after correction | Exercise differently sized clients; do not assume fixed |
+
+Use the updated [native continuation instructions](m12-native-continuation.md),
+including the existing Linux task prompt. No separate prompt document is needed.
 
 On 2026-09-19 the operator performed the [macOS manual observations](m12-macos-manual-observations.md). Session presentation, Unicode cursor editing, stale rename review, competing input transfer, and client reopen passed on the original local artifact. The installed quick start exposed a blocking handover refresh failure. The source correction passed automated checks. A separately identified local build from `d760554` subsequently passed the affected manual handover, second-session continuation, completion, backup recovery, and client-reopen retest. The operator subsequently verified absolute-path discovery and scoped removal of a disposable installation; independent checksum and task readback confirmed the retained candidate and state were preserved. Collision refusal was checked by the assistant. The local macOS journey is recorded with that evidence distinction; SSH, Linux, Windows, and the final M12 reconciliation remain open.
