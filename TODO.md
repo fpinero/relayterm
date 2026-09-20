@@ -37,7 +37,7 @@ Execution contract: [M12 detailed plan](docs/M12_details.md). Continue at M12.00
 
 - M12.WIN: Complete Windows writer-size correction and affected native retest, then reconcile evidence. Preserve retained candidates identified in docs/m12-windows-manual-observations.md. Keep Linux, macOS header retest, SSH, and global acceptance open; use docs/m12-native-continuation.md for the existing Linux task prompt.
 
-- M12.WIN-SIZE: Build a source-pinned writer-resize candidate, repeat installed gates, and observe initial input acquisition and transfer between differently sized native clients. Keep read-only views unable to resize the shared terminal. Reconcile Linux/macOS/SSH impact before closing acceptance.
+- M12.WIN-SIZE: Observe initial input acquisition and transfer between differently sized native clients using candidate 9cf91f7. Confirm newly entered commands wrap without a corrective window resize and read-only views cannot resize the shared terminal. Reconcile Linux/macOS/SSH impact before closing acceptance.
 
 
 - M12.00: Complete UX-SESSION-NAMES, UX-SESSION-ORDER, UX-FORM-CURSOR, UX-CONFLICT-MESSAGE, and UX-INPUT-ACQUIRE-MESSAGE before freezing release artifacts. Preserve durable identity, bounded state, typed error semantics, and read-only input ownership.

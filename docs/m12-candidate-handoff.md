@@ -2,7 +2,7 @@
 
 ## Status
 
-This is a technical candidate handoff, not a release publication record. Source `491d5f1037450c362525b289fa6361d834fc0b6f` passed the complete native Quality and Security workflows. The handover correction at `d760554` superseded that original executable. The current candidate source is `0bc4b6384adf37dbdd9939e840d9c3e14e86d9e1`, which also fixes freshness clipping at the minimum terminal width. Continue from `feature/m12-windows-native`; the older hashes and workflow results below remain historical evidence.
+This is a technical candidate handoff, not a release publication record. Source `491d5f1037450c362525b289fa6361d834fc0b6f` passed the complete native Quality and Security workflows. The handover correction at `d760554` superseded that original executable. The current candidate source is `9cf91f7164235d35beda81d9c8c2d4200b703aad`, which retains the header/footer correction from `0bc4b63` and resizes the terminal on successful writer acquisition. Continue from `feature/m12-windows-native`; the older hashes and workflow results below remain historical evidence.
 
 The implementation is available in draft PR [#24](https://github.com/fpinero/relayterm/pull/24). It has not been merged, tagged, uploaded as a package, or published as a release. The CI archives were tested before their ephemeral workspaces ended and were not uploaded. The local macOS archive described below remains outside version control.
 
@@ -64,7 +64,7 @@ host. Width testing exposed header clipping and command clipping on writer
 acquisition. These defects prevent complete Windows acceptance. See
 [the Windows record](m12-windows-manual-observations.md) for exact boundaries.
 
-## Current minimum-width candidate
+## Minimum-width candidate
 
 Source `0bc4b6384adf37dbdd9939e840d9c3e14e86d9e1` moves Relayterm to the
 footer and reserves header space for the full freshness label. On the same
@@ -88,12 +88,39 @@ with one fixture helper ignored. Startup p95 was 206 ms, navigation p95 21 ms,
 and input echo p95 126 ms. The detailed Windows record lists commands and
 observation boundaries.
 
-The candidate is prepared for continued acceptance, not frozen or released.
+This candidate remains retained as header evidence, not frozen or released.
 The Windows operator subsequently confirmed its header/footer at 80 by 24 in
 Overview, Tasks, and Sessions.
-Linux must build this exact source and complete its native journey; macOS needs
-an affected header retest. M12.WIN-SIZE remains unfixed. Follow the existing
+Linux must build the current source identified above and complete its native
+journey; macOS needs affected header and writer-size retests. M12.WIN-SIZE was
+subsequently corrected in source at 9cf91f7 and awaits physical acceptance.
+Follow the existing
 [Linux task prompt](m12-native-continuation.md#linux-task-prompt).
+
+## Writer-size candidate
+
+Source `9cf91f7164235d35beda81d9c8c2d4200b703aad` invokes the existing
+lease-owned resize after successful input acquisition. Two clean detached
+offline builds on the same Windows 10, Rust/Cargo 1.98.1, MSVC, and SDK environment
+produced byte-identical executables and normalized archives. Build parallelism
+was limited to four Cargo jobs per copy; production flags and features were
+unchanged. Version remains 0.1.0, unsigned.
+
+| Artifact | Bytes | SHA-256 |
+| --- | --- | --- |
+| Executable | 11,803,648 | `65da79d61ba031cfef02c3971ae65a35d706e88c743d0f68fc8139f334325045` |
+| ZIP archive | 4,497,240 | `0409cc32358acd4cd2526309ddcc5a3b8246d8abce13263df704c2e2120c3d4c` |
+
+Build/package comparisons, checksum verification before extraction, nine-member
+inventory, PE inspection, extracted ConPTY smoke, and separate installed
+help/version/hash checks passed. The regression failed against 0bc4b63 and
+passed after the correction; full source TUI integration, 24 TUI unit tests,
+and TUI/CLI Clippy with denied warnings passed. Physical writer-size retests
+remain required. Prior header observations are unaffected by this source change.
+The exact installed candidate passed all ten session presentation, TUI,
+backup/restore, and worktree tests, including the new dimension regression;
+one fixture helper was ignored. Startup p95 was 186 ms, navigation p95 21 ms,
+and input echo p95 146 ms.
 
 ## Original native artifact evidence
 
@@ -125,7 +152,7 @@ The ordinary repository check remains affected only by the preserved unrelated u
 
 ## Evidence still required
 
-1. Complete the Linux consolidated native journey and the affected macOS header retest. Fix M12.WIN-SIZE, rebuild, identify the next candidate, and repeat affected writer-size checks before freezing artifacts. Windows header observation passed on 0bc4b63.
+1. Complete the Linux consolidated native journey and the affected macOS header/writer-size retest. Repeat affected native writer-size checks on 9cf91f7 before closing M12.WIN-SIZE or freezing artifacts. Windows header observation passed on 0bc4b63.
 2. Complete the focused SSH observation through an already authorized SSH service.
 3. Retain current Windows and Linux artifacts and complete missing installed-candidate evidence. Windows d760554 installation, collision refusal, quick start, backup/fresh-home restore, and scoped removal passed with operator/assistant boundaries recorded. Repeat affected checks for subsequent code changes. The local macOS evidence is recorded above. Developer hosts and CI are not independent clean-machine proof; historical CI archives were not uploaded.
 4. Reconcile AC-1 through AC-16 and the final artifact inventory after those rows pass.

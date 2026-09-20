@@ -353,7 +353,36 @@ all 24 TUI unit tests and Clippy for TUI and CLI with all targets and denied
 warnings passed. This is source-level automated evidence. Release rebuilding
 and physical observation of newly entered commands remain separate gates.
 
+## Prepared writer-size candidate
+
+Two clean detached clones at `9cf91f7164235d35beda81d9c8c2d4200b703aad`
+built offline with the same native toolchain and four Cargo jobs per copy.
+Both executables are 11,803,648 bytes, SHA-256
+`65da79d61ba031cfef02c3971ae65a35d706e88c743d0f68fc8139f334325045`.
+Both normalized ZIP archives are 4,497,240 bytes, SHA-256
+`0409cc32358acd4cd2526309ddcc5a3b8246d8abce13263df704c2e2120c3d4c`.
+Build and package comparisons passed. Version is 0.1.0 with empty default
+production features and no signature.
+
+External manifest and archive hashes passed before extraction. The package
+inspector confirmed the exact nine-member inventory. PE inspection confirmed
+x64, linker 14.29, and VCRUNTIME140.dll; extracted ConPTY smoke passed help,
+version, initialization, detached daemon, real child, and orderly shutdown.
+A separate packaged-helper installation passed help, version, executable hash,
+and unsigned Authenticode checks. Earlier candidates and runtime homes remain
+untouched. The remaining physical writer-size observation must use this candidate.
+
+The exact installed binary passed `cargo test -p relayterm-cli --test
+session_presentation --test tui_gate --test backup_restore --test worktree_gate
+--locked --offline -- --nocapture --test-threads=1` through RELAYTERM_TEST_RT:
+ten tests passed and one fixture helper was ignored. This includes the new
+live-dimension input-transfer regression. Startup p95 was 186 ms, navigation
+p95 21 ms, input echo p95 146 ms, and flood throughput 2,495,711 bytes/s.
+Both clean source clones remained unchanged. A new disposable writer-test
+workspace was initialized with this installed candidate, separately from the
+retained restored workspace, for the operator's next checkpoint.
+
 ## Pending evidence
 
-The command-line clipping correction and its affected native retest remain
+The physical writer-size retest remains
 pending. Linux, SSH, and global M12 acceptance remain open independently.

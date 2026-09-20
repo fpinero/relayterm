@@ -79,9 +79,17 @@ required; the old Windows screenshot cannot certify the new layout.
 | Handover correction and retained history | Observed on d760554 | Observed on d760554 | Native journey pending |
 | Prior session and editing journey | Observed, deviations recorded | Observed, source mapping retained | Native journey pending |
 | Header/footer at exactly 80 by 24 on 0bc4b63 | Automated rendering and operator observation passed | Rebuild and physical retest pending | Include in new native and focused SSH observations |
-| Command clipping after writer acquisition | Reproduced, M12.WIN-SIZE open | Affected cross-platform path, assess after correction | Exercise differently sized clients; do not assume fixed |
+| Command clipping after writer acquisition | Reproduced on 0bc4b63; source regression passes on 9cf91f7; physical retest pending | Rebuild and affected writer-transfer observation pending | Exercise differently sized clients with 9cf91f7 |
 
 Use the updated [native continuation instructions](m12-native-continuation.md),
 including the existing Linux task prompt. No separate prompt document is needed.
+
+Source `9cf91f7164235d35beda81d9c8c2d4200b703aad` additionally calls the
+existing lease-owned terminal resize operation after successful input acquisition.
+It changes the client request sequence, not daemon authorization, persistence, or
+protocol shape. Native regression reads actual snapshot dimensions through first
+acquisition and transfers between differently sized clients, and verifies that
+read-only and rejected clients retain the writer's dimensions. Affected native
+and SSH manual observations remain required before global acceptance.
 
 On 2026-09-19 the operator performed the [macOS manual observations](m12-macos-manual-observations.md). Session presentation, Unicode cursor editing, stale rename review, competing input transfer, and client reopen passed on the original local artifact. The installed quick start exposed a blocking handover refresh failure. The source correction passed automated checks. A separately identified local build from `d760554` subsequently passed the affected manual handover, second-session continuation, completion, backup recovery, and client-reopen retest. The operator subsequently verified absolute-path discovery and scoped removal of a disposable installation; independent checksum and task readback confirmed the retained candidate and state were preserved. Collision refusal was checked by the assistant. The local macOS journey is recorded with that evidence distinction; SSH, Linux, Windows, and the final M12 reconciliation remain open.

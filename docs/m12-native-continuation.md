@@ -11,9 +11,10 @@ Spanish; write repository evidence and comments in English. Follow the pending
 TODO and append-only avances workflow. Do not edit main or discard user changes.
 
 The current production candidate source is
-`0bc4b6384adf37dbdd9939e840d9c3e14e86d9e1`. It retains the handover correction
-from `d760554` and fixes the minimum-width header by moving the product name to
-the footer and reserving space for the full freshness label. Later evidence-only
+`9cf91f7164235d35beda81d9c8c2d4200b703aad`. It retains the handover correction
+from `d760554` and the minimum-width header correction from `0bc4b63`, and
+synchronizes live terminal size immediately after acquiring the input lease.
+Later evidence-only
 commits do not replace that artifact identity. Inspect the source diff before
 reusing artifacts. The original candidate at 491d5f1 has a confirmed handover
 projection failure and must not be used to sign off the corrected workflow.
@@ -25,8 +26,9 @@ header passed all 24 TUI unit tests, including every screen and all eight
 freshness states at 80 by 24. The operator subsequently confirmed the header and
 footer on Windows in Overview, Tasks, and Sessions. Physical header/footer
 verification remains open on macOS and belongs in the Linux native journey. The
-separate command-line clipping defect on writer acquisition remains open as
-M12.WIN-SIZE. Do not describe this candidate as fixing that defect or freeze M12.
+writer-size source correction has native two-client regression coverage that
+failed on 0bc4b63 and passed after correction. M12.WIN-SIZE remains open for
+affected physical acceptance. Do not freeze M12 before those observations pass.
 
 Build in clean isolated checkouts at the corrected source, outside the evidence
 working tree. Inspect the checked-in release scripts and their help rather than
@@ -65,6 +67,14 @@ The task claim status is active, not in_progress. Observe competing claim reject
 Tasks has no inline warning. Input release is Ctrl-]; Ctrl-5 was not equivalent
 on the observed Spanish Mac keyboard, so verify actual native keys.
 
+Exercise first input acquisition and transfer between differently sized clients
+without resizing the window after acquisition. Newly entered long commands must
+wrap within the writer's viewport. A read-only client's resize or rejected input
+acquisition must not resize the shared child. Read actual terminal snapshot
+dimensions, not the durable session creation dimensions. Include this affected
+check in native Linux/macOS and the focused SSH row; Windows physical retest is
+tracked in its observation document.
+
 The critical corrected journey is a claim from a task-neutral session, progress,
 and Ctrl-S handover. Before any new claim, confirm CURRENT, handover_ready, no
 owner, and the saved handover immediately, without needing refresh or restart.
@@ -93,7 +103,7 @@ files; reconcile shared documents without overwriting the other platform's work.
 Continue Relayterm M12 native acceptance on this Windows host using the shared
 contract in docs/m12-native-continuation.md. Work on an appropriate feature branch
 based on the fetched feature/m12-windows-native evidence. Build the exact
-candidate source 0bc4b6384adf37dbdd9939e840d9c3e14e86d9e1 natively for
+candidate source 9cf91f7164235d35beda81d9c8c2d4200b703aad natively for
 x86_64-pc-windows-msvc; do not use WSL as Windows evidence. Inspect the actual OS,
 architecture, terminal, PowerShell and cmd.exe versions and MSVC toolchain.
 Verify the Visual C++ x64 runtime dependency from the candidate's PE imports.
@@ -114,7 +124,7 @@ remaining limitations, and a focused evidence commit ready for review.
 Continue Relayterm M12 native acceptance on this Linux host using the shared
 contract in docs/m12-native-continuation.md. Work on an appropriate feature branch
 based on the fetched feature/m12-windows-native evidence. Build the exact
-candidate source 0bc4b6384adf37dbdd9939e840d9c3e14e86d9e1 natively for
+candidate source 9cf91f7164235d35beda81d9c8c2d4200b703aad natively for
 x86_64-unknown-linux-gnu. Inspect actual distribution, architecture, terminal,
 shell, compiler, ELF interpreter, shared libraries, and glibc requirements.
 Ubuntu 24.04 is the declared baseline; do not silently generalize another host
