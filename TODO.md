@@ -35,6 +35,10 @@ Outcome: a reproducible candidate with usable session identification and editing
 
 Execution contract: [M12 detailed plan](docs/M12_details.md). Continue at M12.00h. The five usability proposals are scheduled here and do not reopen M11 acceptance.
 
+- M12.WIN: Build and identify a corrected Windows candidate and repeat native header acceptance at 80 by 24. Finish sanitized Windows evidence reconciliation; keep cross-platform and SSH gates open. Preserve the retained candidate identified in docs/m12-windows-manual-observations.md.
+
+- M12.WIN-SIZE: Fix command-line clipping when acquiring input in a narrower client. Input acquisition does not invoke the existing lease-owned resize path; verify live PTY dimensions independently of stored creation dimensions. Synchronize terminal dimensions on successful writer acquisition with regression coverage for differently sized clients and read-only ownership. Assess candidate rebuild and retest impact before closing this issue.
+
 
 - M12.00: Complete UX-SESSION-NAMES, UX-SESSION-ORDER, UX-FORM-CURSOR, UX-CONFLICT-MESSAGE, and UX-INPUT-ACQUIRE-MESSAGE before freezing release artifacts. Preserve durable identity, bounded state, typed error semantics, and read-only input ownership.
   - M12.00h: Verify consolidated usability changes and update help/privacy/compatibility. Completion proof: Targeted native/manual matrix and affected SSH coverage recorded; unaffected M11 evidence mapped.

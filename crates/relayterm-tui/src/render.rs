@@ -57,7 +57,16 @@ pub fn draw(frame: &mut Frame<'_>, app: &App) {
     } else {
         "Tab/1-6 screen  j/k move  Enter open  ? help  q exit"
     };
-    frame.render_widget(Paragraph::new(status), rows[2]);
+    frame.render_widget(
+        Paragraph::new(Line::from(vec![
+            Span::styled(
+                "Relayterm | ",
+                Style::default().add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(status),
+        ])),
+        rows[2],
+    );
     if let Some(form) = &app.form
         && !form.reviewing
     {
@@ -99,10 +108,7 @@ pub fn draw(frame: &mut Frame<'_>, app: &App) {
 }
 
 fn draw_tabs(frame: &mut Frame<'_>, app: &App, area: Rect) {
-    let mut spans = vec![Span::styled(
-        " Relayterm ",
-        Style::default().add_modifier(Modifier::BOLD),
-    )];
+    let mut spans = Vec::new();
     for (index, screen) in Screen::ALL.iter().enumerate() {
         let style = if *screen == app.screen {
             Style::default()
@@ -117,10 +123,19 @@ fn draw_tabs(frame: &mut Frame<'_>, app: &App, area: Rect) {
             style,
         ));
     }
-    spans.push(Span::raw(format!("  [{}]", app.freshness.label())));
+    let status = format!("[{}]", app.freshness.label());
+    let block = Block::default().borders(Borders::ALL);
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+    let columns = Layout::horizontal([
+        Constraint::Min(0),
+        Constraint::Length(status.len() as u16 + 1),
+    ])
+    .split(inner);
+    frame.render_widget(Paragraph::new(Line::from(spans)), columns[0]);
     frame.render_widget(
-        Paragraph::new(Line::from(spans)).block(Block::default().borders(Borders::ALL)),
-        area,
+        Paragraph::new(status).alignment(Alignment::Right),
+        columns[1],
     );
 }
 
@@ -742,6 +757,44 @@ mod tests {
         Terminal,
         backend::{Backend, TestBackend},
     };
+
+    #[test]
+    fn minimum_size_preserves_all_tabs_and_complete_freshness_labels() {
+        use crate::model::Freshness;
+        for freshness in [
+            Freshness::Connecting,
+            Freshness::Loading,
+            Freshness::Current,
+            Freshness::Stale,
+            Freshness::Disconnected,
+            Freshness::Reconnecting,
+            Freshness::Incompatible,
+            Freshness::Retryable,
+        ] {
+            for screen in Screen::ALL {
+                let app = App {
+                    width: 80,
+                    height: 24,
+                    freshness,
+                    screen,
+                    ..App::default()
+                };
+                let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
+                terminal.draw(|frame| draw(frame, &app)).unwrap();
+                let buffer = terminal.backend().buffer();
+                let row = |y| (0..80).map(|x| buffer[(x, y)].symbol()).collect::<String>();
+                let header = row(1);
+                assert!(header.contains(&format!("[{}]", freshness.label())));
+                for (index, tab) in Screen::ALL.iter().enumerate() {
+                    assert!(header.contains(&format!("{}:{}", index + 1, tab.label())));
+                }
+                assert!(!header.contains("Relayterm"));
+                let footer = row(22);
+                assert!(footer.contains("Relayterm"));
+                assert!(footer.contains("q exit"));
+            }
+        }
+    }
 
     #[test]
     fn compact_and_subminimum_layouts_render_without_color_dependency() {

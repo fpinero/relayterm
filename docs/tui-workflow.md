@@ -21,6 +21,10 @@ If the directory is not registered, `rt` displays its escaped path and asks befo
 
 Essential state always has a text label. Color is supplementary.
 
+At the minimum supported size of 80 columns by 24 rows, the header reserves
+space for the complete freshness label alongside all six screen tabs. The
+Relayterm name appears in the footer with the context-sensitive keyboard hints.
+
 | Context | Keys | Result |
 | --- | --- | --- |
 | Global | `1` to `6`, `Tab`, `Shift-Tab` | Select Overview, Tasks, Sessions, Agents, Events, or Help |

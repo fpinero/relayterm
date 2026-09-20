@@ -33,9 +33,33 @@ The macOS record also covers original-candidate names, order, Unicode cursor,
 stale rename review, competing input, detach, reattach, installation, discovery,
 and corrected-candidate scoped removal. See [the detailed observations](m12-macos-manual-observations.md)
 for source mapping and the distinction between operator and assistant checks.
-Archives and metadata are retained outside Git. Native Windows and Linux builds
-from this corrected source, their manual journeys, and focused SSH observation
-remain required. Use [the continuation instructions](m12-native-continuation.md).
+Archives and metadata are retained outside Git. Corrected Windows preparation is
+recorded below; its manual journey, the Linux corrected build and journey, and
+focused SSH observation remain required. Use
+[the continuation instructions](m12-native-continuation.md).
+
+### Corrected Windows candidate
+
+On 2026-09-20, two clean native Windows 10 Pro 22H2 x64 builds from `d760554`
+produced identical executables and normalized ZIP archives. Rust and Cargo
+1.98.1, MSVC compiler 19.29.30158, linker 14.29.30158.0, and Windows SDK
+10.0.19041.0 were used. Version remains 0.1.0, with empty default production
+features and no signature.
+
+| Artifact | Bytes | SHA-256 |
+| --- | --- | --- |
+| Executable | 11,880,448 | `df4f0b7285432a57855aee862aad71879af416bfb4e301aac532fca05298b9f8` |
+| ZIP archive | 4,511,930 | `b4030f4a7dc6c97ad1d69a33265635d437bfa5aa6b92dd5bc2f61271640ec652` |
+
+PE inspection, nine-entry inventory, archive/manifest checksums, extracted smoke
+with real ConPTY, dedicated installation, absolute PowerShell and cmd.exe
+invocation, collision preservation, and a spaces/Unicode install passed.
+The exact installed executable also passed session presentation, backup/restore,
+and all six TUI scenarios (one fixture helper ignored). The system has the
+required Visual C++ x64 runtime. Artifacts and metadata are
+retained outside Git. This is assistant-driven preparation on a developer host;
+physical terminal acceptance remains pending. See
+[the Windows record](m12-windows-manual-observations.md) for exact boundaries.
 
 ## Original native artifact evidence
 
@@ -73,7 +97,10 @@ The ordinary repository check remains affected only by the preserved unrelated u
 4. Reconcile AC-1 through AC-16 and the final artifact inventory after those rows pass.
 5. Obtain the maintainer's publication choices. A tag, package upload, and public release remain outside this handoff.
 
-Computer control reports Terminal.app as running on the local macOS host but refuses automation of that application for safety reasons. No authorized local SSH listener was available during the previous probe. Linux and Windows operator-controlled hosts are not connected to this checkout. These exact limitations leave the named rows pending.
+The earlier macOS probe found no authorized local SSH listener and computer
+control refused Terminal.app automation. A native Windows 10 host is now
+available for the continuation recorded above. Linux and focused SSH evidence,
+Windows operator observations, and final reconciliation remain pending.
 
 ## Publication choices
 
