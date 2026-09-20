@@ -62,6 +62,10 @@ Session rows use a durable optional display name and remain addressed by session
 
 ## Child terminal input profile
 
+Acquiring the input lease also resizes the supervised terminal to the new
+writer's current viewport, including the first acquisition and transfers between
+differently sized clients. Read-only clients do not resize the shared terminal.
+
 The input lease owner can send UTF-8 text and the following decoded keys. Relayterm never copies child escape sequences directly to the host terminal.
 
 | Key | Child bytes |

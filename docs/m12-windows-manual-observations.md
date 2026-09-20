@@ -326,7 +326,34 @@ Its affected physical 80 by 24 observation remains open. The prior operator
 report of no platform warnings applies to the prior installation; it is not
 relabelled as an observation of this new install.
 
+The operator then opened the installed 0bc4b63 candidate at the requested
+80 by 24 size and confirmed the full CURRENT label, all six tabs, and Relayterm
+with keyboard hints in the footer in Overview, Tasks, and Sessions. This closes
+the affected Windows header observation for that candidate.
+
+The operator reported OpenSSH installed on both Windows and the Linux host from
+prior M11 work. Read-only local inspection found OpenSSH for Windows 9.5p2,
+LibreSSL 3.8.2, with sshd stopped and configured for manual startup; no local
+port 22 listener was observed. No service configuration was changed. Installed
+OpenSSH alone does not establish M12 SSH acceptance. The Linux service and
+authorized connection still need verification on that host.
+
+## Writer-size source correction
+
+The input-ownership integration scenario now reads live display snapshot
+dimensions while transferring input between differently sized native clients.
+It expects 21 by 88 on initial acquisition, 17 by 78 after transfer, and 28 by
+118 after transfer back, while rejected and read-only clients preserve the
+writer's dimensions. Against the installed 0bc4b63 executable, the regression
+failed waiting for the first resize. Adding the existing lease-owned resize
+operation immediately after successful acquisition made the scenario pass.
+
+The complete TUI integration gate then passed six tests with one helper ignored;
+all 24 TUI unit tests and Clippy for TUI and CLI with all targets and denied
+warnings passed. This is source-level automated evidence. Release rebuilding
+and physical observation of newly entered commands remain separate gates.
+
 ## Pending evidence
 
-Corrected-artifact header acceptance and the command-line clipping correction remain
+The command-line clipping correction and its affected native retest remain
 pending. Linux, SSH, and global M12 acceptance remain open independently.

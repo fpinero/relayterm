@@ -1576,6 +1576,7 @@ async fn acquire_input(client: &Client, app: &mut App) {
                 terminal.input_focus = terminal.lease_id.is_some();
                 terminal.input_owned_elsewhere = false;
             }
+            resize_attached(client, app).await;
         }
         Err(ClientError::Rejected(ErrorCode::InputOwned)) => {
             if let Some(terminal) = app.terminal.as_mut() {

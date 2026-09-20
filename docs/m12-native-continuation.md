@@ -22,8 +22,9 @@ Read [the Windows observations](m12-windows-manual-observations.md) before
 continuing. The prior Windows manual journey used d760554; its completed backup,
 handover, and session checks are not physical proof of the new header. The new
 header passed all 24 TUI unit tests, including every screen and all eight
-freshness states at 80 by 24. Physical header/footer verification remains open
-on Windows and macOS and must be included in the Linux native journey. The
+freshness states at 80 by 24. The operator subsequently confirmed the header and
+footer on Windows in Overview, Tasks, and Sessions. Physical header/footer
+verification remains open on macOS and belongs in the Linux native journey. The
 separate command-line clipping defect on writer acquisition remains open as
 M12.WIN-SIZE. Do not describe this candidate as fixing that defect or freeze M12.
 

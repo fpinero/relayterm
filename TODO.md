@@ -35,9 +35,9 @@ Outcome: a reproducible candidate with usable session identification and editing
 
 Execution contract: [M12 detailed plan](docs/M12_details.md). Continue at M12.00h. The five usability proposals are scheduled here and do not reopen M11 acceptance.
 
-- M12.WIN: Repeat physical Windows header/footer acceptance at 80 by 24 using candidate 0bc4b63, then reconcile affected evidence. Preserve both retained candidates identified in docs/m12-windows-manual-observations.md. Keep Linux, macOS header retest, SSH, and global acceptance open; use docs/m12-native-continuation.md for the existing Linux task prompt.
+- M12.WIN: Complete Windows writer-size correction and affected native retest, then reconcile evidence. Preserve retained candidates identified in docs/m12-windows-manual-observations.md. Keep Linux, macOS header retest, SSH, and global acceptance open; use docs/m12-native-continuation.md for the existing Linux task prompt.
 
-- M12.WIN-SIZE: Fix command-line clipping when acquiring input in a narrower client. Input acquisition does not invoke the existing lease-owned resize path; verify live PTY dimensions independently of stored creation dimensions. Synchronize terminal dimensions on successful writer acquisition with regression coverage for differently sized clients and read-only ownership. Assess candidate rebuild and retest impact before closing this issue.
+- M12.WIN-SIZE: Build a source-pinned writer-resize candidate, repeat installed gates, and observe initial input acquisition and transfer between differently sized native clients. Keep read-only views unable to resize the shared terminal. Reconcile Linux/macOS/SSH impact before closing acceptance.
 
 
 - M12.00: Complete UX-SESSION-NAMES, UX-SESSION-ORDER, UX-FORM-CURSOR, UX-CONFLICT-MESSAGE, and UX-INPUT-ACQUIRE-MESSAGE before freezing release artifacts. Preserve durable identity, bounded state, typed error semantics, and read-only input ownership.

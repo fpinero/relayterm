@@ -78,7 +78,7 @@ required; the old Windows screenshot cannot certify the new layout.
 | --- | --- | --- | --- |
 | Handover correction and retained history | Observed on d760554 | Observed on d760554 | Native journey pending |
 | Prior session and editing journey | Observed, deviations recorded | Observed, source mapping retained | Native journey pending |
-| Header/footer at exactly 80 by 24 on 0bc4b63 | Automated rendering passed; physical retest pending | Rebuild and physical retest pending | Include in new native and focused SSH observations |
+| Header/footer at exactly 80 by 24 on 0bc4b63 | Automated rendering and operator observation passed | Rebuild and physical retest pending | Include in new native and focused SSH observations |
 | Command clipping after writer acquisition | Reproduced, M12.WIN-SIZE open | Affected cross-platform path, assess after correction | Exercise differently sized clients; do not assume fixed |
 
 Use the updated [native continuation instructions](m12-native-continuation.md),

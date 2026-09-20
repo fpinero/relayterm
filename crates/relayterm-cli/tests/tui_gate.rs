@@ -300,16 +300,27 @@ fn input_ownership_moves_between_open_tui_clients() {
     owner.wait_for("Discard draft?");
     owner.send(b"y");
     owner.wait_for("Sessions selected");
+    let session_id = renamed["result"]["items"][0]["instance"]["session_id"]
+        .as_str()
+        .unwrap();
+    owner.resize(28, 90);
     owner.send(b"\ri");
     owner.wait_for("WRITER");
+    wait_for_terminal_size(&root, &private, session_id, 21, 88);
+    observer.resize(24, 80);
     observer.send(b"\ri5");
     observer.wait_for("Another client controls input");
     observer.send(b"3");
     observer.wait_for("READ ONLY");
+    wait_for_terminal_size(&root, &private, session_id, 21, 88);
     owner.send(&[0x1d]);
     owner.wait_for("READ ONLY");
     observer.send(b"i");
     observer.wait_for("WRITER");
+    wait_for_terminal_size(&root, &private, session_id, 17, 78);
+    owner.resize(35, 120);
+    owner.wait_for("READ ONLY");
+    wait_for_terminal_size(&root, &private, session_id, 17, 78);
     observer.send(b"transfer-confirmed\r");
     observer.wait_for("fixture-echo-000:transfer-confirmed");
     owner.wait_for("fixture-echo-000:transfer-confirmed");
@@ -317,6 +328,7 @@ fn input_ownership_moves_between_open_tui_clients() {
     observer.wait_for("READ ONLY");
     owner.send(b"i");
     owner.wait_for("WRITER");
+    wait_for_terminal_size(&root, &private, session_id, 28, 118);
     owner.send(b"transfer-returned\r");
     owner.wait_for("fixture-echo-001:transfer-returned");
     owner.send(&[0x1d]);

@@ -89,7 +89,8 @@ and input echo p95 126 ms. The detailed Windows record lists commands and
 observation boundaries.
 
 The candidate is prepared for continued acceptance, not frozen or released.
-The Windows operator has not yet observed its header/footer at 80 by 24.
+The Windows operator subsequently confirmed its header/footer at 80 by 24 in
+Overview, Tasks, and Sessions.
 Linux must build this exact source and complete its native journey; macOS needs
 an affected header retest. M12.WIN-SIZE remains unfixed. Follow the existing
 [Linux task prompt](m12-native-continuation.md#linux-task-prompt).
@@ -124,7 +125,7 @@ The ordinary repository check remains affected only by the preserved unrelated u
 
 ## Evidence still required
 
-1. Complete the Linux consolidated native journey on 0bc4b63 and the affected Windows/macOS header retest. Fix M12.WIN-SIZE, rebuild, and repeat affected writer-size checks before freezing artifacts.
+1. Complete the Linux consolidated native journey and the affected macOS header retest. Fix M12.WIN-SIZE, rebuild, identify the next candidate, and repeat affected writer-size checks before freezing artifacts. Windows header observation passed on 0bc4b63.
 2. Complete the focused SSH observation through an already authorized SSH service.
 3. Retain current Windows and Linux artifacts and complete missing installed-candidate evidence. Windows d760554 installation, collision refusal, quick start, backup/fresh-home restore, and scoped removal passed with operator/assistant boundaries recorded. Repeat affected checks for subsequent code changes. The local macOS evidence is recorded above. Developer hosts and CI are not independent clean-machine proof; historical CI archives were not uploaded.
 4. Reconcile AC-1 through AC-16 and the final artifact inventory after those rows pass.
