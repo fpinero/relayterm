@@ -137,3 +137,22 @@ before freezing a replacement candidate.
 
 Workspace Clippy with all targets in release mode and `-D warnings` passed.
 No production schema, daemon protocol, or dependency change was introduced.
+
+## Physical Linux correction retest completed
+
+The operator completed the affected checks on source 15794ad using executable
+SHA-256 `d580683ad921e304d4204e522de805226df8c3734ba667849f9726d187e2f926`
+in a separate private workspace. Input release, repeated release while already
+read-only, disconnected indicators, release while disconnected without an Events
+transition, non-repeating transport diagnostics, and clean disconnected exit all
+passed physically. The two-step stale rename review now shows the authoritative
+label while retaining the draft; final discard and independent revision-5
+readback confirm no overwrite.
+
+The correction workspace daemon remains running after the rename check, with its
+single test session terminated. Original candidate resources remain separate.
+The generic Error prefix on informational revision-adoption guidance is a
+remaining presentation issue, not failed adoption. These results close the
+targeted Linux correction retests, not global M12 acceptance. macOS/Windows
+verification and acceptance treatment of the documented terminal/SSH limits
+remain pending. No remote publication is implied.

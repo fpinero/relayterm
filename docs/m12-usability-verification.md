@@ -115,3 +115,14 @@ Linux acceptance and the SSH row remain open for corrective work and retesting;
 they are no longer unattempted. Earlier pending statements and the historical
 impact table above describe prior evidence stages. Windows and macOS source
 mappings are unchanged. No global acceptance or artifact freeze is claimed.
+
+### Corrected Linux physical results
+
+The targeted physical Linux retests passed on source 15794ad: input release,
+repeated release in navigation, disconnected indicators, no unintended Events
+transition while disconnected, suppression of repeated diagnostics, clean exit,
+and authoritative rename context with retained draft and safe discard. See the
+[final report](m12-linux-final-report.md) for the exact executable identity and
+independent readback. This supersedes the earlier pending Linux correction
+checkpoints only. Cross-platform verification, the informational Error prefix,
+and global acceptance treatment of SSH and resize limits remain open.

@@ -1145,3 +1145,64 @@ rename guidance and writer transfer, and fixed-grid/fresh-output resizing.
 Cargo fmt --all --check and cargo clippy --workspace --all-targets --release
 --locked --offline -- -D warnings passed. Physical correction-candidate and
 cross-platform acceptance retests remain pending. No push or release occurred.
+
+## 2026-09-21: Verify correction-candidate physical input release
+
+Recorded the operator-confirmed Ctrl+AltGr+] release with before-and-after
+screenshots showing INPUT/WRITER followed by NAVIGATION/READ ONLY in Sessions.
+This verifies release on source 15794ad; repeated-chord navigation and
+disconnection observations remain pending.
+
+## 2026-09-21: Verify repeated release chord in navigation
+
+The operator confirmed no change after repeating Ctrl+AltGr+] in READ ONLY
+on the correction candidate. The screenshot retains Sessions and CURRENT,
+verifying the connected-state navigation checkpoint.
+
+## 2026-09-21: Verify corrected disconnected indicators physically
+
+The operator screenshot after the scoped daemon stop shows DISCONNECTED,
+NAVIGATION/READ ONLY, and RECONCILE WITH R without WRITER or Attaching.
+This verifies the corrected presentation on Linux while retaining old output.
+
+## 2026-09-21: Verify disconnected release-chord navigation
+
+The operator confirmed no Events transition after Ctrl+AltGr+] while
+disconnected. The screenshot retains Sessions and disconnected navigation
+indicators, verifying the corrected behavior on Linux.
+
+## 2026-09-21: Verify transport diagnostic deduplication physically
+
+The operator reports no repeated disconnect message after an extended wait.
+The Events screenshot contains one transport-loss entry and retained earlier
+events, verifying the corrected Linux diagnostic behavior.
+
+## 2026-09-21: Verify clean disconnected exit on the corrected candidate
+
+The operator confirmed normal outer-shell behavior after q. Screenshots show
+no residual TUI borders and successful synthetic marker output, completing
+the physical disconnected-exit checkpoint.
+
+## 2026-09-21: Verify stale rename rejection on the corrected candidate
+
+The operator screenshot shows explicit stale-edit guidance after submission
+and retains Borrador A. This verifies physical rejection and draft preservation
+before the separate two-step review checkpoint.
+
+## 2026-09-21: Verify refreshed rename context physically
+
+The second Ctrl-R restores the form with Current label: Guardado B and the
+unchanged Borrador A draft, as shown by the operator screenshot. This verifies
+the corrected context while retaining explicit resubmission semantics.
+
+## 2026-09-21: Complete targeted Linux physical correction retests
+
+The final screenshot and independent revision-5 readback confirm safe discard
+with Guardado B retained. Completed the source-15794ad physical Linux checks
+for release/navigation, disconnected ownership indicators, diagnostic
+deduplication, clean disconnected exit, and reviewed rename context. Updated
+the final report and evidence matrix, and replaced the completed Linux retest
+queue item with remaining cross-platform work. Tracked the informational Error
+prefix separately. Original failures and terminal/SSH limitations remain intact.
+Documentation verification: scripts/check_repository.py and git diff --check
+passed. No code changes, remote push, or global M12 acceptance in this checkpoint.

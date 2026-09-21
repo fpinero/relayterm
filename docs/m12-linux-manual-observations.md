@@ -848,3 +848,117 @@ READ ONLY followed by the Sessions list after Esc, with Session 6 still
 running and CURRENT. The implemented release-and-detach sequence passed.
 This does not supersede the failed documented Ctrl-Space shortcut or the
 unexpected Events transition previously observed while disconnected.
+
+## Correction-candidate physical retest preparation
+
+Prepared a separate private workspace and executable copy for correction source
+15794ad, preserving the original installed candidate, homes, and backup.
+The copied executable SHA-256 is
+`d580683ad921e304d4204e522de805226df8c3734ba667849f9726d187e2f926`.
+Administrative initialization of the isolated workspace passed. This is
+assistant preparation only; physical correction-candidate checks remain pending.
+
+## Correction-candidate input release confirmed
+
+The operator explicitly reports that Ctrl+AltGr+] changes INPUT/WRITER to
+NAVIGATION/READ ONLY on the corrected candidate. Sequential screenshots show
+that transition with Sessions selected and CURRENT retained. Physical input
+release passed. Repeating the chord while already in navigation has not yet
+been explicitly confirmed; the disconnected-state retest also remains pending.
+
+## Correction-candidate repeated release chord
+
+The operator explicitly confirms that pressing Ctrl+AltGr+] again while
+already in NAVIGATION/READ ONLY changes nothing. The supplied screenshot
+retains Sessions, READ ONLY, and CURRENT. The connected-state repeated-chord
+check passed without an Events transition. Disconnected-state behavior remains
+a separate pending physical checkpoint.
+
+## Correction-candidate stop while input is focused
+
+The operator supplied a screenshot confirming INPUT/WRITER and CURRENT after
+reacquiring input in the isolated correction workspace. Under the existing
+explicit stop authorization, the assistant invoked daemon stop with session
+termination through that workspace-specific launcher. The installed copy
+returned ok and lifecycle stopped. No earlier workspace or backup was targeted.
+Physical post-disconnection indicators and navigation remain to be observed.
+
+## Correction-candidate disconnected indicators confirmed
+
+After the authorized stop, the operator confirms DISCONNECTED. The supplied
+screenshot also shows NAVIGATION/READ ONLY and RECONCILE WITH R, with Sessions
+still selected and the navigation footer restored. Neither WRITER nor
+Attaching is displayed. The last terminal contents remain visible as retained
+output, not evidence of a running child. Physical disconnected-state
+presentation passed. Release-chord behavior while disconnected and diagnostic
+deduplication remain separate pending observations.
+
+## Correction-candidate release chord while disconnected
+
+The operator explicitly confirms that Ctrl+AltGr+] does not switch to Events
+while disconnected. The screenshot retains Sessions, DISCONNECTED, and
+NAVIGATION/READ ONLY with RECONCILE WITH R. This physically verifies the
+previously failing navigation scenario on the corrected Linux candidate.
+Diagnostic deduplication remains to be observed separately.
+
+## Correction-candidate transport diagnostics remain bounded
+
+The operator reports that the disconnect message does not repeat after waiting
+substantially longer than five seconds. The Events screenshot shows exactly
+one transport-loss diagnostic alongside earlier workspace and committed-operation
+entries, with DISCONNECTED retained. Physical suppression of repeated
+consecutive transport diagnostics passed. The observation does not claim an
+exact measured duration. Disconnected exit and refreshed rename context remain
+to be checked on the correction candidate.
+
+## Correction-candidate clean exit after disconnection
+
+The operator confirms correct behavior after q from disconnected Events.
+Sequential screenshots show a clean outer shell with no residual TUI borders
+and successful execution of the synthetic exit marker. Physical disconnected
+exit and outer-shell input recovery passed. The rename-context physical retest
+remains pending.
+
+## Correction-candidate concurrent rename preparation
+
+The operator supplied the open, unsaved rename form with draft Borrador A
+and Current label: Session 1. Independent ordered readback confirmed the
+selected identity and revision 4. A separate administrative client renamed
+that same synthetic session to Guardado B with expected revision 4; the
+operation succeeded. This prepares a stale form without asserting that the
+physical rejection or reviewed context has yet passed.
+
+## Correction-candidate stale rename rejection
+
+After the concurrent administrative rename, the operator supplied the result
+of Ctrl-S: the form reports that the workspace changed while editing and
+retains Borrador A. The form still shows its original Session 1 context before
+explicit review. Physical stale-submission rejection and draft preservation
+passed; authoritative review and refreshed context remain pending.
+
+## Correction-candidate authoritative rename review
+
+After the first Ctrl-R, the supplied screenshot shows the rename form hidden,
+Guardado B on the selected session, CURRENT, and the Reviewing latest state
+footer offering Ctrl-R to adopt the revision or Esc to discard. The selected
+session identity remains unchanged. Physical authoritative review passed;
+restored draft and updated form guidance after the second Ctrl-R remain pending.
+
+## Correction-candidate reviewed context and draft confirmed
+
+After the second Ctrl-R, the operator screenshot shows Current label:
+Guardado B and retains the unchanged Borrador A draft. Guidance states that
+the reviewed revision is selected and Ctrl-S would perform a new explicit
+submission. Physical context refresh and draft preservation passed. The
+message uses the existing generic Error prefix despite being informational;
+this does not indicate a failed adoption. Final draft discard remains pending.
+
+## Correction-candidate final draft discard and readback
+
+The final operator screenshot shows the form closed and Guardado B retained
+in Sessions with CURRENT. Independent administrative readback confirms the
+same session identity, display name, revision 5, and event watermark 5. The
+reviewed draft was not submitted. All targeted physical Linux correction
+checkpoints passed for source 15794ad. Cross-platform retests and global
+acceptance remain separate; the informational message rendered with an Error
+prefix is tracked as a remaining presentation issue.
