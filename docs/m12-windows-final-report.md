@@ -4,7 +4,7 @@
 
 The focused Windows physical correction round is complete. No further operator
 visual check is required for its unchanged candidate. This is not global M12
-acceptance: hosted verification, debug latency, remaining Linux/SSH presentation,
+acceptance: local debug latency, remaining Linux/SSH presentation,
 independent clean-runtime proof and final acceptance have distinct gates.
 
 Delivery branch: `fix/m12-windows-final-candidate`. Original delivery:
@@ -124,8 +124,37 @@ dispatched for that commit because branch pushes do not trigger these workflows.
 - [Security 35637869615](https://github.com/fpinero/relayterm/actions/runs/35637869615)
   completed successfully on e4431f7.
 - [Quality 35637866692](https://github.com/fpinero/relayterm/actions/runs/35637866692)
-  was still running when this initial dispatch checkpoint was recorded.
+  completed successfully on e4431f7: all seven jobs passed. These include all
+  three native release jobs, stable Linux/macOS/Windows and pinned Linux.
+
+The Windows stable job completed all 26 independent repetition steps, including
+both TUI, hardening, fault, SQLite, cancellation, containment, scale, offline and
+sustained-resource passes, plus full workspace/core/build/documentation checks.
+The original failed Quality run remains historical evidence. This closes
+M12.WINDOWS-HOSTED-RECHECK. The native Windows log reports input p95 values of
+212/229 ms in the two direct TUI passes and 211/210 ms in hardening, all meeting
+250 ms on that runner. These do not erase the local debug 290/294 ms failures.
+Final run/job metadata and Windows job logs are retained privately.
 
 Later commits containing only this report, continuation guidance and evidence
 can reuse those hosted results with the explicit ancestor mapping. They do not
 justify repeating the user's completed physical tests or replacing artifacts.
+
+### Hosted Windows release identity
+
+Completed job 106459661237 independently built and packaged e4431f7 twice on
+Windows Server 2022. Its retained log reports identical copies within that
+runner, not equality with the local Windows 10 artifacts above:
+
+| Hosted artifact | Bytes | SHA-256 |
+| --- | --- | --- |
+| rt.exe | 11,761,664 | `07680592eda496da1407c339e481f410b499d7c5d50cbcc71a8eb947bd3bd056` |
+| ZIP | 4,475,867 | `876cb82c106d51185f7552b1f77f90b332b2ac780e876815ec4e4904a76fd278` |
+
+The extracted TUI gate passed eight tests with one ignored helper; presentation,
+worktree and backup/restore added one, two and one passing tests respectively.
+Hosted startup p95 was 85 ms, navigation 21 ms and input echo 124 ms. The latter
+met the 250 ms local reference as well as the hosted guardrail. These are hosted
+measurements, not the local 159/21/127 ms observations. Archive metadata was
+read from the job log; no downloadable retained CI archive is claimed. The
+operator-tested installed binary remains unchanged with its original hash.

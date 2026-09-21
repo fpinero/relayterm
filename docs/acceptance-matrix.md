@@ -148,6 +148,12 @@ AC-12 remains open: Quality 35629938330 failed its two Windows TUI jobs, and
 later Windows steps were skipped. The five other Quality jobs and Security
 35629941870 passed at documentation descendant 167563e. Native physical Windows
 correction observations passed on the retained installed 691a8fb executable,
-including both restored shells. Local debug latency, hosted Windows rechecks,
+including both restored shells. Local debug latency,
 final Linux presentation, affected SSH, independent clean runtime and global
 acceptance reconciliation remain separate pending gates.
+
+Authorized hosted recheck on e4431f7 subsequently passed Quality 35637866692
+(all seven jobs, including both Windows jobs and independent repetitions) and
+Security 35637869615. This closes the hosted Windows failure follow-up, not the
+remaining runtime/physical/acceptance requirements. Product code remains mapped
+to 691a8fb; documentation-only delivery descendants reuse these hosted results.

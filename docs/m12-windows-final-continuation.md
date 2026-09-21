@@ -248,3 +248,9 @@ harness. Hosted rechecks require authorized remote delivery. The local debug
 input-latency misses remain distinct from the passing installed release gate.
 Linux presentation, affected SSH, independent clean environments and final
 acceptance remain open. M12 is not globally complete; M13 has not started.
+
+After operator authorization, the Windows branch was published and hosted
+verification completed: Quality 35637866692 passed all seven jobs and Security
+35637869615 passed on e4431f7. The earlier failure and dispatch statements above
+remain chronological evidence, not current blockers. See the Windows final
+report and Linux delta continuation linked at the top for current requirements.

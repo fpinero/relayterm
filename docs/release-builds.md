@@ -12,9 +12,9 @@ Support claims are limited to these three native artifacts and tested runtime ba
 
 | Target | Architecture | Tested runtime baseline | Current evidence boundary |
 | --- | --- | --- | --- |
-| `x86_64-unknown-linux-gnu` | x86-64 | Ubuntu 24.04 | M12 build, ELF inspection, repeatability, packaging, and extracted gates pass. Operator-controlled installation and affected usability evidence are pending. Other distributions and musl are not claimed. |
-| `aarch64-apple-darwin` | Apple arm64 | macOS 14 | M12 build, Mach-O inspection, repeatability, packaging, and extracted gates pass on macOS 14. Automated installation also passes on macOS 26.5.2. Operator-controlled installation and affected usability evidence are pending. Intel and universal binaries are not claimed. |
-| `x86_64-pc-windows-msvc` | x86-64 | Windows 10 22H2 for desktop behavior, Windows Server 2022 for CI | M12 build, PE inspection, repeatability, packaging, and extracted gates pass on Windows Server 2022. Operator-controlled Windows 10 installation and affected usability evidence are pending. Windows arm64 is not claimed. |
+| `x86_64-unknown-linux-gnu` | x86-64 | Ubuntu 24.04 | Native 9cf91f7 preparation, installation and journey passed; 15794ad physical correction passed. Final 691a8fb local artifacts and Info/Error delta follow the Linux delta continuation. Other distributions and musl are not claimed. |
+| `aarch64-apple-darwin` | Apple arm64 | macOS 14 | Native repeatable artifacts, installation and focused physical observations passed on 691a8fb as mapped in the macOS report. macOS 14 hosted evidence and macOS 26.5.2 developer-host evidence remain distinct from independent clean-runtime acceptance. Intel and universal binaries are not claimed. |
+| `x86_64-pc-windows-msvc` | x86-64 | Windows 10 22H2 for desktop behavior, Windows Server 2022 for CI | Native repeatable 691a8fb artifacts, dedicated installation, exact-installed gates and focused Windows 10 physical correction passed. Server CI is separate evidence; independent clean Windows runtime acceptance remains open. Windows arm64 is not claimed. |
 
 The tested baseline is also the minimum supported version for the first candidate because no older runtime has been tested. Future evidence may lower that minimum. A compiler target existing does not establish runtime support.
 

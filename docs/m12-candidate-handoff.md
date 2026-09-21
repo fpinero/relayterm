@@ -241,3 +241,10 @@ was substituted. The focused physical correction round passed on that same
 installation, including both native shell exits. Clean-runtime acceptance and
 local debug latency remain pending. Security passed; hosted Quality failed its two Windows jobs on
 the original harness. Its failures require a later authorized verification run.
+
+That authorized verification is now complete: Quality 35637866692 passed all
+seven jobs and Security 35637869615 passed on e4431f7. Both Windows jobs and
+independent repetitions passed. See the [Windows final report](m12-windows-final-report.md)
+for artifact identities and the [Linux delta continuation](m12-linux-final-delta-continuation.md)
+for the remaining bounded work. Do not repeat completed physical journeys for
+documentation-only descendants or treat hosted success as clean-runtime proof.

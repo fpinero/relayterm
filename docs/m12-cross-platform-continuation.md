@@ -41,11 +41,14 @@ and packages, verified dedicated installation, and twelve passing exact-installe
 checks using a local test-only correction. See the appended
 [Windows evidence](m12-windows-manual-observations.md). The focused physical
 correction round passed, including restoration of both native shells. Local
-debug latency, hosted Windows rechecks and clean-runtime acceptance remain open.
+debug latency and clean-runtime acceptance remain open.
 Security 35629941870 succeeded; Quality 35629938330
 failed only its two Windows jobs on footer/exit assertions in the original TUI
-harness. Other native and release jobs succeeded. Preserve those failures until
-an authorized hosted run verifies the corrected harness and skipped Windows gates.
+harness. Other native and release jobs succeeded. Preserve those failures in
+the original record. The authorized recheck has now passed: Quality 35637866692
+completed all seven jobs and Security 35637869615 passed on e4431f7. Both Windows
+jobs and all independent repetitions passed. Reuse these results for later
+documentation-only descendants; see the Windows final report for exact mapping.
 
 ## Linux results completed
 
@@ -74,7 +77,7 @@ No additional physical Linux action is needed for the completed retest round.
 | Target | Required next physical observations | Evidence that need not be repeated wholesale |
 | --- | --- | --- |
 | macOS, native Terminal.app | Focused native round complete on 691a8fb; no remaining native visual correction check | Six-screen minimum/recovery, both writer-size transfers, observer isolation, corrected connected/disconnected feedback, diagnostic stability, clean exit and reviewed rename/Info/error/discard passed; see the macOS report. Earlier unchanged journey evidence retains its source mapping. |
-| Windows, native Windows Terminal/ConPTY | Focused native correction round complete on installed 691a8fb; installed discovery verified in PowerShell and cmd.exe. Hosted rechecks, debug latency and clean-runtime acceptance remain separate gates. | Connected/repeated release, stale rename review, draft/cursor/context, Info/Error, no automatic write, discard, disconnected writer, stable diagnostics and both shell exits passed. Header and writer-size observations retain their mapped 0bc4b63/9cf91f7 sources. |
+| Windows, native Windows Terminal/ConPTY | Focused native correction round complete on installed 691a8fb; installed discovery and hosted rechecks passed. Local debug latency and clean-runtime acceptance remain separate gates. | Connected/repeated release, stale rename review, draft/cursor/context, Info/Error, no automatic write, discard, disconnected writer, stable diagnostics and both shell exits passed. Header and writer-size observations retain their mapped 0bc4b63/9cf91f7 sources. |
 | Linux, GNOME Terminal | Informational form feedback and validation-error/cursor contrast on 691a8fb only | Completed 15794ad correction retests and unchanged 9cf91f7 journey |
 | One authorized SSH transport | Repeat changed conflict/review and disconnected navigation/feedback on the final candidate; verify normal exit and reconnection identities | Unchanged writer-size and continuity evidence remains mapped to 9cf91f7; do not repeat solely because the client OS changes |
 
@@ -110,6 +113,8 @@ repetitions. Do not claim macOS evidence from Linux or Windows evidence from WSL
 1. Verify candidate 691a8fb on the remaining targets and freeze its mapped artifacts after the affected usability checks pass.
 2. Run the exact required local and native CI commands/features from
    M12_details.md section 10 and the checked-in Quality/Security workflows.
+   Hosted e4431f7 coverage is complete in the runs above; reuse it for unchanged
+   product code and documentation-only descendants instead of dispatching again.
    Ordinary cargo test leaves opt-in gates ignored. Retain both independent
    inherited native repetitions, pinned-compiler coverage, full dependency audit,
    privacy/history scans, and negative controls. Older CI links are historical.

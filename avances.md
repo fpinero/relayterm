@@ -1697,3 +1697,36 @@ Verification: inspected Linux reports and the production delta from 15794ad to
 triggers and live run status; repository checks passed for 68 Markdown files and
 eight ADRs; candidate secret scan and its negative control passed; git diff
 --check passed. Hosted Quality completion remains a separate pending task.
+
+## 2026-09-21: Complete authorized Windows delivery and hosted verification
+
+Completed M12.WINDOWS-DELIVERY and M12.WINDOWS-HOSTED-RECHECK. Quality run
+35637866692 succeeded on e4431f7b357fe1388963fa94675a567875492fc3: all seven
+jobs passed, covering three native release targets, stable Linux/macOS/Windows
+and pinned Linux. Security 35637869615 succeeded on the same SHA. The Windows
+stable job passed all 26 independent repetition steps and its final workspace,
+core, build and documentation checks. Original Quality 35629938330 failures
+remain preserved. Raw final metadata and Windows job logs are retained outside Git.
+
+The Windows hosted release job independently produced two identical binaries
+and archives, passed extracted gates and measured 124 ms input p95. Its binary
+hash 07680592eda496da1407c339e481f410b499d7c5d50cbcc71a8eb947bd3bd056 is
+separate from the operator-tested installation. Hosted native input p95 values
+212/229 ms (TUI) and 211/210 ms (hardening) met the reference on that runner;
+local debug 290/294 ms failures remain open and are not waived by CI success.
+
+Updated the pending-only queue, final report, release-build table, acceptance
+and continuation matrices. The Linux handoff explicitly reuses completed
+9cf91f7 and 15794ad observations and limits new manual work to changed local
+Info/Error presentation and any uncovered SSH delta. Hosted results map to
+unchanged product source 691a8fb and subsequent documentation-only commits;
+no additional full CI or physical round is required solely for this handoff.
+Independent clean-runtime and global acceptance gates remain open. No M13,
+PR, merge, tag or release was performed.
+
+Verification: queried final workflow/job metadata, checked the exact SHA and
+success of all seven jobs and 26 Windows repetition steps; inspected retained
+Windows release/native logs; repository documentation and secret checks,
+append-only logbook comparison and git diff --check passed. The preceding
+published history scan covered 271 commits without secrets. Final branch
+publication uses an ordinary fast-forward push with remote SHA verification.

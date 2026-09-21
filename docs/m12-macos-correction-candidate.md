@@ -47,6 +47,12 @@ writer-size checks already passed on 0bc4b63/9cf91f7 and are unchanged here.
 
 ## Final gates, separate from visual repetition
 
+Current hosted evidence: Quality 35637866692 completed all seven jobs and
+Security 35637869615 passed on e4431f7, whose product code remains 691a8fb.
+The table defines required proof, not a request to rerun completed hosted checks
+for documentation-only descendants. See the Windows final report and Linux
+delta continuation for the remaining platform-specific scope.
+
 | Gate | Concrete outstanding proof |
 | --- | --- |
 | Final native Quality | Final source on Linux, macOS and Windows, stable compiler jobs with each inherited gate repetition separate, plus pinned Linux compiler. Hosted execution requires remote delivery authorization. |
