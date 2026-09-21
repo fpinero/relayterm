@@ -419,7 +419,7 @@ fn draw_sessions(frame: &mut Frame<'_>, app: &App, area: Rect) {
 
 fn draw_terminal(frame: &mut Frame<'_>, terminal: &crate::model::TerminalView, area: Rect) {
     let input = terminal.input_focus;
-    let writer = terminal.lease_id.is_some();
+    let writer = terminal.lease_id.is_some() && !terminal.uncertain_input;
     let uncertain_input = terminal.uncertain_input;
     let input_owned_elsewhere = terminal.input_owned_elsewhere;
     let scrollback_rows = terminal.scrollback_rows;
@@ -451,7 +451,14 @@ fn draw_terminal(frame: &mut Frame<'_>, terminal: &crate::model::TerminalView, a
     let inner = block.inner(area);
     frame.render_widget(block, area);
     let Some(snapshot) = terminal.snapshot.as_ref() else {
-        frame.render_widget(Paragraph::new("Attaching..."), inner);
+        frame.render_widget(
+            Paragraph::new(if uncertain_input {
+                "Terminal unavailable. Press R to reconnect or Esc to detach."
+            } else {
+                "Attaching..."
+            }),
+            inner,
+        );
         return;
     };
     let source_columns = snapshot.get("columns").and_then(Value::as_u64).unwrap_or(0) as usize;
@@ -815,6 +822,31 @@ mod tests {
                 "Relayterm"
             }));
         }
+    }
+
+    #[test]
+    fn disconnected_terminal_does_not_claim_writer_or_pending_attachment() {
+        let mut app = App {
+            screen: Screen::Sessions,
+            width: 100,
+            height: 30,
+            terminal: Some(crate::model::TerminalView {
+                lease_id: Some("old-lease".into()),
+                input_focus: true,
+                ..crate::model::TerminalView::default()
+            }),
+            ..App::default()
+        };
+        app.record_client_error(relayterm_client::ClientError::Transport(
+            relayterm_client::Delivery::NotSent,
+        ));
+        let mut terminal = Terminal::new(TestBackend::new(100, 30)).unwrap();
+        terminal.draw(|frame| draw(frame, &app)).unwrap();
+        let rendered = format!("{:?}", terminal.backend().buffer());
+        assert!(rendered.contains("DISCONNECTED"));
+        assert!(rendered.contains("Terminal unavailable"));
+        assert!(!rendered.contains("WRITER"));
+        assert!(!rendered.contains("Attaching..."));
     }
 
     #[test]

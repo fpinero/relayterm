@@ -150,3 +150,23 @@ The focused M12 procedure for session presentation, form cursor, stale edits, co
 ## Limitations
 
 Relayterm does not persist terminal history or recordings. A daemon restart cannot adopt existing PTYs and honestly marks unreconstructable sessions lost. The Tasks screen provides explicit worktree creation, selection and clearing. A selected worktree is shown before launch and its validated directory is captured in the instance snapshot. The TUI does not provide mouse input, OSC clipboard, hyperlinks, automatic task updates from child output, or destructive Git cleanup.
+
+## Resize and interrupted SSH limits
+
+The terminal model uses a fixed cell grid. Resizing changes the grid and the
+writer's PTY size; it does not reflow previously displayed text. Shrinking can
+truncate old rows, and enlarging cannot reconstruct discarded cells. Newly
+entered commands use the current writer size. Full-screen programs can redraw
+in response to resize. Do not interpret historical row clipping as evidence
+that the new writer's PTY has the wrong dimensions.
+
+Ctrl-] releases terminal input, then Esc detaches without terminating the child.
+The physical chord depends on the keyboard layout; Ctrl+AltGr+] was verified
+on the Linux observation host. Ctrl-Space is not a detach shortcut.
+
+Normal SSH exit lets the remote TUI send terminal restoration sequences. If
+the local SSH client is forcibly terminated or the transport is already gone,
+the remote process cannot guarantee delivery of those sequences. From the
+local shell, run `reset` if alternate-screen content or terminal modes remain.
+Reconnect and explicitly acquire input to resume the daemon-owned session.
+This workaround does not count as automatic interrupted-SSH visual recovery.

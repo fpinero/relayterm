@@ -95,3 +95,45 @@ a work branch. Retest affected paths on a newly identified candidate, preserving
 this baseline report and its failures. Reconcile the remaining macOS and global
 matrix before freezing M12. Publishing evidence or creating a pull request
 requires a separate operator request.
+
+## Subsequent diagnosis on the correction branch
+
+The original results above remain unchanged. A synthetic loopback SSH control
+experiment, without Relayterm, entered alternate screen and installed remote
+exit cleanup. Normal completion delivered both enter and leave sequences;
+SIGTERM of the locally owned SSH client delivered entry but no restoration
+sequence. Both assertions passed. This isolates the interrupted-client visual
+residue from Relayterm rendering and establishes a local recovery limitation,
+not a passing automatic restoration result. The TUI guide now describes it.
+
+Source inspection identified fixed-grid resizing in the terminal dependency:
+existing rows are resized, not reflowed. Historical clipping is therefore a
+terminal-model limitation; newly entered command wrapping remains a separate
+requirement. Correction-branch tests exercise both behaviors.
+
+## Correction-branch verification
+
+The correction branch prevents modified digits from selecting global screens,
+consumes the release chord in navigation, moves disconnected terminals out of
+input focus while preserving uncertain lease identity, suppresses consecutive
+identical transport diagnostics, and refreshes rename guidance from the reviewed
+snapshot without changing the draft or its explicit submission contract.
+The quick start now matches the physically verified release/detach sequence.
+
+`cargo test --workspace --release --locked --offline -- --test-threads=1`
+passed: 198 reported test executions, zero failures, and 16 ignored helpers or
+opt-in tests. The new native PTY regression stops its own daemon while writing,
+verifies navigation and non-writer presentation, exercises Ctrl-5 without an
+Events transition, checks diagnostic deduplication, and verifies alternate-screen
+restoration on exit. The existing two-client test also verifies the refreshed
+rename context after adopting the reviewed revision. The fixed-grid test checks
+historical clipping separately from fresh output wrapping. Formatting passed.
+
+These checks are automated Linux evidence for the correction branch, not a
+physical retest of the operator's keyboard or proof for macOS or Windows.
+The original candidate observations and failed SSH interruption result remain
+preserved. Retest the affected physical paths and reconcile platform acceptance
+before freezing a replacement candidate.
+
+Workspace Clippy with all targets in release mode and `-D warnings` passed.
+No production schema, daemon protocol, or dependency change was introduced.

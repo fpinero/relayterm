@@ -470,6 +470,14 @@ impl App {
 
     pub fn add_diagnostic(&mut self, category: &'static str, message: impl Into<String>) {
         let message = crate::safe_text::single_line(&message.into(), 512);
+        if category == "transport"
+            && self
+                .diagnostics
+                .back()
+                .is_some_and(|last| last.category == category && last.message == message)
+        {
+            return;
+        }
         self.diagnostic_bytes = self.diagnostic_bytes.saturating_add(message.len());
         self.diagnostics.push_back(Diagnostic {
             sequence: None,
@@ -500,6 +508,11 @@ impl App {
             }
             ClientError::Transport(_) | ClientError::Cancelled(_) => {
                 self.freshness = Freshness::Disconnected;
+                if let Some(terminal) = self.terminal.as_mut() {
+                    terminal.input_focus = false;
+                    terminal.uncertain_input = true;
+                    terminal.input_owned_elsewhere = false;
+                }
                 self.add_diagnostic("transport", "Connection lost. Press R to reconnect.");
             }
             ClientError::VersionMismatch => {
@@ -619,6 +632,27 @@ mod tests {
             session_rename: true,
             session_next: None,
         }
+    }
+
+    #[test]
+    fn disconnect_preserves_uncertain_lease_without_claiming_input_focus() {
+        let mut app = App {
+            terminal: Some(TerminalView {
+                lease_id: Some("lease".into()),
+                input_focus: true,
+                ..TerminalView::default()
+            }),
+            ..App::default()
+        };
+        for _ in 0..20 {
+            app.record_client_error(ClientError::Transport(Delivery::NotSent));
+        }
+        let terminal = app.terminal.as_ref().unwrap();
+        assert!(!terminal.input_focus);
+        assert!(terminal.uncertain_input);
+        assert_eq!(terminal.lease_id.as_deref(), Some("lease"));
+        assert_eq!(app.freshness, Freshness::Disconnected);
+        assert_eq!(app.diagnostics.len(), 1);
     }
 
     #[test]

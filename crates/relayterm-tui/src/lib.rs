@@ -362,6 +362,10 @@ async fn handle_key(client: &Client, app: &mut App, key: KeyEvent) {
         }
         return;
     }
+    // A release chord must never fall through to a global navigation shortcut.
+    if release_input_chord(key) {
+        return;
+    }
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
         app.should_quit = true;
         return;
@@ -406,8 +410,10 @@ async fn handle_key(client: &Client, app: &mut App, key: KeyEvent) {
                 app.record_client_error(error);
             }
         }
-        KeyCode::Char(value @ '1'..='6') => {
-            app.screen = Screen::ALL[(value as usize) - ('1' as usize)]
+        KeyCode::Char('1'..='6') => {
+            if let Some(screen) = navigation_screen(key) {
+                app.screen = screen;
+            }
         }
         KeyCode::Tab => next_screen(app),
         KeyCode::BackTab => previous_screen(app),
@@ -485,6 +491,19 @@ async fn handle_key(client: &Client, app: &mut App, key: KeyEvent) {
         KeyCode::Char('u') if app.screen == Screen::Tasks => clear_worktree(client, app).await,
         KeyCode::Char('a') if app.screen == Screen::Tasks => launch(client, app, None).await,
         _ => {}
+    }
+}
+
+fn navigation_screen(key: KeyEvent) -> Option<Screen> {
+    if key
+        .modifiers
+        .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
+    {
+        return None;
+    }
+    match key.code {
+        KeyCode::Char(value @ '1'..='6') => Some(Screen::ALL[(value as usize) - ('1' as usize)]),
+        _ => None,
     }
 }
 
@@ -607,6 +626,7 @@ async fn review_or_reconcile_form(client: &Client, app: &mut App) {
     if let Err(error) = refresh(client, app).await {
         app.record_client_error(error);
     } else if form.uncertain || form.stale {
+        refresh_rename_guidance(app, &mut form);
         form.reviewing = true;
         form.reviewed_revision = Some(app.last_revision.clone());
         form.error = Some(
@@ -1798,25 +1818,43 @@ fn open_session_rename(app: &mut App) {
         .get("display_name")
         .and_then(Value::as_str)
         .unwrap_or_default();
-    let effective_label = if display_name.is_empty() {
-        row.get("creation_ordinal")
-            .and_then(Value::as_str)
-            .map_or_else(
-                || "Legacy session".into(),
-                |value| format!("Session {value}"),
-            )
-    } else {
-        display_name.to_owned()
-    };
     let mut form = Form::session_rename(display_name);
-    form.guidance = Some(format!(
-        "Current label: {}. Session: {}. Clear the field with Ctrl-U to restore the default label.",
-        safe_text::single_line(&effective_label, 128),
-        app.abbreviated_session_id(app.selected_session)
-    ));
     form.target_id = Some(session_id);
     form.base_revision = app.last_revision.clone();
+    refresh_rename_guidance(app, &mut form);
     app.form = Some(form);
+}
+
+fn refresh_rename_guidance(app: &App, form: &mut Form) {
+    if form.kind != FormKind::SessionRename {
+        return;
+    }
+    let Some((index, row)) = app.session_rows().iter().enumerate().find(|(_, row)| {
+        model::session_instance(row)
+            .get("session_id")
+            .and_then(Value::as_str)
+            == form.target_id.as_deref()
+    }) else {
+        return;
+    };
+    let label = row
+        .get("display_name")
+        .and_then(Value::as_str)
+        .filter(|name| !name.is_empty())
+        .map(str::to_owned)
+        .unwrap_or_else(|| {
+            row.get("creation_ordinal")
+                .and_then(Value::as_str)
+                .map_or_else(
+                    || "Legacy session".into(),
+                    |ordinal| format!("Session {ordinal}"),
+                )
+        });
+    form.guidance = Some(format!(
+        "Current label: {}. Session: {}. Clear the field with Ctrl-U to restore the default label.",
+        safe_text::single_line(&label, 128),
+        app.abbreviated_session_id(index)
+    ));
 }
 
 async fn detach(client: &Client, app: &mut App) {
@@ -2009,6 +2047,24 @@ mod tests {
         assert_eq!(
             params["arguments"],
             json!(["with space", "", "same", "same"])
+        );
+    }
+
+    #[test]
+    fn modified_digits_do_not_select_global_screens() {
+        for modifiers in [
+            KeyModifiers::CONTROL,
+            KeyModifiers::ALT,
+            KeyModifiers::CONTROL | KeyModifiers::ALT,
+        ] {
+            assert_eq!(
+                navigation_screen(KeyEvent::new(KeyCode::Char('5'), modifiers)),
+                None
+            );
+        }
+        assert_eq!(
+            navigation_screen(KeyEvent::new(KeyCode::Char('5'), KeyModifiers::NONE)),
+            Some(Screen::Events)
         );
     }
 

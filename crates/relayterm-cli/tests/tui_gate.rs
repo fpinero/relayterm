@@ -307,6 +307,7 @@ fn input_ownership_moves_between_open_tui_clients() {
     owner.wait_for("Winning name");
     owner.send(b"\x12");
     owner.wait_for("Losing draft");
+    owner.wait_for("Current label: Winning name");
     owner.send(b"\x1b");
     owner.wait_for("Discard draft?");
     owner.send(b"y");
@@ -359,6 +360,66 @@ fn input_ownership_moves_between_open_tui_clients() {
     owner.wait_exit();
     observer.send(b"q");
     observer.wait_exit();
+}
+
+#[test]
+fn disconnected_writer_returns_to_navigation_without_diagnostic_flood() {
+    let _native_serial = native_serial::NativeSerialGuard::acquire();
+    let _serial = NATIVE_GATE_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let scratch = Scratch::new();
+    let root = scratch.0.join("project");
+    let private = scratch.0.join("private");
+    fs::create_dir(&root).unwrap();
+    let _cleanup = DaemonCleanup {
+        root: root.clone(),
+        private: private.clone(),
+    };
+    let mut terminal = OuterTerminal::spawn(&root, &private);
+    terminal.wait_for("Initialize it?");
+    terminal.send(b"y\r");
+    terminal.finish_startup();
+    register_fixture(&root, &private);
+    terminal.send(b"R4a3");
+    wait_for_session_count(&root, &private, 1);
+    terminal.send(b"\r");
+    terminal.wait_for("READ ONLY");
+    terminal.send(b"i");
+    terminal.wait_for("WRITER");
+    assert_eq!(
+        admin(&root, &private, &["daemon", "stop", "--terminate-sessions"])["ok"],
+        true
+    );
+    terminal.wait_for("DISCONNECTED");
+    terminal.wait_for("NAVIGATION");
+    assert!(!terminal.screen_contents().contains("WRITER"));
+    terminal.send(b"\x1b[53;5u");
+    terminal.send(b"\x1b");
+    terminal.wait_for("Sessions selected");
+    terminal.send(b"5");
+    terminal.wait_for("Redacted diagnostics");
+    std::thread::sleep(Duration::from_millis(1500));
+    assert_eq!(
+        terminal
+            .screen_contents()
+            .matches("Connection lost.")
+            .count(),
+        1
+    );
+    terminal.send(b"q");
+    terminal.wait_exit();
+    wait_until(
+        || {
+            terminal
+                .output
+                .lock()
+                .unwrap()
+                .windows(8)
+                .any(|part| part == b"\x1b[?1049l")
+        },
+        "alternate screen restored after disconnected exit",
+    );
 }
 
 #[test]

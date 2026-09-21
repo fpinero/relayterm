@@ -1121,3 +1121,27 @@ evidence status and replaced the observation queue item with unresolved findings
 acceptance and corrective retests remain pending. No production correction or
 push was performed. Verified documentation with scripts/check_repository.py
 (63 Markdown files and eight ADRs) and git diff --check, both passing.
+
+## 2026-09-21: Correct Linux-observed client feedback and navigation
+
+Saved the original native evidence in commit 9fc0661 and created the correction
+branch. Prevented modified numeric shortcuts from selecting global screens and
+consumed the input-release chord in navigation. Disconnection now removes input
+focus and confirmed writer presentation while retaining uncertain lease identity
+for explicit reconciliation. Consecutive identical transport diagnostics are
+suppressed. Rename guidance refreshes from the reviewed snapshot without
+replacing the user's draft. Corrected the quick-start detach instructions.
+
+A separate synthetic loopback SSH experiment reproduced missing restoration
+sequences after local SSH client SIGTERM without running Relayterm; normal exit
+delivered restoration. Documented local reset recovery and the fixed-grid resize
+limit without relabelling the original failure as passing.
+
+Verification: cargo test --workspace --release --locked --offline --
+--test-threads=1 passed with 198 reported test executions, zero failures and
+16 ignored helpers or opt-in tests. This includes native PTY disconnection,
+modified-key navigation, diagnostic bounds, exit restoration, two-client
+rename guidance and writer transfer, and fixed-grid/fresh-output resizing.
+Cargo fmt --all --check and cargo clippy --workspace --all-targets --release
+--locked --offline -- -D warnings passed. Physical correction-candidate and
+cross-platform acceptance retests remain pending. No push or release occurred.

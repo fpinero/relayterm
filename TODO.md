@@ -35,10 +35,9 @@ Outcome: a reproducible candidate with usable session identification and editing
 
 Execution contract: [M12 detailed plan](docs/M12_details.md). Continue at M12.00h. The five usability proposals are scheduled here and do not reopen M11 acceptance.
 
-- M12.LINUX-DETACH-DOC: Reconcile the documented Ctrl-Space detach shortcut with the implemented Ctrl-] release followed by Esc detach; verify the chosen behavior physically on Linux.
-- M12.LINUX-FINDINGS: Diagnose and retest the open findings in docs/m12-linux-final-report.md: SSH interruption screen recovery, stale disconnected ownership/attachment indicators, unexpected Events navigation and repeated diagnostics, stale rename context, and older-content display after wide-to-narrow transfer. Preserve original failures and exact candidate identity; do not claim global acceptance.
+- M12.LINUX-RETEST: Physically retest the correction branch on Linux and the affected paths on macOS/Windows: disconnected indicators, release chord navigation, bounded diagnostics, and rename context after review. Reconcile acceptance of the demonstrated SSH transport-loss recovery and fixed-grid history limits recorded in docs/m12-linux-final-report.md; preserve the original failed observations.
 
-- M12.NATIVE: Complete Linux native acceptance on candidate 9cf91f7, affected macOS header/writer-size retests, and the focused SSH observation through an authorized connection. Reconcile clean-machine and global acceptance evidence. Preserve the Windows source mapping in docs/m12-windows-manual-observations.md; use the existing Linux task prompt in docs/m12-native-continuation.md.
+- M12.NATIVE: Complete Linux correction-candidate acceptance while retaining the 9cf91f7 baseline, affected macOS header/writer-size retests, and the focused SSH observation through an authorized connection. Reconcile clean-machine and global acceptance evidence. Preserve the Windows source mapping in docs/m12-windows-manual-observations.md; use the existing Linux task prompt in docs/m12-native-continuation.md.
 
 
 - M12.00: Complete UX-SESSION-NAMES, UX-SESSION-ORDER, UX-FORM-CURSOR, UX-CONFLICT-MESSAGE, and UX-INPUT-ACQUIRE-MESSAGE before freezing release artifacts. Preserve durable identity, bounded state, typed error semantics, and read-only input ownership.

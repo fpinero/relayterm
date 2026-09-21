@@ -56,7 +56,7 @@ On the Agents screen, press `n` three times to create three neutral definitions 
 
 On Sessions, confirm oldest-first creation order. Press `n` to name each session. Duplicate names are allowed, clearing restores `Session N`, and the adjacent abbreviated ID distinguishes rows. Confirm the full session and instance IDs in details. PageUp and PageDown move through bounded pages without replacing identity.
 
-Press Enter to attach, `i` to acquire input, and Ctrl-Space to detach. Resize the terminal and reattach. With two TUI clients, let the first retain input and press `i` in the second. The second must remain read-only and show: `Another client controls input. This view remains read-only. Try i after that client releases input.` Release or detach in the first client, then acquire explicitly in the second.
+Press Enter to attach, `i` to acquire input, Ctrl-] to release input, and then Esc to detach. Resize the terminal and reattach. With two TUI clients, let the first retain input and press `i` in the second. The second must remain read-only and show: `Another client controls input. This view remains read-only. Try i after that client releases input.` Release or detach in the first client, then acquire explicitly in the second.
 
 ## Coordinate a task and handover
 

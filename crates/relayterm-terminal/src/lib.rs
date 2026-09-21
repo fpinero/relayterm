@@ -278,6 +278,27 @@ mod tests {
     use super::*;
 
     #[test]
+    fn shrinking_uses_fixed_grid_and_fresh_output_uses_new_width() {
+        let mut terminal = TerminalState::new(3, 8, 128).unwrap();
+        terminal.process(b"ABCDEFGH").unwrap();
+        terminal.resize(3, 4).unwrap();
+        let narrow = terminal.snapshot().unwrap();
+        let first: String = narrow.cells[..4]
+            .iter()
+            .map(|cell| cell.contents.as_str())
+            .collect();
+        assert_eq!(first, "ABCD");
+        terminal.process(b"\x1b[2J\x1b[H123456").unwrap();
+        let fresh = terminal.snapshot().unwrap();
+        let text: String = fresh.cells[..6]
+            .iter()
+            .map(|cell| cell.contents.as_str())
+            .collect();
+        assert_eq!(text, "123456");
+        assert_eq!(fresh.columns, 4);
+    }
+
+    #[test]
     fn reconstructs_full_screen_and_continues_after_truncation() {
         let mut terminal = TerminalState::new(3, 8, 8).unwrap();
         for part in [
