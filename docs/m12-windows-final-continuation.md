@@ -225,3 +225,20 @@ Both were queued when this delivery record was written, not verified passing.
 Inspect their live conclusions before using them as acceptance evidence. This
 record and its logbook update are documentation-only descendants of that SHA.
 The tested product source remains 691a8fb. No PR, merge, tag or release was made.
+
+## Windows continuation result
+
+The 2026-09-21 Windows continuation completed reproducible native preparation,
+dedicated installation and the focused physical correction round on the retained
+691a8fb executable. See [the Windows evidence](m12-windows-manual-observations.md)
+for hashes, exact-installed automated gates, operator observations and independent
+readbacks. Both native clients exited successfully and restored usable shells;
+the candidate daemon remains stopped and private artifacts are retained.
+
+Local commit e23be95 corrects Windows test-harness footer indexing and native exit
+assertions without changing product code or replacing the tested binary. Security
+35629941870 passed; Quality 35629938330 failed both Windows jobs on the original
+harness. Hosted rechecks require authorized remote delivery. The local debug
+input-latency misses remain distinct from the passing installed release gate.
+Linux presentation, affected SSH, independent clean environments and final
+acceptance remain open. M12 is not globally complete; M13 has not started.

@@ -147,5 +147,7 @@ Production code and artifact identity remain unchanged by that test correction.
 AC-12 remains open: Quality 35629938330 failed its two Windows TUI jobs, and
 later Windows steps were skipped. The five other Quality jobs and Security
 35629941870 passed at documentation descendant 167563e. Native physical Windows
-correction observations, final Linux presentation, affected SSH, independent
-clean runtime and global acceptance reconciliation remain separate pending gates.
+correction observations passed on the retained installed 691a8fb executable,
+including both restored shells. Local debug latency, hosted Windows rechecks,
+final Linux presentation, affected SSH, independent clean runtime and global
+acceptance reconciliation remain separate pending gates.

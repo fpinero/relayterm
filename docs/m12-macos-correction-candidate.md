@@ -28,12 +28,14 @@ Completed and pending physical observations are recorded in the macOS report.
 2. macOS writer-size checks are complete: first acquisition, both transfers,
    independent live dimensions, observer resize isolation and fresh input wrapping.
 3. macOS connected/disconnected release, non-writer indicators, diagnostic
-   stability and native exit are complete. Windows still requires these checks.
+   stability and native exit are complete. Windows has also completed these
+   focused checks on installed 691a8fb; see the Windows manual observations.
    The operator authorized necessary validation process lifecycle operations
    on this Mac; no repeat authorization is needed within that scope.
 4. macOS form checks are complete: stale rename rejection, two-step review,
    updated context, retained draft/cursor, Info guidance, validation Error and safe
-   discard. Windows still requires these focused observations.
+   discard. Windows has also completed these focused observations on installed
+   691a8fb, with independent persisted-state readback.
 5. Linux: only changed informational form presentation and cursor/error contrast.
    Do not repeat the completed 15794ad correction round.
 6. One authorized SSH connection: changed review and disconnected feedback,

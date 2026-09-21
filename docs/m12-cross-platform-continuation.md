@@ -32,8 +32,10 @@ For the next Windows task, use the [detailed Windows final continuation](m12-win
 Windows preparation on 2026-09-21 now has two identical native 691a8fb builds
 and packages, verified dedicated installation, and twelve passing exact-installed
 checks using a local test-only correction. See the appended
-[Windows evidence](m12-windows-manual-observations.md). Physical correction
-observations remain pending. Security 35629941870 succeeded; Quality 35629938330
+[Windows evidence](m12-windows-manual-observations.md). The focused physical
+correction round passed, including restoration of both native shells. Local
+debug latency, hosted Windows rechecks and clean-runtime acceptance remain open.
+Security 35629941870 succeeded; Quality 35629938330
 failed only its two Windows jobs on footer/exit assertions in the original TUI
 harness. Other native and release jobs succeeded. Preserve those failures until
 an authorized hosted run verifies the corrected harness and skipped Windows gates.
@@ -65,7 +67,7 @@ No additional physical Linux action is needed for the completed retest round.
 | Target | Required next physical observations | Evidence that need not be repeated wholesale |
 | --- | --- | --- |
 | macOS, native Terminal.app | Focused native round complete on 691a8fb; no remaining native visual correction check | Six-screen minimum/recovery, both writer-size transfers, observer isolation, corrected connected/disconnected feedback, diagnostic stability, clean exit and reviewed rename/Info/error/discard passed; see the macOS report. Earlier unchanged journey evidence retains its source mapping. |
-| Windows, native Windows Terminal/ConPTY | Correction checks below; actual release keys; native exit restoration; installed discovery in PowerShell and cmd.exe on the final artifact | Header and writer-size observations already passed on their mapped 0bc4b63/9cf91f7 sources; repeat only if later code affects them |
+| Windows, native Windows Terminal/ConPTY | Focused native correction round complete on installed 691a8fb; installed discovery verified in PowerShell and cmd.exe. Hosted rechecks, debug latency and clean-runtime acceptance remain separate gates. | Connected/repeated release, stale rename review, draft/cursor/context, Info/Error, no automatic write, discard, disconnected writer, stable diagnostics and both shell exits passed. Header and writer-size observations retain their mapped 0bc4b63/9cf91f7 sources. |
 | Linux, GNOME Terminal | Informational form feedback and validation-error/cursor contrast on 691a8fb only | Completed 15794ad correction retests and unchanged 9cf91f7 journey |
 | One authorized SSH transport | Repeat changed conflict/review and disconnected navigation/feedback on the final candidate; verify normal exit and reconnection identities | Unchanged writer-size and continuity evidence remains mapped to 9cf91f7; do not repeat solely because the client OS changes |
 

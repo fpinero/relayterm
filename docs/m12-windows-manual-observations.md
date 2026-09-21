@@ -560,3 +560,169 @@ only that identified helper was stopped, leaving the new daemon and state intact
 Preparation completed using bounded file-backed CLI output, as used by the
 checked-in smoke helper. Earlier daemons were untouched. Two checksum-verifying
 client launchers are ready. No physical checkpoint has passed yet.
+
+### Initial physical writer checkpoint
+
+The operator confirmed client A after selecting Sessions, attaching and pressing
+i. The supplied Windows Terminal screenshot shows CURRENT and Terminal
+[INPUT] [WRITER] on the prepared neutral shell, with input-release guidance in
+the footer. This establishes physical writer acquisition on installed source
+691a8fb, executable SHA-256
+2bef4ebbfcb1a894fd8929da227b86339af8b8f9d239b7e2f112411d194a5708.
+The screenshot remains outside Git. Connected release, repeated release and
+the later writer-before-disconnect checkpoint remain pending; this observation
+does not establish the writer state at a future daemon stop.
+
+### Connected release and repeated shortcut passed
+
+The operator confirmed the instructed Ctrl-] release and two repetitions while
+already read-only. The supplied client A screenshot shows CURRENT and Terminal
+[NAVIGATION] [READ ONLY], retaining the attached Sessions view rather than
+Events. Together with the preceding INPUT/WRITER image, this establishes the
+physical connected release transition and repeated-shortcut behavior on the
+same installed 691a8fb candidate. The confirmed chord is Ctrl-]; no additional
+keyboard-layout mapping is inferred. Client B was left untouched. Rename and
+disconnected-client observations remain pending.
+
+### Unsaved rename baseline observed
+
+The operator left Draft A open in client A's rename form. The supplied image
+shows Current label: Session 1, the expected session identity, Draft A and its
+cursor at the end. Independent exact-installed ordered-session readback returned
+one session with no custom display name at revision 4. The draft is not persisted.
+The private baseline is retained for comparison after B's save and subsequent
+review/adoption. No stale rejection or reconciliation has been observed yet.
+
+### Competing rename saved by client B
+
+The operator image shows client B's session list with Saved B, CURRENT and the
+same session identity. Independent exact-installed ordered readback confirmed
+Saved B at revision 5, compared with the original unnamed revision-4 baseline.
+The winning snapshot is retained privately for stale rejection, adoption and
+discard comparisons. Client A's old draft has not yet been submitted in the
+observed procedure; conflict rejection remains pending.
+
+### Stale rename rejection passed
+
+After the instructed single Ctrl-S in A, the operator image shows Error: The
+workspace changed while you were editing, with Draft A retained and the cursor
+still at its end. The form remains open with the original Session 1 context
+before reconciliation. Independent exact-installed ordered readback matches
+the complete winning snapshot: Saved B at revision 5 on the same session.
+The stale submission did not overwrite the winner. Two-step review, context
+refresh, informational adoption feedback and safe discard remain pending.
+
+### First reconciliation step observed
+
+After one Ctrl-R in A, the operator image shows Saved B on the same selected
+session, CURRENT, and the footer Reviewing latest state: Ctrl-R adopt revision,
+Esc discard draft. This establishes the separate authoritative review checkpoint
+before adoption on installed 691a8fb. Draft/cursor retention after adoption and
+the absence of an automatic write will be checked at the second step; they are
+not inferred from the review view, where the form is temporarily hidden.
+
+### Revision adoption and informational guidance passed
+
+After the second Ctrl-R, the operator image shows the reopened rename form with
+Current label: Saved B, unchanged Draft A and its cursor at the end. The wrapped
+guidance starts with Info and states that Ctrl-S performs a new explicit
+submission; no Error prefix appears. This establishes the two-step review and
+adoption presentation on the retained installed 691a8fb candidate.
+Independent exact-installed ordered readback matches the complete winning
+snapshot, still Saved B at revision 5. Adoption performed no automatic write.
+Safe discard and the separate empty-task validation Error remain pending.
+
+### Safe discard passed
+
+The operator confirmed Esc followed by y in the discard confirmation. The
+supplied client A image shows the closed form, Saved B on the same session and
+CURRENT. Independent exact-installed ordered readback still matches the entire
+Saved B revision-5 winner snapshot. This completes the physical stale-rename,
+two-step review/adoption and safe-discard sequence without overwriting the winner.
+An independent task-list baseline contains zero tasks at revision 5 for the
+next empty-task validation check. Validation contrast and disconnected-client
+observations remain pending.
+
+### Real validation Error and cursor passed
+
+The operator image from the enlarged client B shows Error: Title is required.,
+the still-open empty task form and its visible cursor in the title field.
+Independent exact-installed task readback matches the prior empty revision-5
+snapshot; no task was created. Session readback still reports Saved B running
+at revision 5. Together with the earlier Info adoption image, this completes
+the focused physical form-feedback contrast on installed 691a8fb.
+The remaining native physical scope is disconnect from a freshly observed
+writer, repeated release, diagnostic stability and restoration of both shells.
+The initial writer observation is not reused as proof of the current input state.
+
+### Authorized stop after fresh physical writer confirmation
+
+The operator supplied a fresh client A screenshot showing CURRENT and Terminal
+[INPUT] [WRITER]. Before stopping, independent exact-installed readback confirmed
+the sole expected session still running. Process inspection identified exactly
+one daemon using the candidate executable and this round's dedicated workspace
+and private home. Under the operator's existing lifecycle authorization, the
+assistant invoked daemon stop --terminate-sessions through that exact binary.
+The command exited zero and returned lifecycle stopped. Process inspection
+confirmed that candidate daemon absent without restarting it. Earlier daemons,
+private state, packages and backups were preserved. Physical post-stop labels,
+repeated release, diagnostic stability and both shell exits remain pending.
+
+### Disconnected writer presentation passed
+
+The operator's post-stop client A image shows DISCONNECTED and Terminal
+[NAVIGATION] [READ ONLY] [RECONCILE WITH R], retaining Sessions. Neither WRITER
+nor Attaching appears. Compared with the fresh pre-stop INPUT/WRITER image,
+this passes the physical writer-to-read-only transition on installed 691a8fb.
+Retained terminal output is not evidence of a surviving child. Repeated release
+while disconnected, diagnostics over time and restoration of both shells remain
+pending. The stopped daemon has not been restarted.
+
+### Repeated disconnected release passed
+
+The operator explicitly confirmed that repeated Ctrl-] did not change the view.
+The accompanying client A image retains Sessions, DISCONNECTED, NAVIGATION,
+READ ONLY and RECONCILE WITH R. The repeated shortcut does not open Events.
+This completes the physical disconnected-release checkpoint on installed
+691a8fb. Diagnostic count and stability over time, followed by restoration of
+both native shells, remain pending.
+
+### Disconnected Events baseline
+
+After deliberately selecting Events with 5, the operator image shows
+DISCONNECTED and four diagnostic entries: one transport Connection lost notice,
+workspace events 6 and 5, and one rejected-operation notice. There is one
+transport-loss entry in this baseline, not four disconnects. This point-in-time
+image does not establish temporal stability. Observation for at least 20 seconds
+without reconnection or further input, and both native shell exits, remain pending.
+
+### Diagnostic stability passed
+
+The operator explicitly reported more than 20 seconds elapsed with no new
+Events entries. The second client A image retains the same four diagnostics,
+including exactly one transport Connection lost notice, and DISCONNECTED.
+This verifies no continuous transport-diagnostic flood across the observed
+polling interval on installed 691a8fb. The daemon remains stopped. Only exit
+and restoration of both native shells remain in this focused physical round.
+
+### Native exit and focused Windows physical round completed
+
+The final operator image shows both clients reporting successful exit, restored
+PowerShell prompts, and successful execution of the synthetic echo marker in
+each native terminal. Input and cursor presentation are restored in both shells.
+Post-exit process inspection finds zero processes using the exact installed
+candidate executable; its SHA-256 remains
+`2bef4ebbfcb1a894fd8929da227b86339af8b8f9d239b7e2f112411d194a5708`.
+The stopped daemon was not restarted. Other processes, private state, backups,
+packages, logs and screenshots were preserved outside Git.
+
+M12.WINDOWS-FINAL-PHYSICAL is complete for installed source 691a8fb: release and
+repeated release, conflicting rename with draft/cursor retention, separate
+review and adoption with updated context, Info versus real validation Error,
+no automatic adoption write, safe discard, fresh writer-to-read-only disconnect,
+stable diagnostics over more than 20 seconds, and restoration of both shells.
+Physical observations are supported by operator images and confirmations;
+persisted-state and executable/process checks are independent assistant evidence.
+Earlier header and writer-size observations retain their original source mapping.
+This does not close hosted Windows rechecks, local debug latency, Linux/SSH,
+independent clean-runtime or global M12 acceptance gates.

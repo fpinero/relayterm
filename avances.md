@@ -1518,3 +1518,160 @@ client launchers validate the executable checksum before entering the TUI.
 Only an identified stalled setup helper was stopped; its new daemon/state and
 the two earlier validation daemons were preserved. Physical observations remain
 pending and must be supplied by the operator one checkpoint at a time.
+
+## 2026-09-21: Observe initial Windows writer acquisition
+
+The operator confirmed client A and supplied a screenshot showing CURRENT and
+INPUT/WRITER after attachment and explicit input acquisition on installed
+candidate 691a8fb. Recorded this physical checkpoint separately from automated
+gates. Release/repetition and the remaining physical sequence stay pending.
+The screenshot and its private terminal content remain outside Git.
+Verification: inspected the operator image and ran git diff --check.
+
+## 2026-09-21: Verify connected Windows input release and repetition
+
+The operator confirmed Ctrl-] release followed by two repetitions. The new
+client A image shows CURRENT and NAVIGATION/READ ONLY while retaining Sessions.
+Compared with the preceding writer image, this passes the connected release
+checkpoint on the retained installed 691a8fb executable. The broader physical
+task remains pending for rename, feedback, discard and disconnected exit.
+Verification: inspected both operator checkpoints and ran git diff --check.
+
+## 2026-09-21: Establish the Windows unsaved rename baseline
+
+The operator screenshot shows Draft A open with the cursor at the end and the
+original Session 1 context. Independent session list-ordered through the exact
+installed candidate returned one session, null display_name and revision 4,
+confirming no draft submission. Preserved the baseline outside Git. The rename
+conflict, two-step review and discard checkpoints remain pending.
+Verification: CLI exit zero, parsed ordered readback, operator image inspection
+and git diff --check.
+
+## 2026-09-21: Verify the competing Windows rename winner
+
+The operator image shows Saved B and CURRENT in client B. Exact-installed
+session list-ordered confirmed Saved B at revision 5 on the original session,
+following the unnamed revision-4 baseline. Retained the winner snapshot outside
+Git for subsequent comparison. Stale draft rejection remains pending.
+Verification: operator image inspection, CLI exit zero, parsed identity/name/
+revision comparison and git diff --check.
+
+## 2026-09-21: Verify Windows stale rename rejection
+
+The operator image after Ctrl-S in A shows the workspace-changed Error,
+retained Draft A and its end cursor. Exact-installed ordered-session readback
+matches the complete Saved B revision-5 winner snapshot, confirming no overwrite.
+Two-step review/adoption and safe discard remain pending.
+Verification: inspected the operator image, checked CLI exit zero, compared
+the complete parsed snapshots and ran git diff --check.
+
+## 2026-09-21: Observe the first Windows reconciliation step
+
+The operator image after a single Ctrl-R shows Saved B, CURRENT and the explicit
+review footer offering Ctrl-R to adopt or Esc to discard. Recorded the review
+checkpoint separately from revision adoption. Retained draft/cursor, refreshed
+form context, Info guidance and no automatic write remain pending at step two.
+Verification: inspected the operator image and ran git diff --check.
+
+## 2026-09-21: Verify Windows revision adoption without automatic submission
+
+The second Ctrl-R image shows Current label: Saved B, retained Draft A/end
+cursor and wrapped Info guidance requiring Ctrl-S for a new explicit submission.
+Independent exact-installed ordered readback matches the entire Saved B
+revision-5 baseline. Two-step review, updated context, draft/cursor preservation
+and absence of an automatic write pass. Safe discard and validation contrast
+remain pending. Verification: operator image inspection, CLI exit zero,
+complete parsed snapshot comparison and git diff --check.
+
+## 2026-09-21: Verify safe discard after Windows rename review
+
+The operator confirmed the discard sequence and supplied client A showing the
+form closed and Saved B retained with CURRENT. Exact-installed ordered readback
+matches the complete revision-5 winner baseline. The focused rename/review/
+discard sequence passes. A separate task-list baseline confirms zero tasks at
+revision 5 before validation-error observation. The remaining physical checks
+stay pending. Verification: operator image inspection, both CLI exits zero,
+parsed snapshot comparison and git diff --check.
+
+## 2026-09-21: Complete Windows physical form-feedback contrast
+
+The client B image shows Error: Title is required., the retained empty task
+form and a visible title cursor. Exact-installed task readback matches the
+empty revision-5 baseline; no task was created. Session readback retains
+Saved B running at revision 5. Combined with the previous Info adoption and
+safe-discard observations, the focused forms block passes. Narrowed the pending
+Windows physical task to writer disconnect, diagnostics and native shell exit.
+Verification: operator image inspection, both CLI exits zero, parsed task
+snapshot equality, session readback and git diff --check.
+
+## 2026-09-21: Stop the Windows test daemon after observed writer confirmation
+
+The fresh operator image establishes CURRENT and INPUT/WRITER in client A
+immediately before the authorized stop. Verified the sole expected running
+session and matched the candidate daemon's executable, workspace and private
+home. Exact-installed daemon stop --terminate-sessions returned lifecycle
+stopped with exit zero; process inspection confirmed daemon absence without
+restart. Preserved unrelated processes and all retained state/artifacts.
+Post-stop physical presentation and native exits remain pending.
+Verification: operator image inspection, session and process identity checks,
+parsed stop response, post-stop process inspection and git diff --check.
+
+## 2026-09-21: Verify Windows disconnected writer presentation
+
+The operator's post-stop image shows DISCONNECTED, NAVIGATION, READ ONLY and
+RECONCILE WITH R in client A, without WRITER or Attaching. Comparison with the
+fresh pre-stop writer image verifies the physical transition on installed
+691a8fb. Retained output is not treated as a live child. Repeated release,
+diagnostic stability and both native shell exits remain pending.
+Verification: compared the operator's before/after images and ran git diff --check.
+
+## 2026-09-21: Verify repeated Windows release while disconnected
+
+The operator explicitly confirmed repeated Ctrl-] leaves the view unchanged.
+The image retains Sessions and DISCONNECTED/NAVIGATION/READ ONLY with
+reconciliation guidance. The disconnected shortcut does not select Events.
+Diagnostics over time and both shell exits remain pending.
+Verification: operator confirmation, image inspection and git diff --check.
+
+## 2026-09-21: Record the Windows disconnected diagnostic baseline
+
+The operator selected Events deliberately. The image shows four retained
+entries, including exactly one transport Connection lost notice, two workspace
+events and one rejected-operation notice. Recorded the count without treating
+a single screenshot as proof of temporal stability. The timed observation and
+both shell exits remain pending.
+Verification: operator image inspection and git diff --check.
+
+## 2026-09-21: Verify Windows diagnostic stability while disconnected
+
+The operator confirmed more than 20 seconds without new Events entries.
+Comparison of both images shows the same four retained diagnostics and exactly
+one transport-loss notice. The physical diagnostic-stability checkpoint passes
+on installed 691a8fb. Narrowed the pending physical task to q exit, prompt/cursor
+restoration and synthetic command execution in both native shells.
+Verification: operator timing confirmation, before/after image comparison and
+git diff --check.
+
+## 2026-09-21: Complete the focused Windows physical correction round
+
+Completed M12.WINDOWS-FINAL-PHYSICAL on the retained installed 691a8fb candidate.
+The final operator image shows successful exit of both clients, restored native
+PowerShell prompts/cursors and successful synthetic echo commands in both shells.
+Independent process inspection finds zero processes using this installed binary;
+SHA-256 remains 2bef4ebbfcb1a894fd8929da227b86339af8b8f9d239b7e2f112411d194a5708.
+The daemon was not restarted; unrelated processes and private artifacts remain
+preserved. No product rebuild was substituted.
+
+The completed focused round covers release/repeated release, stale rename,
+draft/cursor retention, two-step review/adoption, updated context, Info versus
+validation Error, no automatic write, safe discard, fresh writer disconnect,
+read-only presentation, diagnostic stability and restoration of both shells.
+Operator evidence and independent persisted-state checks are recorded separately
+in the Windows report. Removed the completed physical task from TODO and updated
+the continuation, candidate and acceptance matrices. Hosted Windows rechecks,
+local debug latency, Linux/SSH, clean-runtime and global acceptance remain open.
+M12 is not globally complete. No push, merge, tag, release or M13 work occurred.
+
+Verification: operator image inspection, exact executable hash and process
+inspection, repository documentation checks, secret scan, append-only logbook
+comparison against HEAD and git diff --check.
