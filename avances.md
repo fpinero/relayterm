@@ -1427,3 +1427,18 @@ Windows/Linux, final CI and AC requirements. Retained private fixtures/artifacts
 no remote delivery or global M12 acceptance is claimed.
 Verification: tracked-candidate repository/style/link checks, candidate secret
 scan with negative control, and git diff --check passed.
+
+## 2026-09-21: Publish the focused Windows continuation
+
+Added the detailed Windows continuation with source/evidence ancestry, native
+artifact preparation, exact-installed gates, small-step physical observations,
+privacy boundaries and outstanding global acceptance requirements. Linked it
+from the cross-platform continuation. Published the authorized
+fix/m12-macos-final-candidate branch and dispatched Quality 35629938330 and
+Security 35629941870 at 167563e7452d4bc188b0c0ac0d6434327b292b85.
+Git push succeeded and GitHub returned both queued runs with the expected SHA.
+Hosted success remains pending and is not claimed. No merge or release occurred.
+Verification: tracked-candidate repository/style/link checks passed for 66
+Markdown files and eight ADRs; candidate secret scan and its synthetic negative
+control passed; git diff --check passed. The unrelated untracked review document
+was excluded, preserved and not published. Product code was unchanged.

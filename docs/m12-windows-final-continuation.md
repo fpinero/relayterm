@@ -212,3 +212,16 @@ Quality/Security workflows. That authorization is not an automatic instruction
 for the Windows agent to push further changes, merge, tag or publish. Complete
 and verify local Windows work, then provide a precise handoff and seek external
 delivery authorization if it has not been granted in that destination task.
+
+## Published delivery and hosted verification
+
+The delivery branch was pushed on 2026-09-21. Hosted workflows were explicitly
+dispatched at `167563e7452d4bc188b0c0ac0d6434327b292b85`:
+
+- [Quality run 35629938330](https://github.com/fpinero/relayterm/actions/runs/35629938330).
+- [Security run 35629941870](https://github.com/fpinero/relayterm/actions/runs/35629941870).
+
+Both were queued when this delivery record was written, not verified passing.
+Inspect their live conclusions before using them as acceptance evidence. This
+record and its logbook update are documentation-only descendants of that SHA.
+The tested product source remains 691a8fb. No PR, merge, tag or release was made.
