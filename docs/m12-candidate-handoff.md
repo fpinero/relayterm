@@ -2,7 +2,7 @@
 
 ## Status
 
-This is a technical candidate handoff, not a release publication record. Source `491d5f1037450c362525b289fa6361d834fc0b6f` passed the complete native Quality and Security workflows. The handover correction at `d760554` superseded that original executable. The current candidate source is `9cf91f7164235d35beda81d9c8c2d4200b703aad`, which retains the header/footer correction from `0bc4b63` and resizes the terminal on successful writer acquisition. Continue from `feature/m12-windows-native`; the older hashes and workflow results below remain historical evidence.
+This is a technical candidate handoff, not a release publication record. Source `491d5f1037450c362525b289fa6361d834fc0b6f` passed the complete native Quality and Security workflows. The handover correction at `d760554` superseded that original executable. The latest tested production correction is `15794ad6e7f9459c89c512e679f5648bf9a3d231` on `fix/m12-linux-findings`, retaining the prior handover, header, and writer-size corrections. Its targeted Linux physical retests passed and are recorded in evidence commit `0cf6bea`. Follow [the current continuation](m12-cross-platform-continuation.md); older hashes and workflow results below remain historical evidence. Final-source packaging, cross-platform verification, and global acceptance remain open.
 
 The implementation is available in draft PR [#24](https://github.com/fpinero/relayterm/pull/24). It has not been merged, tagged, uploaded as a package, or published as a release. The CI archives were tested before their ephemeral workspaces ended and were not uploaded. The local macOS archive described below remains outside version control.
 
@@ -156,17 +156,17 @@ The ordinary repository check remains affected only by the preserved unrelated u
 
 ## Evidence still required
 
-1. Complete the Linux consolidated native journey and the affected macOS header/writer-size retest on 9cf91f7. Windows header observation passed on 0bc4b63 and writer-size physical acceptance passed on 9cf91f7. The source mapping is documented; global artifact freeze remains pending.
-2. Complete the focused SSH observation through an already authorized SSH service.
-3. Retain current Windows and Linux artifacts and complete missing installed-candidate evidence. Windows d760554 installation, collision refusal, quick start, backup/fresh-home restore, and scoped removal passed with operator/assistant boundaries recorded. Repeat affected checks for subsequent code changes. The local macOS evidence is recorded above. Developer hosts and CI are not independent clean-machine proof; historical CI archives were not uploaded.
-4. Reconcile AC-1 through AC-16 and the final artifact inventory after those rows pass.
-5. Obtain the maintainer's publication choices. A tag, package upload, and public release remain outside this handoff.
+Use [the current platform checklist and destination prompt](m12-cross-platform-continuation.md)
+as the authoritative pending scope. Linux original observations and targeted
+15794ad physical correction retests are complete, with limits and failures
+preserved in [the Linux report](m12-linux-final-report.md).
 
-The earlier macOS probe found no authorized local SSH listener and computer
-control refused Terminal.app automation. A native Windows 10 host is now
-available for the continuation recorded above. Linux and focused SSH evidence,
-affected macOS header/writer-size observations and final reconciliation
-remain pending.
+Remaining gates are the informational form-feedback issue, final-source native
+Quality/Security and release packages, affected macOS/Windows and SSH checks,
+independent clean-runtime proof, and final AC/artifact reconciliation. The
+macOS header and writer-size observations remain required; Windows passed those
+at their documented source boundaries. Historical CI and 9cf91f7 packages do
+not certify the later source. Publication remains a separate maintainer decision.
 
 ## Publication choices
 
@@ -199,6 +199,7 @@ with one helper ignored using the test-harness correction documented in
 [the Linux record](m12-linux-manual-observations.md). Original failed runs remain
 recorded. The test-only correction does not replace the production artifact.
 Packages, checksums, manifests, build records, and inspection are retained outside
-Git. Physical header and first-shell evidence is partial; the remaining native
-journey, focused SSH, independent clean-machine proof, and global reconciliation
-stay open. This developer-host run does not certify an independent clean machine.
+Git. The native journey and targeted correction retests are now recorded in
+[the final Linux report](m12-linux-final-report.md); its limits and original
+SSH failure remain explicit. Final-source artifacts, independent clean-machine
+proof, and global reconciliation remain open. This developer-host run does not certify an independent clean machine.

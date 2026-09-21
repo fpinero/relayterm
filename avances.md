@@ -1206,3 +1206,16 @@ queue item with remaining cross-platform work. Tracked the informational Error
 prefix separately. Original failures and terminal/SSH limitations remain intact.
 Documentation verification: scripts/check_repository.py and git diff --check
 passed. No code changes, remote push, or global M12 acceptance in this checkpoint.
+
+## 2026-09-21: Consolidate M12 evidence and destination continuation
+
+Recorded operator-confirmed final client closure. Added a consolidated Linux
+pass matrix, exact corrected-source mapping, targeted macOS/Windows/SSH visual
+checklists, final-source packaging and CI/security requirements, clean-runtime
+boundaries, and a reusable destination-agent prompt. Updated native continuation,
+candidate handoff, acceptance links and the pending queue so historical packages
+and CI cannot be mistaken for proof of the corrected source. Cross-platform and
+global acceptance remain open; no new remote status or publication is claimed.
+Verification: reviewed against M12_details.md section 10, the native contract,
+platform reports and checked-in Quality workflow; scripts/check_repository.py
+and git diff --check passed for the documentation update.

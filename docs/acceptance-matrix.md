@@ -111,3 +111,20 @@ The complete AC, R1-R11, budget, manual, security, and M12-boundary disposition 
 Source `491d5f1037450c362525b289fa6361d834fc0b6f` passed [Quality run 34947043434](https://github.com/fpinero/relayterm/actions/runs/34947043434) and [Security run 34947043380](https://github.com/fpinero/relayterm/actions/runs/34947043380). The native release jobs built and packaged the source twice on all three targets, compared byte-identical copies, inspected the exact nine-entry archive and native dependencies, and ran the extracted smoke, complete TUI, session presentation, worktree, and backup/restore gates. Stable Linux, macOS, and Windows jobs each retained two separately reported inherited gate repetitions. The [M12 candidate handoff](m12-candidate-handoff.md) records exact artifact hashes and job links.
 
 This automated evidence covers the implementation and release mechanics affected by M12. It does not replace the operator-controlled observations required for editable names, stable ordering, the physical form cursor, stale-edit guidance, competing-input guidance, clean installation, the complete interactive quick start, upgrade, removal, and one focused SSH connection. Those rows remain pending under M12.00h, M12.02a, M12.02c, M12.02d, M12.03b, and M12.06c. AC-1, AC-12, AC-14, and AC-16 therefore retain their passed M11 behavior evidence but cannot receive final installable-candidate sign-off until the M12 manual matrix is complete.
+
+## M12 corrected-source status on 2026-09-21
+
+The earlier pending M12 paragraph describes the original 491d5f1 evidence stage.
+The [current continuation matrix](m12-cross-platform-continuation.md) consolidates
+later platform observations and the exact remaining gates. Linux completed the
+9cf91f7 native and focused SSH observation attempts, including retained failed
+interruption recovery, and passed the affected physical corrections on 15794ad.
+Release-mode workspace verification reported 198 passing executions, zero
+failures and 16 ignored helpers/opt-in tests; formatting and Clippy passed.
+
+This does not replace final-source Quality/Security, both independent native
+repetitions, final packages/extracted gates, clean-runtime proof, or affected
+macOS/Windows observations. AC-1 through AC-16 retain their detailed M11 and
+candidate-specific evidence; global M12 sign-off remains pending. The Linux
+report distinguishes the fixed UI issues from the SSH transport-restoration
+and fixed-grid resize limitations requiring explicit acceptance reconciliation.

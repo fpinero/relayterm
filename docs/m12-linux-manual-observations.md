@@ -962,3 +962,10 @@ reviewed draft was not submitted. All targeted physical Linux correction
 checkpoints passed for source 15794ad. Cross-platform retests and global
 acceptance remain separate; the informational message rendered with an Error
 prefix is tracked as a remaining presentation issue.
+
+## Final correction client closure
+
+The operator confirms that q closed the correction client and left the outer
+terminal available. No further physical Linux action is required for this
+completed retest round. Remaining milestone gates and destination-agent steps
+are consolidated in m12-cross-platform-continuation.md.

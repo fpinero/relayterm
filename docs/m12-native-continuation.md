@@ -1,5 +1,14 @@
 # M12 native continuation instructions
 
+## Current continuation entry point
+
+The original candidate instructions below describe the 9cf91f7 baseline.
+For the latest corrected source, completed Linux results, and remaining
+platform-specific checks, start with
+[the cross-platform continuation](m12-cross-platform-continuation.md).
+It supersedes the old source selection and unattempted-Linux status while
+preserving this document's original contract and evidence history.
+
 ## Shared contract
 
 Continue from the fetched `feature/m12-windows-native` branch. Read AGENTS.md, PROJECT_VISION.md,

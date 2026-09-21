@@ -156,3 +156,8 @@ remaining presentation issue, not failed adoption. These results close the
 targeted Linux correction retests, not global M12 acceptance. macOS/Windows
 verification and acceptance treatment of the documented terminal/SSH limits
 remain pending. No remote publication is implied.
+
+The operator subsequently confirmed final client closure with q. The open
+outer terminal is not needed for additional observations in this round. See
+[the continuation matrix](m12-cross-platform-continuation.md) for remaining
+visual, packaging, security, clean-runtime and global acceptance requirements.
