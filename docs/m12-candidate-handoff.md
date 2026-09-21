@@ -8,6 +8,17 @@ The implementation is available in draft PR [#24](https://github.com/fpinero/rel
 
 M11 is complete at merge `dc5b2e6067d50345828ac175858029434ce3c081`. Its [final review](m11-final-review.md) and [acceptance matrix](acceptance-matrix.md) remain the source for behavior unaffected by M12. M12 changes session presentation, ordered paging, form cursor geometry, stale-form feedback, input-owner feedback, release tooling, installation, and release documentation. Those affected manual rows require candidate-specific evidence.
 
+## Focused macOS native round completed
+
+All focused physical macOS checks pass on 691a8fb, including the informational
+feedback correction, measured minimum layout, both writer-size transfers,
+release/navigation, disconnect diagnostics and native exit. Both clients exited,
+and the dedicated test daemon is stopped. See the [candidate report](m12-macos-correction-candidate.md)
+and [operator observations](m12-macos-manual-observations.md). No further native
+visual repetition is required unless behavior changes. Final hosted CI,
+Linux/Windows artifacts, remaining platform/SSH observations, clean-runtime
+proof and global acceptance remain open.
+
 ## Current macOS correction preparation
 
 The Linux handoff is now followed by candidate source

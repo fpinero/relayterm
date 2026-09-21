@@ -1381,3 +1381,49 @@ title guidance, open form and visible cursor. Independent readback confirmed no
 task was created and Saved B remained at revision 5. Updated pending scope to
 retain only disconnected-client checks on macOS and the remaining checks on
 other platforms. Tracked-candidate repository checks and git diff --check passed.
+
+## 2026-09-21: Execute authorized correction-workspace daemon stop
+
+With explicit operator authorization for validation process lifecycle operations,
+stopped only the dedicated correction daemon with session termination using
+candidate 691a8fb. The command returned lifecycle stopped and exit zero after
+read-only session identification. Disconnected-client physical checks remain
+open. No SSH configuration or unrelated workspace was changed.
+Verification: parsed the stop response and ran git diff --check.
+
+## 2026-09-21: Bound disconnect evidence and prepare writer-specific retry
+
+Recorded DISCONNECTED in both operator screenshots, without inferring attached
+writer cleanup from a session-list view. Reopened only the dedicated daemon and
+created one new neutral shell under the operator's process authorization.
+Readback confirmed the prior session terminated and the new session running.
+Writer-specific physical evidence remains pending. git diff --check passed.
+
+## 2026-09-21: Verify disconnected writer indicators on macOS
+
+Compared the operator's green-client before/after screenshots around the
+authorized stop: INPUT/WRITER became NAVIGATION/READ ONLY with DISCONNECTED
+and reconciliation guidance, without misleading attachment or writer labels.
+Sessions remains selected. Diagnostic stability, explicit repeated-chord
+confirmation and exit remain pending. git diff --check passed.
+
+## 2026-09-21: Verify disconnected release navigation on macOS
+
+Recorded explicit operator confirmation that repeated Ctrl-] while disconnected
+kept Sessions selected. Inspected the Events baseline with two transport-loss
+entries corresponding to the two-stop history; did not infer temporal stability
+from a single screenshot. Final diagnostic observation and clean exit remain
+pending. git diff --check passed.
+
+## 2026-09-21: Complete the focused native macOS correction round
+
+The operator confirmed no new Events notices over the requested wait; compared
+screenshots retain the same two distinct disconnect entries. Both outer shells
+recovered and executed the synthetic exit marker normally. Read-only process
+inspection found no remaining candidate process. All focused native macOS
+physical checks now pass on 691a8fb. Updated the pending-only queue, continuation,
+candidate handoff and detailed report, preserving separate SSH, clean-runtime,
+Windows/Linux, final CI and AC requirements. Retained private fixtures/artifacts;
+no remote delivery or global M12 acceptance is claimed.
+Verification: tracked-candidate repository/style/link checks, candidate secret
+scan with negative control, and git diff --check passed.

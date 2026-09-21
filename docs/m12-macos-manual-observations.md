@@ -343,3 +343,80 @@ stale Error observations, this closes the focused macOS form-feedback and
 rename block on 691a8fb. For the next disconnect observation, read-only checks
 identified one running synthetic shell and zero tasks in the dedicated workspace.
 Its daemon has not been stopped; explicit operator authorization is still required.
+
+## Authorized disconnected-client checkpoint started
+
+The operator authorized stopping and starting processes needed for Relayterm
+validation. The assistant targeted the dedicated correction workspace only,
+verified its sole Saved B session and live 17-by-78 snapshot, then invoked the
+exact candidate with daemon stop --terminate-sessions. The command exited
+successfully and returned lifecycle stopped. The candidate daemon has not been
+restarted so the open clients can be inspected while disconnected. Physical
+non-writer feedback, release navigation, diagnostic bounds and exit observations
+remain pending. This action does not establish physical input focus at the exact
+stop instant; that requires the operator's observation.
+
+## First disconnect observation boundary and focused retry setup
+
+The operator supplied both clients showing DISCONNECTED. A shows the session
+list and B retains the empty validation form. This proves the disconnect label,
+but does not establish loss of writer focus on an attached terminal. Cached
+running metadata in A is not evidence that the stopped child survived. The
+writer-specific checkpoint remains pending rather than being marked passed.
+
+Under the existing process-lifecycle authorization, the assistant reopened the
+dedicated workspace and created one new shell from the same neutral definition.
+Independent ordered readback shows the original Saved B session terminated and
+the new unnamed Session 2 running. The next stop will wait for physical proof
+that A is attached and writing. Previously passed tests are not reopened.
+
+## Daemon stopped after physical writer confirmation
+
+The operator supplied the green client showing CURRENT and INPUT/WRITER on the
+new shell. Although the procedure named A, the confirmed writer is B, which is
+sufficient for this focused native disconnect observation. After verifying the
+old session terminated and the new session running, the assistant stopped the
+dedicated daemon with explicit session termination under the existing operator
+authorization. Exit zero and lifecycle stopped were verified. The post-stop
+writer-label transition, chord behavior, diagnostics and exit remain pending.
+
+## Disconnected writer presentation passed
+
+After the physically confirmed green-client INPUT/WRITER state and authorized
+daemon stop, the operator screenshot shows DISCONNECTED, NAVIGATION, READ ONLY
+and RECONCILE WITH R. Neither WRITER nor Attaching is shown. Sessions remains
+selected in the supplied post-instruction view. This passes the writer-to-
+disconnected presentation checkpoint on 691a8fb. Retained shell output is not
+interpreted as a surviving child. Explicit confirmation of repeated release
+chord behavior, diagnostic stability over time and clean exit remains pending.
+
+## Disconnected release chord passed and Events baseline observed
+
+The operator explicitly confirmed that pressing Ctrl-] more than twice while
+disconnected did not leave Sessions. The subsequent Events screenshot shows
+two Connection lost diagnostics separated by workspace events, consistent with
+the two authorized daemon stops in this client history. It does not show a
+consecutive transport-diagnostic flood. The screenshot is a point-in-time
+observation; stability over the requested interval and native exit restoration
+still require operator confirmation.
+
+## Diagnostic stability and native exit passed
+
+The operator confirmed no new Events notices after the requested observation
+interval. The second Events screenshot retains the same two transport-loss
+entries separated by workspace events, consistent with the two distinct daemon
+stops. The diagnostics did not flood the view. Both subsequent screenshots show
+the outer shell prompt restored and the requested synthetic echo command
+executing normally. Read-only process inspection found zero remaining processes
+from this installed candidate. The dedicated daemon and its test shells remain
+stopped; private state, backups, packages and unrelated installations are retained.
+
+All required focused native macOS physical observations in this round pass on
+source 691a8fb and executable hash
+4b5ae7ef4e38382c82732cf785b2ae09af34d8cf614b6fe11d0c1b4efbb80060:
+minimum layout and recovery, writer acquisition and both size transfers,
+observer isolation, connected/disconnected release navigation, disconnected
+indicators, diagnostic stability, native exit, stale rename review, retained
+context/draft/cursor, informational feedback, validation errors and safe discard.
+This does not close the separate SSH, clean-runtime, other-platform, final CI or
+global AC reconciliation gates. Historical failures and source mappings remain.

@@ -53,12 +53,12 @@ No additional physical Linux action is needed for the completed retest round.
 
 | Target | Required next physical observations | Evidence that need not be repeated wholesale |
 | --- | --- | --- |
-| macOS, native Terminal.app | Header/footer at exactly 80 by 24 and below-minimum recovery; writer acquisition and both transfers between differently sized clients with live snapshot readback; all correction checks below | Earlier names/order, cursor, task handover/resume, recovery and installation observations remain valid only at their documented unchanged boundaries |
+| macOS, native Terminal.app | Focused native round complete on 691a8fb; no remaining native visual correction check | Six-screen minimum/recovery, both writer-size transfers, observer isolation, corrected connected/disconnected feedback, diagnostic stability, clean exit and reviewed rename/Info/error/discard passed; see the macOS report. Earlier unchanged journey evidence retains its source mapping. |
 | Windows, native Windows Terminal/ConPTY | Correction checks below; actual release keys; native exit restoration; installed discovery in PowerShell and cmd.exe on the final artifact | Header and writer-size observations already passed on their mapped 0bc4b63/9cf91f7 sources; repeat only if later code affects them |
-| Linux, GNOME Terminal | Only affected observation after any further code change, including informational form feedback if corrected | Completed 15794ad correction retests and unchanged 9cf91f7 journey |
+| Linux, GNOME Terminal | Informational form feedback and validation-error/cursor contrast on 691a8fb only | Completed 15794ad correction retests and unchanged 9cf91f7 journey |
 | One authorized SSH transport | Repeat changed conflict/review and disconnected navigation/feedback on the final candidate; verify normal exit and reconnection identities | Unchanged writer-size and continuity evidence remains mapped to 9cf91f7; do not repeat solely because the client OS changes |
 
-For each destination, use one corrected installed executable and synthetic private
+For each remaining destination, use one corrected installed executable and synthetic private
 state. Guide the operator through these checkpoints, one at a time:
 
 1. Acquire input, release with the terminal's actual Ctrl-] chord, and repeat it
@@ -75,7 +75,7 @@ state. Guide the operator through these checkpoints, one at a time:
    rejection, press Ctrl-R to review, then Ctrl-R to adopt. The current label
    must match the winner while the original draft remains unchanged. Discard
    and independently read back the winner and revision.
-5. If the informational prefix is corrected later, observe the success guidance
+5. On 691a8fb, observe the informational success guidance
    and one actual validation error, including the physical cursor and wrapping.
 
 Do not require two complete manual repetitions merely because CI has two native

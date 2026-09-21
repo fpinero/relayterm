@@ -27,10 +27,10 @@ Completed and pending physical observations are recorded in the macOS report.
    explicit warning at 79 by 24 and recovery. See the operator observation report.
 2. macOS writer-size checks are complete: first acquisition, both transfers,
    independent live dimensions, observer resize isolation and fresh input wrapping.
-3. Windows: actual release chord and repeated release without Events. macOS
-   connected release/repetition passed. Both platforms still require
-   disconnected non-writer state, bounded diagnostics, and clean native exit.
-   Stopping a daemon with sessions needs explicit authorization on this Mac.
+3. macOS connected/disconnected release, non-writer indicators, diagnostic
+   stability and native exit are complete. Windows still requires these checks.
+   The operator authorized necessary validation process lifecycle operations
+   on this Mac; no repeat authorization is needed within that scope.
 4. macOS form checks are complete: stale rename rejection, two-step review,
    updated context, retained draft/cursor, Info guidance, validation Error and safe
    discard. Windows still requires these focused observations.
@@ -151,3 +151,11 @@ launchers is ready for the focused operator checks. Launcher shell syntax passed
 zsh -n; startup and session identity were read back administratively. Existing
 operator workspaces, sessions, backups and SSH configuration were preserved.
 No operator-owned daemon was stopped. Physical observation has not yet begun.
+
+## Native physical round completed
+
+The [macOS observations](m12-macos-manual-observations.md) record every focused
+native check as passed on 691a8fb. Both clients exited cleanly, and no process
+from this candidate remains running. Do not repeat this native visual round
+for documentation-only descendants. The cross-platform continuation remains
+authoritative for SSH, clean-runtime, final CI and acceptance requirements.
