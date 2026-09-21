@@ -137,12 +137,7 @@ impl OuterTerminal {
         self.control.resize(rows, columns).unwrap();
         // Resize delivery and redraw are asynchronous on native terminals.
         wait_until(
-            || {
-                self.screen_contents()
-                    .lines()
-                    .nth(usize::from(rows) - 2)
-                    .is_some_and(|line| line.starts_with("Relayterm |"))
-            },
+            || rendered_footer_at(self.screen.lock().unwrap().screen(), rows, columns),
             "resized terminal footer",
         );
     }
@@ -192,6 +187,31 @@ impl OuterTerminal {
             std::thread::sleep(Duration::from_millis(20));
         }
     }
+}
+
+fn rendered_footer_at(screen: &vt100::Screen, rows: u16, columns: u16) -> bool {
+    // Logical contents joins wrapped rows, so index physical rows explicitly.
+    screen
+        .rows(0, columns)
+        .nth(usize::from(rows) - 2)
+        .is_some_and(|line| line.starts_with("Relayterm |"))
+}
+
+#[test]
+fn resize_footer_uses_physical_rows_after_wrapped_output() {
+    let mut parser = vt100::Parser::new(24, 80, 0);
+    parser.process(&[b'x'; 81]);
+    parser.process(b"\x1b[23;1HRelayterm | q exit");
+    assert!(rendered_footer_at(parser.screen(), 24, 80));
+    assert!(!rendered_footer_at(parser.screen(), 23, 80));
+    assert!(
+        !parser
+            .screen()
+            .contents()
+            .lines()
+            .nth(22)
+            .is_some_and(|line| line.starts_with("Relayterm |"))
+    );
 }
 
 fn rendered_text_contains(screen: &str, marker: &str) -> bool {
@@ -413,6 +433,13 @@ fn disconnected_writer_returns_to_navigation_without_diagnostic_flood() {
     );
     terminal.send(b"q");
     terminal.wait_exit();
+    wait_until(
+        || !terminal.screen.lock().unwrap().screen().hide_cursor(),
+        "cursor restored after disconnected exit",
+    );
+    // ConPTY translates console-buffer operations rather than preserving this
+    // Unix escape sequence. Physical Windows shell restoration is a separate gate.
+    #[cfg(unix)]
     wait_until(
         || {
             terminal
@@ -1023,8 +1050,11 @@ fn admin(root: &Path, private: &Path, args: &[&str]) -> Value {
     let output = admin_output(root, private, args);
     assert!(
         output.status.success(),
-        "administrative command {args:?} failed with status {}",
-        output.status
+        "administrative command {args:?} failed with status {}: {}",
+        output.status,
+        serde_json::from_slice::<Value>(&output.stdout)
+            .map(|value| value["error"].clone())
+            .unwrap_or(Value::Null)
     );
     serde_json::from_slice(&output.stdout).unwrap()
 }

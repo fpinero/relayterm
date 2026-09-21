@@ -407,3 +407,156 @@ Linux native acceptance, affected macOS header/writer-size retests, focused SSH,
 independent clean-machine evidence where required, and final global M12
 reconciliation remain open. Any further behavioral change needs impact analysis
 and affected retesting; this record does not freeze or publish a release.
+
+## Final correction continuation on 2026-09-21
+
+Fetched origin with a clean working tree. The prior Windows head 0cf6218 is an
+ancestor of delivery b9871e1936157dcd2bcd64ceb8f33da3f6220a38, which matches the
+fetched fix/m12-macos-final-candidate branch. Production source
+691a8fbb45980658b98d647a85ea8305b2325938 is an ancestor of that delivery; the
+intervening changes are documentation only. Work continues on
+fix/m12-windows-final-candidate. Existing candidate installations, two earlier
+test daemons, runtime homes and backups are preserved.
+
+The host inventory still reports Windows 10 Pro 22H2, build 19045.7725, x64;
+PowerShell 7.6.6; Windows Terminal 1.24.11911.0; Rust/Cargo 1.98.1;
+MSVC compiler 19.29.30158 and SDK 10.0.19041.0. The x64 redistributable registry
+reports v14.42.34433.00 and VCRUNTIME140.dll reports 14.44.35211.0. Existing
+RemoteSigned policies were inspected, not changed. The Appx inventory command
+was unavailable in PowerShell 7 and succeeded in Windows PowerShell instead.
+The installed terminal inventory is not a new physical operator observation.
+
+### Hosted failures and local investigation
+
+[Security 35629941870](https://github.com/fpinero/relayterm/actions/runs/35629941870)
+completed successfully at 167563e7452d4bc188b0c0ac0d6434327b292b85.
+That descendant retains the candidate's production source and workflows.
+The Windows native and Windows release jobs in
+[Quality 35629938330](https://github.com/fpinero/relayterm/actions/runs/35629938330)
+failed their first TUI gate: two tests timed out waiting for the resized footer,
+and the disconnected-writer test timed out waiting for a literal Unix alternate-
+screen exit sequence. Later skipped steps and the second native repetition
+are not passing evidence. Raw job logs are retained outside Git.
+
+Source inspection found that vt100 logical contents joins wrapped rows, making
+line-number indexing unsuitable for physical footer placement. A synthetic
+wrapped-row regression reproduces that mismatch and passes using physical rows.
+ConPTY does not promise preservation of the literal Unix exit sequence; the
+existing Windows journey already kept that byte assertion Unix-only. A local
+test-only correction retains Unix escape validation and checks visible cursor
+restoration and successful process exit on all platforms. Physical Windows shell
+restoration remains a separate pending observation. Product source is unchanged.
+
+Initial local workspace verification stopped at the agent-template gate's
+daemon shutdown, exit 5. A focused disconnected-writer attempt also stopped at
+daemon shutdown, exit 5, before reaching its exit assertion. Both overlapped
+native release compilation. Those failures are retained; load is a hypothesis,
+not an established cause. Isolated reruns and exact-installed gates remain
+required before recording a pass.
+
+### Final artifact and exact-installed verification
+
+Two clean detached checkouts at 691a8fb built offline using the checked-in
+build_release.py wrapper, separate fresh outputs and four Cargo jobs each.
+Both clean checkouts remained unchanged. Build-record and package-manifest
+comparisons passed with byte-identical copies in this environment:
+
+| Artifact | Bytes | SHA-256 |
+| --- | --- | --- |
+| Executable | 11,804,160 | `2bef4ebbfcb1a894fd8929da227b86339af8b8f9d239b7e2f112411d194a5708` |
+| ZIP archive | 4,497,901 | `875f2e06319d67d346d067aa1e37fbce0436b0591ab719228e5310ef7b618f94` |
+
+Version is 0.1.0, empty production features, unsigned. Both external manifests
+and archives matched SHA256SUMS before extraction. The inspector verified nine
+regular members. dumpbin reported x64 PE, linker 14.29, VCRUNTIME140.dll and UCRT
+imports, without a separate SQLite DLL. Authenticode reported NotSigned.
+smoke_release.py passed extracted help/version, initialization, detached daemon,
+real ConPTY child and orderly shutdown with its constrained runtime PATH.
+
+The packaged PowerShell helper installed into a new dedicated directory.
+Installed SHA-256 and absolute help/version passed. Process-local PATH discovery
+resolved this exact executable in PowerShell and cmd.exe, and both ran version
+successfully. A synthetic unrelated destination was refused without changing
+its checksum. Reinstalling over the candidate was refused without changing it;
+a separate spaces/Unicode installation matched the same hash and ran version.
+No global PATH, profile, execution policy, SSH service or security setting changed.
+This is developer-host evidence, not independent clean-runtime acceptance.
+
+The exact retained installation passed this command with the local test-only
+correction described above, after release compilation finished:
+
+```text
+RELAYTERM_TEST_RT=<absolute-installed-rt.exe>
+cargo test -p relayterm-cli --test session_presentation --test tui_gate --test worktree_gate --test backup_restore --locked -- --nocapture --test-threads=1
+```
+
+Twelve tests passed, zero failed, one fixture helper ignored. Eight TUI tests
+include the additional wrapped-row regression; backup/restore, session
+presentation and both worktree tests also passed. Startup p95 was 159 ms,
+navigation p95 21 ms, input-to-rendered-echo p95 127 ms, and flood throughput
+2,416,397 bytes/s. No performance deadline or production behavior changed.
+Installed hashes were checked again after execution. These are automated native
+checks, not physical keyboard, cursor, terminal restoration or SSH observations.
+
+Quality has now concluded failure: both Windows jobs failed as recorded above;
+the Linux stable, pinned Linux, macOS stable, Linux release and macOS release
+jobs succeeded. Security succeeded. A future authorized hosted run must validate
+the corrected harness, including the skipped Windows repetitions and gates.
+Local success does not relabel the failed hosted run.
+
+### Source verification boundaries
+
+Formatting, all-target check and Clippy with denied warnings, core-only tests,
+workspace build, cargo-deny advisories/licenses/bans/sources, history gitleaks,
+repository controls, audit negative controls and candidate secret checks passed.
+Release-tooling unittest ran 22 tests with four POSIX-only skips and no failures.
+The final documentation scan passed 66 Markdown files and eight ADRs; an
+independent prefix comparison verified that existing avances entries were intact.
+
+Executed successful source/tooling commands:
+
+```text
+cargo fmt --all -- --check
+cargo check --workspace --all-targets --locked
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo test -p relayterm-domain -p relayterm-application -p relayterm-protocol --locked
+cargo build --workspace --locked
+cargo deny --locked check advisories licenses bans sources
+python -m unittest scripts/test_build_release.py scripts/test_package_release.py scripts/test_install_release.py scripts/test_smoke_release.py
+python scripts/check_repository.py
+python scripts/check_audit_controls.py
+python scripts/check_secrets.py
+gitleaks git --redact --no-banner --exit-code 1
+git diff --check
+```
+
+The subsequent ordinary workspace run, without concurrent release compilation,
+passed the previously failing agent-template shutdown and disconnected-writer
+test, but failed the debug TUI input-latency assertion: p95 290 ms against the
+unchanged 250 ms local reference target. It is not covered by the installed
+release's passing 127 ms result. A serial workspace run is required; no timeout,
+resource budget or CI guardrail was increased, and the failed run remains in
+private evidence. Passing later runs must not erase this observed variability.
+
+The serial command `cargo test --workspace --locked -- --test-threads=1`
+also failed the debug input reference, p95 294 ms, this time in the included
+hardening TUI journey. The earlier ordinary run measured 290 ms. Both runs
+remain failed; M12.WINDOWS-DEBUG-LATENCY tracks investigation and acceptance
+reconciliation. The passed exact-installed release suite is a separate result,
+not a waiver. No production correction was inferred from this debug-only
+measurement, and no repeated full-suite pass is claimed.
+
+To cover packages not reached by the failed CLI suites, executed
+`cargo test --workspace --exclude relayterm-cli --locked -- --test-threads=1`:
+166 test executions passed, zero failed, eight helpers/opt-in tests ignored.
+This includes the daemon, persistence, protocol, PTY, terminal and 28 TUI unit
+tests. The command exited zero. It does not convert either failed full-workspace
+command into a pass or execute the feature-gated/ignored hosted workloads.
+
+A dedicated private workspace and one enabled neutral cmd.exe definition/session
+were prepared with the installed release and independently read back as running.
+The first PowerShell setup helper stalled while collecting daemon-start output;
+only that identified helper was stopped, leaving the new daemon and state intact.
+Preparation completed using bounded file-backed CLI output, as used by the
+checked-in smoke helper. Earlier daemons were untouched. Two checksum-verifying
+client launchers are ready. No physical checkpoint has passed yet.

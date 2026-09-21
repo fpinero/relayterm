@@ -224,3 +224,19 @@ Git. The native journey and targeted correction retests are now recorded in
 [the final Linux report](m12-linux-final-report.md); its limits and original
 SSH failure remain explicit. Final-source artifacts, independent clean-machine
 proof, and global reconciliation remain open. This developer-host run does not certify an independent clean machine.
+
+## Windows final-source artifact preparation
+
+On 2026-09-21 Windows 10 Pro 22H2 x64 built exact production source 691a8fb
+twice with Rust/Cargo 1.98.1 and MSVC 14.29. Both binaries and normalized ZIPs
+are byte-identical. The [Windows report](m12-windows-manual-observations.md)
+contains complete hashes, runtime inventory, installation and test commands.
+The retained executable SHA-256 is
+`2bef4ebbfcb1a894fd8929da227b86339af8b8f9d239b7e2f112411d194a5708`;
+the ZIP SHA-256 is
+`875f2e06319d67d346d067aa1e37fbce0436b0591ab719228e5310ef7b618f94`.
+Twelve exact-installed tests passed with a local test-only correction for
+physical-row footer indexing and native exit assertions. No product rebuild
+was substituted. Physical correction observations and clean-runtime acceptance
+remain pending. Security passed; hosted Quality failed its two Windows jobs on
+the original harness. Its failures require a later authorized verification run.

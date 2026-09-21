@@ -1442,3 +1442,79 @@ Verification: tracked-candidate repository/style/link checks passed for 66
 Markdown files and eight ADRs; candidate secret scan and its synthetic negative
 control passed; git diff --check passed. The unrelated untracked review document
 was excluded, preserved and not published. Product code was unchanged.
+
+## 2026-09-21: Prepare the exact final Windows artifact and installed gates
+
+Completed M12.WINDOWS-FINAL-PREP on production source 691a8fb, after fetching
+origin and verifying ancestry through delivery b9871e1. Two clean detached
+native checkouts built offline with Rust/Cargo 1.98.1, MSVC 14.29, Windows SDK
+10.0.19041.0 and four Cargo jobs. build_release.py compare verified identical
+11,804,160-byte executables, SHA-256
+2bef4ebbfcb1a894fd8929da227b86339af8b8f9d239b7e2f112411d194a5708.
+package_release.py compare verified identical 4,497,901-byte ZIPs, SHA-256
+875f2e06319d67d346d067aa1e37fbce0436b0591ab719228e5310ef7b618f94.
+
+Verified both SHA256SUMS files before extraction, the nine-member inventory,
+dumpbin x64/import inspection, unsigned Authenticode status, extracted smoke,
+packaged-helper dedicated installation, absolute help/version, process-local
+PowerShell/cmd discovery, collision and repeated-install preservation, and a
+spaces/Unicode installation. Both source clones stayed clean; installed hashes
+were rechecked. Artifacts, logs, private state and earlier installations remain
+outside Git and preserved. This is developer-host evidence, not clean-runtime
+or physical acceptance.
+
+With RELAYTERM_TEST_RT set to that installed rt.exe, executed:
+cargo test -p relayterm-cli --test session_presentation --test tui_gate
+--test worktree_gate --test backup_restore --locked -- --nocapture
+--test-threads=1. Twelve tests passed, zero failed, one helper ignored, using
+the local test-only footer/exit correction documented in the Windows report.
+Startup/navigation/input p95 measured 159/21/127 ms; flood output measured
+2,416,397 bytes/s. Native command exit codes were checked and propagated.
+
+Read actual hosted conclusions: Security 35629941870 passed; Quality
+35629938330 failed both Windows jobs on original TUI footer/exit assertions.
+Its five other jobs passed. Both runs identify 167563e, a documentation-only
+descendant of 691a8fb. Recorded the failures without relabelling local results
+as hosted success. Physical Windows checks, authorized hosted recheck, Linux,
+SSH, independent clean runtime and final AC reconciliation remain pending.
+No push, merge, tag, release or SSH/security configuration change occurred.
+
+## 2026-09-21: Correct Windows TUI harness portability
+
+Completed M12.WINDOWS-GATE-CORRECTION locally. Footer synchronization now reads
+physical vt100 rows instead of indexing logical text that joins wrapped rows.
+A regression verifies the footer's actual row and rejects the adjacent row.
+Disconnected exit checks successful process termination and visible cursor on
+all targets, retaining the literal alternate-screen sequence assertion on Unix.
+ConPTY physical shell restoration remains an explicit operator gate. Added
+structured administrative error details to failed test assertions.
+
+Verification: the targeted wrapped-row regression passed; all eight TUI tests
+passed against the exact installed 691a8fb release, with one helper ignored;
+workspace all-target Clippy with denied warnings and formatting passed. The
+other exact-installed gates, core-only tests, workspace build, cargo-deny,
+history gitleaks, release-tooling tests, repository/privacy controls and audit
+negative controls also passed as documented in the Windows report.
+
+This is a test-only change. The two candidate clones, production code and
+installed artifact hash remain unchanged. Hosted Windows re-verification needs
+an authorized future delivery. The ordinary and serial local workspace runs
+are not claimed passing: initial shutdown failures and later debug input p95
+misses remain recorded, with latency investigation pending in TODO. No budget
+was increased and no global M12 conclusion is implied.
+
+## 2026-09-21: Verify remaining Windows packages and prepare physical checks
+
+Executed cargo test --workspace --exclude relayterm-cli --locked --
+--test-threads=1 after the failed debug CLI runs: 166 passing executions,
+zero failures, eight ignored helpers/opt-in tests, exit zero. This covers the
+packages skipped when the CLI failures stopped the full-workspace commands;
+it does not relabel those commands or the failed hosted Windows jobs as passing.
+
+Prepared a separate private workspace and one neutral cmd.exe session with
+the retained installed release. Independent ordered readback confirmed one
+running session at revision 4, and task readback confirmed no tasks. Native
+client launchers validate the executable checksum before entering the TUI.
+Only an identified stalled setup helper was stopped; its new daemon/state and
+the two earlier validation daemons were preserved. Physical observations remain
+pending and must be supplied by the operator one checkpoint at a time.

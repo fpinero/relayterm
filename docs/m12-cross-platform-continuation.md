@@ -29,6 +29,15 @@ substitute a later executable under an older artifact hash.
 
 For the next Windows task, use the [detailed Windows final continuation](m12-windows-final-continuation.md), which contains artifact preparation, focused physical checkpoints, evidence boundaries and remaining global gates.
 
+Windows preparation on 2026-09-21 now has two identical native 691a8fb builds
+and packages, verified dedicated installation, and twelve passing exact-installed
+checks using a local test-only correction. See the appended
+[Windows evidence](m12-windows-manual-observations.md). Physical correction
+observations remain pending. Security 35629941870 succeeded; Quality 35629938330
+failed only its two Windows jobs on footer/exit assertions in the original TUI
+harness. Other native and release jobs succeeded. Preserve those failures until
+an authorized hosted run verifies the corrected harness and skipped Windows gates.
+
 ## Linux results completed
 
 | Area | Verified result | Candidate boundary |

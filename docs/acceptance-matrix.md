@@ -137,3 +137,15 @@ presentation. The [current candidate matrix](m12-macos-correction-candidate.md)
 identifies exact pending AC-1 through AC-16 proof, native artifacts, CI/security,
 clean-runtime evidence and affected physical observations. Existing M11 and
 platform evidence is retained; this entry does not grant global acceptance.
+
+## M12 Windows final-artifact preparation
+
+The [Windows report](m12-windows-manual-observations.md) records reproducible
+691a8fb builds/packages, inspected PE imports, collision-safe dedicated install,
+and twelve passing exact-installed checks with a local harness correction.
+Production code and artifact identity remain unchanged by that test correction.
+AC-12 remains open: Quality 35629938330 failed its two Windows TUI jobs, and
+later Windows steps were skipped. The five other Quality jobs and Security
+35629941870 passed at documentation descendant 167563e. Native physical Windows
+correction observations, final Linux presentation, affected SSH, independent
+clean runtime and global acceptance reconciliation remain separate pending gates.
