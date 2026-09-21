@@ -1,5 +1,5 @@
 use crate::{
-    model::{Form, FormField},
+    model::{Form, FormFeedback, FormField},
     safe_text,
 };
 use unicode_segmentation::UnicodeSegmentation;
@@ -37,9 +37,13 @@ pub fn editor_layout(form: &Form, width: u16, height: u16) -> EditorLayout {
         }
         lines.append(&mut value_lines);
     }
-    if let Some(error) = &form.error {
+    if let Some(feedback) = &form.feedback {
+        let (label, message) = match feedback {
+            FormFeedback::Error(message) => ("Error", message),
+            FormFeedback::Info(message) => ("Info", message),
+        };
         lines.extend(wrap_display(
-            &format!("Error: {}", safe_text::single_line(error, 512)),
+            &format!("{label}: {}", safe_text::single_line(message, 512)),
             width,
         ));
     }
@@ -134,6 +138,30 @@ mod tests {
         let mut form = Form::session_rename(value);
         form.fields[0].cursor = cursor;
         editor_layout(&form, width, height)
+    }
+
+    #[test]
+    fn feedback_wraps_without_changing_the_editing_cursor() {
+        let mut form = Form::session_rename("draft 界e\u{301}");
+        for (width, height) in [(76, 16), (30, 12), (8, 4)] {
+            let original = editor_layout(&form, width, height);
+            for feedback in [
+                FormFeedback::Info("The reviewed revision is now selected.".into()),
+                FormFeedback::Error("The workspace changed while you were editing.".into()),
+            ] {
+                form.feedback = Some(feedback);
+                let result = editor_layout(&form, width, height);
+                assert_eq!(result.cursor_column, original.cursor_column);
+                assert_eq!(result.cursor_row, original.cursor_row);
+                assert!(
+                    result
+                        .lines
+                        .iter()
+                        .all(|line| UnicodeWidthStr::width(line.as_str()) <= usize::from(width))
+                );
+            }
+            form.feedback = None;
+        }
     }
 
     #[test]

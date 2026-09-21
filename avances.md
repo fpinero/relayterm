@@ -1219,3 +1219,23 @@ global acceptance remain open; no new remote status or publication is claimed.
 Verification: reviewed against M12_details.md section 10, the native contract,
 platform reports and checked-in Quality workflow; scripts/check_repository.py
 and git diff --check passed for the documentation update.
+
+## 2026-09-21: M12.FORM-FEEDBACK, distinguish revision guidance from errors
+
+Introduced typed in-memory form feedback. Successful refresh, review guidance,
+and explicit revision adoption render with Info; validation, stale revision and
+unknown outcome retain Error. No protocol, persistence, lease, submission or
+revision transition changed. Existing draft and cursor preservation remain intact.
+Extended the two-client native TUI regression to inspect the informational prefix
+and independently confirm that adoption leaves the winning value and revision
+unchanged. Added narrow-width feedback/cursor layout coverage.
+
+Verification: cargo test -p relayterm-tui --locked passed 28 tests;
+cargo test -p relayterm-cli --test tui_gate
+input_ownership_moves_between_open_tui_clients --locked -- --exact --nocapture
+--test-threads=1 passed one test; cargo fmt --all completed successfully.
+The first test assertion incorrectly joined display-wrapped fragments with extra
+spaces; it was corrected to reconstruct rendered text and then passed.
+Full candidate checks, native packaging and physical observations remain pending
+under the existing final-source and platform tasks. This is automated macOS
+verification, not operator acceptance.

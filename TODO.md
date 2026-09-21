@@ -37,7 +37,6 @@ Execution contract: [M12 detailed plan](docs/M12_details.md). Continue at M12.00
 
 - M12.FINAL-SOURCE-GATES: After the remaining form-feedback decision, freeze one final source; rerun required native Quality/Security jobs and both release builds/packages per target, retain final artifacts, and run gates through their exact extracted executables. Historical 491d5f1 CI and 9cf91f7 packages do not certify 15794ad or a later candidate.
 - M12.CORRECTION-PLATFORMS: Retest source 15794ad affected paths on macOS/Windows: disconnected indicators, release chord navigation, bounded diagnostics, and rename context after review. Reconcile acceptance of the demonstrated SSH transport-loss recovery and fixed-grid history limits recorded in docs/m12-linux-final-report.md; preserve the original failed observations.
-- M12.FORM-FEEDBACK: Distinguish informational revision-adoption guidance from errors in form rendering; the successful second Ctrl-R currently uses an Error prefix. Verify feedback and cursor layout after the change.
 
 - M12.NATIVE: Reconcile Linux correction-candidate acceptance while retaining the 9cf91f7 baseline, affected macOS header/writer-size retests, and the focused SSH observation through an authorized connection. Reconcile clean-machine and global acceptance evidence. Preserve the Windows source mapping in docs/m12-windows-manual-observations.md; use the existing Linux task prompt in docs/m12-native-continuation.md.
 

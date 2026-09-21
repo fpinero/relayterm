@@ -524,7 +524,7 @@ async fn handle_form_key(client: &Client, app: &mut App, key: KeyEvent) {
             .is_some_and(|form| form.uncertain || form.stale || form.reviewing)
         {
             if let Some(form) = app.form.as_mut() {
-                form.error = Some(if form.stale {
+                form.feedback = Some(if form.stale {
                     "The workspace changed while you were editing. Your draft is kept. Review the latest state before submitting again, or press Esc to discard.".into()
                 } else {
                     "The result is uncertain. Press Ctrl-R to load the authoritative state before deciding whether to submit again.".into()
@@ -629,12 +629,14 @@ async fn review_or_reconcile_form(client: &Client, app: &mut App) {
         refresh_rename_guidance(app, &mut form);
         form.reviewing = true;
         form.reviewed_revision = Some(app.last_revision.clone());
-        form.error = Some(
+        form.feedback = Some(model::FormFeedback::Info(
             "Review the latest state. Press Ctrl-R again to adopt this revision, or Esc to discard the draft."
                 .into(),
-        );
+        ));
     } else {
-        form.error = Some("State refreshed. The draft revision was not changed.".into());
+        form.feedback = Some(model::FormFeedback::Info(
+            "State refreshed. The draft revision was not changed.".into(),
+        ));
     }
     app.form = Some(form);
 }
@@ -645,10 +647,10 @@ fn adopt_reviewed_revision(form: &mut Form) {
         form.uncertain = false;
         form.stale = false;
         form.reviewing = false;
-        form.error = Some(
+        form.feedback = Some(model::FormFeedback::Info(
             "The reviewed revision is now selected. Ctrl-S performs a new explicit submission."
                 .into(),
-        );
+        ));
     }
 }
 
@@ -660,9 +662,9 @@ fn push_form(form: &mut Form, character: char) {
     {
         field.value.insert(field.cursor, character);
         field.cursor += character.len_utf8();
-        form.error = None;
+        form.feedback = None;
     } else {
-        form.error = Some("The field or total draft byte limit was reached.".into());
+        form.feedback = Some("The field or total draft byte limit was reached.".into());
     }
 }
 
@@ -892,7 +894,7 @@ async fn submit_form(client: &Client, app: &mut App) {
     }
     if form.kind == FormKind::ConfirmTerminate {
         if form.fields[0].value != "TERMINATE" {
-            form.error = Some("Type TERMINATE exactly to confirm.".into());
+            form.feedback = Some("Type TERMINATE exactly to confirm.".into());
             app.form = Some(form);
             return;
         }
@@ -919,7 +921,7 @@ async fn submit_form(client: &Client, app: &mut App) {
             String::new()
         }
         None => {
-            form.error = Some("Select a task first.".into());
+            form.feedback = Some("Select a task first.".into());
             app.form = Some(form);
             return;
         }
@@ -928,7 +930,7 @@ async fn submit_form(client: &Client, app: &mut App) {
     let (operation, params) = match result {
         Ok(value) => value,
         Err(error) => {
-            form.error = Some(error);
+            form.feedback = Some(error.into());
             app.form = Some(form);
             return;
         }
@@ -963,12 +965,12 @@ fn classify_form_failure(form: &mut Form, error: ClientError) {
     form.stale = matches!(error, ClientError::Rejected(ErrorCode::StaleRevision));
     form.reviewing = false;
     form.reviewed_revision = None;
-    form.error = Some(if form.stale {
+    form.feedback = Some(if form.stale {
         "The workspace changed while you were editing. Your draft is kept. Review the latest state before submitting again, or press Esc to discard.".into()
     } else if form.uncertain {
         "The result is uncertain. Press Ctrl-R to load the authoritative state before deciding whether to submit again.".into()
     } else {
-        error.to_string()
+        error.to_string().into()
     });
 }
 
@@ -1785,10 +1787,13 @@ fn confirm_termination(app: &mut App) {
             limit: 9,
         }],
         selected: 0,
-        error: Some(format!(
-            "Session {} will stop; an owned active task becomes blocked.",
-            safe_text::single_line(&session_id, 64)
-        )),
+        feedback: Some(
+            format!(
+                "Session {} will stop; an owned active task becomes blocked.",
+                safe_text::single_line(&session_id, 64)
+            )
+            .into(),
+        ),
         pending: false,
         uncertain: false,
         stale: false,
@@ -2174,15 +2179,30 @@ mod tests {
         assert_eq!(stale.fields[0].cursor, cursor);
         assert_eq!(stale.base_revision, "12");
         assert_eq!(
-            stale.error.as_deref(),
-            Some(
-                "The workspace changed while you were editing. Your draft is kept. Review the latest state before submitting again, or press Esc to discard."
-            )
+            stale.feedback.as_ref(),
+            Some(&model::FormFeedback::Error(
+                "The workspace changed while you were editing. Your draft is kept. Review the latest state before submitting again, or press Esc to discard.".into()
+            ))
         );
         stale.reviewing = true;
         stale.reviewed_revision = Some("19".into());
         adopt_reviewed_revision(&mut stale);
         assert_eq!(stale.base_revision, "19");
+        assert!(!stale.pending);
+        let adoption = form_layout::editor_layout(&stale, 76, 16);
+        let displayed = adoption.lines.concat();
+        assert!(displayed.contains("Info: The reviewed revision"));
+        assert!(!displayed.contains("Error:"));
+        assert!(displayed.contains("Ctrl-S performs a new explicit submission."));
+        assert_eq!(adoption.cursor_column, 8);
+        assert!(adoption.cursor_row < 16);
+        classify_form_failure(&mut stale, ClientError::Rejected(ErrorCode::StaleRevision));
+        let rejected = form_layout::editor_layout(&stale, 76, 16).lines.join(" ");
+        assert!(rejected.contains("Error: The workspace changed"));
+        assert!(!rejected.contains("Info:"));
+        stale.reviewing = true;
+        stale.reviewed_revision = Some("19".into());
+        adopt_reviewed_revision(&mut stale);
         assert!(!stale.stale && !stale.reviewing);
         assert_eq!(stale.fields[0].value, "draft 界");
         assert_eq!(stale.fields[0].cursor, cursor);
@@ -2191,7 +2211,9 @@ mod tests {
         classify_form_failure(&mut uncertain, ClientError::Transport(Delivery::Unknown));
         assert!(uncertain.uncertain);
         assert!(!uncertain.stale);
-        assert!(uncertain.error.as_deref().unwrap().contains("uncertain"));
+        assert!(
+            matches!(uncertain.feedback.as_ref(), Some(model::FormFeedback::Error(message)) if message.contains("uncertain"))
+        );
     }
 
     #[test]

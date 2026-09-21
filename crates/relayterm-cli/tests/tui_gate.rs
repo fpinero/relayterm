@@ -308,6 +308,10 @@ fn input_ownership_moves_between_open_tui_clients() {
     owner.send(b"\x12");
     owner.wait_for("Losing draft");
     owner.wait_for("Current label: Winning name");
+    owner.wait_for("Info: The reviewed revision");
+    assert!(!owner.screen_contents().contains("Error:"));
+    let after_review = admin(&root, &private, &["session", "list-ordered"]);
+    assert_eq!(after_review["result"], renamed["result"]);
     owner.send(b"\x1b");
     owner.wait_for("Discard draft?");
     owner.send(b"y");

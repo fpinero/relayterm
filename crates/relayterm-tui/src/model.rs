@@ -89,13 +89,31 @@ pub struct FormField {
     pub limit: usize,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum FormFeedback {
+    Error(String),
+    Info(String),
+}
+
+impl From<String> for FormFeedback {
+    fn from(message: String) -> Self {
+        Self::Error(message)
+    }
+}
+
+impl From<&str> for FormFeedback {
+    fn from(message: &str) -> Self {
+        Self::Error(message.into())
+    }
+}
+
 #[derive(Clone, Eq, PartialEq)]
 pub struct Form {
     pub kind: FormKind,
     pub guidance: Option<String>,
     pub fields: Vec<FormField>,
     pub selected: usize,
-    pub error: Option<String>,
+    pub feedback: Option<FormFeedback>,
     pub pending: bool,
     pub uncertain: bool,
     pub stale: bool,
@@ -119,7 +137,7 @@ impl Form {
                 field("Dependency IDs (comma separated)", false, 128 * 64),
             ],
             selected: 0,
-            error: None,
+            feedback: None,
             pending: false,
             uncertain: false,
             stale: false,
@@ -147,7 +165,7 @@ impl Form {
                 field("Enabled (true/false)", false, 5),
             ],
             selected: 0,
-            error: None,
+            feedback: None,
             pending: false,
             uncertain: false,
             stale: false,
@@ -167,7 +185,7 @@ impl Form {
                 field("Verification", true, 8 * 1024),
             ],
             selected: 0,
-            error: None,
+            feedback: None,
             pending: false,
             uncertain: false,
             stale: false,
@@ -191,7 +209,7 @@ impl Form {
                 field("Recommended next action", true, 8 * 1024),
             ],
             selected: 0,
-            error: None,
+            feedback: None,
             pending: false,
             uncertain: false,
             stale: false,
@@ -214,7 +232,7 @@ impl Form {
                 field("Operation ID", false, 64),
             ],
             selected: 0,
-            error: None,
+            feedback: None,
             pending: false,
             uncertain: false,
             stale: false,
@@ -234,7 +252,7 @@ impl Form {
             guidance: None,
             fields: vec![name],
             selected: 0,
-            error: None,
+            feedback: None,
             pending: false,
             uncertain: false,
             stale: false,

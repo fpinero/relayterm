@@ -170,3 +170,10 @@ the remote process cannot guarantee delivery of those sequences. From the
 local shell, run `reset` if alternate-screen content or terminal modes remain.
 Reconnect and explicitly acquire input to resume the daemon-owned session.
 This workaround does not count as automatic interrupted-SSH visual recovery.
+
+### Form feedback labels
+
+Successful refresh, review guidance and explicit revision adoption use an Info
+prefix. Validation failures, stale submissions and uncertain outcomes retain an
+Error prefix. Adopting a reviewed revision preserves the draft and cursor and
+does not submit it; Ctrl-S remains a separate explicit action.
