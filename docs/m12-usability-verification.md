@@ -104,10 +104,14 @@ tests with one helper ignored after an isolated test-harness resize synchronizat
 correction. The record retains the original synchronization failure and the
 loaded echo-budget failure, followed by the serial passing run.
 
-Operator preparation confirmed GNOME Terminal, a Spanish keyboard, a measured
-80 by 24 outer terminal, and no existing `rt` command. Supplied screenshots verify
-full tabs, CURRENT, and the footer in Overview, Tasks, and Sessions, plus the
-first running task-neutral shell. The rest of the native journey remains open.
-A newly authorized isolated loopback SSH connection is available; focused SSH
-physical observations remain pending. No Windows or macOS source mapping is
-changed by this update, and no global acceptance or artifact freeze is claimed.
+The operator completed the required Linux observation attempts and authorized
+focused loopback SSH journey. The [final Linux report](m12-linux-final-report.md)
+records passing session, editing, conflict, writer-size, handover, backup/restore,
+and normal-exit observations, plus failed interrupted-SSH visual restoration and
+the documented Ctrl-Space detach shortcut. Additional UI findings remain open.
+The implemented Ctrl-] release followed by Esc detach passed physically.
+
+Linux acceptance and the SSH row remain open for corrective work and retesting;
+they are no longer unattempted. Earlier pending statements and the historical
+impact table above describe prior evidence stages. Windows and macOS source
+mappings are unchanged. No global acceptance or artifact freeze is claimed.

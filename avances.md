@@ -703,3 +703,421 @@ The first unconstrained debug workspace run failed its 250 ms echo reference
 at 470 ms; that result and the earlier loaded installed run remain disclosed
 in the Linux observation record. No timing budget or ignored-gate status was
 changed. Native operator and SSH observations remain independently pending.
+
+## 2026-09-21: Verify the Linux three-definition launch checkpoint
+
+Completed the three-definition launch portion of M12.LINUX-MANUAL. Operator
+screenshots and independent installed ordered-session readback at revision 22
+and watermark 22 confirm live task-neutral sessions from Shell A, Shell B, and
+Shell C. Session 5 full session/instance identities match the displayed Details.
+Creation order and prior identities remain stable. Four sessions are running
+because Shell B was launched twice; the earlier terminated Shell A session is
+retained. The operator clarified that the earlier missing Shell C session had
+not yet been launched. No product launch failure is inferred. Names, editing,
+writer transfer, handover, recovery, and physical SSH checks remain pending.
+
+## 2026-09-21: Verify duplicate session names on native Linux
+
+Completed the duplicate-name checkpoint within M12.LINUX-MANUAL. The operator
+renamed the first and third session rows to the same synthetic name. Screenshot
+inspection and exact-installed ordered readback at revision 24 and watermark 24
+confirm distinct unchanged session/instance IDs, original creation order, running
+status for both renamed sessions, and CURRENT. The extra and terminated rows
+remain intact. Cleared-name and subsequent manual checkpoints remain pending.
+
+## 2026-09-21: Verify cleared session names on native Linux
+
+Completed the cleared-name checkpoint within M12.LINUX-MANUAL. Operator screenshot
+inspection and exact-installed ordered readback at revision 25 and watermark 25
+confirm that clearing the third session name restores Session 3 without changing
+its session/instance IDs, ordinal, position, or running status. The first custom
+name remains intact and the view is CURRENT. Form editing and later native/SSH
+observations remain pending.
+
+## 2026-09-21: Observe native Linux form cursor editing
+
+Completed the initial form-cursor checkpoint within M12.LINUX-MANUAL. After the
+prescribed ASCII/wide/combining sample and navigation/insertion/Backspace steps,
+the operator confirmed correct editing and a visible cursor. The supplied image
+shows the unsaved task form and CURRENT. Dynamic cursor verification comes from
+the operator report, not inferred motion from a still image. Field navigation,
+multiline input, resize preservation, and discard remain pending.
+
+## 2026-09-21: Verify multiline draft preservation through Linux resize
+
+Completed the multiline-content and below-minimum resize checkpoints within
+M12.LINUX-MANUAL. Operator screenshots show a two-line description, the explicit
+57 by 23 minimum-size notice, and the restored title/description after enlarging.
+Title remains selected in both full-form screenshots and CURRENT is visible.
+This verifies preserved content and the observed selected field, not unobserved
+Description focus or dynamic field navigation. Tab/Shift-Tab confirmation and
+explicit draft discard remain pending.
+
+## 2026-09-21: Verify Linux form field navigation
+
+Completed the field-navigation checkpoint within M12.LINUX-MANUAL. The operator
+explicitly confirmed all requested Tab/Shift-Tab transitions and cursor/focus
+behavior between Title and Description. This supplements the earlier multiline
+and resize screenshots without reinterpreting their active-field markers.
+Draft discard and subsequent two-client observations remain pending.
+
+## 2026-09-21: Verify the Linux unsaved draft was not persisted
+
+Completed the draft-closure outcome and empty-task readback checkpoint within
+M12.LINUX-MANUAL. The operator screenshot shows the form closed, Tasks empty,
+and CURRENT. Installed task-list readback confirms zero tasks at revision 25
+and watermark 25, unchanged by the editing journey. Intermediate discard-dialog
+appearance remains unconfirmed separately; two-client observations remain open.
+
+## 2026-09-21: Confirm the Linux discard dialog and prepare two clients
+
+Completed the outstanding discard-dialog observation within M12.LINUX-MANUAL:
+the operator explicitly confirmed the dialog appeared and required y. Screenshot
+inspection also establishes two native clients with matching five-session lists
+and CURRENT. Client A and B are identified for the next controlled stale rename
+checkpoint; no conflict or input-transfer result is claimed yet.
+
+## 2026-09-21: Observe Linux concurrent rename rejection
+
+Completed the visible stale-submit rejection checkpoint within
+M12.LINUX-MANUAL. Operator screenshots establish an unsaved draft in A,
+a different saved label for the same session in B, and the workspace-changed
+error after Ctrl-S in A with its draft retained. Reconciliation and independent
+persisted-label verification remain pending; the broader manual task stays open.
+
+## 2026-09-21: Verify Linux two-step stale revision review
+
+Verified the two Ctrl-R checkpoints through operator screenshots: latest-state
+review first, then restored draft with explicit resubmission guidance. Installed
+session-list readback confirms the other client label remains persisted at
+revision 26 and watermark 26. Recorded the original-label context text retained
+in the restored form. Draft discard and remaining M12 manual checks stay open.
+
+## 2026-09-21: Verify Linux reconciled draft discard
+
+Completed the stale rename review and discard sequence within M12.LINUX-MANUAL.
+The operator screenshot shows the authoritative label and CURRENT after closing
+the form. Installed CLI readback verifies unchanged revision 26 and watermark 26
+and preserved session identities, order, and statuses. Physical writer transfer
+and the remaining manual journey are still pending.
+
+## 2026-09-21: Verify Linux narrow-client initial input acquisition
+
+Recorded operator-measured outer sizes of 131x33 and 80x24, preserved sessions
+after client reopen, and the narrow client transition from READ ONLY to WRITER.
+Independent installed session-attach readback confirms the live 78x17 viewport
+after acquisition. Long-line wrapping and subsequent ownership checks remain
+open within M12.LINUX-MANUAL.
+
+## 2026-09-21: Verify Linux wrapping and rejected input acquisition
+
+Verified narrow-writer long-command wrapping and shared output through operator
+screenshots. The wide client remains read-only after i and displays the competing
+input warning. Independent installed terminal snapshot readback confirms 78x17
+after rejection (snapshot revision 7). Read-only resize isolation and explicit
+ownership transfers remain pending within M12.LINUX-MANUAL.
+
+## 2026-09-21: Verify Linux read-only resize isolation
+
+Observed client A resized while retaining READ ONLY, CURRENT, and a reflowed
+competing-input warning. Independent installed terminal snapshot readback
+remains 78x17 at revision 7. The shared terminal size did not change. Client B
+is obscured in the screenshot; no fresh visual ownership assertion is made
+for B. Explicit ownership transfers remain pending.
+
+## 2026-09-21: Verify native Linux keyboard input release
+
+Recorded the operator-reported Ctrl+AltGr+] combination on the Spanish keyboard
+and the screenshot-confirmed transition of B from INPUT/WRITER to
+NAVIGATION/READ ONLY. The earlier unchanged-mode screenshot is retained as
+an unsuccessful observation, without attributing an unknown key combination.
+Both ownership transfer directions remain pending within M12.LINUX-MANUAL.
+
+## 2026-09-21: Observe Linux input transfer to the wide client
+
+The operator screenshot confirms A became INPUT/WRITER after B released input.
+Installed live snapshot readback reports 144x28 at terminal revision 14,
+compared with 78x17 under B. Recorded the difference from the earlier outer
+size measurement without asserting an exact current viewport match. Fresh
+wide-client wrapping and the return transfer remain pending.
+
+## 2026-09-21: Verify Linux wide wrapping and return input acquisition
+
+Recorded screenshot evidence of fresh wide-client command wrapping, execution,
+and explicit release, followed by B returning to INPUT/WRITER. Independent
+installed terminal snapshot readback confirms 78x17 at revision 17 after the
+return, versus 144x28 under A. Fresh narrow-client wrapping after this return
+and the remaining manual journey stay pending.
+
+## 2026-09-21: Complete local Linux writer transfer wrapping checks
+
+Verified fresh narrow-client wrapping after the return transfer through the
+operator screenshot, supplementing the installed live 78x17 snapshot readback.
+The local sequence covers initial acquisition, both transfer directions, fresh
+wrapping under each writer, rejected competing acquisition, and read-only
+resize isolation. SSH repetition and remaining native observations stay open.
+
+## 2026-09-21: Confirm Linux return command execution
+
+Verified the return-command output and new prompt with visible cursor in the
+operator screenshot after explicit reacquisition and Enter. The earlier
+read-only image alone was not treated as execution evidence. Detach and
+reattach remain pending in the manual journey.
+
+## 2026-09-21: Verify Linux local detach and reattach
+
+Operator screenshots verify return to the session list with unchanged selected
+session and instance identities and running status, then reattachment in
+READ ONLY with the prior command output and prompt preserved. CURRENT is
+visible in both views. Outer terminal recovery and remaining native/SSH
+checks remain pending.
+
+## 2026-09-21: Verify Linux normal-exit terminal recovery
+
+Verified outer-shell recovery after q in client B through explicit operator
+confirmation of cursor and typing behavior and a screenshot showing the
+synthetic recovery marker followed by a fresh prompt. This closes normal-exit
+recovery only; failure and SSH recovery are not inferred.
+
+## 2026-09-21: Verify Linux client reopen preserves terminal output
+
+The operator screenshot after reopening B shows retained synthetic command
+output and prompt in READ ONLY with CURRENT. Combined with the preceding
+normal-exit recovery observation, this closes that local client quit/reopen
+checkpoint. Task coordination, backup/restore, and SSH checks remain pending.
+
+## 2026-09-21: Verify Linux task-neutral session claim
+
+Observed the synthetic task transition from backlog to ready to active through
+operator screenshots. Installed task-list readback verifies the first neutral
+session instance owns the active task at revision 29 and watermark 30.
+Competing claim and the remaining handover journey are still pending.
+
+## 2026-09-21: Verify Linux competing task claim rejection
+
+Observed the rejected operation in Events following the instructed competing
+claim. Installed task-list readback confirms unchanged original ownership,
+active state, revision 29, and watermark 30. The generic UI message is not
+reported as a typed error reason. Remaining handover checkpoints stay open.
+
+## 2026-09-21: Verify Linux progress persistence
+
+Installed revision-bound task-history readback confirms the submitted synthetic
+summary and verification at revision 30, sequence 31, together with the original
+open claim. Operator screenshot shows active state and CURRENT after form
+closure. The initial history read required an expected revision and was retried
+successfully with the current value. Handover remains pending.
+
+## 2026-09-21: Verify immediate Linux handover state and persistence
+
+Verified the post-Ctrl-S Tasks view shows CURRENT, handover_ready, and no owner
+following the instructed no-refresh sequence. Before any successor claim,
+installed readback confirms revision 31, watermark 34, original claim closed
+for handover, retained progress, and the exact structured handover content.
+Physical history navigation and the successor/completion sequence remain open.
+
+## 2026-09-21: Verify Linux physical handover history review
+
+Operator screenshots after PageDown show the closed original claim, retained
+progress, and complete structured handover content while handover_ready and
+CURRENT remain visible. This supplements the revision-bound persistence read
+performed before any successor claim. Reverse navigation and the successor
+claim/completion sequence remain open.
+
+## 2026-09-21: Verify Linux successor claim preserves history
+
+Verified active state with a distinct successor instance owner and CURRENT in
+the operator screenshot. Installed readback at revision 32 and watermark 36
+confirms a new open claim and retained original claim, progress, and handover.
+Physical successor history review and completion remain pending.
+
+## 2026-09-21: Verify Linux successor history and task completion
+
+Verified physical successor history review and the done/unclaimed/CURRENT
+result after d through operator screenshots. Installed readback at revision 33
+and watermark 38 confirms successor claim closure for completion and preserved
+progress and handover. Post-completion quit/reopen remains pending.
+
+## 2026-09-21: Verify Linux completed task after client reopen
+
+Operator screenshots establish client exit and a reopened Tasks view with
+done, no owner, and CURRENT. The local task-neutral claim, competing rejection,
+progress, immediate handover, successor claim, and completion sequence now has
+its post-completion state observation. Backup/restore and physical SSH work
+remain pending.
+
+## 2026-09-21: Confirm Linux startup observations and SSH readiness
+
+Recorded the operator report of no startup warnings and inspected Help at
+80x24 with complete tab labels, CURRENT, and footer. Lower help content is
+not visible in this screenshot. Rechecked the authorized temporary loopback
+SSH connection with batch authentication and pinned host verification; the
+readiness marker succeeded. Physical SSH validation remains pending.
+
+## 2026-09-21: Verify SSH stale rename rejection and two-step review
+
+Operator screenshots from the instructed SSH sequence show Unicode draft
+editing, stale-submit rejection, authoritative-state review, and restored draft
+with explicit resubmission guidance. Independent readback confirms the local
+label remains saved at revision 34 and watermark 39. Dynamic Unicode cursor
+confirmation and the remaining SSH checkpoints are still pending.
+
+## 2026-09-21: Confirm SSH Unicode cursor and draft discard
+
+Recorded explicit operator confirmation of normal, continuously visible cursor
+behavior during SSH Unicode editing. The post-discard screenshot shows the
+authoritative label and preserved identities with CURRENT. Remaining SSH
+ownership and connection-loss checkpoints stay open.
+
+## 2026-09-21: Verify SSH initial input acquisition
+
+Observed the SSH client transition from READ ONLY to WRITER with a visible
+cursor and CURRENT. Installed live terminal snapshot readback confirms 78x17
+at revision 21. Remaining physical SSH input and recovery checkpoints are open.
+
+## 2026-09-21: Verify SSH writer wrapping and competing local rejection
+
+Operator screenshots establish fresh SSH command wrapping, its execution
+output, and the local observer remaining READ ONLY with a competing-input
+warning. Live installed snapshot readback remains 78x17 at revision 25 after
+rejection. Remaining physical SSH transfer and recovery checks stay open.
+
+## 2026-09-21: Verify observer resize isolation during SSH input
+
+Observed local A resized while remaining READ ONLY and CURRENT. Installed
+live terminal readback remains 78x17 at revision 25, verifying size isolation
+while B retains SSH input ownership in the instructed sequence. SSH transfers
+and connection-loss recovery remain open.
+
+## 2026-09-21: Verify SSH-to-local input transfer
+
+Operator screenshots verify SSH B released input and local A acquired it.
+Installed live terminal readback confirms 144x28 at revision 33 after
+acquisition, versus 78x17 under SSH. Fresh wrapping, return transfer, and
+connection-loss recovery remain pending.
+
+## 2026-09-21: Observe return transfer to SSH
+
+Verified fresh wide-client wrapping and execution before local release through
+operator screenshots. SSH B subsequently shows WRITER; independent live
+snapshot readback confirms 78x17 at revision 39. Recorded the clipped prior
+content and cursor position in the narrow view. Fresh SSH return input and
+connection-loss recovery remain pending.
+
+## 2026-09-21: Verify fresh input after return to SSH
+
+Operator screenshots verify narrow wrapping of a fresh SSH return command,
+its execution output, and a new prompt while WRITER and CURRENT remain visible.
+This completes fresh wrapping in both transfer directions for the SSH sequence.
+The prior-content display observation remains separate; connection-loss and
+recovery checkpoints remain pending.
+
+## 2026-09-21: Interrupt the scoped SSH client and verify session survival
+
+Sent SIGTERM only to the exact verified temporary loopback SSH client after
+the operator cleared its input line while retaining WRITER. Process readback
+confirms connection processes ended and the listener remains. Installed
+session readback preserves all identities and statuses at revision 34.
+Physical recovery, lease reacquisition, and reconnection remain pending.
+
+## 2026-09-21: Record SSH interruption recovery failure evidence
+
+Inspected the post-interruption operator screenshot: the recovery command ran
+and the local shell prompt returned, but stale TUI content and borders remain.
+Recorded command recovery separately from failed clean visual restoration.
+This entry documents the observation, not completion of the SSH recovery task;
+root-cause diagnosis and remaining checks stay pending.
+
+## 2026-09-21: Verify lease reacquisition after SSH interruption
+
+Operator screenshots show manual reset removed stale TUI content in B and
+surviving local A subsequently acquired WRITER with CURRENT and retained
+output. Automatic visual recovery remains failed; manual cleanup does not
+override that result. SSH reconnection remains pending.
+
+## 2026-09-21: Verify SSH reconnection and retained session context
+
+Operator screenshots confirm preserved session and instance identity and
+statuses after SSH reconnect, then retained command output in READ ONLY with
+CURRENT after reattachment. The scoped interruption did not destroy the
+supervised session. Failed automatic visual recovery remains open separately.
+
+## 2026-09-21: Verify normal SSH exit and prepare live backup
+
+Observed clean shell restoration and successful marker execution after normal
+SSH exit. Created the private live backup with the installed candidate at
+revision 34 and watermark 39; read-only SQLite integrity_check passed and the
+database hash was recorded. Original state and backup remain retained. Restore
+is pending explicit agreement to stop the daemon and terminate live sessions.
+
+## 2026-09-21: Verify authorized fresh-home restore
+
+After explicit operator agreement, stopped the original daemon with session
+termination, restored the retained live backup into a new home, and explicitly
+started it. Installed readback verifies expected lost/terminated states and
+preserved identities at revision 35 and watermark 43. Read-only database
+comparisons verify task/history/launch metadata and all original events;
+integrity_check passes and the backup hash is unchanged. Physical TUI review
+and the separate SSH interruption diagnosis remain pending.
+
+## 2026-09-21: Verify restored workspace in the native TUI
+
+Operator screenshots verify expected lost/terminated session states, stable
+identities, done task without owner, closed claim history, progress, and
+handover after restore. Explicit operator confirmation and return-to-top
+screenshot verify bidirectional detail paging. This completes the restored
+fixture observation alongside prior database checks. SSH interruption visual
+recovery remains an open issue; source inspection is not a causal proof.
+
+## 2026-09-21: Record disconnected-client display inconsistency
+
+Inspected the untouched original client after authorized daemon stop: its
+DISCONNECTED header coexists with INPUT/WRITER and Attaching... indicators.
+Recorded the visual inconsistency without inferring continued ownership.
+Exit recovery from this state remains pending.
+
+## 2026-09-21: Verify disconnected exit and record unexpected navigation
+
+Recorded explicit operator report of release chord switching to Events without
+5, supported by the disconnected Events screenshot and repeated transport
+messages. Subsequent q restores the outer shell and the synthetic exit marker
+executes successfully. Unexpected navigation and repeated diagnostics remain
+open; clean exit does not supersede those findings.
+
+## 2026-09-21: Verify empty-title form validation on Linux
+
+Recorded operator screenshots before and after empty Create task submission.
+The visible required-title error, retained form, and CURRENT header verify
+the validation checkpoint. Remaining editing and detach checks stay open.
+
+## 2026-09-21: Record editing and field clearing after validation
+
+Recorded explicit operator confirmation of title editing and Ctrl-U clearing,
+supported by populated and empty-field screenshots. The populated screenshot
+differs from the requested forward-Delete sequence, so that precise checkpoint
+remains open rather than inferring either success or a defect.
+
+## 2026-09-21: Verify forward Delete on Linux
+
+Verified the operator-provided ABC-to-BC title sequence after Home and Delete.
+The operator explained the prior differing text as free editing. The focused
+Delete checkpoint passed; no title-editing defect is established.
+
+## 2026-09-21: Record failed documented detach shortcut
+
+The physical Ctrl-Space attempt leaves the client in INPUT/WRITER. Exact
+candidate source inspection confirms Ctrl-] or Ctrl-5 release and Esc detach,
+with no Ctrl-Space detach binding in the TUI handler. Recorded the quick-start
+mismatch as a failed check, without claiming a fix.
+
+## 2026-09-21: Finish Linux observation round and final report
+
+The operator confirmed the Spanish-keyboard release chord and supplied sequential
+read-only terminal and Sessions screenshots with Session 6 still running after
+Esc detach. Completed the observation round and created the sanitized Linux
+final report with artifact identities, the contract coverage matrix, failures,
+limitations, retained resources, and proposed follow-up. Updated the usability
+evidence status and replaced the observation queue item with unresolved findings;
+acceptance and corrective retests remain pending. No production correction or
+push was performed. Verified documentation with scripts/check_repository.py
+(63 Markdown files and eight ADRs) and git diff --check, both passing.
