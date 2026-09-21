@@ -93,3 +93,21 @@ read-only and rejected clients retain the writer's dimensions. Affected native
 and SSH manual observations remain required before global acceptance.
 
 On 2026-09-19 the operator performed the [macOS manual observations](m12-macos-manual-observations.md). Session presentation, Unicode cursor editing, stale rename review, competing input transfer, and client reopen passed on the original local artifact. The installed quick start exposed a blocking handover refresh failure. The source correction passed automated checks. A separately identified local build from `d760554` subsequently passed the affected manual handover, second-session continuation, completion, backup recovery, and client-reopen retest. The operator subsequently verified absolute-path discovery and scoped removal of a disposable installation; independent checksum and task readback confirmed the retained candidate and state were preserved. Collision refusal was checked by the assistant. The local macOS journey is recorded with that evidence distinction; SSH, Linux, Windows, and the final M12 reconciliation remain open.
+
+## Linux native continuation
+
+The [Linux native record](m12-linux-manual-observations.md) tracks exact source
+9cf91f7 on Ubuntu 24.04.5 x86-64. Two clean builds and normalized packages are
+byte-identical; extracted smoke and dedicated installation passed. The installed
+candidate passes all ten session presentation, TUI, backup/restore, and worktree
+tests with one helper ignored after an isolated test-harness resize synchronization
+correction. The record retains the original synchronization failure and the
+loaded echo-budget failure, followed by the serial passing run.
+
+Operator preparation confirmed GNOME Terminal, a Spanish keyboard, a measured
+80 by 24 outer terminal, and no existing `rt` command. Supplied screenshots verify
+full tabs, CURRENT, and the footer in Overview, Tasks, and Sessions, plus the
+first running task-neutral shell. The rest of the native journey remains open.
+A newly authorized isolated loopback SSH connection is available; focused SSH
+physical observations remain pending. No Windows or macOS source mapping is
+changed by this update, and no global acceptance or artifact freeze is claimed.

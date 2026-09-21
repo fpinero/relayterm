@@ -646,3 +646,60 @@ With RELAYTERM_TEST_RT selecting that installed executable, `cargo test -p relay
 Completed M12.WIN and the Windows scope of M12.WIN-SIZE. On installed 9cf91f7, the operator verified initial input acquisition in the measured 80 by 24 client B, transfer to wide client A, and transfer back to B without corrective window resizing. Newly entered long commands wrapped completely and produced their expected output; the non-writer stayed read-only and both views retained CURRENT. The operator then resized only read-only A and entered another complete long command in B. Independent installed session snapshot reads before and after that isolation step both reported 17 rows by 78 columns. The current screenshots were inspected as evidence but were not committed.
 
 Reconciled the Windows observation record, handoff, continuation guide, and source-impact matrix. Retained d760554 evidence for unchanged native behavior, the 0bc4b63 physical header observation, and 9cf91f7 writer-size and exact-installed gate results. Removed the completed Windows tasks from TODO and retained Linux native, affected macOS, authorized SSH, clean-machine evidence where required, and global reconciliation under M12.NATIVE and existing milestone gates. No further physical Windows checkpoint is currently pending for these changes. Repository checks, candidate secret checks, and whitespace validation passed before publication of this evidence update.
+
+## 2026-09-21: Prepare the exact Linux M12 candidate
+
+Completed M12.LINUX-PREP. Exact source 9cf91f7164235d35beda81d9c8c2d4200b703aad
+built offline twice from separate clean detached clones on Ubuntu 24.04.5 x86-64,
+using Rust/Cargo 1.98.1, GCC 13.3.0, GNU ld 2.42, and glibc 2.39. Build-record and
+normalized-package comparisons passed. Both executables are 13,030,408 bytes,
+SHA-256 b2bbc872bf4b7c8175f07dfd66b64d2cc8a02bf66ae6c409ee33542c0a9fcfd4;
+both archives are 4,826,579 bytes, SHA-256
+0f7add246e4406eb7a30a955844a9a04d51026014ca69301232d3d536cd3450b.
+Version remains 0.1.0, default empty production features, unsigned.
+
+Verified external archive/manifest checksums, nine-member inventory, native ELF
+architecture/interpreter/libraries and GLIBC_2.39 symbol ceiling, extracted smoke
+with real PTY and orderly shutdown, packaged-helper installation, installed
+help/version/hash, unrelated-command collision preservation, a space/Unicode
+install, and removal of only an owned daemon-free disposable copy. Both packages,
+checksums, manifests, build records, and inspection are retained outside Git.
+
+The exact installed executable passed all ten session_presentation, tui_gate,
+backup_restore, and worktree_gate tests with one fixture ignored after a test-only
+resize synchronization correction. The original synchronization failures and
+a loaded 299 ms echo-budget failure are retained in the Linux observation record.
+The serial passing run reported startup p95 82 ms, navigation p95 24 ms, echo p95
+179 ms, and flood throughput 23,500,094 bytes/s. No budget was relaxed and no
+production rebuild replaced the candidate. Full harness source verification is
+tracked separately as M12.LINUX-GATE.
+
+Operator observation confirms the header/footer at the reported 80 by 24 in
+Overview, Tasks, and Sessions, and the first task-neutral shell. Remaining native
+steps, focused SSH physical observation, independent clean-machine evidence,
+affected macOS retests, and global M12 acceptance remain open. The operator
+authorized an isolated temporary loopback SSH server; a fresh pinned-key batch
+connection passed without changing the disabled global SSH service or socket.
+Connection availability alone is not SSH usability acceptance.
+
+## 2026-09-21: Synchronize the native resize test and verify the installed candidate
+
+Completed M12.LINUX-GATE. The native outer-terminal harness now sizes its parser
+before notifying the child and waits for the actual footer row after resize.
+The input-ownership journey waits for discard confirmation closure and read-only
+attachment before sending acquisition/navigation keys. It still checks both
+inline and Events rejection guidance and every original live-dimension and
+isolation assertion. Production source and the installed 9cf91f7 executable
+are unchanged; the two release source clones remain clean.
+
+Verification: the four exact-installed gates passed serially (ten tests, one
+helper ignored), `cargo fmt --all -- --check` passed, and
+`cargo clippy --workspace --all-targets --locked --offline -- -D warnings`
+passed. `cargo test --workspace --locked --offline -- --test-threads=1` completed
+with exit 0 using RELAYTERM_TEST_RT for the installed production executable in
+supporting gates. The tested harness file matches the evidence working tree.
+Repository, candidate-secret/negative-control, and whitespace checks passed.
+The first unconstrained debug workspace run failed its 250 ms echo reference
+at 470 ms; that result and the earlier loaded installed run remain disclosed
+in the Linux observation record. No timing budget or ignored-gate status was
+changed. Native operator and SSH observations remain independently pending.

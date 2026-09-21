@@ -128,12 +128,23 @@ impl OuterTerminal {
     }
 
     fn resize(&mut self, rows: u16, columns: u16) {
-        self.control.resize(rows, columns).unwrap();
+        // Parse the next frame at its new dimensions before notifying the child.
         self.screen
             .lock()
             .unwrap()
             .screen_mut()
             .set_size(rows, columns);
+        self.control.resize(rows, columns).unwrap();
+        // Resize delivery and redraw are asynchronous on native terminals.
+        wait_until(
+            || {
+                self.screen_contents()
+                    .lines()
+                    .nth(usize::from(rows) - 2)
+                    .is_some_and(|line| line.starts_with("Relayterm |"))
+            },
+            "resized terminal footer",
+        );
     }
 
     fn wait_for(&self, marker: &str) {
@@ -300,15 +311,27 @@ fn input_ownership_moves_between_open_tui_clients() {
     owner.wait_for("Discard draft?");
     owner.send(b"y");
     owner.wait_for("Sessions selected");
+    // The session list remains visible behind the discard confirmation.
+    wait_until(
+        || !owner.screen_contents().contains("Discard draft?"),
+        "discard confirmation closed",
+    );
     let session_id = renamed["result"]["items"][0]["instance"]["session_id"]
         .as_str()
         .unwrap();
     owner.resize(28, 90);
-    owner.send(b"\ri");
+    owner.send(b"\r");
+    owner.wait_for("READ ONLY");
+    owner.send(b"i");
     owner.wait_for("WRITER");
     wait_for_terminal_size(&root, &private, session_id, 21, 88);
     observer.resize(24, 80);
-    observer.send(b"\ri5");
+    observer.send(b"\r");
+    observer.wait_for("READ ONLY");
+    observer.send(b"i");
+    observer.wait_for("Another client controls input");
+    observer.send(b"5");
+    observer.wait_for("Redacted diagnostics");
     observer.wait_for("Another client controls input");
     observer.send(b"3");
     observer.wait_for("READ ONLY");

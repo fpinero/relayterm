@@ -178,3 +178,27 @@ After the remaining evidence passes, the maintainer chooses in one decision:
 - Adopt a code of conduct or release policy now, or defer either governance document without changing the technical gate.
 
 The established sole-maintainer approval with assistant-assisted technical review is sufficient. No second GitHub account or claimed independent human review is required.
+
+## Linux continuation artifact
+
+On 2026-09-21 exact source `9cf91f7164235d35beda81d9c8c2d4200b703aad`
+was built twice from clean detached clones on Ubuntu 24.04.5 x86-64 with
+Rust/Cargo 1.98.1, GCC 13.3.0, GNU ld 2.42, and glibc 2.39. Both executables
+and both normalized archives are byte-identical within that environment.
+Version remains 0.1.0, default empty features, unsigned.
+
+| Artifact | Bytes | SHA-256 |
+| --- | --- | --- |
+| Executable | 13,030,408 | `b2bbc872bf4b7c8175f07dfd66b64d2cc8a02bf66ae6c409ee33542c0a9fcfd4` |
+| Archive | 4,826,579 | `0f7add246e4406eb7a30a955844a9a04d51026014ca69301232d3d536cd3450b` |
+
+Native ELF inspection, external checksums, nine-member inventory, extracted PTY
+smoke, dedicated installed identity/help/version, synthetic collision refusal,
+and scoped removal passed. The serial exact-installed gates pass ten tests
+with one helper ignored using the test-harness correction documented in
+[the Linux record](m12-linux-manual-observations.md). Original failed runs remain
+recorded. The test-only correction does not replace the production artifact.
+Packages, checksums, manifests, build records, and inspection are retained outside
+Git. Physical header and first-shell evidence is partial; the remaining native
+journey, focused SSH, independent clean-machine proof, and global reconciliation
+stay open. This developer-host run does not certify an independent clean machine.

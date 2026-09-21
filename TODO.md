@@ -35,6 +35,8 @@ Outcome: a reproducible candidate with usable session identification and editing
 
 Execution contract: [M12 detailed plan](docs/M12_details.md). Continue at M12.00h. The five usability proposals are scheduled here and do not reopen M11 acceptance.
 
+- M12.LINUX-MANUAL: Continue the installed 9cf91f7 journey from Shell C launch confirmation, then names/cursor/resize, two-client conflicts and writer transfer, handover/completion, live backup/fresh-home restore after explicit stop agreement, and focused SSH physical checks through the authorized temporary loopback service. Record remaining platform-warning and terminal-recovery observations; preserve the extra/terminated session history in docs/m12-linux-manual-observations.md.
+
 - M12.NATIVE: Complete Linux native acceptance on candidate 9cf91f7, affected macOS header/writer-size retests, and the focused SSH observation through an authorized connection. Reconcile clean-machine and global acceptance evidence. Preserve the Windows source mapping in docs/m12-windows-manual-observations.md; use the existing Linux task prompt in docs/m12-native-continuation.md.
 
 
