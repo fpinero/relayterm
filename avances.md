@@ -1305,3 +1305,47 @@ header/footer observations and independent terminal measurement, this closes
 the focused minimum-layout block on 691a8fb. Removed that pending portion from
 M12.NATIVE; writer-size transfers and other platform gates remain open.
 Verification: tracked-candidate repository checks and git diff --check passed.
+
+## 2026-09-21: Verify first macOS writer acquisition and fresh wrapping
+
+On candidate 691a8fb the operator confirmed successful input and long-line
+wrapping in the narrow A client while B stayed read-only. Screenshots show the
+expected ownership labels and shared output. Independent session snapshot
+readback measured 17-by-78 live dimensions with unchanged 24-by-80 and 34-by-120
+outer windows. The first-acquisition checkpoint passes; transfers and observer
+isolation remain pending. git diff --check passed for the evidence update.
+
+## 2026-09-21: Verify competing input and macOS observer resize isolation
+
+Inspected operator screenshots showing B's competing-input rejection and
+continued read-only state while A retained writer focus. Independent stty reads
+measured A 24-by-80 and resized B 34-by-113; the live session snapshot stayed
+17-by-78. Recorded actual dimensions rather than the suggested target. This
+checkpoint passes on 691a8fb; both writer transfers remain pending.
+Verification: git diff --check passed for the evidence update.
+
+## 2026-09-21: Verify macOS release repetition and A-to-B transfer
+
+Recorded operator-confirmed release and repeated release without an Events
+transition. B acquired input explicitly and cleared the competing-owner notice.
+Independent snapshot readback changed from 17-by-78 to 27-by-111 with unchanged
+outer windows, proving size synchronization to B on candidate 691a8fb. The
+reverse transfer remains pending. git diff --check passed.
+
+## 2026-09-21: Verify wide input and B-to-A size transfer on macOS
+
+Recorded operator-confirmed single-row long input/output in B and the reverse
+ownership transfer to A. Independent live snapshot readback returned from
+27-by-111 to 17-by-78 with unchanged outer windows. Preserved the distinction
+between historical clipping and fresh wrapping; the final fresh narrow input
+check remains pending. git diff --check passed.
+
+## 2026-09-21: Complete macOS writer-size physical retests
+
+Verified the operator's final screenshot of fresh long input and output wrapping
+correctly after return to the narrow A writer. Together with prior live snapshot
+readbacks, this completes the writer-size retests on 691a8fb. Removed the pending
+macOS writer-size portion from M12.NATIVE and updated the focused candidate
+matrix. No claim is made for historical reflow or the remaining disconnected and
+rename observations. Tracked-candidate repository checks and git diff --check
+passed for the evidence changes.

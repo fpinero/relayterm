@@ -232,3 +232,71 @@ Relayterm footer after the requested return to 80x24. The native minimum-size
 header/footer and shrink/recovery block passes on candidate 691a8fb. This does
 not expand the observation to full Help content accessibility. Writer-size
 transfers and the other correction observations remain pending.
+
+## Two-client input baseline
+
+The operator supplied both attached views showing NAVIGATION and READ ONLY on
+candidate 691a8fb, identifying the larger green window as B. Independent stty
+reads confirmed outer terminal sizes of 24 rows by 80 columns and 34 rows by
+120 columns. An administrative session attachment read the sole live session's
+snapshot as 24 rows by 80 columns before input acquisition. This snapshot is
+live terminal state, not the durable creation-size field. First acquisition and
+transfers remain pending; no input was sent by the assistant.
+
+## First input acquisition at the narrow writer passed
+
+The operator acquired input in A without resizing and executed the supplied
+long synthetic echo command. The screenshots show A in INPUT/WRITER, fresh
+command and output wrapping at its narrow viewport, and B remaining in
+NAVIGATION/READ ONLY with the same output. The operator confirmed correct
+behavior. Independent live snapshot readback returned 17 rows by 78 columns;
+outer terminal measurements remained A 24 by 80 and B 34 by 120. This proves
+first acquisition synchronized the shared PTY to A's inner viewport rather
+than retaining its initial 24-by-80 creation dimensions. Observer resize
+isolation, competing acquisition and both transfers remain pending.
+
+## Competing input and observer resize isolation passed
+
+The operator screenshots show B rejecting acquisition with the inline competing
+owner guidance while remaining NAVIGATION/READ ONLY, and A retaining
+INPUT/WRITER. Independent outer terminal measurements after B's resize returned
+A 24 rows by 80 columns and B 34 rows by 113 columns. The actual B size differs
+from the suggested 30-by-100 target but establishes a resize from its previous
+34-by-120 size. Independent live snapshot readback remained 17 rows by 78 columns,
+matching A. Competing acquisition and observer resizing therefore preserved
+A's ownership and shared terminal dimensions. No assistant input was sent.
+
+## Release chord and narrow-to-wide transfer passed
+
+The operator confirmed that releasing input in A and repeating Ctrl-] while
+read-only kept Sessions selected. Screenshots show A in NAVIGATION/READ ONLY
+and B in INPUT/WRITER without the competing-input notice. Independent live
+snapshot readback measured 27 rows by 111 columns, matching B's inner viewport,
+while outer measurements remained A 24-by-80 and B 34-by-113. The explicit
+A-to-B ownership and size transfer passes without resizing after acquisition.
+Fresh output at B's width and the reverse transfer remain pending. The operator
+confirmed the requested chord; no alternative physical key mapping is inferred.
+
+## Wide input and reverse writer transfer passed
+
+The operator confirmed the supplied long echo command and output each occupied
+one row in B while B held input. Subsequent screenshots show B read-only and A
+writing after explicit release/acquisition. Independent live snapshot readback
+returned to 17 rows by 78 columns, with unchanged outer dimensions A 24-by-80
+and B 34-by-113. Both transfer directions now have physical ownership and
+independent live-size evidence on 691a8fb. The historical B lines are clipped
+in the narrower A view, consistent with the documented fixed-grid limitation;
+this is not evidence of fresh-input loss. Fresh long-line input after the reverse
+transfer remains the last check in this width block.
+
+## Fresh narrow input after reverse transfer passed
+
+The operator screenshot shows the final synthetic long echo command and its
+output continuing on the next row after the B-to-A transfer, with A still in
+INPUT/WRITER. The complete new marker is retained across the wrapped rows.
+This closes the macOS writer-size block on 691a8fb: first acquisition, competing
+rejection, observer resize isolation, both transfers with independent live
+snapshot dimensions, and fresh input at each writer width. Historical wide
+rows remain subject to the previously documented fixed-grid clipping limit.
+Connected release and repeated release without an Events transition also passed.
+Disconnected feedback/exit and rename review remain pending.
