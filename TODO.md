@@ -35,6 +35,7 @@ Outcome: a reproducible candidate with usable session identification and editing
 
 Execution contract: [M12 detailed plan](docs/M12_details.md). Continue at M12.00h. The five usability proposals are scheduled here and do not reopen M11 acceptance.
 
+- M12.WINDOWS-HANDOFF: Prepare and verify a detailed Windows continuation for candidate 691a8fb, then deliver the authorized branch and start Quality/Security.
 - M12.FINAL-SOURCE-GATES: Use correction source 691a8fb for native preparation; freeze its mapped artifacts after affected observations pass; rerun required native Quality/Security jobs and both release builds/packages per target, retain final artifacts, and run gates through their exact extracted executables. Historical 491d5f1 CI and 9cf91f7 packages do not certify 15794ad or a later candidate.
 - M12.CORRECTION-PLATFORMS: On candidate 691a8fb, complete Windows correction and informational form-feedback observations, plus the Linux informational feedback observation. Reconcile acceptance of the demonstrated SSH transport-loss recovery and fixed-grid history limits recorded in docs/m12-linux-final-report.md; preserve the original failed observations.
 

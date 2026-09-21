@@ -27,6 +27,8 @@ presentation needs an additional Linux physical check. Any further code change
 needs impact analysis, a new source identity, and affected retests. Do not
 substitute a later executable under an older artifact hash.
 
+For the next Windows task, use the [detailed Windows final continuation](m12-windows-final-continuation.md), which contains artifact preparation, focused physical checkpoints, evidence boundaries and remaining global gates.
+
 ## Linux results completed
 
 | Area | Verified result | Candidate boundary |
