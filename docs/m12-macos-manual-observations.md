@@ -300,3 +300,46 @@ snapshot dimensions, and fresh input at each writer width. Historical wide
 rows remain subject to the previously documented fixed-grid clipping limit.
 Connected release and repeated release without an Events transition also passed.
 Disconnected feedback/exit and rename review remain pending.
+
+## Stale rename rejection and draft preservation passed
+
+The operator kept Draft A open in A, saved Saved B from the second client, and
+then submitted A's older draft. The screenshots show Saved B in B and the
+explicit workspace-changed Error in A with Draft A intact and the physical
+cursor at its end. Independent ordered-session readback confirmed Saved B
+remained authoritative at revision 5. This verifies rejection and preservation;
+two-step review, informational adoption feedback and discard remain pending.
+
+## Two-step review and informational adoption feedback passed
+
+The first Ctrl-R screenshot shows Saved B in the authoritative session list and
+Reviewing latest state in the footer, with a separate Ctrl-R adoption action.
+After the second Ctrl-R, the screenshot shows Current label: Saved B, the
+unchanged Draft A, the physical cursor at its end, and Info-prefixed guidance
+that Ctrl-S performs a new explicit submission. The informational text wraps
+within the form and is not labelled Error. The preceding stale rejection
+retained its Error prefix. Independent ordered-session readback after adoption
+matched the entire saved winner baseline, including revision 5. No automatic
+submission occurred. Safe discard and the separate validation-error observation
+remain pending.
+
+## Reviewed draft discard passed
+
+After the requested Esc and confirmation, the operator screenshot shows the
+closed form and Saved B still selected. Independent ordered-session readback
+matches the entire pre-review winner baseline, including revision 5. This closes
+the reviewed rename discard checkpoint without overwriting the winner. Stale
+rejection, two-step review, refreshed context, retained draft/cursor and Info
+adoption guidance are now physically verified. Separate validation-error
+presentation and disconnected-client observations remain pending.
+
+## Real validation-error presentation passed
+
+The operator submitted an empty task form in B. The screenshot shows Error:
+Title is required., the retained open form and the visible cursor in the empty
+title field. Independent task-list readback remained empty and the session
+winner remained Saved B at revision 5. Together with the Info adoption and
+stale Error observations, this closes the focused macOS form-feedback and
+rename block on 691a8fb. For the next disconnect observation, read-only checks
+identified one running synthetic shell and zero tasks in the dedicated workspace.
+Its daemon has not been stopped; explicit operator authorization is still required.

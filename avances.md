@@ -1349,3 +1349,35 @@ macOS writer-size portion from M12.NATIVE and updated the focused candidate
 matrix. No claim is made for historical reflow or the remaining disconnected and
 rename observations. Tracked-candidate repository checks and git diff --check
 passed for the evidence changes.
+
+## 2026-09-21: Verify macOS stale rename rejection
+
+Recorded operator-confirmed rejection of Draft A after B saved Saved B, with
+retained draft and visible cursor. Independent administrative readback confirmed
+Saved B at revision 5. Review/adoption and safe discard remain pending on
+candidate 691a8fb. git diff --check passed.
+
+## 2026-09-21: Verify macOS two-step review and Info feedback physically
+
+Inspected both operator review checkpoints on candidate 691a8fb: authoritative
+Saved B before adoption, then updated context, retained Draft A/cursor and
+wrapped Info guidance after adoption. Independent readback matched the complete
+revision-5 winner baseline. This verifies the informational-prefix correction
+physically without implying submission or safe-discard completion.
+Verification: git diff --check passed.
+
+## 2026-09-21: Verify safe discard after macOS rename review
+
+The operator screenshot shows the reviewed draft closed and Saved B retained.
+Independent administrative readback exactly matches the revision-5 winner
+baseline. The stale-rename review/discard journey passes on 691a8fb. Separate
+validation feedback and disconnect observations remain pending.
+Verification: git diff --check passed.
+
+## 2026-09-21: Complete macOS form-feedback physical observations
+
+Verified the operator's empty-task rejection screenshot: Error prefix, required
+title guidance, open form and visible cursor. Independent readback confirmed no
+task was created and Saved B remained at revision 5. Updated pending scope to
+retain only disconnected-client checks on macOS and the remaining checks on
+other platforms. Tracked-candidate repository checks and git diff --check passed.

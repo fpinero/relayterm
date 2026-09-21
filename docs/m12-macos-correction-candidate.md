@@ -31,8 +31,9 @@ Completed and pending physical observations are recorded in the macOS report.
    connected release/repetition passed. Both platforms still require
    disconnected non-writer state, bounded diagnostics, and clean native exit.
    Stopping a daemon with sessions needs explicit authorization on this Mac.
-4. macOS and Windows: stale rename rejection, two-step review, current label,
-   retained draft/cursor, Info guidance, one real validation error and safe discard.
+4. macOS form checks are complete: stale rename rejection, two-step review,
+   updated context, retained draft/cursor, Info guidance, validation Error and safe
+   discard. Windows still requires these focused observations.
 5. Linux: only changed informational form presentation and cursor/error contrast.
    Do not repeat the completed 15794ad correction round.
 6. One authorized SSH connection: changed review and disconnected feedback,
