@@ -2,7 +2,7 @@
 
 ## Current source and scope
 
-Updated 2026-09-21. Latest tested production correction:
+Updated 2026-09-21. Latest physically verified Linux correction:
 `15794ad6e7f9459c89c512e679f5648bf9a3d231`, on `fix/m12-linux-findings`.
 Commit `0cf6bea` records its completed targeted Linux physical retests and
 changes documentation only. Later documentation-only descendants may reuse
@@ -16,9 +16,14 @@ The [Linux final report](m12-linux-final-report.md) and
 [chronological observations](m12-linux-manual-observations.md) retain failures,
 limits, assistant verification, and physical observations separately.
 
-One presentation issue remains: successful revision adoption is prefixed Error.
-Resolve M12.FORM-FEEDBACK before freezing the final source, preferably before
-building the replacement packages on three platforms. Any further code change
+The macOS continuation corrects informational form feedback at
+`691a8fbb45980658b98d647a85ea8305b2325938`, based on the complete Linux handoff
+`7f1868620ef537f27927fe22224e60d3a3babb8c`. This is the new candidate source
+for native preparation, not a globally accepted artifact freeze. See the
+[macOS correction candidate](m12-macos-correction-candidate.md) for current
+verification and exact remaining actions. Linux's 15794ad physical evidence
+remains valid for unchanged behavior; only the changed informational form
+presentation needs an additional Linux physical check. Any further code change
 needs impact analysis, a new source identity, and affected retests. Do not
 substitute a later executable under an older artifact hash.
 
@@ -78,7 +83,7 @@ repetitions. Do not claim macOS evidence from Linux or Windows evidence from WSL
 
 ## Remaining milestone gates
 
-1. Resolve the informational feedback issue and freeze a single final source.
+1. Verify candidate 691a8fb on the remaining targets and freeze its mapped artifacts after the affected usability checks pass.
 2. Run the exact required local and native CI commands/features from
    M12_details.md section 10 and the checked-in Quality/Security workflows.
    Ordinary cargo test leaves opt-in gates ignored. Retain both independent

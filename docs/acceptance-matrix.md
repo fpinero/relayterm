@@ -128,3 +128,12 @@ macOS/Windows observations. AC-1 through AC-16 retain their detailed M11 and
 candidate-specific evidence; global M12 sign-off remains pending. The Linux
 report distinguishes the fixed UI issues from the SSH transport-restoration
 and fixed-grid resize limitations requiring explicit acceptance reconciliation.
+
+## M12 macOS correction continuation
+
+Candidate `691a8fbb45980658b98d647a85ea8305b2325938` adds informational form
+feedback to the completed Linux handoff. Its impact is limited to form feedback
+presentation. The [current candidate matrix](m12-macos-correction-candidate.md)
+identifies exact pending AC-1 through AC-16 proof, native artifacts, CI/security,
+clean-runtime evidence and affected physical observations. Existing M11 and
+platform evidence is retained; this entry does not grant global acceptance.

@@ -1239,3 +1239,27 @@ spaces; it was corrected to reconstruct rendered text and then passed.
 Full candidate checks, native packaging and physical observations remain pending
 under the existing final-source and platform tasks. This is automated macOS
 verification, not operator acceptance.
+
+## 2026-09-21: Prepare and verify the macOS focused correction candidate
+
+Prepared source 691a8fb from Linux handoff 7f18686 in a separate work branch,
+preserving the unrelated untracked reviewer document. Full local verification
+passed formatting, all-target check and Clippy with denied warnings, workspace
+suite (198 passing executions, zero failures, 16 ignored), core-only tests,
+workspace build, cargo-deny advisories/licenses/bans/sources, 22 release-tooling
+tests with two Windows-only skips, audit negative controls and Git history scan.
+Repository and candidate secret checks passed in a clean source clone; the
+ordinary repository scan still rejects whitespace in the preserved unrelated file.
+
+Two clean native offline builds and packages of 691a8fb matched byte-for-byte.
+Native Mach-O inspection, checksum/inventory checks, extracted smoke, dedicated
+installation, synthetic collision preservation and spaces/Unicode installation
+passed. The exact retained installed binary passed eleven session presentation,
+TUI, worktree and backup/restore tests, with one helper ignored. Exact commands,
+hashes and performance measurements are in docs/m12-macos-correction-candidate.md.
+
+Prepared one separate synthetic shell and two checked launchers for small native
+operator steps. Existing operator sessions and SSH services were not stopped or
+changed. Updated the source continuation and AC-1 through AC-16 pending proof
+matrix. No physical acceptance, final hosted CI, independent clean runtime,
+remote push, merge, tag or release is claimed. Global M12 tasks remain pending.

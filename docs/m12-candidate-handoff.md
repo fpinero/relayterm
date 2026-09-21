@@ -8,6 +8,16 @@ The implementation is available in draft PR [#24](https://github.com/fpinero/rel
 
 M11 is complete at merge `dc5b2e6067d50345828ac175858029434ce3c081`. Its [final review](m11-final-review.md) and [acceptance matrix](acceptance-matrix.md) remain the source for behavior unaffected by M12. M12 changes session presentation, ordered paging, form cursor geometry, stale-form feedback, input-owner feedback, release tooling, installation, and release documentation. Those affected manual rows require candidate-specific evidence.
 
+## Current macOS correction preparation
+
+The Linux handoff is now followed by candidate source
+`691a8fbb45980658b98d647a85ea8305b2325938`, correcting informational form
+feedback without changing submission, protocol, persistence or lease behavior.
+See [the macOS correction candidate](m12-macos-correction-candidate.md) for
+current source verification, artifact preparation and the minimal pending matrix.
+Earlier artifacts remain attributed to their original source and are not replaced
+by this source identity. Global M12 acceptance remains open.
+
 ## Corrected candidate after macOS observation
 
 The original installed manual journey exposed a committed handover that left

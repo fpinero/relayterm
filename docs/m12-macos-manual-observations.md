@@ -168,3 +168,14 @@ checks described above, rather than to an operator keyboard observation.
 - Perform the focused SSH observation on one authorized supported host.
 - Complete Windows and Linux observations and reconcile the final artifact and
   acceptance matrices before closing M12.
+
+## Focused correction candidate preparation, 2026-09-21
+
+Candidate 691a8fb follows the Linux handoff 7f18686 and adds typed informational
+form feedback. The [correction candidate report](m12-macos-correction-candidate.md)
+records exact source, native environment, identical double-build/package hashes,
+local checks and eleven passing exact-installed gates. These are assistant
+observations. A separate synthetic workspace is ready, while prior resources
+remain intact. Header/minimum size, writer transfer and inherited Linux
+correction physical checks are pending. The earlier manual journey is not
+reopened wholesale; its unchanged evidence retains its original source mapping.
