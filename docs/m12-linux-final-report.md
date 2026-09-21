@@ -1,5 +1,11 @@
 # M12 Linux final validation report
 
+Current continuation: [Linux final delta only](m12-linux-final-delta-continuation.md).
+The original decision and findings below are historical. Read the subsequent
+diagnosis and completed physical correction retest before scheduling any work.
+Only later presentation changes justify new local physical observation; do not
+repeat the original journey or the completed 15794ad round.
+
 ## Decision
 
 The required Linux observation attempts and authorized focused SSH journey are

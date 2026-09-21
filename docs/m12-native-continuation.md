@@ -2,6 +2,11 @@
 
 ## Current continuation entry point
 
+For Linux after the Windows final round, use
+[the Linux delta continuation](m12-linux-final-delta-continuation.md).
+It explicitly supersedes the full manual journey below: preserve completed
+9cf91f7 and 15794ad observations and execute only the remaining delta.
+
 The original candidate instructions below describe the 9cf91f7 baseline.
 For the latest corrected source, completed Linux results, and remaining
 platform-specific checks, start with

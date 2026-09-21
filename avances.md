@@ -1675,3 +1675,25 @@ M12 is not globally complete. No push, merge, tag, release or M13 work occurred.
 Verification: operator image inspection, exact executable hash and process
 inspection, repository documentation checks, secret scan, append-only logbook
 comparison against HEAD and git diff --check.
+
+## 2026-09-21: Publish Windows evidence and bound the Linux continuation
+
+The operator authorized publishing the Windows work branch. Pushed
+fix/m12-windows-final-candidate without force and verified origin at
+ e4431f7b357fe1388963fa94675a567875492fc3. Dispatched Quality 35637866692
+and Security 35637869615 on that exact commit. Security completed successfully;
+Quality was still running at this checkpoint. No PR, merge, tag or release.
+
+Added a consolidated Windows report separating source, reproducible artifacts,
+installed automated checks, physical observations and retained failures. Added
+an explicit Linux delta-only entry point and linked older continuation documents
+to it. Reuse the complete 9cf91f7 journey and 15794ad physical correction round;
+request only changed Info/Error presentation locally and any uncovered SSH
+presentation delta. Final artifact and clean-runtime work remain agent tasks.
+No full visual journey or repeated SSH-client interruption is requested.
+
+Verification: inspected Linux reports and the production delta from 15794ad to
+691a8fb; verified ancestry and public remote branch identity; inspected workflow
+triggers and live run status; repository checks passed for 68 Markdown files and
+eight ADRs; candidate secret scan and its negative control passed; git diff
+--check passed. Hosted Quality completion remains a separate pending task.

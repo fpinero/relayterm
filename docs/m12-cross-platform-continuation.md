@@ -2,6 +2,13 @@
 
 ## Current source and scope
 
+Current Linux execution entry point:
+[Linux final delta continuation](m12-linux-final-delta-continuation.md).
+Current consolidated Windows result:
+[Windows final report](m12-windows-final-report.md).
+The Linux entry point narrows the generic checklist below and prevents repeating
+the already completed native journey or correction round.
+
 Updated 2026-09-21. Latest physically verified Linux correction:
 `15794ad6e7f9459c89c512e679f5648bf9a3d231`, on `fix/m12-linux-findings`.
 Commit `0cf6bea` records its completed targeted Linux physical retests and
@@ -71,8 +78,12 @@ No additional physical Linux action is needed for the completed retest round.
 | Linux, GNOME Terminal | Informational form feedback and validation-error/cursor contrast on 691a8fb only | Completed 15794ad correction retests and unchanged 9cf91f7 journey |
 | One authorized SSH transport | Repeat changed conflict/review and disconnected navigation/feedback on the final candidate; verify normal exit and reconnection identities | Unchanged writer-size and continuity evidence remains mapped to 9cf91f7; do not repeat solely because the client OS changes |
 
-For each remaining destination, use one corrected installed executable and synthetic private
-state. Guide the operator through these checkpoints, one at a time:
+Apply only the rows still outstanding for the destination, using one corrected
+installed executable and synthetic private state. For local Linux, only item 5
+remains; the conflict setup needed to reach Info is not a reopened acceptance
+test. Items 1 through 4 already passed locally on 15794ad. The separate SSH row
+retains its affected scope. The following is a reference checklist, not an
+instruction to repeat every item on every platform:
 
 1. Acquire input, release with the terminal's actual Ctrl-] chord, and repeat it
    in READ ONLY. Sessions must remain selected. Record actual physical keys;

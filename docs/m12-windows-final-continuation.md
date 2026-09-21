@@ -1,5 +1,11 @@
 # M12 Windows continuation after macOS validation
 
+The focused Windows physical round is complete. See the consolidated
+[Windows final report](m12-windows-final-report.md) and the
+[Linux delta continuation](m12-linux-final-delta-continuation.md) for current
+results and the bounded next task. The preparation procedure below is retained
+as the original execution contract, not a request for another visual round.
+
 ## Purpose and authority
 
 Complete only the missing Windows correction observations and final-candidate

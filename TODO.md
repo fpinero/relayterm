@@ -35,9 +35,11 @@ Outcome: a reproducible candidate with usable session identification and editing
 
 Execution contract: [M12 detailed plan](docs/M12_details.md). Continue at M12.00h. The five usability proposals are scheduled here and do not reopen M11 acceptance.
 
+- M12.WINDOWS-DELIVERY: Publish the verified Windows evidence branch, record the new Quality/Security conclusions, and provide an explicit Linux delta-only continuation that preserves completed observations.
+
 - M12.FINAL-SOURCE-GATES: Use correction source 691a8fb for native preparation; freeze its mapped artifacts after affected observations pass; rerun required native Quality/Security jobs and both release builds/packages per target, retain final artifacts, and run gates through their exact extracted executables. Historical 491d5f1 CI and 9cf91f7 packages do not certify 15794ad or a later candidate.
 - M12.CORRECTION-PLATFORMS: On candidate 691a8fb, complete the Linux informational feedback observation. Reconcile acceptance of the demonstrated SSH transport-loss recovery and fixed-grid history limits recorded in docs/m12-linux-final-report.md; preserve the original failed observations.
-  - M12.WINDOWS-HOSTED-RECHECK: After explicitly authorized delivery, rerun Quality with the corrected Windows harness and require both Windows jobs, their separate native repetitions and all skipped gates to pass. Preserve the failed 35629938330 run.
+  - M12.WINDOWS-HOSTED-RECHECK: Inspect authorized Quality run 35637866692 on e4431f7 and require both Windows jobs, their separate native repetitions and all previously skipped gates to pass. Preserve the failed 35629938330 run; do not repeat hosted jobs solely for a documentation-only descendant.
   - M12.WINDOWS-DEBUG-LATENCY: Investigate and reconcile the local debug TUI input p95 misses of 290 ms and 294 ms against the unchanged 250 ms target. Keep failed workspace runs distinct from the installed release's passing 127 ms; no global acceptance waiver is implied.
 
 - M12.NATIVE: Reconcile Linux correction-candidate acceptance while retaining the 9cf91f7 baseline, and complete the focused SSH observation through an authorized connection. Use docs/m12-macos-correction-candidate.md for remaining native checks. Reconcile clean-machine and global acceptance evidence. Preserve the Windows source mapping in docs/m12-windows-manual-observations.md; use the existing Linux task prompt in docs/m12-native-continuation.md.
