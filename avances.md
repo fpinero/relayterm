@@ -1263,3 +1263,45 @@ operator steps. Existing operator sessions and SSH services were not stopped or
 changed. Updated the source continuation and AC-1 through AC-16 pending proof
 matrix. No physical acceptance, final hosted CI, independent clean runtime,
 remote push, merge, tag or release is claimed. Global M12 tasks remain pending.
+
+## 2026-09-21: Record the initial focused macOS observation boundary
+
+Recorded operator screenshots showing a pre-startup 24-by-80 measurement and
+complete Overview freshness/footer after window enlargement. Read-only process
+inspection found only the detached candidate daemon afterward. Exact minimum
+layout and below-minimum recovery remain pending because the displayed TUI size
+and the triggering message were not established. No existing daemon was stopped.
+
+## 2026-09-21: Remove confusing automatic resize from private test launchers
+
+Identified the operator's resize and message as private launcher behavior before
+product startup. Removed automatic window resizing from both launchers while
+preserving backups. Verified zsh syntax and executed each launcher in an isolated
+PTY up to its input prompt, asserting that neither emitted a window-resize
+sequence. Only the test-owned waiting launcher processes were stopped. Candidate
+691a8fb, operator sessions and daemon remain unchanged; minimum-size product
+acceptance still awaits the physical observation.
+
+## 2026-09-21: Verify macOS Tasks and Sessions at the minimum size
+
+Recorded operator-confirmed CURRENT and visually complete footers/shortcuts in
+Tasks and Sessions on candidate 691a8fb. Independently queried the live TUI
+terminal with stty, which returned 24 rows and 80 columns. These two observations
+pass; remaining minimum-size screens and shrink/recovery stay pending.
+
+## 2026-09-21: Complete the six-screen macOS minimum header/footer check
+
+Inspected the operator's Overview, Agents, Events and Help screenshots from the
+requested minimum-size checkpoint. All retain complete CURRENT and Relayterm
+footers, completing the six-screen header/footer observation on 691a8fb.
+Below-minimum warning and recovery remain pending. Full Help content
+accessibility is not inferred from this header/footer check.
+
+## 2026-09-21: Complete macOS minimum-size warning and recovery
+
+Verified operator screenshots of the explicit 79x24 minimum-size warning and
+recovered Help screen after return to 80x24. Together with the six-screen
+header/footer observations and independent terminal measurement, this closes
+the focused minimum-layout block on 691a8fb. Removed that pending portion from
+M12.NATIVE; writer-size transfers and other platform gates remain open.
+Verification: tracked-candidate repository checks and git diff --check passed.

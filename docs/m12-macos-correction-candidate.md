@@ -23,8 +23,8 @@ Physical observations remain pending and will be appended to the macOS report.
 
 ## Minimal remaining operator scope
 
-1. macOS: all six tabs at a measured 80 by 24, full header/footer and recovery
-   after going below the minimum.
+1. macOS minimum layout is complete: six-screen header/footer at 80 by 24,
+   explicit warning at 79 by 24 and recovery. See the operator observation report.
 2. macOS: first input acquisition and both transfers between differently sized
    clients; independently read live dimensions and verify observer resize isolation.
 3. macOS and Windows: actual release chord, repeated release without Events,

@@ -179,3 +179,56 @@ observations. A separate synthetic workspace is ready, while prior resources
 remain intact. Header/minimum size, writer transfer and inherited Linux
 correction physical checks are pending. The earlier manual journey is not
 reopened wholesale; its unchanged evidence retains its original source mapping.
+
+## Initial focused operator checkpoint
+
+On candidate 691a8fb the operator supplied a launcher view reporting 24 rows
+and 80 columns before startup, and an Overview view with the complete CURRENT
+label and Relayterm footer. The operator enlarged the window after seeing a
+message. The dimensions of the displayed Overview were not independently
+measured, so this does not yet pass the exact-80-by-24 observation or establish
+which message prompted enlargement. Subsequent process inspection found only
+the detached candidate daemon, with no candidate TUI attached to a terminal.
+The separate shell screenshot shows the prompt again; no exit status was captured.
+Screenshots and raw terminal material remain outside Git.
+
+## Launcher resize clarification
+
+The next operator screenshot identifies the message as the launcher's Press
+Enter prompt, before Relayterm starts. Automatic shrinking came from the private
+launcher's explicit window-resize escape sequence, not from the product. An
+immediate stty measurement could also precede the asynchronous window resize,
+as illustrated by the earlier 35-by-119 value. The assistant removed automatic
+resize requests from both private launchers, retaining backups. Each modified
+launcher passed zsh syntax validation and an isolated PTY check reaching the
+prompt without emitting a resize request. The test stopped only its own waiting
+launcher, before product startup. No candidate executable or daemon was changed.
+The latest physical screenshot reports 24 rows and 80 columns at the launch
+prompt. Exact-size TUI observation remains pending after Enter without resizing.
+
+## Tasks and Sessions at exactly 80 by 24
+
+On candidate 691a8fb the operator confirmed CURRENT in Tasks and Sessions.
+Both supplied screenshots show the complete freshness label, Relayterm footer
+and applicable shortcut text. Independent read-only stty inspection of the live
+candidate TUI terminal returned 24 rows and 80 columns. These two minimum-size
+screen observations pass. The remaining screen checks and below-minimum
+recovery are still pending. No screenshots or runtime identifiers were committed.
+
+## Remaining minimum-size screen observations
+
+The operator supplied the requested Overview, Agents, Events and Help views
+for the same 80-by-24 checkpoint. All four screenshots show the complete CURRENT
+label and Relayterm footer. Together with the independently measured Tasks and
+Sessions checkpoint, header/footer presentation passes on all six screens.
+This verifies the Help header/footer, not access to all Help content. No
+below-minimum warning or subsequent recovery observation has yet been supplied.
+
+## Below-minimum warning and recovery passed
+
+The operator supplied a view explicitly reporting current size 79x24 and the
+80x24 minimum, followed by the recovered Help view with complete CURRENT and
+Relayterm footer after the requested return to 80x24. The native minimum-size
+header/footer and shrink/recovery block passes on candidate 691a8fb. This does
+not expand the observation to full Help content accessibility. Writer-size
+transfers and the other correction observations remain pending.
