@@ -202,3 +202,17 @@ backup/restore and scoped removal passed. Existing physical evidence is reused;
 no macOS 14 clean-machine or VM claim is added. This closes the macOS runtime
 portion of M12.NATIVE. SSH presentation and native Windows runtime/debug latency
 remain open. Retained runner errors and long-endpoint rejection are disclosed.
+
+## macOS final SSH delta on 2026-09-23
+
+The [final SSH report](m12-macos-ssh-final-delta.md) closes the affected
+presentation delta on the retained 691a8fb executable. Physical observations
+cover stale-edit rejection, review/context/Info, safe discard, normal exit,
+fresh-connection identity, disconnected navigation/read-only feedback,
+repeated release without an Events jump and stable diagnostics. Independent
+ordered snapshots prove adoption/discard did not write and reconnect retained
+identity. Final disconnected exit returned zero with local input restored;
+the installed hash remained unchanged and no candidate process remained.
+Earlier SSH-pending statements above are historical checkpoints. Native Windows
+runtime, Windows debug-latency disposition and final acceptance/artifact
+reconciliation remain open. No global M12 acceptance is claimed.

@@ -33,18 +33,12 @@ Depends on: M11. Specification phase: 5 final gate. Coverage: NFR-1, NFR-4; AC-1
 
 Outcome: a reproducible candidate with usable session identification and editing feedback that a new user can install and use from the documented quick start.
 
-
-- M12.MACOS-FINAL-VALIDATION: After explicit authorization, use the prepared temporary loopback SSH configuration for the bounded presentation observation and record the remaining Windows prerequisites.
-
 Execution contract: [M12 detailed plan](docs/M12_details.md), with the [closure audit](docs/m12-closure-audit.md) defining the finite remaining prerequisites. Continue at M12.00h. The five usability proposals are scheduled here and do not reopen M11 acceptance.
 
-- M12.SSH-PRESENTATION-DELTA: Use an available authorized connection for corrected review/Info and disconnected feedback only; the former temporary service is absent. Preserve prior continuity evidence.
-
-- M12.FINAL-SOURCE-GATES: Reconcile final native artifact inventory and remaining runtime/acceptance evidence for product source 691a8fb. Reuse passing Quality 35637866692 and Security 35637869615 on e4431f7 for unchanged product code and documentation-only descendants. Reconcile the retained Linux, macOS and Windows final artifacts; freeze mapped artifacts only after the outstanding SSH, runtime and acceptance prerequisites pass. Historical 491d5f1 CI and 9cf91f7 packages do not certify later products.
+- M12.FINAL-SOURCE-GATES: Reconcile final native artifact inventory and remaining runtime/acceptance evidence for product source 691a8fb. Reuse passing Quality 35637866692 and Security 35637869615 on e4431f7 for unchanged product code and documentation-only descendants. Reconcile the retained Linux, macOS and Windows final artifacts; freeze mapped artifacts only after the outstanding Windows runtime, debug-latency and acceptance prerequisites pass. Historical 491d5f1 CI and 9cf91f7 packages do not certify later products.
 - M12.WINDOWS-DEBUG-LATENCY: Investigate and reconcile the local debug TUI input p95 misses of 290 ms and 294 ms against the unchanged 250 ms target. Keep failed workspace runs distinct from the installed release's passing 127 ms; no global acceptance waiver is implied.
 
 - M12.NATIVE: Complete independent Windows clean-runtime installation and applicable automated quick-start evidence using its retained final package. Reuse completed physical observations. Follow the finite remaining requirements in docs/m12-linux-final-report.md; preserve every platform's source/hash mapping.
-
 
 - M12.00: Complete UX-SESSION-NAMES, UX-SESSION-ORDER, UX-FORM-CURSOR, UX-CONFLICT-MESSAGE, and UX-INPUT-ACQUIRE-MESSAGE before freezing release artifacts. Preserve durable identity, bounded state, typed error semantics, and read-only input ownership.
   - M12.00h: Verify consolidated usability changes and update help/privacy/compatibility. Completion proof: Targeted native/manual matrix and affected SSH coverage recorded; unaffected M11 evidence mapped.

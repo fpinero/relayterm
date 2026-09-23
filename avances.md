@@ -1929,3 +1929,83 @@ scripts/check_secrets.py and its synthetic negative control passed. Verified
 append-only history, local trial blob equality, ignore matching, absence from
 tracked files/delivery ancestors and git diff --check. These checks exclude the
 preserved unrelated reviewer file and private runtime evidence.
+
+## 2026-09-23: Verify SSH reviewed rename and discard
+
+Completed the form-review portion of M12.SSH-PRESENTATION-DELTA through the
+operator-enabled macOS loopback SSH service and exact installed 691a8fb binary.
+Physical observations show stale rejection, separate review/adoption, refreshed
+winner context, retained draft/cursor, Info guidance requiring explicit submission
+and confirmed safe discard. Independent full ordered snapshots after rejection,
+adoption and discard all equal the revision-6 winner. Added the bounded SSH
+report and preserved the initial Broken pipe attempt without assigning an
+unproven cause. No SSH configuration or product change was made.
+Verification: supplied operator images, independent installed administrative
+readbacks and git diff --check. Normal exit, fresh reconnect identity and the
+disconnected presentation/diagnostic observations remain pending in TODO.
+
+## 2026-09-23: Verify normal SSH client exit
+
+The operator's image confirms q exited the SSH-hosted TUI with status zero and
+restored the local launcher input/cursor. Independent full ordered readback
+retained revision 6, the same running session/instance and saved name after the
+connection closed. No daemon stop or forced client interruption was performed.
+Verification: operator image, exact-installed readback equality and git diff
+--check. Fresh reconnection and disconnected presentation remain pending.
+
+## 2026-09-23: Verify fresh SSH reconnection identity
+
+The operator reconnected through a new SSH client and reacquired INPUT/WRITER
+on the same shell. Full ordered readback still matched the saved revision-6
+snapshot, including running session/instance identity. Under the existing
+validation lifecycle authorization, stopped only the dedicated SSH fixture daemon
+and synthetic session after physical writer confirmation. The stop succeeded;
+no forced SSH-client interruption or system SSH configuration change occurred.
+Verification: operator image, exact installed readback equality, targeted stop
+exit zero/lifecycle stopped and git diff --check. Post-stop presentation,
+release/diagnostic stability and final exit remain pending.
+
+## 2026-09-23: Verify disconnected SSH writer presentation
+
+The operator screenshot confirms DISCONNECTED with Sessions selected after
+the dedicated fixture daemon stop. The retained terminal shows NAVIGATION,
+READ ONLY and RECONCILE WITH R, without INPUT or WRITER. Verification: direct
+inspection of the operator-provided screenshot and git diff --check. Repeated
+release, diagnostic stability and final normal exit remain pending.
+
+## 2026-09-23: Verify repeated release after SSH daemon loss
+
+The operator reports three Ctrl-] presses. The supplied screenshot confirms
+Sessions remains selected with disconnected, navigation and read-only feedback,
+without an unsolicited switch to Events. Verification: operator action report,
+direct screenshot inspection and git diff --check. Diagnostic stability and
+final normal exit remain pending.
+
+## 2026-09-23: Verify SSH diagnostic stability while disconnected
+
+The operator navigated to Events and supplied before/after screenshots around
+the requested idle observation interval. Both show the same transport-loss
+notice and workspace-event refresh notice for sequence 7, with no duplicate
+or additional diagnostics. Verification: direct comparison of both supplied
+screenshots, operator confirmation and git diff --check. Final normal exit
+from the disconnected client remains pending.
+
+## 2026-09-23: Complete M12 SSH presentation and macOS final validation
+
+Completed M12.SSH-PRESENTATION-DELTA and M12.MACOS-FINAL-VALIDATION on the
+retained installed product. The final operator screenshot confirms q from the
+disconnected client returned SSH exit zero with local input/cursor restored.
+The earlier recorded observations cover review/context/Info, discard without
+writes, fresh-connection identity, read-only navigation, repeated release and
+stable diagnostics. Independent snapshots, installed SHA-256 verification and
+a final process inventory support the physical evidence. No installed candidate
+process remains; state and raw evidence remain private. Updated the closure
+audit, acceptance matrix and pending queue. Windows native runtime and debug
+latency remain mandatory prerequisites before final acceptance and release.
+
+Documentation verification for this checkpoint: isolated candidate clone with
+only the intended document changes passed scripts/check_repository.py (71
+Markdown files and eight ADRs) and scripts/check_secrets.py, including rejection
+of its synthetic negative control. Append-only prefix verification and git diff
+--check passed. The local real-agent trial exists and git check-ignore confirms
+it remains excluded. No product build or full CI rerun was needed.

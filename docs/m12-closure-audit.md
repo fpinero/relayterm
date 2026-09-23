@@ -4,8 +4,9 @@
 
 M12 is not ready for final acceptance or a completion merge. The three native
 physical rounds, reproducible packages and hosted checks are complete for the
-mapped candidate. Required SSH presentation, independent Windows runtime proof and Windows local
-debug performance disposition remain open. The macOS isolated native runtime
+mapped candidate. Independent Windows runtime proof and Windows local debug performance
+disposition remain open. The bounded [SSH presentation delta](m12-macos-ssh-final-delta.md)
+now passes, including normal exit from the disconnected client. The macOS isolated native runtime
 now passes as recorded in the [runtime report](m12-macos-final-runtime.md). The
 maintainer has explicitly accepted the two documented terminal limits below. Do not repeat completed physical journeys to resolve these gaps.
 
@@ -17,8 +18,11 @@ signing, tags and releases remain separate from technical candidate acceptance.
 
 Fetched origin and checked ancestry without modifying existing user material.
 The starting macOS checkout contained an unrelated untracked reviewer document;
-it is preserved and excluded from this delivery. Work continues on
-`feature/m12-closure-audit`, created directly from the latest Linux delivery.
+it is preserved and excluded from this delivery. The initial audit used
+`feature/m12-closure-audit`. Final validation continues on
+`fix/m12-final-validation`, based directly on the latest Linux delivery and
+containing only the selected public audit material. The requested real-agent
+trial remains in an ignored local directory, outside this branch history.
 
 | Evidence boundary | Commit |
 | --- | --- |
@@ -89,11 +93,11 @@ rows do not imply that phase 5 or global acceptance has passed.
 | AC-1 | Installed initialization and private state pass; final clean quick start remains open on Windows. |
 | AC-2 | M11 daemon/IPC and final extracted/installed gates support this row; no affected product delta after 691a8fb. |
 | AC-3 | Three-session native journeys, stable identities/names/order and exact-installed gates support this row. |
-| AC-4 | Three native physical correction rounds pass. Changed SSH presentation, local Windows input latency remain open; the fixed-grid limit is accepted. |
+| AC-4 | Three native physical correction rounds pass. Changed SSH presentation passes; local Windows input latency remains open; the fixed-grid limit is accepted. |
 | AC-5 | Exclusive claim regressions and installed journeys support this row; task claims remain separate from terminal input leases. |
 | AC-6 | Progress/handover journeys and hosted regression coverage support this row. The remaining Windows clean-runtime journey must exercise their packaged entry points. |
 | AC-7 | Successor/resume and durable context evidence support this row; reuse existing physical observations. |
-| AC-8 | Child survival, stable identity and reconnect evidence remain valid. Complete the bounded changed SSH presentation; the interrupted outer-terminal recovery limit is accepted. |
+| AC-8 | Child survival, stable identity and reconnect evidence remain valid. The bounded changed SSH presentation passes; the interrupted outer-terminal recovery limit is accepted. |
 | AC-9 | Restart/lost-session and backup/restore gates support this row; no claim that live processes survive daemon restart. |
 | AC-10 | Exact-installed worktree gates and native journeys support this row. The empty Linux manual backup fixture does not prove populated-worktree restore. |
 | AC-11 | Passing core-only/native checks and unchanged product dependency direction support this row. |
@@ -105,8 +109,8 @@ rows do not imply that phase 5 or global acceptance has passed.
 
 Phases 0 through 4 retain their completed milestone and final regression
 coverage: architecture/CI, durable state/IPC, PTY supervision, TUI coordination,
-and neutral templates/worktrees. Phase 3's changed SSH presentation is still a
-final-candidate delta. Phase 5 cannot close until the outstanding acceptance and
+and neutral templates/worktrees. Phase 3's changed SSH presentation now has passing
+final-candidate observations. Phase 5 cannot close until the outstanding acceptance and
 clean-machine criteria pass. No new critical/high security exception was added.
 
 The resource inventory and fixed workloads in the acceptance matrix remain
@@ -119,18 +123,17 @@ measurements establishes a cause or resolves those failures.
 
 | Pending task | Owner or prerequisite | Required completion proof |
 | --- | --- | --- |
-| M12.SSH-PRESENTATION-DELTA | One identified authorized SSH destination | Only changed rename review/context/Info, disconnected read-only/navigation, repeated release without Events jump, stable diagnostics, normal exit and reconnect identity. Reuse earlier sizes/survival; no new forced SSH interruption. |
 | M12.NATIVE, Windows | Same prerequisite on supported Windows x86_64 | Use the retained Windows package, inspect UCRT/VCRUNTIME prerequisites and run the bounded installed journey. Mac/Linux cannot substitute for ConPTY runtime evidence. |
 | M12.WINDOWS-DEBUG-LATENCY | Original Windows debug environment and private logs | Diagnose the 290/294 ms misses using controlled same-source/harness comparisons; retain failures and unchanged budget, document cause and fix or explicit evidence-backed acceptance disposition. |
 | M12.06 and M12.07 | All technical prerequisites above | Final AC/phase/budget reconciliation, frozen three-target artifact inventory and concrete handoff; publication decision remains separate. |
 
-This Mac has no listener on loopback port 22. Read-only checks found no running
-VMware VM and no registered VirtualBox VM. At the initial audit checkpoint no usable independent native runtime or
-authorized remote destination was established. Subsequent restricted native
-macOS runtime results are recorded separately. Docker's
-presence does not supply native macOS or Windows evidence. No SSH service,
-authentication, security setting, user account or VM was modified. A suitable
-disposable native user environment is permitted by M12; a VM is not mandatory.
+At the initial audit checkpoint, no authorized SSH destination or usable
+independent native runtime had been established. The operator subsequently
+enabled system Remote Login temporarily. The bounded loopback SSH observations
+and enforced-isolation macOS native runtime now pass in their linked reports.
+The agent did not change SSH/security settings or create an alternate listener.
+Windows still requires its own native runtime evidence; a VM is not mandatory.
+Docker or Mac execution cannot substitute for Windows ConPTY coverage.
 
 ## Accepted terminal limits
 
@@ -143,7 +146,7 @@ still use the current writer dimensions. Normal exit must restore the terminal.
 This closes M12.CORRECTION-PLATFORMS as an explicit limitation disposition, not
 as a passing automatic-recovery observation. Original failed observations remain
 in the Linux report. AC-4/AC-8 retain child-survival, identity and normal-exit
-requirements. The outstanding SSH presentation, native runtime and Windows
+requirements. The outstanding Windows native runtime and
 performance gates are not waived by this decision.
 
 The maintainer also requested main delivery and releases for the three targets.
@@ -193,7 +196,7 @@ separately from acceptance.
 Use this bounded prompt to finish M12 before authoring an M13 implementation plan:
 
 ```text
-Continue Relayterm from feature/m12-closure-audit and its closure audit.
+Continue Relayterm from fix/m12-final-validation and its closure audit.
 Read AGENTS.md, PROJECT_VISION.md, MVP_TECHNICAL_SPEC.md, README.md,
 TODO.md, docs/M12_details.md, docs/m12-closure-audit.md, the final three
 platform reports, docs/acceptance-matrix.md and the latest avances.md.
@@ -207,10 +210,12 @@ Reuse completed native physical rounds, retained packages and passing Quality
 another full visual journey because documentation changed. Keep product,
 package, harness, automation and physical evidence identities separate.
 
-Complete independent native macOS/Windows runtime checks when an appropriate
+Reuse the completed macOS isolated runtime and final SSH presentation report.
+Complete independent native Windows runtime checks when an appropriate
 environment is available. Diagnose Windows debug input-p95 misses 290/294 ms
 without increasing 250 ms or substituting passing release/hosted results.
-Use one authorized SSH destination only for the listed presentation delta.
+The listed SSH presentation delta has passed; do not repeat it without a
+concrete product change invalidating its evidence.
 Do not modify SSH/security configuration or kill the SSH client again.
 Both documented terminal limits were explicitly accepted on 2026-09-23;
 preserve the failed observations and the scope of that acceptance. Continue independent work when blocked.
