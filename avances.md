@@ -1795,3 +1795,137 @@ latency and maintainer/global acceptance reconciliation. No SSH service changes,
 M13, push, merge, tag or release. Verification: operator confirmations, independent
 exact-installed readbacks, client statuses, process/hash inspection, repository
 and secret controls, append-only logbook comparison and git diff --check.
+
+## 2026-09-23: Accept the documented terminal limits
+
+Completed M12.CORRECTION-PLATFORMS after the maintainer explicitly accepted both
+remaining limit dispositions: interrupted local SSH-client termination may
+require local terminal reset, and fixed-grid historical rows do not reflow after
+resize. Updated the closure audit, acceptance matrix and candidate notes.
+Preserved every original failed observation. Normal exit, fresh writer sizing,
+child survival, changed SSH presentation, independent runtime checks and Windows
+debug performance retain their existing requirements. No performance or runtime
+waiver was inferred. Verification: compared the recorded decision with the
+existing TUI contract, M11 forced-termination boundary and Linux control evidence;
+checked that TODO removes only the accepted limit task and retains other gates.
+
+## 2026-09-23: Reconcile the M12 closure decision
+
+Completed M12.CLOSURE-AUDIT on feature/m12-closure-audit, based on Linux delivery
+684582b. Verified the ancestor chain through macOS b9871e1, Windows e4431f7 and
+25c1092 without cherry-picking, overwriting or committing unrelated user work.
+Product source remains 691a8fb; the only later non-documentation file is the TUI
+test harness. Reconfirmed seven successful Quality jobs and successful Security
+on e4431f7 through read-only GitHub queries. Private vulnerability reporting is
+enabled. No new CI was dispatched. The hosted run has zero downloadable
+artifacts, and the repository has no GitHub releases at this checkpoint.
+
+Created docs/m12-closure-audit.md with all 16 acceptance criteria, phase mapping,
+three-target artifact inventory, unchanged budgets, exact remaining prerequisites
+and a bounded continuation prompt. Rehashed the retained Mac artifacts and
+checked the nine-entry archive, external SHA256SUMS, manifest-based package
+comparison, archived/extracted binary equality, otool dependencies and version.
+Initial package-comparison operand/working-directory mistakes were corrected;
+no files were mutated or rebuilt. Linux/Windows artifact identities are imported
+from their reports, not claimed as files transferred to the Mac.
+
+All 64 inspected local/remote TODO references lack M13, and commit-subject search
+found no M13 definition. The roadmap ends at M12. The maintainer requested MVP
+main/release delivery and a real-agent exercise instead of specifying a new
+milestone. Full M12 closure remains blocked by changed SSH presentation,
+independent macOS/Windows runtimes and Windows debug performance disposition.
+No usable SSH destination or clean native runtime was established locally.
+No SSH/security configuration or virtual machine was changed. Neither M12
+completion nor stable release readiness is claimed; main is unchanged.
+
+Verification: git fetch and explicit merge-base ancestry checks; production
+change classification; GitHub run/job, vulnerability reporting, artifact and
+release queries; native package commands above; candidate-only clean-clone
+scripts/check_repository.py (70 Markdown files and eight ADRs),
+scripts/check_secrets.py including its negative control, append-only logbook
+comparison and git diff --check. The unrelated untracked reviewer document
+remains excluded. This documentation-only audit does not require another full
+build or physical validation round.
+
+## 2026-09-23: Prepare the real-agent MVP trial
+
+Completed M12.REAL-AGENT-TRIAL-PLAN. Added docs/real-agent-mvp-trial.md and linked
+it from README. The proposed exercise builds a bounded standard-library Markdown
+checklist reporter through Codex implementation, Claude Code tests/corrections
+and OpenCode review. It defines the input/output contract, independent expected
+JSON, provider prompts, explicit claims/progress/two handovers, client reopen
+checkpoint and observable completion criteria. It does not execute the trial.
+
+Documented actual executable discovery: shell aliases are not expanded by the
+daemon, and cc can select the system C compiler. The local interactive alias
+and underlying Claude executable were identified; availability of the three
+actual executable files was checked without launching providers. No provider
+account, quota usage or interactive compatibility result is claimed.
+
+Verification: matched the documented sample against the fixed expected JSON
+with an independent line-classification check; reviewed keys and lifecycle
+against the TUI, agent-template and quick-start guides; candidate documentation
+and secret checks passed as recorded above. User material and private paths
+were excluded. The real provider trial remains proposed, not a completed gate.
+
+## 2026-09-23: Keep the real-agent trial local
+
+Completed M12.LOCAL-TRIAL-FILE. Recovered the trial byte-for-byte into the
+operator-requested root-local relauter directory and added /relauter/ to
+.gitignore. Removed public links to the now-local trial. To avoid publishing
+its contents indirectly, fix/m12-final-validation starts from Linux delivery
+684582b and selectively carries the audit changes without inheriting the
+unpublished 6808eb2 commit containing the trial. The original local branch is
+preserved. Historical entries above describe that earlier local preparation;
+they do not imply publication. The reviewer document remains untouched.
+Verification: git check-ignore identifies the new rule, the local file matches
+its original blob, no trial file is tracked on this branch and its ancestor
+history contains no docs/real-agent-mvp-trial.md. Restored the public closure
+audit so its remaining requirements are accessible in this working branch.
+
+## 2026-09-23: Complete the isolated macOS installed-runtime journey
+
+Completed the macOS portion of M12.NATIVE using the retained 691a8fb package,
+with archive/executable hashes unchanged. Added docs/m12-macos-final-runtime.md
+and updated current acceptance, audit, candidate and release-note references.
+A fresh runtime on native macOS 26.5.2 used a deny-by-default execution profile
+with explicit OS dependencies and private writable directories. Read/execute
+controls denied repository, external synthetic file, Homebrew Python, Cargo and
+system Python access. A loopback TCP positive control connected outside the
+profile and was denied inside it. A daemon-owned shell independently confirmed
+that its inherited profile denied the external synthetic file.
+
+Packaged install/discovery/collision, help/version, detached daemon/IPC, three
+real PTYs, names/order, exclusive claim rejection, progress, handover, successor
+and task completion passed. A VT100-observed TUI entered CURRENT/WRITER, accepted
+input, exited zero and restored the outer alternate screen without changing the
+ordered session snapshot. Live backup/fresh-home restore preserved task,
+history, claims, names/order, launch snapshots and identities while marking
+former live sessions lost. Scoped removal preserved unrelated files, state,
+backup and the retained installation. Both owned daemons stopped; final process
+inspection found zero processes from this runtime and its binary hash matched.
+
+Retained all failed runner attempts: initial profile directory denial, invalid
+task status, missing claim-history revision, raw-byte terminal matching and an
+incorrect nested readback assertion. Corrected by checkpoint without relabelling
+failures or rerunning earlier mutations. The initial restored home exceeded the
+existing 100-byte IPC endpoint bound; it remained preserved while another fresh
+shorter home passed. The report separates these from production defects and
+from existing native physical evidence. No source or artifact rebuild occurred.
+
+Verification: private command journal with checked exit statuses/JSON, file and
+TCP controls, inherited child restriction marker, frame-aware terminal parser,
+exact before/after durable assertions, artifact hashes and process inventory.
+Syntax-checked the corrected private preparation/journey/recovery scripts with
+python3 -m py_compile. The test driver/compiler ran outside the isolated product
+environment. This is a restricted native environment on the host, not a new
+account, VM, macOS 14 runtime or Relayterm sandbox feature. Windows and SSH gates
+remain open; the prepared temporary SSH configuration passes sshd -t but has not
+been started without explicit authorization. Main and releases are unchanged.
+
+Documentation verification for this continuation: candidate-only clean-clone
+scripts/check_repository.py passed for 70 Markdown files and eight ADRs;
+scripts/check_secrets.py and its synthetic negative control passed. Verified
+append-only history, local trial blob equality, ignore matching, absence from
+tracked files/delivery ancestors and git diff --check. These checks exclude the
+preserved unrelated reviewer file and private runtime evidence.

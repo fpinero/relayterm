@@ -168,3 +168,13 @@ native check as passed on 691a8fb. Both clients exited cleanly, and no process
 from this candidate remains running. Do not repeat this native visual round
 for documentation-only descendants. The cross-platform continuation remains
 authoritative for SSH, clean-runtime, final CI and acceptance requirements.
+
+## Isolated native runtime continuation
+
+The [2026-09-23 runtime report](m12-macos-final-runtime.md) closes the macOS
+runtime row using the unchanged retained package and enforced dependency
+isolation on macOS 26.5.2. It distinguishes the disposable restricted environment
+from the earlier PATH-only developer-host checks and from a separate machine.
+Installation, coordination, real PTYs, automated TUI, backup/restore and scoped
+removal pass; earlier physical evidence is reused. SSH and Windows requirements
+remain separate.

@@ -44,3 +44,6 @@ relayterm.local.toml
 *.profraw
 *.profdata
 __pycache__/
+
+# Local operator trial plans
+/relauter/

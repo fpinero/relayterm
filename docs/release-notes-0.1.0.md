@@ -32,9 +32,21 @@ The local candidate is unsigned. Checksums detect corruption but do not independ
 
 - Live processes and terminal contents survive client closure only while the owning daemon remains alive. Daemon or host restart records unrecoverable sessions as lost.
 - Terminal scrollback is bounded in daemon memory and is not a persistent recording.
+- Fixed-grid terminal history does not reflow after resize and narrowing can discard historical cells. Fresh output follows the current writer dimensions. This limit was explicitly accepted on 2026-09-23.
+- Forced termination of the local SSH client can prevent terminal restoration sequences from arriving. A local `reset` may be required; normal exit and child survival remain separate requirements. This limit was explicitly accepted on 2026-09-23.
 - Git is required only for worktree features. Provider commands and authentication remain user-managed prerequisites.
 - The Windows x64 artifact dynamically requires the supported Microsoft Visual C++ v14 Redistributable for x64. Relayterm does not install it.
 - Unix socket paths are bounded. An excessively long explicit private home can make the daemon endpoint unavailable; use a shorter private location and preserve the original state.
 - The two supplemental Windows throughput misses retained from M11 remain documented. They did not change the fixed acceptance thresholds and are not a waiver for candidate regressions.
 
 Read [installation](install.md), [installed quick start](quick-start.md), [upgrade and rollback](upgrade.md), [privacy](privacy.md), and [supported platform evidence](supported-platforms.md) before using a candidate.
+
+## Acceptance still pending
+
+The native physical correction rounds and final hosted Quality/Security checks
+pass for the mapped candidate. Global M12 acceptance remains open for the
+changed SSH presentation, independent Windows runtime installation and
+the local Windows debug input-p95 measurements of 290/294 ms against 250 ms.
+Passing installed release and hosted results do not waive those local failures.
+See the [closure audit](m12-closure-audit.md) for the exact evidence boundaries
+and remaining procedures. No stable-release readiness is claimed.

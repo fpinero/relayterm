@@ -180,3 +180,25 @@ These results advance the Linux portions of AC-1, AC-4, AC-12, AC-14 and AC-16;
 they do not grant global M12 acceptance. The report lists the finite remaining
 SSH, macOS/Windows runtime, Windows debug latency and acceptance requirements.
 No additional native visual round is required for this documentation-only change.
+
+## M12 closure audit on 2026-09-23
+
+The [closure audit](m12-closure-audit.md) reconciles all 16 criteria, phase gates,
+current native evidence, retained artifact identities and the finite remaining
+requirements. Quality and Security were reconfirmed on e4431f7 without new
+execution. Three native physical rounds are complete; global M12 acceptance
+remains open for SSH presentation, independent macOS/Windows runtime evidence,
+Windows debug latency. The maintainer explicitly accepted the interrupted-SSH
+restoration and fixed-grid history limits on 2026-09-23; original failed
+observations remain preserved and are not relabelled as passes.
+
+## macOS isolated runtime on 2026-09-23
+
+The [macOS runtime report](m12-macos-final-runtime.md) records the retained
+691a8fb package running with enforced file/executable/TCP restrictions, audited
+native dependencies and successful positive/negative isolation controls.
+Installed discovery/collision, daemon, three PTYs, task handover, TUI/continuity,
+backup/restore and scoped removal passed. Existing physical evidence is reused;
+no macOS 14 clean-machine or VM claim is added. This closes the macOS runtime
+portion of M12.NATIVE. SSH presentation and native Windows runtime/debug latency
+remain open. Retained runner errors and long-endpoint rejection are disclosed.

@@ -1,5 +1,13 @@
 # M12 local candidate handoff
 
+Current decision: see the [M12 closure audit](m12-closure-audit.md). It consolidates
+all three platform deliveries and identifies the exact remaining closure gates.
+M13 has no definition in the inspected roadmap.
+
+Latest runtime update: the [isolated macOS installed journey](m12-macos-final-runtime.md)
+passed on the retained candidate. The remaining native runtime row is Windows;
+SSH presentation and Windows debug latency remain separate open requirements.
+
 ## Status
 
 This is a technical candidate handoff, not a release publication record.

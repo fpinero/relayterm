@@ -1,5 +1,9 @@
 # M12 validation status and cross-platform continuation
 
+Latest runtime update: the [isolated macOS installed journey](m12-macos-final-runtime.md)
+passed on the retained candidate. The remaining native runtime row is Windows;
+SSH presentation and Windows debug latency remain separate open requirements.
+
 ## Current source and scope
 
 Current Linux execution entry point:
