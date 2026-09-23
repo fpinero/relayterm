@@ -157,3 +157,26 @@ Authorized hosted recheck on e4431f7 subsequently passed Quality 35637866692
 Security 35637869615. This closes the hosted Windows failure follow-up, not the
 remaining runtime/physical/acceptance requirements. Product code remains mapped
 to 691a8fb; documentation-only delivery descendants reuse these hosted results.
+
+## M12 Linux final evidence
+
+On 2026-09-23, Linux completed the bounded 691a8fb continuation documented in
+the [final report](m12-linux-final-report.md). Two clean native builds and
+normalized packages matched. The installed executable hash is
+`26f7f90e27da12239c3130e1163951a4cfe2f08e448fc8b28f6a46cec642d8d7`;
+the archive hash is
+`a9e5bb84b474ab8f37e9778046ec530b3833df67261b294549d1352df63a3285`.
+Delivery harness 25c1092 passed 12 exact-installed tests with one ignored helper.
+The operator confirmed Info/Error and cursor retention; independent readbacks
+proved no automatic write, safe discard and no task creation on validation.
+
+An isolated, unprivileged Ubuntu 24.04 runtime without network, source mounts or
+build tools passed installation/discovery/collision, daemon, three PTYs, automated
+TUI entry/exit, task coordination and backup/restore. Unchanged physical journeys
+remain mapped to their original candidates. Existing successful Quality/Security
+runs on e4431f7 were reconfirmed without dispatching CI.
+
+These results advance the Linux portions of AC-1, AC-4, AC-12, AC-14 and AC-16;
+they do not grant global M12 acceptance. The report lists the finite remaining
+SSH, macOS/Windows runtime, Windows debug latency and acceptance requirements.
+No additional native visual round is required for this documentation-only change.

@@ -2,7 +2,16 @@
 
 ## Status
 
-This is a technical candidate handoff, not a release publication record. Source `491d5f1037450c362525b289fa6361d834fc0b6f` passed the complete native Quality and Security workflows. The handover correction at `d760554` superseded that original executable. The latest tested production correction is `15794ad6e7f9459c89c512e679f5648bf9a3d231` on `fix/m12-linux-findings`, retaining the prior handover, header, and writer-size corrections. Its targeted Linux physical retests passed and are recorded in evidence commit `0cf6bea`. Follow [the current continuation](m12-cross-platform-continuation.md); older hashes and workflow results below remain historical evidence. Final-source packaging, cross-platform verification, and global acceptance remain open.
+This is a technical candidate handoff, not a release publication record.
+Current product source is `691a8fbb45980658b98d647a85ea8305b2325938`.
+The final native Linux artifacts, installed gates, independent Ubuntu runtime
+and focused physical feedback delta passed on 2026-09-23. The macOS and Windows
+focused physical rounds and final hosted Quality/Security coverage are complete
+as mapped below. Follow [the current continuation](m12-cross-platform-continuation.md)
+and the finite remaining requirements in [the Linux report](m12-linux-final-report.md).
+Older hashes and workflow results remain historical evidence. SSH presentation,
+macOS/Windows clean runtimes, Windows debug latency and global acceptance remain
+open; no artifact freeze or publication is implied.
 
 The implementation is available in draft PR [#24](https://github.com/fpinero/relayterm/pull/24). It has not been merged, tagged, uploaded as a package, or published as a release. The CI archives were tested before their ephemeral workspaces ended and were not uploaded. The local macOS archive described below remains outside version control.
 
@@ -15,9 +24,8 @@ feedback correction, measured minimum layout, both writer-size transfers,
 release/navigation, disconnect diagnostics and native exit. Both clients exited,
 and the dedicated test daemon is stopped. See the [candidate report](m12-macos-correction-candidate.md)
 and [operator observations](m12-macos-manual-observations.md). No further native
-visual repetition is required unless behavior changes. Final hosted CI,
-Linux/Windows artifacts, remaining platform/SSH observations, clean-runtime
-proof and global acceptance remain open.
+visual repetition is required unless behavior changes. Current outstanding SSH, macOS/Windows clean-runtime, debug-latency and
+global acceptance requirements are listed in the final Linux report.
 
 ## Current macOS correction preparation
 
@@ -248,3 +256,26 @@ independent repetitions passed. See the [Windows final report](m12-windows-final
 for artifact identities and the [Linux delta continuation](m12-linux-final-delta-continuation.md)
 for the remaining bounded work. Do not repeat completed physical journeys for
 documentation-only descendants or treat hosted success as clean-runtime proof.
+
+## Linux final candidate checkpoint
+
+On 2026-09-23, Linux completed the bounded 691a8fb continuation documented in
+the [final report](m12-linux-final-report.md). Two clean native builds and
+normalized packages matched. The installed executable hash is
+`26f7f90e27da12239c3130e1163951a4cfe2f08e448fc8b28f6a46cec642d8d7`;
+the archive hash is
+`a9e5bb84b474ab8f37e9778046ec530b3833df67261b294549d1352df63a3285`.
+Delivery harness 25c1092 passed 12 exact-installed tests with one ignored helper.
+The operator confirmed Info/Error and cursor retention; independent readbacks
+proved no automatic write, safe discard and no task creation on validation.
+
+An isolated, unprivileged Ubuntu 24.04 runtime without network, source mounts or
+build tools passed installation/discovery/collision, daemon, three PTYs, automated
+TUI entry/exit, task coordination and backup/restore. Unchanged physical journeys
+remain mapped to their original candidates. Existing successful Quality/Security
+runs on e4431f7 were reconfirmed without dispatching CI.
+
+These results advance the Linux portions of AC-1, AC-4, AC-12, AC-14 and AC-16;
+they do not grant global M12 acceptance. The report lists the finite remaining
+SSH, macOS/Windows runtime, Windows debug latency and acceptance requirements.
+No additional native visual round is required for this documentation-only change.

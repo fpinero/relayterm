@@ -36,8 +36,9 @@ Completed and pending physical observations are recorded in the macOS report.
    updated context, retained draft/cursor, Info guidance, validation Error and safe
    discard. Windows has also completed these focused observations on installed
    691a8fb, with independent persisted-state readback.
-5. Linux: only changed informational form presentation and cursor/error contrast.
-   Do not repeat the completed 15794ad correction round.
+5. Linux: informational form presentation and cursor/error contrast passed on
+   2026-09-23. Final native artifacts, installed gates and independent Ubuntu
+   runtime also passed; see the Linux final report. No local visual repeat remains.
 6. One authorized SSH connection: changed review and disconnected feedback,
    normal exit and reconnect identity. Reuse unaffected width/continuity evidence.
 

@@ -1730,3 +1730,68 @@ Windows release/native logs; repository documentation and secret checks,
 append-only logbook comparison and git diff --check passed. The preceding
 published history scan covered 271 commits without secrets. Final branch
 publication uses an ordinary fast-forward push with remote SHA verification.
+
+## 2026-09-23: Complete final Linux native artifact preparation
+
+Completed M12.LINUX-FINAL-ARTIFACTS on fix/m12-linux-final-delta after preserving
+the initially clean checkout, fetching origin and verifying ancestry through
+25c1092. Product source is 691a8fb; delivery harness is 25c1092. Two separate
+clean native builds and normalized packages were byte-identical. ELF inspection,
+external checksums, nine-member inventory, native extracted smoke and dedicated
+packaged installation passed. Executable SHA-256:
+26f7f90e27da12239c3130e1163951a4cfe2f08e448fc8b28f6a46cec642d8d7.
+Archive SHA-256:
+a9e5bb84b474ab8f37e9778046ec530b3833df67261b294549d1352df63a3285.
+
+Exact-installed session_presentation, tui_gate, worktree_gate and backup_restore
+passed: 12 tests, zero failures, one ignored helper. Startup/navigation/input
+p95 were 108/23/154 ms, with the unchanged 250 ms input target. Both original
+build checkouts remained clean. The restricted-executor daemon_spawn_failed
+smoke attempt is retained separately from the passing native execution.
+Read-only queries reconfirmed all seven Quality 35637866692 jobs and Security
+35637869615 at e4431f7; no CI was dispatched. No product code changed.
+Verification: checked-in build/package comparison, SHA256SUMS verification,
+archive inspect/extract, file/readelf/objdump/ldd, native smoke, installed Bash
+resolution/help/version/hash and the serial four-gate Cargo command recorded
+in the Linux report. Earlier artifacts retain their actual source identities.
+
+## 2026-09-23: Complete independent Linux clean-runtime evidence
+
+Completed M12.LINUX-CLEAN-RUNTIME using the final package inside an unprivileged
+Ubuntu 24.04 container without network, host mounts, source checkout, Cargo,
+Rust, Python, C compiler or Git. Verified runtime inventory and installed hash,
+packaged installation, Bash discovery, collision preservation, daemon startup,
+three real PTYs, task claim conflict/progress/handover/successor/completion,
+automated TUI CURRENT/exit/restoration, client-close session continuity and
+private backup/fresh-home restore. Stable session presentation and task/history/
+claim readbacks matched; prior live sessions were honestly lost after restore.
+
+Initial private-runner mistakes and rejected attempts are preserved in the report
+and private logs. Corrected checkpoint continuations reused the same state;
+no failed command is relabelled and no extra fresh complete run is claimed.
+The stopped container, original state and backup are retained. Linux runtime
+proof is separate from existing native physical observations and does not certify
+macOS or Windows. Verification: bounded Docker-executed installed commands with
+checked statuses/JSON assertions, exact snapshot comparisons, PTY entry/exit
+bytes, final daemon shutdown and container process inventory.
+
+## 2026-09-23: Complete the local Linux physical feedback delta
+
+Completed M12.LINUX-FEEDBACK-DELTA with two native GNOME Terminal clients of
+the exact installed 691a8fb executable. The operator confirmed readable Info
+adoption guidance, explicit Ctrl-S, refreshed winner context, retained draft and
+visible cursor. Independent complete ordered snapshots before adoption, after
+adoption and after discard were identical at revision/watermark 4. The operator
+then confirmed Error: Title is required., the still-open form and title cursor.
+Independent task-list snapshots remained empty and identical after rejection
+and cancellation. Both clients exited zero; the owned daemon stopped and no
+process using this installed candidate remained. Its hash was unchanged.
+
+Reused the full 9cf91f7 journey and physical 15794ad corrections without another
+size, transfer, disconnect, diagnostic, handover, Unicode or backup visual round.
+Updated reports, matrices and the pending-only queue. The finite remaining gates
+are authorized SSH presentation, macOS/Windows clean runtimes, Windows debug
+latency and maintainer/global acceptance reconciliation. No SSH service changes,
+M13, push, merge, tag or release. Verification: operator confirmations, independent
+exact-installed readbacks, client statuses, process/hash inspection, repository
+and secret controls, append-only logbook comparison and git diff --check.

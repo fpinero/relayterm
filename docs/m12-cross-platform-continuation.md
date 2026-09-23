@@ -9,12 +9,12 @@ Current consolidated Windows result:
 The Linux entry point narrows the generic checklist below and prevents repeating
 the already completed native journey or correction round.
 
-Updated 2026-09-21. Latest physically verified Linux correction:
-`15794ad6e7f9459c89c512e679f5648bf9a3d231`, on `fix/m12-linux-findings`.
-Commit `0cf6bea` records its completed targeted Linux physical retests and
-changes documentation only. Later documentation-only descendants may reuse
-that behavior evidence. No push is implied; a destination checkout must actually
-contain the source and evidence before starting. Do not assume remote availability.
+Updated 2026-09-23. Latest physically verified Linux product:
+`691a8fbb45980658b98d647a85ea8305b2325938`, with the final delta recorded
+on fix/m12-linux-final-delta. The earlier 15794ad correction round and 9cf91f7
+journey remain valid for unchanged behavior. The final Linux report records
+current artifacts, exact-installed gates, independent runtime and Info/Error
+observations. No remote publication is implied by this local evidence.
 
 This document updates the source selection and pending scope in
 [the original native contract](m12-native-continuation.md), whose preparation,
@@ -29,8 +29,8 @@ The macOS continuation corrects informational form feedback at
 for native preparation, not a globally accepted artifact freeze. See the
 [macOS correction candidate](m12-macos-correction-candidate.md) for current
 verification and exact remaining actions. Linux's 15794ad physical evidence
-remains valid for unchanged behavior; only the changed informational form
-presentation needs an additional Linux physical check. Any further code change
+remains valid for unchanged behavior; the changed informational form
+presentation passed its additional Linux observation on 2026-09-23. Any further code change
 needs impact analysis, a new source identity, and affected retests. Do not
 substitute a later executable under an older artifact hash.
 
@@ -68,7 +68,8 @@ documentation-only descendants; see the Windows final report for exact mapping.
 The correction executable hash is
 `d580683ad921e304d4204e522de805226df8c3734ba667849f9726d187e2f926`.
 It is a separately copied tested executable, not a newly double-built release
-archive. Final correction-source packaging remains required.
+archive. Final 691a8fb packaging completed on 2026-09-23, with its own hashes recorded
+in the Linux report.
 The operator also confirmed q closed the final correction client cleanly.
 No additional physical Linux action is needed for the completed retest round.
 
@@ -78,13 +79,13 @@ No additional physical Linux action is needed for the completed retest round.
 | --- | --- | --- |
 | macOS, native Terminal.app | Focused native round complete on 691a8fb; no remaining native visual correction check | Six-screen minimum/recovery, both writer-size transfers, observer isolation, corrected connected/disconnected feedback, diagnostic stability, clean exit and reviewed rename/Info/error/discard passed; see the macOS report. Earlier unchanged journey evidence retains its source mapping. |
 | Windows, native Windows Terminal/ConPTY | Focused native correction round complete on installed 691a8fb; installed discovery and hosted rechecks passed. Local debug latency and clean-runtime acceptance remain separate gates. | Connected/repeated release, stale rename review, draft/cursor/context, Info/Error, no automatic write, discard, disconnected writer, stable diagnostics and both shell exits passed. Header and writer-size observations retain their mapped 0bc4b63/9cf91f7 sources. |
-| Linux, GNOME Terminal | Informational form feedback and validation-error/cursor contrast on 691a8fb only | Completed 15794ad correction retests and unchanged 9cf91f7 journey |
+| Linux, GNOME Terminal | Completed on installed 691a8fb on 2026-09-23; no further local visual delta | Info/Error, retained cursor/draft, independent no-write/discard readback; completed 15794ad correction and unchanged 9cf91f7 journey |
 | One authorized SSH transport | Repeat changed conflict/review and disconnected navigation/feedback on the final candidate; verify normal exit and reconnection identities | Unchanged writer-size and continuity evidence remains mapped to 9cf91f7; do not repeat solely because the client OS changes |
 
 Apply only the rows still outstanding for the destination, using one corrected
-installed executable and synthetic private state. For local Linux, only item 5
-remains; the conflict setup needed to reach Info is not a reopened acceptance
-test. Items 1 through 4 already passed locally on 15794ad. The separate SSH row
+installed executable and synthetic private state. Local Linux item 5 passed on
+2026-09-23; no local item remains. The conflict setup was only for Info
+presentation. Items 1 through 4 passed on 15794ad. The separate SSH row
 retains its affected scope. The following is a reference checklist, not an
 instruction to repeat every item on every platform:
 
@@ -110,7 +111,7 @@ repetitions. Do not claim macOS evidence from Linux or Windows evidence from WSL
 
 ## Remaining milestone gates
 
-1. Verify candidate 691a8fb on the remaining targets and freeze its mapped artifacts after the affected usability checks pass.
+1. Complete the bounded SSH presentation and outstanding runtime/acceptance proof, then freeze the mapped 691a8fb artifacts.
 2. Run the exact required local and native CI commands/features from
    M12_details.md section 10 and the checked-in Quality/Security workflows.
    Hosted e4431f7 coverage is complete in the runs above; reuse it for unchanged
@@ -118,11 +119,12 @@ repetitions. Do not claim macOS evidence from Linux or Windows evidence from WSL
    Ordinary cargo test leaves opt-in gates ignored. Retain both independent
    inherited native repetitions, pinned-compiler coverage, full dependency audit,
    privacy/history scans, and negative controls. Older CI links are historical.
-3. Build and package twice per final native target, inspect native dependencies,
-   retain artifacts, and test the exact extracted executables with
-   RELAYTERM_TEST_RT. Include presentation, TUI, worktree and backup/restore
-   gates. Repeat compatibility/upgrade coverage required by the final matrix.
-4. Complete final-artifact clean-runtime installation evidence on all targets.
+3. Audit the retained final native packages and source/hash mappings from all
+   three completed platform reports. Reuse their reproducibility, dependency
+   inspection and exact-installed gates; do not replace them with untested
+   rebuilds. Reconcile existing compatibility/upgrade evidence in the final matrix.
+4. Complete final-artifact clean-runtime installation evidence on macOS and
+   Windows. Independent Ubuntu 24.04 runtime evidence passed on 2026-09-23.
    Masking PATH on a developer host alone is not independent clean-runtime proof.
    Identify prerequisites, warnings, resolution, and smoke/quick-start results.
 5. Complete affected visual rows above and reconcile limitations explicitly.
@@ -162,3 +164,18 @@ Record passes, failures, unavailable evidence and limitations separately. Keep
 screenshots, runtime data and credentials outside Git. Finish with tested evidence,
 remaining atomic M12 gates and a focused local commit. Do not push, merge, tag,
 or publish without an explicit destination request.
+
+## Linux final delta completed on 2026-09-23
+
+The [Linux final report](m12-linux-final-report.md) records two identical native
+691a8fb binaries/packages, checksums, ELF dependencies, dedicated installation,
+12 passing exact-installed gates and the completed physical Info/Error delta.
+Independent Ubuntu 24.04 runtime installation and applicable automated quick
+start passed without network, source mounts or build tools. Prior manual evidence
+is reused explicitly. Product, package, automation and operator proof remain
+separate. Both existing hosted runs were consulted and reused, not repeated.
+
+The finite remaining rows are authorized SSH presentation, independent macOS/
+Windows runtime proof, retained Windows debug latency, maintainer disposition of
+the SSH/fixed-grid limits and final AC/artifact reconciliation. Do not reopen
+completed native visual rounds or rebuild because of this documentary update.

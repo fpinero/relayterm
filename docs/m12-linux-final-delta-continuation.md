@@ -1,5 +1,15 @@
 # M12 Linux final delta continuation
 
+## Current completion checkpoint
+
+The local Linux work below completed on 2026-09-23: final native artifacts,
+exact-installed gates, independent Ubuntu runtime preparation and both physical
+Info/Error observations. See the final sections of
+[the Linux report](m12-linux-final-report.md) before running any step again.
+The remaining SSH connection prerequisite and finite global requirements are
+listed there. This procedure remains historical execution guidance, not a request
+to repeat completed work.
+
 ## Purpose and stopping rule
 
 This is the current Linux entry point after the Windows round of 2026-09-21.

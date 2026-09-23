@@ -35,11 +35,13 @@ Outcome: a reproducible candidate with usable session identification and editing
 
 Execution contract: [M12 detailed plan](docs/M12_details.md). Continue at M12.00h. The five usability proposals are scheduled here and do not reopen M11 acceptance.
 
-- M12.FINAL-SOURCE-GATES: Reconcile final native artifact inventory and remaining runtime/acceptance evidence for product source 691a8fb. Reuse passing Quality 35637866692 and Security 35637869615 on e4431f7 for unchanged product code and documentation-only descendants. Complete missing retained local Linux artifacts and exact-installed gates; freeze mapped artifacts only after remaining affected observations pass. Historical 491d5f1 CI and 9cf91f7 packages do not certify later products.
-- M12.CORRECTION-PLATFORMS: On candidate 691a8fb, complete the Linux informational feedback observation. Reconcile acceptance of the demonstrated SSH transport-loss recovery and fixed-grid history limits recorded in docs/m12-linux-final-report.md; preserve the original failed observations.
+- M12.SSH-PRESENTATION-DELTA: Use an available authorized connection for corrected review/Info and disconnected feedback only; the former temporary service is absent. Preserve prior continuity evidence.
+
+- M12.FINAL-SOURCE-GATES: Reconcile final native artifact inventory and remaining runtime/acceptance evidence for product source 691a8fb. Reuse passing Quality 35637866692 and Security 35637869615 on e4431f7 for unchanged product code and documentation-only descendants. Reconcile the retained Linux, macOS and Windows final artifacts; freeze mapped artifacts only after the outstanding SSH, runtime and acceptance prerequisites pass. Historical 491d5f1 CI and 9cf91f7 packages do not certify later products.
+- M12.CORRECTION-PLATFORMS: On candidate 691a8fb, reconcile acceptance of the demonstrated SSH transport-loss recovery and fixed-grid history limits recorded in docs/m12-linux-final-report.md; preserve the original failed observations.
   - M12.WINDOWS-DEBUG-LATENCY: Investigate and reconcile the local debug TUI input p95 misses of 290 ms and 294 ms against the unchanged 250 ms target. Keep failed workspace runs distinct from the installed release's passing 127 ms; no global acceptance waiver is implied.
 
-- M12.NATIVE: Follow docs/m12-linux-final-delta-continuation.md for Linux final artifacts, the local Info/Error presentation delta and any uncovered focused SSH observation. Reuse the completed 9cf91f7 journey and 15794ad correction round without repeating them. Reconcile independent clean-runtime and global acceptance evidence; preserve every platform's source/hash mapping.
+- M12.NATIVE: Complete independent macOS and Windows clean-runtime installation and applicable automated quick-start evidence using their retained final packages. Reuse completed physical observations. Follow the finite remaining requirements in docs/m12-linux-final-report.md; preserve every platform's source/hash mapping.
 
 
 - M12.00: Complete UX-SESSION-NAMES, UX-SESSION-ORDER, UX-FORM-CURSOR, UX-CONFLICT-MESSAGE, and UX-INPUT-ACQUIRE-MESSAGE before freezing release artifacts. Preserve durable identity, bounded state, typed error semantics, and read-only input ownership.

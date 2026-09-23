@@ -969,3 +969,28 @@ The operator confirms that q closed the correction client and left the outer
 terminal available. No further physical Linux action is required for this
 completed retest round. Remaining milestone gates and destination-agent steps
 are consolidated in m12-cross-platform-continuation.md.
+
+## Final feedback delta on 2026-09-23
+
+Product source 691a8fbb45980658b98d647a85ea8305b2325938, installed executable
+SHA-256 26f7f90e27da12239c3130e1163951a4cfe2f08e448fc8b28f6a46cec642d8d7.
+The [final Linux report](m12-linux-final-report.md) separates reproducible
+package, installed automated gates and independent clean-runtime evidence.
+
+Only the typed feedback delta was physically observed. Two private native
+clients prepared a stale rename: A retained Draft A and B saved Saved B.
+Following review/adoption, the operator explicitly confirmed readable Info,
+explicit Ctrl-S guidance, refreshed Saved B context, retained draft and visible
+cursor. Independent full ordered snapshots at revision/watermark 4 were equal
+before adoption, after adoption and after safe discard. There was no automatic
+write and the winner was preserved.
+
+The operator separately confirmed Error: Title is required., the still-open
+empty task form and the visible title cursor. Independent empty task-list
+snapshots were equal before and after rejection and after cancellation.
+These confirmations close the local physical delta. No new screenshot was
+required and no broader journey was repeated. Both owned clients exited with
+status zero; the owned daemon stopped, the installed hash was unchanged and
+no process using that candidate remained. Prior observations and failures retain
+their original source mappings. The affected SSH presentation remains pending
+an available authorized connection, not another local correction round.

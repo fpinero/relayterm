@@ -12,7 +12,7 @@ Support claims are limited to these three native artifacts and tested runtime ba
 
 | Target | Architecture | Tested runtime baseline | Current evidence boundary |
 | --- | --- | --- | --- |
-| `x86_64-unknown-linux-gnu` | x86-64 | Ubuntu 24.04 | Native 9cf91f7 preparation, installation and journey passed; 15794ad physical correction passed. Final 691a8fb local artifacts and Info/Error delta follow the Linux delta continuation. Other distributions and musl are not claimed. |
+| `x86_64-unknown-linux-gnu` | x86-64 | Ubuntu 24.04 | Two identical native 691a8fb builds/packages, exact-installed gates, focused Info/Error observation and independent Ubuntu 24.04 runtime checks passed; see the final Linux report. Unchanged 9cf91f7/15794ad physical evidence is reused. Other distributions and musl are not claimed. |
 | `aarch64-apple-darwin` | Apple arm64 | macOS 14 | Native repeatable artifacts, installation and focused physical observations passed on 691a8fb as mapped in the macOS report. macOS 14 hosted evidence and macOS 26.5.2 developer-host evidence remain distinct from independent clean-runtime acceptance. Intel and universal binaries are not claimed. |
 | `x86_64-pc-windows-msvc` | x86-64 | Windows 10 22H2 for desktop behavior, Windows Server 2022 for CI | Native repeatable 691a8fb artifacts, dedicated installation, exact-installed gates and focused Windows 10 physical correction passed. Server CI is separate evidence; independent clean Windows runtime acceptance remains open. Windows arm64 is not claimed. |
 
