@@ -1795,3 +1795,95 @@ latency and maintainer/global acceptance reconciliation. No SSH service changes,
 M13, push, merge, tag or release. Verification: operator confirmations, independent
 exact-installed readbacks, client statuses, process/hash inspection, repository
 and secret controls, append-only logbook comparison and git diff --check.
+
+
+## 2026-09-24: Complete the bounded Windows delta investigation and handover
+
+Completed M12.WINDOWS-FINAL-DELTA evidence preparation on
+fix/m12-windows-final-candidate after fetching and fast-forwarding the clean
+25c1092 checkout to verified Linux delivery 684582b. Product remains 691a8fb.
+Added the complete Windows delta report and self-contained Mac continuation;
+updated the Windows final report, acceptance matrix and pending-only queue.
+The failed debug requirement and blocked independent-runtime requirement remain
+open. This completes a bounded investigation, not either acceptance requirement
+or global M12. The requested dedicated-branch publication is authorized; no main
+merge, tag, release, branch deletion or private-artifact upload is included.
+
+Inspected original private logs before measurement: debug input median/p95/max
+208/290/337 ms in the ordinary workspace and 207/294/445 ms in serial hardening.
+Declared three standalone and three included repetitions per profile before
+execution. CI and RELAYTERM_TEST_RT were absent; only release subprocesses got
+the exact retained installed-binary override. No overlapping compilation or
+native runtime test ran during timing. Preserved every attempt and CPU sample.
+Five of six baseline debug runs failed, while all six retained-release runs
+passed. Added diagnostic-only harness logging, with microsecond statistics and
+post-timing independent flood readback before the unchanged latency assertion.
+Declared one more repetition per scenario/profile: debug p95 300.060/252.350 ms
+failed; retained release 126.469/147.561 ms passed. No product code, sample count,
+fixture, budget or hosted guardrail changed. Root cause is unresolved. Recorded
+the existing finite-burst/1 MiB/s harness versus sustained concurrent 2 MiB/s
+acceptance coverage gap instead of silently redefining the requirement.
+
+Separately declared and ran the startup scenario once per profile, each with
+20 samples after warm-up: debug median/p95/max 279/312/332 ms, retained release
+204/209/212 ms. Both passed the two-second startup reference. All 18 current
+measurement invocations, original failures and historical local/hosted reference
+measurements are mapped in the report. Passing release or one passing debug
+repetition does not waive the seven failed focused debug attempts.
+
+The operator requested the current Windows machine. Its disposable host-only
+installed journey passed packaged installation, PowerShell/cmd.exe resolution,
+collision and repeat refusal, help/version, detached daemon, three native cmd.exe
+ConPTY shells, names/order, claim conflict, progress/handover/successor/completion,
+private live backup and new-destination restore. Complete task/history/claim
+readbacks matched; workspace/session/instance identities and names/order survived;
+former live sessions became lost. Installed TUI/continuity was covered separately
+by the eight release journeys. Physical Windows correction/shell restoration
+observations were reused without repetition; no SSH test was performed.
+
+Independent runtime remains blocked: no WindowsSandbox executable or identified
+Hyper-V guest was available. Constrained PATH rejected cargo discovery, but
+checkout reading and absolute compiler execution remained possible. The external
+compiler probe selected the user's default Rust 1.98.0; measurements used the
+repository-pinned 1.98.1. Preserved runner false starts (expecting where-cargo
+stdout, and expecting the pinned version outside the checkout), their corrections
+and resumed checkpoints. No OS, account, service or security setting changed.
+Actual daemon modules came from System32: VCRUNTIME140.dll 14.44.35211.0 and
+ucrtbase.dll 10.0.19041.7725. Preinstalled host dependencies do not prove a clean
+Windows runtime. The report provides the minimum independent-environment plan.
+
+Rechecked retained release inventory, nine ZIP members, external manifest and
+SHA256SUMS, x64 PE and unsigned status. Executable hash remains
+2bef4ebbfcb1a894fd8929da227b86339af8b8f9d239b7e2f112411d194a5708;
+archive remains 875f2e06319d67d346d067aa1e37fbce0436b0591ab719228e5310ef7b618f94.
+No release rebuild or transfer occurred. The three transfer files remain together
+locally on Windows, unavailable to Mac until an authorized destination is supplied.
+Stopped only owned runtime daemons and removed only the newly installed test
+binary after path/hash/process checks. State, backups and unrelated sentinel
+hashes were preserved. A pre-existing debug daemon was left untouched. Raw logs,
+state, commands and process paths remain outside Git.
+
+Verification executed:
+
+- cargo test -p relayterm-cli --test tui_gate --test hardening_gate --locked --no-run
+- cargo test -p relayterm-cli --test tui_gate tui_initializes_launches_detaches_and_reopens_without_stopping_children --locked -- --exact --nocapture --test-threads=1
+- cargo test -p relayterm-cli --test hardening_gate tui::tui_initializes_launches_detaches_and_reopens_without_stopping_children --locked -- --exact --nocapture --test-threads=1
+- cargo test -p relayterm-cli --test tui_gate existing_daemon_reaches_usable_screen_within_budget --locked -- --exact --nocapture --test-threads=1
+- cargo fmt --all -- --check
+- cargo clippy --workspace --all-targets --locked -- -D warnings
+- python scripts/package_release.py inspect <retained-windows-archive>
+- python scripts/check_repository.py
+- python scripts/check_secrets.py, including the rejected synthetic negative control
+- python scripts/check_audit_controls.py, including license/ban negative controls
+- Private bounded installed CLI, independent JSON comparisons, loaded-module audit,
+  archive/executable checksums, owned-file removal preservation and git diff --check.
+
+The failed native commands are reported as failures above, not as a full workspace
+pass. Formatting, workspace Clippy, package inspection and repository/security
+controls passed. Read-only public API checks reconfirmed Quality 35637866692 and
+Security 35637869615 successful at e4431f7; unauthenticated gh CLI was replaced by
+the public read-only API. No new CI dispatch occurred. The new diagnostic harness
+has local evidence and is not attributed to the historical hosted result.
+Mac's newer local runtime/SSH evidence and the two accepted limits are preserved
+as maintainer-supplied handoff status, with detailed reconciliation left to Mac.
+Final logbook validation requires this file to retain every pre-existing byte.

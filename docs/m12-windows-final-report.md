@@ -1,5 +1,34 @@
 # M12 Windows final validation report
 
+## Current result on 2026-09-24
+
+The [bounded Windows delta](m12-windows-final-delta.md) and
+[Mac continuation](m12-windows-final-delta-continuation.md) supersede the older
+pending-status summaries below without erasing their failures. The physical
+correction round remains complete and was not repeated. The retained release
+executable and ZIP hashes are unchanged; no product fix or rebuild was substituted.
+
+The local debug gate is **failed**: seven of eight new standalone/included
+repetitions miss 250 ms, including diagnostic p95 values 300.060 and 252.350 ms.
+The original 290/294 ms failures remain. Eight same-workload installed-release
+repetitions pass; startup p95 is 312 ms debug and 209 ms installed release.
+Diagnostic-only harness additions preserve throughput on failed attempts and
+print sub-millisecond precision without changing workload or budgets. Root cause
+is unresolved. A finite-flood versus sustained-load coverage gap is also recorded.
+
+The independent Windows runtime gate is **blocked**. At the operator's request,
+the current developer machine was used. Its disposable installed CLI journey
+passed discovery/collision, three native ConPTY shells, coordination, fresh-home
+restore and owned-file removal. Those host checks do not enforce exclusion of
+developer tools or certify a clean Windows image. Existing physical evidence is
+reused separately. No OS/security changes or new SSH tests were performed.
+
+The maintainer handoff supplies completed Linux runtime, Mac restricted runtime
+and final Mac SSH presentation evidence. Their detailed newer reconciliation
+belongs on Mac. Windows cannot close M12 globally; performance, independent
+runtime, package transfer and final acceptance/inventory integration remain open.
+The Windows package, external manifest and SHA256SUMS remain local, not on Mac.
+
 ## Decision and evidence identity
 
 The focused Windows physical correction round is complete. No further operator

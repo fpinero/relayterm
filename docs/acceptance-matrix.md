@@ -1,5 +1,25 @@
 # M11 acceptance matrix
 
+## Latest Windows M12 delta on 2026-09-24
+
+The [Windows delta](m12-windows-final-delta.md) preserves the historical matrix
+below and separates current requirement decisions from successful host checks.
+
+| Requirement | Current Windows evidence | Decision |
+| --- | --- | --- |
+| Local input performance | Seven of eight debug repetitions fail the unchanged 250 ms reference; eight retained-release repetitions pass separately; root cause unresolved | Failed; no waiver |
+| Sustained-load coverage | Existing TUI harness uses a finite burst and a 1 MiB/s assertion rather than proving concurrent 2 MiB/s across every input sample | Open coverage reconciliation; do not redefine the acceptance workload |
+| M12 independent runtime, AC-1/AC-12/AC-14/AC-16 installation boundary | Host install/discovery/collision, three shells, coordination and fresh-home restore passed; absolute checkout/compiler access remains available | Blocked for independent Windows runtime |
+| Physical Windows corrections and shell restoration | Completed historical operator observations reused unchanged | Passed in their original scope; not repeated |
+| Artifact identity | Original local ZIP/executable/manifest checksums reconfirmed, unsigned x64; retained package not rebuilt or transferred | Passed inventory audit; global freeze/transfer still pending |
+
+The supplied maintainer handoff reports Linux and Mac runtime completion and
+final Mac SSH presentation including disconnected exit. Those are not new Windows
+observations. Mac must reconcile its newer local reports and the older queue.
+M12 and final AC/phase acceptance remain open. Original passing CI on e4431f7
+covers unchanged product and baseline harness; the diagnostic-only harness lines
+have separately reported local verification and no new hosted run.
+
 ## Status contract
 
 This matrix tracks the hardening candidate. `Passed` requires candidate-specific evidence. `Pending` means implementation or evidence remains. `Blocked` means an external requirement is unavailable. Earlier milestone results are regression inputs, not M11 completion.

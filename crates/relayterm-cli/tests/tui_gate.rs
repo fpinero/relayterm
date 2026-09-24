@@ -677,6 +677,8 @@ fn tui_initializes_launches_detaches_and_reopens_without_stopping_children() {
         second.wait_for(&marker);
         input_latencies.push(started.elapsed());
     }
+    // Collect diagnostics after timing, before a failed assertion can skip throughput reporting.
+    report_flood_readback(&root, &private, &flood_session_id);
     assert_latency(
         "input-to-rendered-echo",
         &mut input_latencies,
@@ -822,6 +824,38 @@ fn rendered_session_rows_accept_native_border_prefixes() {
     );
 }
 
+fn report_flood_readback(root: &Path, private: &Path, session_id: &str) {
+    let output = admin_output(root, private, &["session", "attach", session_id]);
+    let value = serde_json::from_slice::<Value>(&output.stdout).ok();
+    let duration = value
+        .as_ref()
+        .and_then(|value| value["result"]["snapshot"]["cells"].as_array())
+        .map(|cells| {
+            cells
+                .iter()
+                .map(|cell| match cell["contents"].as_str() {
+                    Some(value) if !value.is_empty() => value,
+                    _ => " ",
+                })
+                .collect::<String>()
+        })
+        .and_then(|text| {
+            text.split("flood-complete-us-")
+                .nth(1)?
+                .split_whitespace()
+                .next()?
+                .parse::<u128>()
+                .ok()
+        });
+    if let Some(microseconds) = duration.filter(|value| *value != 0) {
+        let bytes = FLOOD_CHUNKS as u128 * (FLOOD_CHUNK_REPETITIONS as u128 * 16 + 2);
+        let rate = bytes * 1_000_000 / microseconds;
+        eprintln!("M08 diagnostic-flood throughput_bytes_per_second={rate}");
+    } else {
+        eprintln!("M08 diagnostic-flood throughput_unavailable=true");
+    }
+}
+
 fn assert_latency(
     label: &str,
     samples: &mut [Duration],
@@ -838,6 +872,13 @@ fn assert_latency(
         median.as_millis(),
         p95.as_millis(),
         maximum.as_millis()
+    );
+    eprintln!(
+        "M08 {label} median_us={} p95_us={} max_us={} reference_target_met={}",
+        median.as_micros(),
+        p95.as_micros(),
+        maximum.as_micros(),
+        p95 <= reference_target
     );
     if std::env::var_os("CI").is_some() {
         eprintln!(
