@@ -1,5 +1,23 @@
 # M12 closure audit and next handoff
 
+## Latest evidence on 2026-09-25
+
+The [prepared Windows VM reconciliation](m12-windows11-vm-reconciliation.md)
+records passing standard-account runtime, coordination, real-console TUI and
+populated recovery gates, with original init response capture unavailable. Earlier
+Windows-runtime pending statements below are historical checkpoints. Corporate
+ACL failure, debug latency, sustained-load measurement and final acceptance remain
+open. Reuse completed Mac/SSH and VM journeys; do not infer FortiClient causality.
+
+## Update on 2026-09-24
+
+The independent Windows 11 runtime gate failed during initialization. See the
+[ACL review and diagnostic contract](m12-windows11-acl-review.md) for imported
+evidence, Mac reconciliation and the next bounded engineering step. Downstream
+Windows checks are blocked. Mac runtime and SSH remain passed. Debug latency,
+harness-load reconciliation and global acceptance remain open. This continuation
+does not authorize remote delivery or host configuration changes.
+
 ## Decision on 2026-09-23
 
 M12 is not ready for final acceptance or a completion merge. The three native

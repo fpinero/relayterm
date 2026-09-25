@@ -2009,3 +2009,58 @@ Markdown files and eight ADRs) and scripts/check_secrets.py, including rejection
 of its synthetic negative control. Append-only prefix verification and git diff
 --check passed. The local real-agent trial exists and git check-ignore confirms
 it remains excluded. No product build or full CI rerun was needed.
+
+## 2026-09-24: Complete M12 Windows 11 ACL review
+
+Completed M12.WINDOWS11-ACL-REVIEW, a source diagnosis and planning task, not a
+product fix or native Windows gate. Read both supplied sanitized reports and
+kept their originals outside the repository. Recorded the failed retained
+Windows package, blocked downstream checks, exact artifact identities, and the
+already passing Mac runtime/SSH evidence. Traced the handle-based ACL validation,
+locked dependency error conversion and initialization-to-CLI mapping. Preserved
+1355 as a supported hypothesis rather than a demonstrated product trace or
+underlying root cause. Added the bounded diagnostic contract, conservative
+structural-ACL proposal, compatibility concern and native negative-test matrix.
+Refined TODO with diagnostic and correction gates; M12 remains open, including
+debug latency, harness-load discrepancy and final acceptance.
+
+Verification: git diff 691a8fb HEAD for permissions.rs and registry.rs showed no
+changes. Inspected the cached windows-permissions 0.2.4 native wrapper and official
+Microsoft API documentation. cargo test -p relayterm-platform --lib
+permissions::tests --locked --offline passed all three applicable Unix tests.
+An isolated local candidate clone passed python3 scripts/check_repository.py
+(72 Markdown files and eight ADRs), python3 scripts/check_secrets.py and its
+synthetic negative control. git diff --check passed. The unrelated local reviewer
+file was preserved and excluded from candidate checks. No Windows code executed,
+no product source or package changed, and no physical or SSH tests were repeated.
+No remote delivery, host-policy change or acceptance waiver occurred.
+
+## 2026-09-25: Reconcile prepared Windows VM runtime evidence
+
+Completed M12.VM-EVIDENCE-RECONCILIATION. Read both final 20260925-185735
+reports and recorded the passing exercised standard-account runtime, coordination,
+real-console TUI, reconnect and populated recovery gates. Kept the earlier two
+blocked VM runs and corporate invalid_location failure separate. Preserved the
+original init output/exit capture limitation, dependency-sampling and recovery
+coverage limits, retained artifact identities and user-versus-agent actions.
+Original reports and raw evidence remain outside the repository.
+
+Corrected the prior Mac response: the exact product source creates tasks as
+Backlog and serializes backlog, not draft. No product fix is indicated by that
+mistaken expectation. Recorded finite process/EOF waits, reconciliation before
+retrying mutations and PowerShell array wrapping as harness requirements.
+Narrowed the remaining runtime queue and made sustained-load measurement an
+explicit pending task. Source inspection verified the finite 2621600-byte TUI
+burst and 1 MiB/s assertion do not establish the declared 120-second 2 MiB/s
+concurrent workload. No historical failures or performance budgets were changed.
+
+Verification: exact-commit git show inspection of domain state/models, comparison
+showing those files unchanged since 691a8fb, and current TUI fixture inspection
+against docs/M11_details.md and the acceptance matrix. An isolated candidate
+clone passed python3 scripts/check_repository.py (73 Markdown files, eight ADRs)
+and python3 scripts/check_secrets.py with its synthetic negative control.
+git diff --check passed. Candidate checks exclude the preserved unrelated reviewer
+file. This was source/document verification on Mac, not new Windows execution;
+no Rust build, product patch, native visual/SSH repetition or remote publication
+occurred. M12 remains open, including corporate ACL diagnosis, init-capture/runtime
+scope disposition, debug latency, sustained load and final acceptance/inventory.

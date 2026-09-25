@@ -216,3 +216,27 @@ the installed hash remained unchanged and no candidate process remained.
 Earlier SSH-pending statements above are historical checkpoints. Native Windows
 runtime, Windows debug-latency disposition and final acceptance/artifact
 reconciliation remain open. No global M12 acceptance is claimed.
+
+## M12 independent Windows 11 failure
+
+On 2026-09-24 the supplied independent-host reports record six failed
+initializations on the retained 691a8fb package. Installation and startup checks
+passed; daemon, ConPTY, coordination, TUI continuity and recovery checks are
+blocked. The [ACL review](m12-windows11-acl-review.md) maps the plausible 1355
+error path without claiming a demonstrated root cause. This does not close
+AC-12, AC-16 or global M12 acceptance. Completed Mac runtime and SSH observations
+remain valid; debug latency and sustained-load reconciliation remain open.
+
+## Prepared Windows VM runtime on 2026-09-25
+
+The [VM reconciliation](m12-windows11-vm-reconciliation.md) maps the third run
+to retained product 691a8fb and executable hash 2bef4ebbfcb1a894fd8929da227b86339af8b8f9d239b7e2f112411d194a5708.
+A real standard-account session outside the Codex sandbox passed discovery,
+three-session input/identity, coordination, two real-console TUI visits and
+populated recovery. Run 2 supplies unchanged installer collision/removal coverage.
+The original init response is unavailable, while authoritative readiness and
+later functional results passed. This supports affected AC-1 through AC-9,
+AC-12 and AC-16 evidence without closing their global acceptance. Preserve the
+first two blocked VM runs, corporate failure, existing Mac/SSH results and all
+report limits. The burst-versus-sustained workload discrepancy and seven-of-eight
+Windows debug misses remain open; no budgets or product code changed.
