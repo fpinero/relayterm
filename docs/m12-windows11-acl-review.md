@@ -1,5 +1,14 @@
 # M12 Windows 11 ACL review and diagnostic contract
 
+## Corporate execution deferred on 2026-09-28
+
+The operator reports prior application-reputation blocks on the corporate laptop
+and requests that investigation remain separate to avoid repeated SOC alerts.
+Do not run the diagnostic procedure below on that host, retry the executable,
+change controls or seek a security exception under the current authorization.
+The observed 1355 API result and possible reputation enforcement remain distinct
+hypotheses. Resume corporate-host execution only with a new explicit instruction.
+
 ## Latest evidence on 2026-09-25
 
 The [prepared Windows VM reconciliation](m12-windows11-vm-reconciliation.md)

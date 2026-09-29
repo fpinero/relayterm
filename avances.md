@@ -2064,3 +2064,92 @@ file. This was source/document verification on Mac, not new Windows execution;
 no Rust build, product patch, native visual/SSH repetition or remote publication
 occurred. M12 remains open, including corporate ACL diagnosis, init-capture/runtime
 scope disposition, debug latency, sustained load and final acceptance/inventory.
+
+
+## 2026-09-28: Verify sustained measurement and prepare isolated continuations
+
+Completed the local implementation and verification portion of
+M12.PERFORMANCE-HARNESS and M12.WINDOWS-PERFORMANCE-HANDOFF. Added a separate
+120-second scenario with a paced flood, continuing full-screen output and 100
+navigation plus 100 echo observations. Daemon-consumed byte offsets qualify
+load over both latency windows and each interval. Negative controls reject
+finite bursts, stopped screen output, insufficient throughput, missing overlap
+and excessive gaps. Preserved the old finite-burst scenario, historical failures,
+production sources, dependencies and all performance budgets.
+
+Bounded administrative process completion and first-line JSON capture separately
+so inherited daemon pipes cannot force an EOF wait. The final monitor reuses a
+persistent connection and one-cell display responses. Earlier development load
+failures and the compilation-confounded attempt are disclosed, not relabeled as
+product latency passes. Final native Mac debug/release/debug/release runs all
+passed: navigation p95 30/31/30/30 ms and echo p95 147/116/145/134 ms, each with
+approximately 122 seconds of qualified load at about 3 MiB/s. The new scenario
+also passed through hardening_gate in debug, p95 30/149 ms. Exact source hashes,
+environment and sanitized results are in docs/m12-sustained-performance.md;
+raw samples and executable identities remain private.
+
+Prepared a three-file patch against 43ba692 and an ignored Windows prompt with
+serial profile repetitions, deadlines, identities and explicit corporate-host
+exclusion. Verified git apply --check and application on a fresh local clone.
+The native Windows/Linux and hosted-duration gate remains in TODO. No Windows
+measurement, remote delivery or historical debug-latency resolution is claimed.
+Corporate probes are deferred to avoid security alerts. Reputation enforcement
+remains an operator hypothesis, separate from the observed ACL API failure.
+
+Prepared the local portion of M12.PRACTICAL-TRIAL. Located and updated the ignored
+Markdown-checklist example, verified provider executable versions and froze a
+local release executable with unchanged production source. The retained Mac
+package was not located, so this new binary has its own identity. Successfully
+initialized an isolated synthetic workspace, registered three disabled provider
+definitions and stopped its daemon. Verified launcher shell syntax, executable
+hash and version. No provider was launched; authentication, real-agent handovers
+and the operator-guided practical journey remain pending. Private files stay
+outside version control.
+
+Verification on Mac: cargo fmt --all --check; cargo clippy --workspace
+--all-targets --locked --offline -- -D warnings; cargo test --workspace --lib
+--locked --offline; cargo test -p relayterm-cli --test tui_gate load_contract
+--locked --offline. Built tui_gate in debug/release and hardening_gate in debug
+before native timing. Ran the final test executables directly with --exact
+--nocapture --test-threads=1 and a 360-second external deadline for four focused
+runs and the hardening inclusion. The remaining debug tui_gate selection passed
+nine tests, one ignored fixture, with the new sustained scenario filtered out.
+The full workspace integration suite was not rerun. Isolated candidate checks
+passed python3 scripts/check_repository.py (74 Markdown files, eight ADRs),
+python3 scripts/check_secrets.py and its synthetic negative control, and git
+diff --check. Unrelated local reviewer material was preserved and excluded.
+M12 and global acceptance remain open; no commit, push, merge or release occurred.
+
+
+## 2026-09-29: Reconcile native Windows sustained failures
+
+Completed M12.WINDOWS-SUSTAINED-RECONCILIATION. Read both supplied Windows reports
+and checked the complete numerical annex. Confirmed the exact base, LF-normalized
+patch and both Rust source hashes, plus the handed-off performance document hash.
+Recorded all five exit-101 load failures, the Windows 10 versus Windows 11 VM
+distinction, insufficient producer output and the limits of attribution. The
+release latency observations do not qualify acceptance. Historical failures,
+Mac passes, retained packages and the corporate deferral remain separate.
+
+Recomputed 1,117 interval deltas/rates from 1,122 observations and 500 paired
+latency samples. Verified monotonic counters, positive screen deltas, sampling
+bounds, observed spans, producer rates, whole-span rates, failing interval counts,
+observer maxima and echo p95 against the report. Inspected producer pacing,
+native PTY setup, supervisor reader locking and terminal processing without
+changing implementation. These were Mac arithmetic/source checks, not a new
+Windows execution or proof of a root cause.
+
+Prepared an ignored Windows-owned continuation authorizing bounded diagnostics,
+evidence-supported local harness/product fixes and the complete verification
+loop. Mac preserves its work for later integration and affected native regression
+checks instead of duplicating Windows implementation. The continuation retains
+budgets, safety boundaries and private evidence, and requests a reviewable patch
+and complete results. It has not been executed by the Windows agent from this Mac.
+Refined the native gate rather than closing it. No production change, benchmark
+rerun, dependency/host modification, commit, push or publication occurred.
+
+Candidate verification: an isolated local clone passed python3
+scripts/check_repository.py (75 Markdown files, eight ADRs), python3
+scripts/check_secrets.py and its synthetic negative control. git diff --check
+passed. Append-only history and unchanged production sources/dependencies were
+checked. The existing unrelated reviewer document was preserved and excluded.

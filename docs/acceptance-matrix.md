@@ -240,3 +240,32 @@ AC-12 and AC-16 evidence without closing their global acceptance. Preserve the
 first two blocked VM runs, corporate failure, existing Mac/SSH results and all
 report limits. The burst-versus-sustained workload discrepancy and seven-of-eight
 Windows debug misses remain open; no budgets or product code changed.
+
+
+## Sustained harness continuation on 2026-09-28
+
+The [separate sustained scenario](m12-sustained-performance.md) now checks the
+actual daemon-consumed load throughout the 120-second workload and the two
+100-sample latency windows. Two serial Mac repetitions per profile passed the
+unchanged reference budgets. The old finite-burst scenario and all historical
+Windows failures remain separate. Invalid-load development attempts are disclosed
+in the new report rather than counted as latency acceptance evidence.
+
+This closes local harness implementation and measurement, not native Windows or
+Linux verification, historical debug-latency disposition or global M12 acceptance.
+Corporate execution is deferred at the operator's request; no new probe or
+application-reputation root-cause claim follows. The local practical example is
+prepared separately and remains an operator-guided trial, not acceptance proof.
+
+
+## Native Windows sustained failures on 2026-09-29
+
+The [Windows reconciliation](m12-windows-sustained-reconciliation.md) records four
+focused repetitions and one hardening inclusion, all exit 101 without timeout
+because interval consumption fell below 2 MiB/s. These were native Windows 10
+measurements, not the earlier Windows 11 VM journey. All five have more than
+120 seconds and 100 samples per latency category but no load-qualified latency
+acceptance verdict. Mac arithmetic verification reproduced the supplied evidence.
+Continue diagnosis and supported corrections on Windows; Mac will review the
+result and verify affected behavior. Existing Mac passes and historical Windows
+failures remain visible. No product root cause or global acceptance is asserted.

@@ -22,6 +22,9 @@ use std::{
 #[allow(clippy::duplicate_mod)]
 mod native_serial;
 
+#[path = "support/sustained_load.rs"]
+mod sustained_load;
+
 const DEADLINE: Duration = Duration::from_secs(45);
 const OUTPUT_LIMIT: usize = 2 * 1024 * 1024;
 const FLOOD_CHUNK_REPETITIONS: usize = 2_048;
@@ -247,7 +250,9 @@ fn interactive_fixture_process() {
     let mut echoes = 0_u64;
     for line in std::io::stdin().lock().lines() {
         let line = line.unwrap();
-        if line == "flood" {
+        if line == "sustained-flood" || line == "sustained-screen" {
+            sustained_load::emit(&mut stdout, line == "sustained-flood");
+        } else if line == "flood" {
             let started = Instant::now();
             let chunk = format!("{}\r\n", "0123456789abcdef".repeat(FLOOD_CHUNK_REPETITIONS));
             for _ in 0..FLOOD_CHUNKS {
@@ -828,6 +833,18 @@ fn assert_latency(
     reference_target: Duration,
     hosted_guardrail: Duration,
 ) {
+    assert!(
+        latency_within_budget(label, samples, reference_target, hosted_guardrail),
+        "{label} exceeded its unchanged latency budget"
+    );
+}
+
+fn latency_within_budget(
+    label: &str,
+    samples: &mut [Duration],
+    reference_target: Duration,
+    hosted_guardrail: Duration,
+) -> bool {
     samples.sort_unstable();
     let median = samples[samples.len() / 2 - 1];
     let p95 = samples[(samples.len() * 95).div_ceil(100) - 1];
@@ -845,15 +862,9 @@ fn assert_latency(
             reference_target.as_millis(),
             p95 <= reference_target
         );
-        assert!(
-            p95 <= hosted_guardrail,
-            "{label} p95 exceeded hosted guardrail {hosted_guardrail:?}"
-        );
+        p95 <= hosted_guardrail
     } else {
-        assert!(
-            p95 <= reference_target,
-            "{label} p95 exceeded reference target {reference_target:?}"
-        );
+        p95 <= reference_target
     }
 }
 
@@ -1005,7 +1016,7 @@ fn create_representative_workspace(root: &Path, private: &Path) {
     });
 }
 
-fn register_fixture(root: &Path, private: &Path) {
+fn register_fixture(root: &Path, private: &Path) -> String {
     let status = admin(root, private, &["daemon", "status"]);
     let revision = status["result"]["revision"].as_str().unwrap();
     let definition = private.join("fixture-definition.json");
@@ -1044,6 +1055,10 @@ fn register_fixture(root: &Path, private: &Path) {
         ],
     );
     assert_eq!(result["ok"], true);
+    result["result"]["entity_ids"][0]
+        .as_str()
+        .unwrap()
+        .to_owned()
 }
 
 fn admin(root: &Path, private: &Path, args: &[&str]) -> Value {
@@ -1060,17 +1075,15 @@ fn admin(root: &Path, private: &Path, args: &[&str]) -> Value {
 }
 
 fn admin_output(root: &Path, private: &Path, args: &[&str]) -> std::process::Output {
-    Command::new(rt_binary())
+    let mut command = Command::new(rt_binary());
+    command
         .arg("--workspace")
         .arg(root)
         .arg("--home")
         .arg(private)
         .args(["--format", "json"])
-        .args(args)
-        .stdin(Stdio::null())
-        .stderr(Stdio::null())
-        .output()
-        .unwrap()
+        .args(args);
+    sustained_load::bounded_output(&mut command)
 }
 
 fn wait_for_session_count(root: &Path, private: &Path, expected: usize) {

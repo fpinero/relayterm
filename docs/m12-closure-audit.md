@@ -1,5 +1,27 @@
 # M12 closure audit and next handoff
 
+## Windows continuation on 2026-09-29
+
+The [native Windows sustained reconciliation](m12-windows-sustained-reconciliation.md)
+records five failed load gates on Windows 10, separate from the Windows 11 VM
+runtime journey. Their latency observations cannot qualify acceptance. Continue
+local diagnosis and evidence-supported correction on the Windows development
+host, then review/integrate its patch and run affected Mac/Linux checks. Avoid
+parallel edits to the same implementation on Mac. Corporate probes remain deferred;
+historical failures, retained packages and global M12 acceptance stay separate.
+
+## Work sequence on 2026-09-28
+
+Continue with the [sustained performance harness](m12-sustained-performance.md),
+then a mapped non-corporate Windows comparison and the local operator-guided
+practical trial. The corporate host is excluded from further probes or retries
+at the operator's request to avoid security alerts. This is a deferral, not a
+confirmed application-reputation root cause or a waiver of the recorded failure.
+Local harness verification now passes two Mac repetitions per profile and the
+hardening inclusion. The Windows patch/prompt and private operator trial are
+prepared. Native Windows/Linux measurements and the actual real-agent trial
+remain pending. No global acceptance, branch delivery or release is implied.
+
 ## Latest evidence on 2026-09-25
 
 The [prepared Windows VM reconciliation](m12-windows11-vm-reconciliation.md)
