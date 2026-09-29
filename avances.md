@@ -2153,3 +2153,75 @@ scripts/check_repository.py (75 Markdown files, eight ADRs), python3
 scripts/check_secrets.py and its synthetic negative control. git diff --check
 passed. Append-only history and unchanged production sources/dependencies were
 checked. The existing unrelated reviewer document was preserved and excluded.
+
+
+## 2026-09-29: Integrate the evaluated ConPTY candidate on Mac
+
+Completed M12.CONPTY-MAC-INTEGRATION. Read the Windows handoff, report, application
+instructions and diagnostic history, reviewed the source/dependency deltas and
+verified the attachment checksums. The original harness was already present in
+f8837ee; its reverse-application check passed. Applied only patches 01 and 02,
+after verifying the full chain in an isolated checkout of 43ba692. All nine
+supplied LF source hashes matched before the documented Mac adaptation.
+
+Integrated earlier TUI snapshot drawing, bounded Windows reader batches, opt-in
+test-hook diagnostics, ignored diagnostic fixtures, native test compatibility
+corrections and isolated evaluation scripts. The pinned runtime/dependency adapter
+remains opt-in and outside ordinary builds. Cargo.toml and Cargo.lock are unchanged;
+no runtime was downloaded, installed or loaded on Mac. Retained packages remain
+unchanged. The new source needs its own artifact and acceptance mapping.
+
+Ran the reviewed exported-evidence verifier: all five final Windows passes,
+1,116 observations and 1,000 latency samples recomputed successfully. These are
+imported experimental-runtime results, not Mac execution of Windows code or a
+pass for the ordinary Windows package. Preserved the original and intermediate
+failures, resource-accounting limits and corporate deferral in the reconciliation.
+
+Mac testing found an integration limitation. The initial full workspace command
+exited 101: the hardening sustained scenario passed, but tui_gate failed two
+load intervals. A focused unchanged debug repeat failed one interval. Release,
+the complete remaining workspace selection and an explicitly enabled resource
+scenario passed. Failed load attempts are not latency acceptance. No budget,
+producer workload, sampling bound or historical result was changed.
+
+A controlled compatibility variant retained the evaluated 16 KiB reader batch
+on Windows and restored the previous 64 KiB on other platforms. With the TUI
+correction unchanged, native Mac PTY/runtime checks and two debug plus one release
+focused sustained runs passed. Final navigation p95 was 25/25/27 ms and echo p95
+119/120/75 ms, with every load window qualified. Retained this platform guard.
+The comparison supports limiting the smaller batch to Windows, not a unique
+causal explanation for every pause. The supervisor source intentionally differs
+from the delivered Windows hash; Windows behavior of the batch selection is
+preserved, while native execution of the integrated tree on Windows/Linux remains
+unclaimed. Source/executable identities and every local attempt remain private.
+
+Verification: cargo fmt --all --check; cargo clippy --workspace --all-targets
+--locked --offline -- -D warnings, also with --all-features; cargo test --workspace
+--lib --locked --offline -- --test-threads=1. Both profiles were built before
+serial native timing. Initial cargo test --workspace --locked --offline --
+--nocapture --test-threads=1 failed as recorded above. Repeating with --skip
+sustained_output_navigation_and_echo_meet_declared_contract passed, completing
+the remaining workspace checks. The 16 KiB resource candidate passed 100
+reconnects (20 abrupt), unchanged memory limits and 48 handles before/after.
+
+Final 64 KiB Unix verification directly executed the compiled pty_gate and
+runtime_gate tests and three exact sustained selectors with --nocapture
+--test-threads=1 and bounded external deadlines. No compiler/check overlapped
+measurements; CI, runtime override, product override and reader metrics were
+absent. The full integration/resource suites were not repeated after the platform
+guard, and their earlier source boundary remains explicit. The unchanged pure
+DA1 matcher passed as a standalone rustc test. Python syntax and the preparation
+script's Windows-only guard passed without side effects. PowerShell was unavailable
+and its scripts were reviewed rather than executed on Mac.
+
+Updated the acceptance matrix, closure audit and pending candidate/distribution
+work. M12 remains open, including native Linux/hosted checks, normal Windows
+runtime distribution, helper-resource inventory and global acceptance. Completed
+physical/SSH/VM journeys were not repeated. No commit, push or publication occurred.
+
+Final candidate checks passed in an isolated local clone: python3
+scripts/check_repository.py (77 Markdown files, eight ADRs), python3
+scripts/check_secrets.py and its synthetic negative control, and git diff --check.
+Verified append-only history, unchanged manifest/lockfile and sustained helper,
+and final measured source/executable hashes. Preserved and excluded the unrelated
+local reviewer document and all private evidence.

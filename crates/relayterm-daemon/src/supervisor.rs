@@ -589,21 +589,110 @@ fn spawn_reader(
     terminal: Arc<Mutex<TerminalState>>,
 ) -> thread::JoinHandle<()> {
     thread::spawn(move || {
+        // The smaller parse batch was validated for the Windows console runtime.
+        #[cfg(windows)]
+        let mut buffer = [0_u8; 16 * 1024];
+        #[cfg(not(windows))]
         let mut buffer = [0_u8; 64 * 1024];
+        #[cfg(feature = "test-hooks")]
+        let mut metrics = ReaderDiagnostic::new();
         loop {
-            match reader.read(&mut buffer) {
+            #[cfg(feature = "test-hooks")]
+            let before = std::time::Instant::now();
+            let read = reader.read(&mut buffer);
+            #[cfg(feature = "test-hooks")]
+            if let Some(metrics) = metrics.as_mut() {
+                metrics.read_time += before.elapsed();
+            }
+            match read {
                 Ok(0) | Err(_) => return,
                 Ok(amount) => {
+                    #[cfg(feature = "test-hooks")]
+                    let before = std::time::Instant::now();
                     let Ok(mut state) = terminal.lock() else {
                         return;
                     };
-                    if state.process(&buffer[..amount]).is_err() {
+                    #[cfg(feature = "test-hooks")]
+                    if let Some(metrics) = metrics.as_mut() {
+                        metrics.lock_time += before.elapsed();
+                    }
+                    #[cfg(feature = "test-hooks")]
+                    let before = std::time::Instant::now();
+                    let result = state.process(&buffer[..amount]);
+                    #[cfg(feature = "test-hooks")]
+                    if let Some(metrics) = metrics.as_mut() {
+                        metrics.process_time += before.elapsed();
+                        metrics.bytes += amount as u64;
+                        metrics.reads += 1;
+                        metrics.max_read = metrics.max_read.max(amount);
+                    }
+                    if result.is_err() {
                         return;
+                    }
+                    #[cfg(feature = "test-hooks")]
+                    if let Some(metrics) = metrics.as_mut() {
+                        drop(state);
+                        if !metrics.delay.is_zero() {
+                            let before = std::time::Instant::now();
+                            thread::sleep(metrics.delay);
+                            metrics.delay_time += before.elapsed();
+                        }
                     }
                 }
             }
         }
     })
+}
+
+// Opt-in aggregate diagnostics, compiled out of ordinary acceptance executables.
+#[cfg(feature = "test-hooks")]
+struct ReaderDiagnostic {
+    path: std::path::PathBuf,
+    read_time: Duration,
+    lock_time: Duration,
+    process_time: Duration,
+    bytes: u64,
+    reads: u64,
+    max_read: usize,
+    delay: Duration,
+    delay_time: Duration,
+}
+
+#[cfg(feature = "test-hooks")]
+impl ReaderDiagnostic {
+    fn new() -> Option<Self> {
+        static NEXT: AtomicU64 = AtomicU64::new(0);
+        let directory = std::env::var_os("RELAYTERM_READER_METRICS")?;
+        Some(Self {
+            path: std::path::PathBuf::from(directory).join(format!(
+                "reader-{}-{}.json",
+                std::process::id(),
+                NEXT.fetch_add(1, Ordering::Relaxed)
+            )),
+            read_time: Duration::ZERO,
+            lock_time: Duration::ZERO,
+            process_time: Duration::ZERO,
+            bytes: 0,
+            reads: 0,
+            max_read: 0,
+            delay: Duration::from_micros(
+                std::env::var("RELAYTERM_READER_DELAY_US")
+                    .ok()
+                    .and_then(|value| value.parse::<u64>().ok())
+                    .unwrap_or(0)
+                    .min(1000),
+            ),
+            delay_time: Duration::ZERO,
+        })
+    }
+}
+
+#[cfg(feature = "test-hooks")]
+impl Drop for ReaderDiagnostic {
+    fn drop(&mut self) {
+        let value = serde_json::json!({"bytes":self.bytes,"reads":self.reads,"max_read":self.max_read,"read_wait_us":self.read_time.as_micros(),"lock_wait_us":self.lock_time.as_micros(),"process_us":self.process_time.as_micros(),"reader_delay_requested_us":self.delay.as_micros(),"reader_delay_actual_us":self.delay_time.as_micros()});
+        let _ = std::fs::write(&self.path, value.to_string());
+    }
 }
 
 fn spawn_writer(

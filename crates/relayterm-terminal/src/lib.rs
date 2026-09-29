@@ -419,3 +419,36 @@ mod tests {
         assert_eq!(state.snapshot().unwrap(), live);
     }
 }
+
+#[test]
+#[ignore = "explicit bounded processing diagnostic"]
+fn diagnostic_processing_components() {
+    let chunk = b"0123456789abcdef".repeat(2048);
+    let started = std::time::Instant::now();
+    let mut terminal = TerminalState::new(24, 80, DEFAULT_SCROLLBACK_BYTES).unwrap();
+    for _ in 0..512 {
+        terminal.process(std::hint::black_box(&chunk)).unwrap();
+    }
+    eprintln!("M12 processing full_us={}", started.elapsed().as_micros());
+    let started = std::time::Instant::now();
+    let mut parser = vt100::Parser::new(24, 80, 10_000);
+    for _ in 0..512 {
+        parser.process(std::hint::black_box(&chunk));
+    }
+    eprintln!("M12 processing parser_us={}", started.elapsed().as_micros());
+    let started = std::time::Instant::now();
+    let mut retained = std::collections::VecDeque::new();
+    for _ in 0..512 {
+        let overflow = retained
+            .len()
+            .saturating_add(chunk.len())
+            .saturating_sub(DEFAULT_SCROLLBACK_BYTES);
+        retained.drain(..overflow);
+        retained.extend(std::hint::black_box(&chunk).iter().copied());
+    }
+    std::hint::black_box(retained);
+    eprintln!(
+        "M12 processing retention_us={}",
+        started.elapsed().as_micros()
+    );
+}

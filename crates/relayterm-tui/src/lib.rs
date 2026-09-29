@@ -245,6 +245,17 @@ async fn run_loop(
         let size = terminal.terminal().size().map_err(|_| TuiError::Runtime)?;
         app.width = size.width;
         app.height = size.height;
+        // Draw a newly fetched terminal snapshot before waiting for another input tick.
+        if !app.should_quit
+            && app
+                .terminal
+                .as_ref()
+                .is_some_and(|terminal| terminal.scrollback_rows == 0)
+            && last_terminal_refresh.elapsed() >= TERMINAL_REFRESH_INTERVAL
+        {
+            refresh_terminal(client, &mut app).await;
+            last_terminal_refresh = Instant::now();
+        }
         terminal
             .terminal()
             .draw(|frame| render::draw(frame, &app))
@@ -270,15 +281,6 @@ async fn run_loop(
             }
         }
 
-        if app
-            .terminal
-            .as_ref()
-            .is_some_and(|terminal| terminal.scrollback_rows == 0)
-            && last_terminal_refresh.elapsed() >= TERMINAL_REFRESH_INTERVAL
-        {
-            refresh_terminal(client, &mut app).await;
-            last_terminal_refresh = Instant::now();
-        }
         if last_refresh.elapsed() >= REFRESH_INTERVAL
             && last_input.elapsed() >= REFRESH_IDLE_INTERVAL
         {

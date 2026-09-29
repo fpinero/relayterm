@@ -734,8 +734,9 @@ fn whole_scenario_timeout() -> Duration {
 fn assert_native_full_screen_mode(value: &Value) {
     #[cfg(windows)]
     assert_eq!(
-        value["snapshot"]["alternate_screen"], false,
-        "ConPTY must expose its rendered primary-screen representation"
+        value["snapshot"]["alternate_screen"],
+        std::env::var_os("RELAYTERM_EVALUATION_CONPTY").is_some(),
+        "The selected Windows runtime must expose its documented screen representation"
     );
     #[cfg(not(windows))]
     assert_eq!(

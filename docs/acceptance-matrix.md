@@ -269,3 +269,26 @@ acceptance verdict. Mac arithmetic verification reproduced the supplied evidence
 Continue diagnosis and supported corrections on Windows; Mac will review the
 result and verify affected behavior. Existing Mac passes and historical Windows
 failures remain visible. No product root cause or global acceptance is asserted.
+
+
+## Experimental ConPTY candidate on 2026-09-29
+
+The [evaluation integration](m12-conpty-evaluation.md) records five passing final
+Windows sustained executions with an explicit pinned runtime, earlier TUI drawing
+and bounded reader batches. The supplied numerical evidence was independently
+recomputed on Mac. This is candidate-specific experimental evidence for affected
+latency/load and terminal behavior, not a pass for the ordinary system backend,
+the retained Windows package, Linux, hosted checks or global acceptance.
+
+The original failed runs and intermediate failures remain visible. The new shared
+product source requires affected native verification and artifact mapping; older
+691a8fb packages do not certify it. Runtime distribution and OpenConsole resource
+accounting remain pending. Corporate probes stay deferred and completed physical,
+SSH and Windows VM journeys are not repeated by this integration.
+
+Mac integration retains 16 KiB reader batches on Windows and the pre-existing
+64 KiB on other platforms. Two final Mac debug focused runs and one release run
+passed unchanged sustained gates after this compatibility adaptation. Earlier
+Mac 16 KiB failures remain recorded. The report identifies which full-workspace,
+resource and targeted checks apply to each source variant; no complete final
+cross-platform gate is inferred from selective passes.

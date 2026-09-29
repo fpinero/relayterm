@@ -25,6 +25,9 @@ mod native_serial;
 #[path = "support/sustained_load.rs"]
 mod sustained_load;
 
+#[path = "support/sustained_diagnostic.rs"]
+mod sustained_diagnostic;
+
 const DEADLINE: Duration = Duration::from_secs(45);
 const OUTPUT_LIMIT: usize = 2 * 1024 * 1024;
 const FLOOD_CHUNK_REPETITIONS: usize = 2_048;
@@ -250,7 +253,18 @@ fn interactive_fixture_process() {
     let mut echoes = 0_u64;
     for line in std::io::stdin().lock().lines() {
         let line = line.unwrap();
-        if line == "sustained-flood" || line == "sustained-screen" {
+        if line == "diagnostic-flood" {
+            #[cfg(windows)]
+            if Path::new("diagnostic-native-writer").exists() {
+                use std::os::windows::io::AsHandle;
+                let mut native = std::fs::File::from(
+                    std::io::stdout().as_handle().try_clone_to_owned().unwrap(),
+                );
+                sustained_diagnostic::emit(&mut native);
+                continue;
+            }
+            sustained_diagnostic::emit(&mut stdout);
+        } else if line == "sustained-flood" || line == "sustained-screen" {
             sustained_load::emit(&mut stdout, line == "sustained-flood");
         } else if line == "flood" {
             let started = Instant::now();
@@ -423,6 +437,10 @@ fn disconnected_writer_returns_to_navigation_without_diagnostic_flood() {
     terminal.wait_for("DISCONNECTED");
     terminal.wait_for("NAVIGATION");
     assert!(!terminal.screen_contents().contains("WRITER"));
+    // Windows native input uses the documented control byte, not Kitty reporting.
+    #[cfg(windows)]
+    terminal.send(&[0x1d]);
+    #[cfg(not(windows))]
     terminal.send(b"\x1b[53;5u");
     terminal.send(b"\x1b");
     terminal.wait_for("Sessions selected");

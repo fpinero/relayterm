@@ -1,5 +1,15 @@
 # M12 closure audit and next handoff
 
+## Experimental runtime continuation on 2026-09-29
+
+The [ConPTY evaluation reconciliation](m12-conpty-evaluation.md) supersedes the
+next-action portion of the earlier failed-load checkpoint. Five final Windows
+runs pass with the explicit experimental runtime plus TUI/reader corrections.
+Only the missing diagnostic/evaluation deltas are integrated on Mac. Ordinary
+Windows packaging remains unchanged and is not covered by those passes. The
+changed product requires new candidate mapping and affected native/hosted checks.
+No global acceptance or corporate-host retry follows.
+
 ## Windows continuation on 2026-09-29
 
 The [native Windows sustained reconciliation](m12-windows-sustained-reconciliation.md)
