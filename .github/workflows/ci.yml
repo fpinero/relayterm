@@ -51,7 +51,7 @@ jobs:
       - name: Fetch complete locked graph
         run: cargo fetch --locked
       - name: Test release tooling
-        run: python -m unittest scripts/test_build_release.py scripts/test_package_release.py scripts/test_install_release.py scripts/test_smoke_release.py scripts/test_verify_sustained_evidence.py
+        run: python -m unittest scripts/test_build_release.py scripts/test_package_release.py scripts/test_install_release.py scripts/test_smoke_release.py scripts/test_verify_sustained_evidence.py scripts/test_windows_runtime_staging.py
       - name: Build release twice
         run: |
           python scripts/build_release.py build --target ${{ matrix.target }} --output release-build-a --offline
