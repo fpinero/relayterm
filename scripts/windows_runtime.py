@@ -45,10 +45,13 @@ def stage(source, destination):
     for source_path, name in ((ROOT / "third_party/conpty/LICENSE.txt", "CONPTY_LICENSE.txt"),
                               (PROVENANCE, "CONPTY_PROVENANCE.json")):
         target = destination / name
-        if target.exists() and target.read_bytes() != source_path.read_bytes():
+        value = source_path.read_text(encoding="utf-8").encode("utf-8")
+        if name == "CONPTY_LICENSE.txt" and hashlib.sha256(value).hexdigest() != identity["license_sha256"]:
+            raise RuntimeError("Pinned runtime license hash mismatch")
+        if target.exists() and target.read_bytes() != value:
             raise RuntimeError("Refusing to replace different runtime metadata")
         if not target.exists():
-            shutil.copyfile(source_path, target)
+            target.write_bytes(value)
     return identity
 
 
