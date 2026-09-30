@@ -369,6 +369,7 @@ fn sustained_output_memory_and_reconnect_resources_are_bounded() {
     tui.send(b"\x1b");
     tui.send(b"q");
     tui.wait_exit();
+    drop(tui);
     #[cfg(windows)]
     {
         wait_until(
