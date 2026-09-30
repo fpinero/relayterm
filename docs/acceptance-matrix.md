@@ -292,3 +292,19 @@ passed unchanged sustained gates after this compatibility adaptation. Earlier
 Mac 16 KiB failures remain recorded. The report identifies which full-workspace,
 resource and targeted checks apply to each source variant; no complete final
 cross-platform gate is inferred from selective passes.
+
+## Integrated macOS package checkpoint on 2026-09-30
+
+See [native Mac verification](m12-macos-integrated-validation.md) for commit
+6e57332, exact new binary/archive identities and reproducible commands. The full
+default workspace passed 204 tests, followed by explicit resource/fault coverage.
+Two debug sustained inclusions passed at p95 navigation/echo 30/110 ms each;
+the exact packaged release passed at 31/78 ms. Every required load window passed.
+Two clean builds and archives were identical. Constrained-PATH smoke, actual
+installer collision/removal checks, extracted TUI/session presentation/worktrees
+and backup/restore passed. Local security checks passed within their documented
+cached advisory scope. No product source, budget or retained artifact changed.
+
+This resolves the final Unix-guard Mac repetition gap, not global M12 acceptance.
+Windows ordinary distribution, Linux/hosted and runtime-floor/independence gates
+remain pending. Existing physical/SSH/VM evidence and all failures remain intact.

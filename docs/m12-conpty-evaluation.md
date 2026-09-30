@@ -165,3 +165,12 @@ platform guard; their source boundary remains explicit. Default full-suite green
 Linux/hosted checks and packaged-runtime acceptance are not implied.
 
 Final integrated supervisor SHA-256: d5faf6bcba3044ee2af86db0e1bd84d5b3cb7bb7f05804acfe9859bd62d40219.
+
+## Subsequent integrated Mac checkpoint
+
+The [2026-09-30 native checkpoint](m12-macos-integrated-validation.md) completes
+the full default workspace and explicit resource checks on committed 6e57332,
+plus reproducible Mac packaging and affected extracted-release tests. All passed
+without changing product code or thresholds. This supersedes the local repetition
+gap above, while preserving its historical source boundary and failed attempts.
+Linux, Windows distribution and global acceptance are not inferred.

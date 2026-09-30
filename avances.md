@@ -2225,3 +2225,76 @@ scripts/check_secrets.py and its synthetic negative control, and git diff --chec
 Verified append-only history, unchanged manifest/lockfile and sustained helper,
 and final measured source/executable hashes. Preserved and excluded the unrelated
 local reviewer document and all private evidence.
+
+## 2026-09-30: M12.MAC-INTEGRATED-VERIFICATION
+
+Completed serial native Mac verification of committed source
+6e573326180acbbc5fdc6c706a610c27d22eda31 without changing product code,
+dependencies, thresholds or host configuration. Preserved unrelated local work,
+retained packages, private practical-trial state and historical failures.
+
+Verification: cargo fmt --all -- --check; cargo clippy --workspace --all-targets
+--all-features --locked --offline -- -D warnings; python3 -m unittest
+scripts/test_build_release.py scripts/test_package_release.py
+scripts/test_install_release.py scripts/test_smoke_release.py (22 tests, two
+platform skips); cargo test --workspace --locked --offline --no-run; cargo test
+--workspace --locked --offline -- --nocapture --test-threads=1 (204 passed,
+25 ignored, no failure). Both native debug sustained inclusions qualified all
+load windows, with p95 navigation/echo 30/110 ms each.
+
+Explicitly ran resource_runtime_gate with --ignored --exact and its named
+sustained selector (60 observations, 100 reconnects, 20 abrupt, descriptors
+48 to 48); daemon sqlite_kill_gate and worktree_cancellation_gate with
+--features test-hooks; relayterm-git tests::completed_git with --ignored.
+All used --locked --offline, serial tests and bounded external deadlines.
+
+Built and packaged twice from separate clean local clones using existing release
+tooling, fresh target directories, default production features and offline locked
+dependencies. Binary/archive comparisons, exact inventory, file/otool inspection
+and constrained-PATH smoke passed. The extracted production binary passed
+`tui_gate`, `session_presentation`, `worktree_gate` and `backup_restore` through
+RELAYTERM_TEST_RT. Its sustained p95 was 31/78 ms, all load windows qualified.
+Separately verified actual installer clean installation, PATH resolution,
+byte-preserving collision/reinstallation rejection and owned removal preserving
+an unrelated synthetic marker. No measurement overlapped another verification job.
+
+The 34-command private driver completed with no failures/timeouts. Repository
+contracts, candidate secrets and scanner negative control, offline cargo deny
+advisories/licenses/bans/sources, and license/ban negative controls passed.
+Duplicate dependency warnings remain allowed; cached advisories do not establish
+fresh hosted security evidence. Public source/artifact mappings and limitations
+are in docs/m12-macos-integrated-validation.md. Raw logs and artifacts stay private.
+
+Removed the completed local verification task from TODO.md and refined remaining
+candidate/platform work. M12 stays open for Windows distribution and acceptance,
+Linux/hosted checks, runtime-floor/independence reconciliation and global sign-off.
+Operator-guided work remains deferred. No corporate probes, repeated physical/SSH/
+VM journey, commit, push or publication occurred in this task.
+
+Final verification of the updated public documents passed in an isolated source
+copy: 78 Markdown files and eight ADRs, candidate secret scan with negative
+control, Git-history secret scan, and whitespace checks. Verified append-only
+log history and unchanged production/dependency/release-tooling files. Audit
+warnings included duplicate versions and an unused license-allowlist entry.
+
+## 2026-09-30: M12.WINDOWS-DISTRIBUTION-HANDOFF
+
+Prepared docs/m12-windows-distribution-handoff.md for the non-corporate Windows
+continuation. It maps the integrated source and verified Mac artifact, requires
+reconciliation of existing Windows changes without reapplying old patches, and
+sequences ordinary ConPTY distribution implementation, native acceptance,
+helper-resource accounting and exact-package checks before operator actions.
+The final operator checklist is limited to evidence unavailable to automation.
+Corporate probes, historical evidence and global acceptance remain separate.
+
+Verification: inspected the existing adapter, evaluation runner, release tooling
+contract and native test selectors; checked the selected public candidate in an
+isolated local clone with python3 scripts/check_repository.py (79 Markdown files,
+eight ADRs), python3 scripts/check_secrets.py including its negative control, and
+git diff --check. Verified unchanged product/dependency/tooling source and
+append-only log history. Preserved the unrelated reviewer document and private
+artifacts outside the delivery. Windows execution is delegated to the native
+continuation, not claimed by this documentation check.
+
+The operator authorized commit and push of the outstanding Mac evidence and this
+handoff on the existing work branch. No main merge, tag or release is included.

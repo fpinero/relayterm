@@ -1,5 +1,21 @@
 # M12 closure audit and next handoff
 
+## Integrated Mac checkpoint on 2026-09-30
+
+The [integrated Mac validation](m12-macos-integrated-validation.md) closes the
+local full-workspace/resource repetition gap after the Unix reader guard.
+Commit 6e57332 passed the complete default suite, explicit resource/fault checks,
+two reproducible production builds/packages and affected tests through the exact
+extracted release. Debug sustained p95 navigation/echo was 30/110 ms in both
+inclusions; packaged release was 31/78 ms. All load windows qualified.
+No product change or budget adjustment was needed. Historical failures remain.
+
+The Mac artifact is newly mapped, not a replacement for retained 691a8fb evidence.
+Windows runtime distribution and actual packaged acceptance, Linux/hosted checks,
+OS-floor/independence reconciliation and global sign-off remain open. Keep the
+operator-guided trial and publication choices for later operator availability.
+No corporate probe or repeated physical/SSH/VM journey was performed.
+
 ## Experimental runtime continuation on 2026-09-29
 
 The [ConPTY evaluation reconciliation](m12-conpty-evaluation.md) supersedes the
