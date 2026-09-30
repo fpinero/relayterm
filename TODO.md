@@ -19,7 +19,7 @@ Keep the daemon responsible for durable state and supervised processes. Keep dom
 
 ### Scope and sequencing decisions
 
-Use the specification's recommended Rust stack and the pinned bootstrap toolchain. Verify support when adding dependencies; avoid unused dependencies and empty adapter crates until needed. Follow the eight [architecture decisions](docs/architecture/README.md), refining the risky ones at their implementation gates.
+Use the specification's recommended Rust stack and the pinned bootstrap toolchain. Verify support when adding dependencies; avoid unused dependencies and empty adapter crates until needed. Follow the nine [architecture decisions](docs/architecture/README.md), refining the risky ones at their implementation gates.
 
 The durable first-slice, real PTY, TUI, editable agent-template, and explicit worktree-isolation gates are complete. M12 prepares the installable release candidate using the completed M11 evidence.
 
@@ -40,8 +40,8 @@ Execution contract: [M12 detailed plan](docs/M12_details.md), with the [closure 
 - M12.FINAL-SOURCE-GATES: Map and verify a new candidate after the integrated TUI/reader corrections. Retained 691a8fb artifacts and e4431f7 hosted checks certify only their original product scope. Use the mapped Mac 6e57332 package checkpoint in docs/m12-macos-integrated-validation.md; reconcile remaining native artifacts and affected runtime/security/acceptance checks before freezing; do not transfer experimental ConPTY passes to ordinary packages.
 - M12.PERFORMANCE-HARNESS-NATIVE: Complete affected native Linux and hosted checks for the integrated candidate, including gate duration and unchanged sustained budgets. Use the completed local Mac checkpoint in docs/m12-macos-integrated-validation.md and reconcile explicit-runtime Windows passes through docs/m12-conpty-evaluation.md. Ordinary Windows distribution coverage remains dependent on runtime integration; preserve all failed/intermediate attempts.
 - M12.PRACTICAL-TRIAL: Complete the operator-guided real-agent example using its explicitly mapped local executable, since the retained Mac executable was not located. Verify provider authentication and interactive sessions, execute implementation/test/review handovers, and preserve private state. Preparation alone is not a completed practical trial.
-- M12.CONPTY-DISTRIBUTION: Decide and implement reviewed runtime bundling/discovery, integrity/trust checks, licensing/notices, update ownership, architectures and failure policy. Verify the actual standard-account Windows package and include OpenConsole resources/lifecycle in the inventory. The isolated evaluation is not the default runtime; retained artifacts must remain distinct.
-- M12.WINDOWS-DEBUG-LATENCY: Validate the eventual ordinary Windows packaged candidate against the unchanged 250 ms echo target. Keep experimental-runtime successes separate from the historical seven debug misses, earlier 290/294 ms workspace failures and retained-release passes. Record the final supported-environment disposition without rewriting historical causes or granting a global waiver.
+- M12.CONPTY-DISTRIBUTION: Complete the actual standard-account and real-console observations for the mapped ordinary Windows package in docs/m12-windows-distribution-validation.md, then reconcile affected Mac/Linux and global distribution acceptance. Preserve artifact/source identities and historical evidence.
+- M12.WINDOWS-DEBUG-LATENCY: Reconcile the mapped ordinary native and exact-package passes in docs/m12-windows-distribution-validation.md with standard-account/global acceptance. Preserve the unchanged 250 ms echo target, historical seven debug misses, earlier 290/294 ms failures and experimental evidence. Do not grant a global waiver.
 
 - M12.NATIVE: Reconcile the original VM init response-capture gap and declared runtime-floor/independence scope against existing mapped evidence, using docs/m12-windows11-vm-reconciliation.md. Resolve only missing proof or record a justified disposition; do not repeat the completed VM functional journey. Keep corporate ACL diagnosis separate and preserve all source/hash mappings.
 
@@ -74,5 +74,3 @@ This index identifies the planned proof for each specification criterion. As mil
 | AC-12, AC-16 | M12.02 | Verify clean installation, PATH, and an existing unrelated command against the already verified release artifacts. |
 
 FR-10 export remains deferred. M12 retains installation, compatibility, documentation, and release acceptance work; completed behavior evidence is in the acceptance matrix and delivery log.
-
-- M12.WINDOWS-DISTRIBUTION-NATIVE: Integrate pinned package-local ConPTY, verify ordinary native and exact-package gates, helper accounting, reproducibility and sanitized Mac handoff. Keep operator/account and global acceptance open.

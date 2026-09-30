@@ -78,7 +78,7 @@ if ($PrepareOnly) {
     return
 }
 Write-Output 'Press 3, then Enter. Type echo M12-RUNTIME-OK and press Enter.'
-Write-Output 'Resize narrower and wider. Type exit and press Enter. Detach with Ctrl-], then q.'
+Write-Output 'Resize narrower and wider. Type exit and press Enter. Detach with Ctrl-], then Esc, then q.'
 Write-Output 'Capture only the synthetic pane and the restored console area.'
 & $binary --workspace $project --home $private
 $tuiExit=$LASTEXITCODE

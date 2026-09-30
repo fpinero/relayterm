@@ -48,7 +48,7 @@ hashes, refuses all owned collisions and installs rt.exe last. Reinstallation
 does not overwrite an existing package. A failed copy rolls back files created
 by that attempt. Unrelated files remain untouched. Keep all support files together.
 
-The DLL loader excludes CWD and PATH from dependency lookup. Both runtime files
+The packaged ConPTY DLL loader excludes CWD and PATH from dependency lookup. Both runtime files
 must be regular x64 PE files with the compiled pinned hashes. Read handles prevent
 replacement during use. Operational commands and the internal daemon validate before side effects.
 Private stderr retains runtime_unavailable, the validation stage and numeric
@@ -90,3 +90,5 @@ launched process with bounded deadlines. Windows PowerShell 5 pipeline capture
 was observed waiting for EOF while a detached daemon was alive. The observer does
 not wait for descendant pipe EOF. It requires no Python or system installation.
 RemoteSigned, when needed, applies only to the dedicated PowerShell process.
+
+Native results and exact artifact mappings are in [the Windows validation report](m12-windows-distribution-validation.md).

@@ -2298,3 +2298,49 @@ continuation, not claimed by this documentation check.
 
 The operator authorized commit and push of the outstanding Mac evidence and this
 handoff on the existing work branch. No main merge, tag or release is included.
+
+## 2026-09-30: M12.WINDOWS-DISTRIBUTION-NATIVE
+
+Integrated hash-pinned package-local ConPTY 1.24.260710001 through vendored
+portable-pty-psmux 0.9.7. Added executable-anchored validation, numeric fail-closed
+preflight, restricted DLL lookup, bounded DA1 response, fixed 13-file inventory,
+MIT notices/provenance, explicit input preparation, collision-safe installation,
+rollback and owned removal. Preserved Unix code and the neutral architecture.
+The exact product/artifact/source mapping and numerical results are recorded in
+docs/m12-windows-distribution-validation.md. M12 remains open.
+
+Verification: cargo fmt --check; cargo fmt --manifest-path
+third_party/portable-pty-psmux/Cargo.toml --check; cargo clippy --workspace
+--all-targets --locked --offline -- -D warnings; cargo clippy --workspace
+--all-features --all-targets --locked --offline -- -D warnings; cargo test
+--workspace --locked --offline -- --nocapture --test-threads=1 (207 passed,
+27 ignored at d346650); six vendored adapter tests; 31 release/tooling tests
+with four POSIX skips; explicit sqlite_kill_gate, worktree_cancellation_gate
+and ignored tests::completed_git; offline cargo deny and license/ban negative
+controls; repository/secret negative controls and Git-history gitleaks.
+
+Prebuilt native debug/release and ran the unchanged sustained selector in
+serial debug/release/debug/release order, followed by debug hardening, each
+with a 360-second deadline. Independently recomputed every observation/window
+and 100 latency samples per kind. Extended resource_runtime_gate preserves
+512 MiB/32 MiB budgets, charges daemon helpers and the outer harness helper,
+records raw handles/counts, verifies loaded module location and helper lifecycle.
+The final ignored native and installed resource gates passed.
+
+Built two clean production executables and archives at f2b3f6f, compared their
+bytes, inspected x64 PE imports/exports and the real System32 prerequisite,
+then inspected/extracted/smoked/installed the actual archive. Final installed
+TUI, session_presentation, worktree_gate, backup_restore, runtime negatives
+and resource_runtime_gate passed through its exact release executable.
+The bounded operator observer passed PrepareOnly, reporting a filtered
+administrator token, not a standard-account journey. Preserved all failed
+attempts, including license line endings, harness lifetime, observer EOF/token
+classification and private driver path failures. No budgets were relaxed.
+
+Verified a source Git bundle by applying it to exact baseline 5ca6ab9 in a clean
+disposable checkout and comparing the resulting tree. Prepared private portable
+reports, numerical evidence and candidate inventory for the Mac continuation.
+Original source-file hashes remained unchanged. No corporate probes, repeated
+physical/SSH/VM journey, persistent policy/account change, system install,
+push, merge, tag, release or upload occurred. Operator real-console/standard
+account observations and affected Mac/Linux/global acceptance remain pending.
