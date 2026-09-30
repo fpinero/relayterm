@@ -217,6 +217,10 @@ fn sustained_output_memory_and_reconnect_resources_are_bounded() {
     #[cfg(windows)]
     let mut owned_daemon_memory = Vec::new();
     #[cfg(windows)]
+    let mut owned_tui_memory = Vec::new();
+    #[cfg(windows)]
+    let mut outer_helper_ids = Vec::new();
+    #[cfg(windows)]
     let mut helper_ids = Vec::new();
     while started.elapsed() < SAMPLE_DURATION {
         let process_ids = [daemon_pid, tui_pid]
@@ -226,7 +230,18 @@ fn sustained_output_memory_and_reconnect_resources_are_bounded() {
         let measured = process_memories(&process_ids);
         #[cfg(windows)]
         {
-            let helpers = runtime_helpers(daemon_pid);
+            let inventory = runtime_helper_inventory(&[daemon_pid, std::process::id()]);
+            let helpers = &inventory[&daemon_pid];
+            let outer = &inventory[&std::process::id()];
+            assert_eq!(outer.len(), 1, "one outer harness helper is required");
+            outer_helper_ids = outer.iter().map(|item| item.0).collect();
+            let outer_bytes: u64 = outer.iter().map(|item| item.1).sum();
+            owned_tui_memory.push(measured[1] + outer_bytes);
+            eprintln!(
+                "M12 runtime outer_helpers={outer:?} tui_bytes={} aggregate_bytes={} product_processes=10 fixture_processes=8 harness_helpers=1",
+                measured[1],
+                measured[1] + outer_bytes
+            );
             assert_eq!(
                 helpers.len(),
                 SESSION_COUNT,
@@ -257,6 +272,8 @@ fn sustained_output_memory_and_reconnect_resources_are_bounded() {
     #[cfg(windows)]
     assert_memory("daemon_with_owned_helpers", &owned_daemon_memory);
     assert_memory("tui", &tui_memory);
+    #[cfg(windows)]
+    assert_memory("tui_with_outer_harness_helper", &owned_tui_memory);
     report_child_memory(&child_memory);
 
     for _ in 0..80 {
@@ -355,6 +372,14 @@ fn sustained_output_memory_and_reconnect_resources_are_bounded() {
     #[cfg(windows)]
     {
         wait_until(
+            || runtime_helpers_exited(&outer_helper_ids),
+            "outer harness helper exit",
+        );
+        eprintln!("M12 runtime outer_helpers_after_tui_exit=0");
+    }
+    #[cfg(windows)]
+    {
+        wait_until(
             || runtime_helpers(daemon_pid).is_empty(),
             "helpers after normal fixture exits",
         );
@@ -419,7 +444,9 @@ fn rendered_selected_session_id(screen: &str) -> Option<&str> {
 }
 
 fn command(root: &Path, home: &Path) -> Command {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_rt"));
+    let mut command = Command::new(
+        std::env::var_os("RELAYTERM_TEST_RT").unwrap_or_else(|| env!("CARGO_BIN_EXE_rt").into()),
+    );
     command
         .arg("--workspace")
         .arg(root)
@@ -452,23 +479,25 @@ fn foreground_daemon(
     report: &Path,
     process: &Path,
 ) -> Child {
-    Command::new(env!("CARGO_BIN_EXE_rt"))
-        .args(["--workspace"])
-        .arg(root)
-        .args(["--home"])
-        .arg(home)
-        .args(["__daemon-run", "--root"])
-        .arg(root)
-        .args(["--workspace-id", workspace_id, "--private-home"])
-        .arg(home)
-        .env("RELAYTERM_RESOURCE_STOP", stop)
-        .env("RELAYTERM_RESOURCE_REPORT", report)
-        .env("RELAYTERM_RESOURCE_PROCESS", process)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .unwrap()
+    Command::new(
+        std::env::var_os("RELAYTERM_TEST_RT").unwrap_or_else(|| env!("CARGO_BIN_EXE_rt").into()),
+    )
+    .args(["--workspace"])
+    .arg(root)
+    .args(["--home"])
+    .arg(home)
+    .args(["__daemon-run", "--root"])
+    .arg(root)
+    .args(["--workspace-id", workspace_id, "--private-home"])
+    .arg(home)
+    .env("RELAYTERM_RESOURCE_STOP", stop)
+    .env("RELAYTERM_RESOURCE_REPORT", report)
+    .env("RELAYTERM_RESOURCE_PROCESS", process)
+    .stdin(Stdio::null())
+    .stdout(Stdio::null())
+    .stderr(Stdio::null())
+    .spawn()
+    .unwrap()
 }
 
 fn wait_child(child: &mut Child) {
@@ -556,7 +585,7 @@ fn process_memories(process_ids: &[u32]) -> Vec<u64> {
         .collect::<Vec<_>>()
         .join(",");
     let expression = format!(
-        "Get-Process -Id {identifiers} | ForEach-Object {{ Write-Output ($_.Id.ToString() + ' ' + $_.WorkingSet64.ToString()) }}"
+        "Get-Process -Id {identifiers} | ForEach-Object {{ Write-Output ($_.Id.ToString() + ' ' + $_.WorkingSet64.ToString() + ' ' + $_.HandleCount.ToString()) }}"
     );
     let output = Command::new("powershell.exe")
         .args(["-NoProfile", "-NonInteractive", "-Command", &expression])
@@ -568,10 +597,11 @@ fn process_memories(process_ids: &[u32]) -> Vec<u64> {
         .lines()
         .map(|line| {
             let mut fields = line.split_whitespace();
-            (
-                fields.next().unwrap().parse::<u32>().unwrap(),
-                fields.next().unwrap().parse::<u64>().unwrap(),
-            )
+            let identifier = fields.next().unwrap().parse::<u32>().unwrap();
+            let memory = fields.next().unwrap().parse::<u64>().unwrap();
+            let handles = fields.next().unwrap().parse::<u64>().unwrap();
+            eprintln!("M12 resource process_id={identifier} bytes={memory} handles={handles}");
+            (identifier, memory)
         })
         .collect::<std::collections::BTreeMap<_, _>>();
     process_ids
@@ -618,28 +648,50 @@ fn powershell_process_value(process_id: u32, property: &str) -> u64 {
 
 #[cfg(windows)]
 fn runtime_helpers(parent: u32) -> Vec<(u32, u64, u64)> {
-    // Numeric parent identity scopes the query to this synthetic daemon.
+    runtime_helper_inventory(&[parent]).remove(&parent).unwrap()
+}
+
+#[cfg(windows)]
+fn runtime_helper_inventory(
+    parents: &[u32],
+) -> std::collections::BTreeMap<u32, Vec<(u32, u64, u64)>> {
+    // Numeric parents and executable directories scope the owned helper query.
+    let identifiers = parents
+        .iter()
+        .map(u32::to_string)
+        .collect::<Vec<_>>()
+        .join(",");
+    let filter = parents
+        .iter()
+        .map(|id| format!("ParentProcessId={id}"))
+        .collect::<Vec<_>>()
+        .join(" OR ");
     let expression = format!(
-        "$d=Get-Process -Id {parent} -ErrorAction SilentlyContinue; if ($d) {{ $expected=Join-Path (Split-Path $d.Path) 'OpenConsole.exe'; Get-CimInstance Win32_Process -Filter 'ParentProcessId={parent}' | Where-Object {{ $_.Name -eq 'OpenConsole.exe' -and $_.ExecutablePath -ieq $expected }} | ForEach-Object {{ $p=Get-Process -Id $_.ProcessId; Write-Output ($p.Id.ToString()+' '+$p.WorkingSet64.ToString()+' '+$p.HandleCount.ToString()) }} }}"
+        "$expected=@{{}}; Get-Process -Id {identifiers} -ErrorAction SilentlyContinue | ForEach-Object {{ $expected[[uint32]$_.Id]=Join-Path (Split-Path $_.Path) 'OpenConsole.exe' }}; Get-CimInstance Win32_Process -Filter '{filter}' | Where-Object {{ $_.Name -eq 'OpenConsole.exe' -and $_.ExecutablePath -ieq $expected[[uint32]$_.ParentProcessId] }} | ForEach-Object {{ $p=Get-Process -Id $_.ProcessId; Write-Output ($_.ParentProcessId.ToString()+' '+$p.Id.ToString()+' '+$p.WorkingSet64.ToString()+' '+$p.HandleCount.ToString()) }}"
     );
     let output = Command::new("powershell.exe")
         .args(["-NoProfile", "-NonInteractive", "-Command", &expression])
         .output()
         .unwrap();
     assert!(output.status.success(), "helper inventory failed");
-    let mut helpers = String::from_utf8(output.stdout)
-        .unwrap()
-        .lines()
-        .map(|line| {
-            let fields = line
-                .split_whitespace()
-                .map(|v| v.parse::<u64>().unwrap())
-                .collect::<Vec<_>>();
-            (u32::try_from(fields[0]).unwrap(), fields[1], fields[2])
-        })
-        .collect::<Vec<_>>();
-    helpers.sort_by_key(|item| item.0);
-    helpers
+    let mut inventory = parents
+        .iter()
+        .map(|id| (*id, Vec::new()))
+        .collect::<std::collections::BTreeMap<_, _>>();
+    for line in String::from_utf8(output.stdout).unwrap().lines() {
+        let fields = line
+            .split_whitespace()
+            .map(|v| v.parse::<u64>().unwrap())
+            .collect::<Vec<_>>();
+        inventory
+            .get_mut(&u32::try_from(fields[0]).unwrap())
+            .unwrap()
+            .push((u32::try_from(fields[1]).unwrap(), fields[2], fields[3]));
+    }
+    for helpers in inventory.values_mut() {
+        helpers.sort_by_key(|item| item.0);
+    }
+    inventory
 }
 
 #[cfg(windows)]

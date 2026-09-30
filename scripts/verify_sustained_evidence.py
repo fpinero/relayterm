@@ -71,7 +71,19 @@ def resources(text):
     size = min(10, len(steady) // 2)
     median = lambda values: sorted(values)[len(values) // 2] if values else None
     first, last = median(steady[:size]), median(steady[-size:])
-    return dict(helper_observations=helpers, process_samples=samples,
+    outer = [{"helpers": ast.literal_eval(raw), "tui_bytes": int(tui), "aggregate_bytes": int(total)}
+        for raw, tui, total in re.findall(r"M12 runtime outer_helpers=(\[[^\n]+\]) tui_bytes=(\d+) aggregate_bytes=(\d+)", text)]
+    outer_totals = [item["aggregate_bytes"] for item in outer]
+    outer_steady = outer_totals[min(20, len(outer_totals)):]
+    outer_size = min(10, len(outer_steady) // 2)
+    outer_first, outer_last = median(outer_steady[:outer_size]), median(outer_steady[-outer_size:])
+    return dict(helper_observations=helpers, outer_helper_observations=outer,
+        raw_process_handles=[list(map(int, values)) for values in re.findall(r"M12 resource process_id=(\d+) bytes=(\d+) handles=(\d+)", text)],
+        maximum_tui_with_outer_bytes=max(outer_totals, default=None),
+        qualified_outer_memory=len(outer_totals) >= 40 and max(outer_totals) <= 512 * 1024 * 1024
+            and outer_first is not None and outer_last <= outer_first + 32 * 1024 * 1024,
+        outer_helper_exited="M12 runtime outer_helpers_after_tui_exit=0" in text,
+        process_samples=samples,
         maximum_owned_daemon_bytes=max(aggregate, default=None),
         first_steady_median_bytes=first, last_steady_median_bytes=last,
         qualified_memory=len(aggregate) >= 40 and max(aggregate) <= 512 * 1024 * 1024

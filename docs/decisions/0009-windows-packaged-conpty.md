@@ -58,7 +58,10 @@ Visual C++ runtime. Development harnesses also need the pinned files beside thei
 executables. Preparation is explicit, isolated and separate from Cargo resolution.
 Resource accounting charges daemon-owned helpers to the unchanged daemon memory
 budget, while also reporting separate helper handles, count and lifecycle. The
-outer test terminal helper is harness infrastructure and must be reported separately.
+outer test terminal helper is harness infrastructure, reported separately and also
+charged conservatively to the unchanged TUI memory budget. The inventory records
+10 product processes, eight fixture children and one outer harness helper during
+the eight-session sample. Raw process handles and helper identities are retained.
 Native and extracted-package evidence is recorded in the Windows distribution
 report. Mac/Linux need affected dependency/tooling regressions before global M12
 closure; prior experimental and historical results remain distinct.
