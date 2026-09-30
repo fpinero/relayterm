@@ -14,6 +14,7 @@ name = "rt"
 path = "src/main.rs"
 
 [dependencies]
+relayterm-pty = { version = "0.1.0", path = "../relayterm-pty" }
 clap.workspace = true
 relayterm-daemon = { version = "0.1.0", path = "../relayterm-daemon" }
 relayterm-client = { version = "0.1.0", path = "../relayterm-client" }
@@ -28,7 +29,6 @@ uuid.workspace = true
 [dev-dependencies]
 blake3.workspace = true
 fs4.workspace = true
-relayterm-pty = { version = "0.1.0", path = "../relayterm-pty" }
 sqlx.workspace = true
 vt100.workspace = true
 tempfile.workspace = true

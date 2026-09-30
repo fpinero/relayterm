@@ -58,7 +58,7 @@ def main():
             assert not re.search(r"/(?:Users|home)/[\w.-]+/", text), f"Personal path: {name}"
 
     adrs = sorted((ROOT / "docs/decisions").glob("*.md"))
-    assert len(adrs) == 8, "Expected eight bootstrap ADRs"
+    assert len(adrs) == 9, "Expected eight bootstrap ADRs and the Windows runtime decision"
     for number, path in enumerate(adrs, 1):
         assert path.name.startswith(f"{number:04d}-")
         text = path.read_text(encoding="utf-8")
@@ -94,7 +94,7 @@ def main():
     assert not native_ci_commands_are_independent(combined_negative_control), (
         "Native CI independence negative control was not detected"
     )
-    print(f"Passed: {count} Markdown files, eight ADRs, style and candidate links, pending queue, and ignore boundaries.")
+    print(f"Passed: {count} Markdown files, nine ADRs, style and candidate links, pending queue, and ignore boundaries.")
 
 
 if __name__ == "__main__":

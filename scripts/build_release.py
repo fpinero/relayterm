@@ -99,7 +99,15 @@ def package_version():
     return package["version"]
 
 
-def build(target, output, offline):
+def build(target, output, offline, runtime_root=None):
+    if runtime_root is None and target == "x86_64-pc-windows-msvc":
+        value = os.environ.get("RELAYTERM_BUILD_RUNTIME_ROOT")
+        runtime_root = pathlib.Path(value) if value else None
+    if target == "x86_64-pc-windows-msvc":
+        import windows_runtime
+        if runtime_root is None:
+            raise RuntimeError("Windows release requires explicitly prepared --runtime-root")
+        windows_runtime.verify(runtime_root, signatures=True)
     if target not in TARGETS:
         raise RuntimeError("the target is not in the Relayterm release matrix")
     if native_host() != target:
@@ -140,6 +148,10 @@ def build(target, output, offline):
     executable.chmod(0o755)
     reject_private_build_paths(executable, private_prefixes)
     shutil.rmtree(target_dir)
+    runtime = None
+    if target == "x86_64-pc-windows-msvc":
+        import windows_runtime
+        runtime = windows_runtime.stage(runtime_root, output)
     record = {
         "format_version": 1,
         "product": "relayterm",
@@ -160,6 +172,7 @@ def build(target, output, offline):
             "sha256": sha256(executable),
         },
         "signing": "unsigned",
+        "runtime": runtime,
     }
     (output / "build-record.json").write_text(
         json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8"
@@ -195,6 +208,7 @@ def parse_arguments():
     build_parser.add_argument("--target", required=True, choices=sorted(TARGETS))
     build_parser.add_argument("--output", required=True, type=pathlib.Path)
     build_parser.add_argument("--offline", action="store_true")
+    build_parser.add_argument("--runtime-root", type=pathlib.Path)
     compare_parser = subcommands.add_parser("compare")
     compare_parser.add_argument("first", type=pathlib.Path)
     compare_parser.add_argument("second", type=pathlib.Path)
@@ -205,7 +219,7 @@ def main():
     arguments = parse_arguments()
     try:
         if arguments.command == "build":
-            build(arguments.target, arguments.output, arguments.offline)
+            build(arguments.target, arguments.output, arguments.offline, arguments.runtime_root)
         else:
             compare(arguments.first, arguments.second)
     except (OSError, RuntimeError, subprocess.CalledProcessError, StopIteration, KeyError, json.JSONDecodeError) as error:

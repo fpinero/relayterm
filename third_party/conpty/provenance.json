@@ -1,0 +1,14 @@
+{
+  "package": "Microsoft.Windows.Console.ConPTY",
+  "version": "1.24.260710001",
+  "package_sha256": "175640566a3b59c4b132070ee96c2c77e5ab7edd2e92732a5eb3610bbf63d90e",
+  "url": "https://api.nuget.org/v3-flatcontainer/microsoft.windows.console.conpty/1.24.260710001/microsoft.windows.console.conpty.1.24.260710001.nupkg",
+  "license": "MIT",
+  "license_source": "https://github.com/microsoft/terminal/blob/main/LICENSE",
+  "files": {
+    "conpty.dll": "39fba2713e2495117b1591ae8c32a3b904bea7aa66069cf7815e2844c76d75d8",
+    "OpenConsole.exe": "b7fd936c2668b87b9ecf7b3366dc6568afc1c6f981874cba3e955a1c35cf8160"
+  },
+  "license_sha256": "5d177f23ecfeb0ea8e050b6a5a16355e1ae9a0b286436ca8f83ed08b3795be6b",
+  "header_sha256": "8f682aabd975264f1fb08b3e61739d4b99363a99dd74875635c623a71177ccb4"
+}

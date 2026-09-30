@@ -107,7 +107,7 @@ The initial local candidate is unsigned. macOS Gatekeeper and Windows reputation
 
 The Windows x64 candidate dynamically imports `VCRUNTIME140.dll` and Universal CRT components. Before treating a Windows installation as complete, confirm the latest supported Microsoft Visual C++ v14 Redistributable for x64 is present. Microsoft documents the supported package and architecture requirement in its [official download guidance](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170). If Windows reports a missing runtime DLL, stop and install or repair the official x64 prerequisite according to local system policy, then run the absolute candidate path again. Relayterm never downloads or installs this prerequisite.
 
-## Remove only the installed executable
+## Remove only owned installation files
 
 Stop each selected workspace daemon deliberately before removing the binary. Do not kill processes by name.
 
@@ -124,8 +124,10 @@ In PowerShell:
 ```powershell
 & (Join-Path $InstallRoot "rt.exe") --workspace C:\path\to\project daemon stop
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-Remove-Item -LiteralPath (Join-Path $InstallRoot "rt.exe")
-Remove-Item -LiteralPath $InstallRoot
+& (Join-Path $InstallRoot "install_release.ps1") -Destination $InstallRoot -Remove
+# Keep the directory if unrelated files remain.
 ```
 
 Removal does not delete private workspace state, backups, project files, Git repositories, worktrees, or unrelated `PATH` entries. A state-purge operation is outside the MVP.
+
+Windows x64 installs the complete verified package, including its pinned ConPTY files. Never copy rt.exe alone. The installer rejects collisions for every owned file and rolls back partial installations. See [runtime distribution](windows-runtime-distribution.md).

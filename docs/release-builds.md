@@ -4,7 +4,7 @@
 
 Relayterm's first local release candidate keeps package version `0.1.0`. A version does not identify an artifact by itself. Every manifest and handoff must also identify the exact source commit and target triple. No tag, signed artifact, notarization, package upload, or published release exists merely because this recipe succeeds.
 
-The production deliverable is one executable, `rt` on Unix and `rt.exe` on Windows. The `relayterm-cli` package has no feature flags. Production builds use its default feature set and must not enable dependency test hooks or build integration-test executables into the archive.
+The production entry point is `rt` on Unix and `rt.exe` on Windows. Windows x64 also bundles pinned conpty.dll, OpenConsole.exe and their license/provenance; see [runtime distribution](windows-runtime-distribution.md). The `relayterm-cli` package has no feature flags. Production builds use its default feature set and must not enable dependency test hooks or build integration-test executables into the archive.
 
 ## Supported artifact targets
 
@@ -85,7 +85,7 @@ The inspected macOS executable is Mach-O arm64 with deployment target 11.0. It l
 
 ## Portable archive inventory
 
-Each archive has one target-specific root and exactly these nine regular files:
+Each archive has one target-specific root. Unix contains exactly nine regular files. Windows x64 contains these nine plus conpty.dll, OpenConsole.exe, CONPTY_LICENSE.txt and CONPTY_PROVENANCE.json, for exactly 13:
 
 - `rt` or `rt.exe`.
 - `LICENSE`.

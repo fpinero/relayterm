@@ -74,3 +74,5 @@ This index identifies the planned proof for each specification criterion. As mil
 | AC-12, AC-16 | M12.02 | Verify clean installation, PATH, and an existing unrelated command against the already verified release artifacts. |
 
 FR-10 export remains deferred. M12 retains installation, compatibility, documentation, and release acceptance work; completed behavior evidence is in the acceptance matrix and delivery log.
+
+- M12.WINDOWS-DISTRIBUTION-NATIVE: Integrate pinned package-local ConPTY, verify ordinary native and exact-package gates, helper accounting, reproducibility and sanitized Mac handoff. Keep operator/account and global acceptance open.

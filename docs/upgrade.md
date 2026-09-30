@@ -46,3 +46,5 @@ The native macOS candidate check used the pre-M12 binary from planning merge `96
 | Missing Windows Visual C++ runtime | Install or repair the supported Microsoft Visual C++ v14 Redistributable for x64 according to local policy, then retry the exact candidate path. | Relayterm does not fetch system prerequisites or treat a different `rt` as success. |
 
 Diagnostics are private, bounded, and intentionally omit command arguments, terminal output, environment values, task prose, names, and raw paths. Preserve relevant data before investigation. Relayterm cannot recover lost terminal history or serve as a security sandbox.
+
+Windows upgrades keep the executable and its pinned runtime files together in a new directory. Do not replace either runtime file independently. Use the owned-file removal option after stopping the exact installed processes.

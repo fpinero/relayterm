@@ -39,3 +39,6 @@ unsafe_code = "forbid"
 
 [workspace.lints.clippy]
 all = "warn"
+
+[patch.crates-io]
+portable-pty-psmux = { path = "third_party/portable-pty-psmux" }

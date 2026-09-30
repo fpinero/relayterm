@@ -1276,8 +1276,6 @@ checksum = "05c8b63e8d9609db387f0324918f81d68fe27748f084ef092fb35954d0539a85"
 [[package]]
 name = "portable-pty-psmux"
 version = "0.9.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db56953cd034f7147cbd4ff39797b5ed3aacbdbd93cca41d3a621aaa35be2b3c"
 dependencies = [
  "anyhow",
  "downcast-rs",
@@ -1287,7 +1285,7 @@ dependencies = [
  "log",
  "nix",
  "serial2",
- "shared_library",
+ "sha2 0.10.9",
  "shell-words",
  "winapi",
  "winreg",
@@ -1774,16 +1772,6 @@ dependencies = [
  "cfg-if",
  "cpufeatures 0.3.1",
  "digest 0.11.3",
-]
-
-[[package]]
-name = "shared_library"
-version = "0.1.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a9e7e0f2bfae24d8a5b5a66c5b257a83c7412304311512a0c054cd5e619da11"
-dependencies = [
- "lazy_static",
- "libc",
 ]
 
 [[package]]

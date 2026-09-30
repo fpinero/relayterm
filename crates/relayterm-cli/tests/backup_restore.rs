@@ -293,6 +293,20 @@ fn private_backup_is_exclusive_integrity_checked_and_reopenable() {
     fs::create_dir(&installed_directory).unwrap();
     let installed_binary = installed_directory.join(if cfg!(windows) { "rt.exe" } else { "rt" });
     fs::copy(rt_binary(), &installed_binary).unwrap();
+    #[cfg(windows)]
+    for name in [
+        "conpty.dll",
+        "OpenConsole.exe",
+        "CONPTY_LICENSE.txt",
+        "CONPTY_PROVENANCE.json",
+    ] {
+        let source = PathBuf::from(rt_binary());
+        fs::copy(
+            source.parent().unwrap().join(name),
+            installed_directory.join(name),
+        )
+        .unwrap();
+    }
     let restored_result = success_binary(
         &installed_binary,
         &root,

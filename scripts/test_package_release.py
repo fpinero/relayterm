@@ -72,6 +72,15 @@ class PackageReleaseTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 package_release.inspect_archive(path)
 
+    def test_windows_archive_requires_helper_inventory_and_exe_name(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "relayterm-fixture-x86_64-pc-windows-msvc.zip"
+            root = path.stem
+            names = ("rt.exe", "LICENSE", "THIRD_PARTY_NOTICES.txt", "THIRD_PARTY_LICENSES.txt", "INSTALL.md", "RECOVERY.md", "install_release.sh", "install_release.ps1", "manifest.json")
+            package_release.make_zip(path, [(f"{root}/{name}", b"fixture", 0o644) for name in names], 1700000000)
+            with self.assertRaisesRegex(RuntimeError, "exact release inventory"):
+                package_release.inspect_archive(path)
+
     def test_extract_refuses_nonempty_destination(self):
         with tempfile.TemporaryDirectory() as directory:
             output = pathlib.Path(directory)

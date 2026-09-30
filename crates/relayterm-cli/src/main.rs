@@ -477,6 +477,18 @@ fn main() -> ExitCode {
             return ExitCode::from(2);
         }
     };
+    #[cfg(windows)]
+    if let Err(diagnostic) = relayterm_pty::validate_packaged_runtime() {
+        if matches!(cli.format, OutputFormat::Json) {
+            println!(
+                "{}",
+                serde_json::json!({"ok": false, "command": command_name(cli.command.as_ref()), "error": {"code": "runtime_unavailable", "message": diagnostic}})
+            );
+        } else {
+            eprintln!("runtime_unavailable: {diagnostic}");
+        }
+        return ExitCode::from(3);
+    }
     let result = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()

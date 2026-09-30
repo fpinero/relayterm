@@ -159,6 +159,9 @@ def third_party_material(target):
         notices.append(
             f"{item['name']} {item['version']} | {item['license']} | {references}"
         )
+    if target == "x86_64-pc-windows-msvc":
+        runtime_identity = read_json(ROOT / "third_party/conpty/provenance.json")
+        notices.extend(["", f"Microsoft.Windows.Console.ConPTY {runtime_identity['version']} | MIT | CONPTY_LICENSE.txt ({runtime_identity['license_sha256']})", "Runtime input provenance and pinned binary hashes: CONPTY_PROVENANCE.json"])
     notice_bytes = ("\n".join(notices) + "\n").encode("utf-8")
 
     licenses = ["Relayterm third-party license texts", ""]
@@ -242,6 +245,11 @@ def package(build_directory, output):
         "install_release.sh": (ROOT / "scripts" / "install_release.sh").read_bytes(),
         "install_release.ps1": (ROOT / "scripts" / "install_release.ps1").read_bytes(),
     }
+    if record["target"] == "x86_64-pc-windows-msvc":
+        import windows_runtime
+        windows_runtime.verify(build_directory.resolve())
+        for name in windows_runtime.INVENTORY:
+            payloads[name] = (build_directory / name).read_bytes()
     contents = [
         {
             "path": name,
@@ -266,6 +274,7 @@ def package(build_directory, output):
         "signing": record["signing"],
         "binary": record["binary"],
         "third_party_packages": inventory,
+        "runtime": record.get("runtime"),
         "contents": contents,
     }
     manifest_bytes = (json.dumps(package_manifest, indent=2, sort_keys=True) + "\n").encode("utf-8")
@@ -345,8 +354,12 @@ def inspect_archive(path):
             "manifest.json",
         )
     }
-    binaries = {f"{expected_root}/rt", f"{expected_root}/rt.exe"}
-    if set(members) - binaries != expected or len(set(members) & binaries) != 1 or len(members) != 9:
+    binary_name = "rt.exe" if expected_root.endswith("windows-msvc") else "rt"
+    binaries = {f"{expected_root}/{binary_name}"}
+    if expected_root.endswith("x86_64-pc-windows-msvc"):
+        import windows_runtime
+        expected.update(f"{expected_root}/{name}" for name in windows_runtime.INVENTORY)
+    if set(members) - binaries != expected or len(set(members) & binaries) != 1 or len(members) != len(expected) + 1:
         raise RuntimeError("archive inventory is not the exact release inventory")
     print(json.dumps({"archive": path.name, "entries": sorted(members)}, sort_keys=True))
 

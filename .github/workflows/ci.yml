@@ -38,10 +38,20 @@ jobs:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       - name: Install pinned compiler
         run: rustup toolchain install 1.98.1 --profile minimal
+      - name: Prepare pinned Windows package inputs
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $runtime = Join-Path $env:RUNNER_TEMP 'relayterm-conpty-inputs'
+          python scripts/prepare_windows_runtime.py $runtime
+          if ($LASTEXITCODE -ne 0) { throw 'Runtime preparation failed.' }
+          "RELAYTERM_BUILD_RUNTIME_ROOT=$runtime" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          python scripts/windows_runtime.py $runtime target/debug target/debug/deps
+          if ($LASTEXITCODE -ne 0) { throw 'Runtime staging failed.' }
       - name: Fetch complete locked graph
         run: cargo fetch --locked
       - name: Test release tooling
-        run: python -m unittest scripts/test_build_release.py scripts/test_package_release.py scripts/test_install_release.py scripts/test_smoke_release.py
+        run: python -m unittest scripts/test_build_release.py scripts/test_package_release.py scripts/test_install_release.py scripts/test_smoke_release.py scripts/test_verify_sustained_evidence.py
       - name: Build release twice
         run: |
           python scripts/build_release.py build --target ${{ matrix.target }} --output release-build-a --offline
@@ -154,6 +164,16 @@ jobs:
         run: rustc --version --verbose
       - name: Report Cargo
         run: cargo --version
+      - name: Prepare pinned Windows package inputs
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $runtime = Join-Path $env:RUNNER_TEMP 'relayterm-conpty-inputs'
+          python scripts/prepare_windows_runtime.py $runtime
+          if ($LASTEXITCODE -ne 0) { throw 'Runtime preparation failed.' }
+          "RELAYTERM_BUILD_RUNTIME_ROOT=$runtime" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          python scripts/windows_runtime.py $runtime target/debug target/debug/deps
+          if ($LASTEXITCODE -ne 0) { throw 'Runtime staging failed.' }
       - name: Fetch complete locked graph
         run: cargo fetch --locked
       - name: Check formatting

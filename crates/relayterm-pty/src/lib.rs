@@ -300,6 +300,18 @@ pub fn canonical_working_directory(root: &Path, requested: &Path) -> Result<Path
     }
 }
 
+/// Validate distribution inputs before session startup. Unix has no support files.
+pub fn validate_packaged_runtime() -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        portable_pty::validate_packaged_runtime()
+    }
+    #[cfg(not(windows))]
+    {
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

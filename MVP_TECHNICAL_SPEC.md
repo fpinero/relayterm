@@ -48,7 +48,7 @@ Rationale:
 - Strong ownership and concurrency guarantees reduce risk in long-lived process and session management.
 - Rust provides direct access to operating-system primitives while retaining memory safety.
 - Its ecosystem includes mature terminal UI, asynchronous runtime, serialization, database, and pseudo-terminal libraries.
-- A single compiled `rt` binary simplifies installation and use on remote hosts while allowing internal daemon and client roles to remain architecturally separate.
+- A single user-facing `rt` binary (with package-local ConPTY support files on Windows) simplifies installation and use on remote hosts while allowing internal daemon and client roles to remain architecturally separate.
 - Cross-platform abstractions can coexist with targeted platform-specific implementations when required.
 - The type system is well suited to explicit task, process, protocol, and lifecycle state machines.
 

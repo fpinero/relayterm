@@ -105,6 +105,8 @@ cargo run -p relayterm-cli --bin rt -- --help
 cargo run -p relayterm-cli --bin rt -- --version
 ```
 
+Windows x64 development also requires explicitly prepared pinned files beside executables, as described in [Windows runtime distribution](docs/windows-runtime-distribution.md).
+
 Running `rt` without a subcommand opens the workspace for the current directory, prompts before first initialization, and enters the TUI after connecting to the detached daemon. Use `--workspace PATH` to select another project. Noninteractive no-command use fails before side effects. Administrative commands, help, version, and JSON output remain separate from terminal mode.
 
 See [contributing](CONTRIBUTING.md), [agent templates and custom CLIs](docs/agent-templates.md), [Git worktrees](docs/worktrees.md), [architecture decisions](docs/architecture/README.md), [privacy](docs/privacy.md), and [platform evidence](docs/supported-platforms.md). The [pending queue](TODO.md) distinguishes implemented foundations from the remaining release acceptance work.
