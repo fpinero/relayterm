@@ -72,3 +72,21 @@ Private workspace state and foreign markers survive. A changed owned file causes
 refusal for review. Maintainers update pins, rebuild and repeat affected native,
 package and helper-resource tests for each runtime update. No independent helper
 upgrade is supported.
+
+## Operator observation
+
+Use scripts/observe_windows_package.ps1 with the reviewed candidate directory and
+its exact SHA-256. PrepareOnly verifies synthetic commands without claiming a real
+console observation. The interactive mode uses a neutral cmd.exe prompt, input,
+resize, normal exit and restoration. It retains synthetic private state.
+
+Token inspection includes disabled administrative group SIDs from whoami CSV.
+WindowsIdentity.Groups alone can omit those groups on a filtered token. A printed
+standard_account=false does not qualify a standard-account journey. Use an
+existing actual standard account, without creating accounts or changing policy.
+
+Administrative JSON capture reads one complete line and waits for the directly
+launched process with bounded deadlines. Windows PowerShell 5 pipeline capture
+was observed waiting for EOF while a detached daemon was alive. The observer does
+not wait for descendant pipe EOF. It requires no Python or system installation.
+RemoteSigned, when needed, applies only to the dedicated PowerShell process.

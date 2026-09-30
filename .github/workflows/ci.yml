@@ -178,6 +178,8 @@ jobs:
         run: cargo fetch --locked
       - name: Check formatting
         run: cargo fmt --all -- --check
+      - name: Check adapter formatting
+        run: cargo fmt --manifest-path third_party/portable-pty-psmux/Cargo.toml --check
       - name: Check targets
         run: cargo check --workspace --all-targets --locked
       - name: Lint
