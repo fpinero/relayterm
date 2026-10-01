@@ -308,3 +308,25 @@ cached advisory scope. No product source, budget or retained artifact changed.
 This resolves the final Unix-guard Mac repetition gap, not global M12 acceptance.
 Windows ordinary distribution, Linux/hosted and runtime-floor/independence gates
 remain pending. Existing physical/SSH/VM evidence and all failures remain intact.
+
+
+## Ordinary Windows and Mac distribution checkpoints on 2026-10-01
+
+The [ordinary Windows report](m12-windows-distribution-validation.md) maps the
+bundled ConPTY package to f2b3f6f and its exact executable. Ordinary native and
+installed sustained gates and helper resource/lifecycle automation now pass;
+experimental runtime results remain separate. Actual standard-account/real-console
+observations and runtime-floor/independence reconciliation remain open.
+
+The [Mac regression report](m12-macos-distribution-regression.md) and
+[numeric evidence](evidence/m12-macos-distribution-20261001/README.md) map native
+204-test workspace, explicit resource/fault, reproducible package, exact-extracted
+and POSIX installation checks to e712603. All three independently recomputed
+sustained sections qualify unchanged budgets. This is not Linux, new physical,
+macOS 14 runtime or fresh hosted coverage. Historical failed attempts remain.
+
+Use the [bounded Linux continuation](m12-linux-distribution-handoff.md) for the
+remaining native regression. Reuse completed physical/SSH/isolated-runtime evidence
+with source impact assessment. The current closure table owns outstanding global
+requirements; dated next-action statements above do not restart completed work.
+No AC or global M12 completion is inferred from these two platform checkpoints.

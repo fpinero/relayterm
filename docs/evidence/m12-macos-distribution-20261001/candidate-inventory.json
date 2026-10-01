@@ -1,0 +1,35 @@
+{
+  "archive": {
+    "bytes": 4387453,
+    "name": "relayterm-0.1.0-aarch64-apple-darwin.tar.gz",
+    "sha256": "9fb3b5a7567a2682b9d27cd9fbd73bbc6a2142fbec2394958891a431b338d34a"
+  },
+  "binary": {
+    "bytes": 11050240,
+    "name": "rt",
+    "sha256": "ef20a01284008741b03229f6aa8610403dc60205e3cd534df51cbef09e6b14a4"
+  },
+  "format_version": 1,
+  "product": "relayterm",
+  "signing": "unsigned",
+  "source_sha": "e712603cc753686675319358f0413946461249e2",
+  "target": "aarch64-apple-darwin",
+  "version": "0.1.0",
+  "tested_product": {
+    "source_sha": "e712603cc753686675319358f0413946461249e2",
+    "sha256_before": "ef20a01284008741b03229f6aa8610403dc60205e3cd534df51cbef09e6b14a4",
+    "sha256_after": "ef20a01284008741b03229f6aa8610403dc60205e3cd534df51cbef09e6b14a4"
+  },
+  "installer": {
+    "passed": true,
+    "product_sha256": "ef20a01284008741b03229f6aa8610403dc60205e3cd534df51cbef09e6b14a4",
+    "checks": [
+      "clean installation",
+      "byte-preserving reinstallation rejection",
+      "unrelated command collision preservation",
+      "process-local PATH resolution",
+      "constrained-PATH help/version",
+      "owned-copy removal preserves foreign marker and colliding command"
+    ]
+  }
+}

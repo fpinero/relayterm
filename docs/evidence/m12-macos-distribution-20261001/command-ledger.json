@@ -1,0 +1,592 @@
+[
+  {
+    "name": "workspace-format",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "deadline": 120,
+    "elapsed_seconds": 3.1900268336758018,
+    "exit_code": 0,
+    "timeout": false,
+    "source_sha": "e712603cc753686675319358f0413946461249e2",
+    "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "vendor-format",
+    "command": [
+      "cargo",
+      "fmt",
+      "--manifest-path",
+      "third_party/portable-pty-psmux/Cargo.toml",
+      "--check"
+    ],
+    "deadline": 120,
+    "elapsed_seconds": 0.13388775009661913,
+    "exit_code": 0,
+    "timeout": false,
+    "source_sha": "e712603cc753686675319358f0413946461249e2",
+    "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "default-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--workspace",
+      "--all-targets",
+      "--locked",
+      "--offline",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "deadline": 600,
+    "elapsed_seconds": 23.43429599981755,
+    "exit_code": 0,
+    "timeout": false,
+    "source_sha": "e712603cc753686675319358f0413946461249e2",
+    "log_sha256": "67a3af261d60510166a25e3ca985b53ee20b12ee091bf957ab356502e9f8ccbb"
+  },
+  {
+    "name": "all-features-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--workspace",
+      "--all-features",
+      "--all-targets",
+      "--locked",
+      "--offline",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "deadline": 600,
+    "elapsed_seconds": 3.8856701673939824,
+    "exit_code": 0,
+    "timeout": false,
+    "source_sha": "e712603cc753686675319358f0413946461249e2",
+    "log_sha256": "43b1a178f5aeb42a573be2facbbfcab0941e7960300553714ecfd77ab23429e0"
+  },
+  {
+    "name": "vendor-tests",
+    "command": [
+      "cargo",
+      "test",
+      "--manifest-path",
+      "third_party/portable-pty-psmux/Cargo.toml",
+      "--locked",
+      "--offline",
+      "--lib"
+    ],
+    "deadline": 600,
+    "elapsed_seconds": 4.067170041613281,
+    "exit_code": 0,
+    "timeout": false,
+    "source_sha": "e712603cc753686675319358f0413946461249e2",
+    "log_sha256": "ccbb5238a20add883d271910dd7c7d5c0bebef5caf23535174ea01c222b8cdec"
+  },
+  {
+    "name": "tooling",
+    "command": [
+      "python3",
+      "-m",
+      "unittest",
+      "scripts/test_build_release.py",
+      "scripts/test_package_release.py",
+      "scripts/test_install_release.py",
+      "scripts/test_smoke_release.py",
+      "scripts/test_verify_sustained_evidence.py",
+      "scripts/test_windows_runtime_staging.py"
+    ],
+    "deadline": 180,
+    "elapsed_seconds": 0.23582291696220636,
+    "exit_code": 0,
+    "timeout": false,
+    "source_sha": "e712603cc753686675319358f0413946461249e2",
+    "log_sha256": "b1ec70480e2fd9ab717904af33d83e1b2694dedecf06ff9d17b219fae33ea27d"
+  },
+  {
+    "name": "repository",
+    "command": [
+      "python3",
+      "scripts/check_repository.py"
+    ],
+    "deadline": 120,
+    "elapsed_seconds": 0.2453860007226467,
+    "exit_code": 0,
+    "timeout": false,
+    "source_sha": "e712603cc753686675319358f0413946461249e2",
+    "log_sha256": "f471a1bd47d1dd1e35d5d47f59f57530ab84044ffbb32f468a59ec94e948ba0f"
+  },
+  {
+    "name": "secrets",
+    "command": [
+      "python3",
+      "scripts/check_secrets.py"
+    ],
+    "deadline": 120,
+    "elapsed_seconds": 0.8337636664509773,
+    "exit_code": 0,
+    "timeout": false,
+    "source_sha": "e712603cc753686675319358f0413946461249e2",
+    "log_sha256": "51b69fa05b6b8aa7f726faf264cb7e43bcc96a20f30db2963cc2661ae5310f52"
+  },
+  {
+    "name": "audit",
+    "command": [
+      "cargo",
+      "deny",
+      "--locked",
+      "--offline",
+      "check",
+      "advisories",
+      "licenses",
+      "bans",
+      "sources"
+    ],
+    "deadline": 180,
+    "elapsed_seconds": 0.8858266249299049,
+    "exit_code": 0,
+    "timeout": false,
+    "source_sha": "e712603cc753686675319358f0413946461249e2",
+    "log_sha256": "cd62485015d399b4de14be99a42d38d79a2e480347464d58aa8f40d4ca04ff0f"
+  },
+  {
+    "name": "audit-controls",
+    "command": [
+      "python3",
+      "scripts/check_audit_controls.py"
+    ],
+    "deadline": 180,
+    "elapsed_seconds": 0.8984939167276025,
+    "exit_code": 0,
+    "timeout": false,
+    "source_sha": "e712603cc753686675319358f0413946461249e2",
+    "log_sha256": "76cc271cf54370e15bdb71ecec34882029606430763fdb96fd73002abb22e2ce"
+  },
+  {
+    "name": "prebuild-tests",
+    "command": [
+      "cargo",
+      "test",
+      "--workspace",
+      "--locked",
+      "--offline",
+      "--no-run"
+    ],
+    "deadline": 600,
+    "elapsed_seconds": 27.861173832789063,
+    "exit_code": 0,
+    "timeout": false,
+    "source_sha": "e712603cc753686675319358f0413946461249e2",
+    "log_sha256": "7f0df06878346c433b765f38ef87a91ad853cc5a1e23993b8dde45e0853b2af1"
+  },
+  {
+    "name": "workspace-tests",
+    "command": [
+      "cargo",
+      "test",
+      "--workspace",
+      "--locked",
+      "--offline",
+      "--",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "deadline": 1200,
+    "elapsed_seconds": 392.4567020004615,
+    "exit_code": 0,
+    "timeout": false,
+    "source_sha": "e712603cc753686675319358f0413946461249e2",
+    "log_sha256": "dc3d354778b20f7ed5e6c7bd61681c538897e36c00bdbd3b6c31b56e17109c63"
+  },
+  {
+    "name": "resource",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "relayterm-cli",
+      "--test",
+      "resource_runtime_gate",
+      "--locked",
+      "--offline",
+      "sustained_output_memory_and_reconnect_resources_are_bounded",
+      "--",
+      "--ignored",
+      "--exact",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "deadline": 360,
+    "elapsed_seconds": 190.05496350023896,
+    "exit_code": 0,
+    "timeout": false,
+    "source_sha": "e712603cc753686675319358f0413946461249e2",
+    "log_sha256": "df34963d19054e80f773df56d743361288a1cef84b01383c9df10e0b73ade422"
+  },
+  {
+    "name": "sqlite-kill",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "relayterm-daemon",
+      "--features",
+      "test-hooks",
+      "--test",
+      "sqlite_kill_gate",
+      "--locked",
+      "--offline",
+      "--",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "deadline": 300,
+    "elapsed_seconds": 17.268156208097935,
+    "exit_code": 0,
+    "timeout": false,
+    "source_sha": "e712603cc753686675319358f0413946461249e2",
+    "log_sha256": "0659d3b6b8008daf3f9437bb46c21946ce13ef171bea109518ce1bc56b2ce686"
+  },
+  {
+    "name": "git-cancellation",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "relayterm-daemon",
+      "--features",
+      "test-hooks",
+      "--test",
+      "worktree_cancellation_gate",
+      "--locked",
+      "--offline",
+      "--",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "deadline": 300,
+    "elapsed_seconds": 3.6176329581066966,
+    "exit_code": 0,
+    "timeout": false,
+    "source_sha": "e712603cc753686675319358f0413946461249e2",
+    "log_sha256": "e59d2e600adf5e4d73dc419634bbf0f6b0c1def4e5b3810b554130b83518dbd5"
+  },
+  {
+    "name": "git-descendants",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "relayterm-git",
+      "--locked",
+      "--offline",
+      "tests::completed_git",
+      "--",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "deadline": 180,
+    "elapsed_seconds": 4.777366584166884,
+    "exit_code": 0,
+    "timeout": false,
+    "source_sha": "e712603cc753686675319358f0413946461249e2",
+    "log_sha256": "4d60f4cf053a5e74297bf5983e04b2e613b8a35a1f901386ce386a83bba2d764"
+  },
+  {
+    "name": "build-a",
+    "command": [
+      "python3",
+      "scripts/build_release.py",
+      "build",
+      "--target",
+      "aarch64-apple-darwin",
+      "--output",
+      "<private-evidence>/build-a",
+      "--offline"
+    ],
+    "elapsed_seconds": 70.71744812466204,
+    "deadline": 900,
+    "exit_code": 0,
+    "timeout": false,
+    "log_sha256": "6332c43b941fff924be5c34134ad287faa6bfd4609a78661a7ff52c44af38878",
+    "source_sha": "e712603cc753686675319358f0413946461249e2"
+  },
+  {
+    "name": "package-a",
+    "command": [
+      "python3",
+      "scripts/package_release.py",
+      "create",
+      "--build",
+      "<private-evidence>/build-a",
+      "--output",
+      "<private-evidence>/package-a"
+    ],
+    "elapsed_seconds": 2.1281421668827534,
+    "deadline": 600,
+    "exit_code": 0,
+    "timeout": false,
+    "log_sha256": "a5cb98ac872a205cc30a79baf3b40ab60dafcffee827866b5dcf2b9da467f7a0",
+    "source_sha": "e712603cc753686675319358f0413946461249e2"
+  },
+  {
+    "name": "build-b",
+    "command": [
+      "python3",
+      "scripts/build_release.py",
+      "build",
+      "--target",
+      "aarch64-apple-darwin",
+      "--output",
+      "<private-evidence>/build-b",
+      "--offline"
+    ],
+    "elapsed_seconds": 70.35260287486017,
+    "deadline": 900,
+    "exit_code": 0,
+    "timeout": false,
+    "log_sha256": "1aea7307d67889c969f7bf903b9bea1242dc3d7fe2d42d117b31a2709b9be209",
+    "source_sha": "e712603cc753686675319358f0413946461249e2"
+  },
+  {
+    "name": "package-b",
+    "command": [
+      "python3",
+      "scripts/package_release.py",
+      "create",
+      "--build",
+      "<private-evidence>/build-b",
+      "--output",
+      "<private-evidence>/package-b"
+    ],
+    "elapsed_seconds": 1.692994624376297,
+    "deadline": 600,
+    "exit_code": 0,
+    "timeout": false,
+    "log_sha256": "a5cb98ac872a205cc30a79baf3b40ab60dafcffee827866b5dcf2b9da467f7a0",
+    "source_sha": "e712603cc753686675319358f0413946461249e2"
+  },
+  {
+    "name": "compare-builds",
+    "command": [
+      "python3",
+      "scripts/build_release.py",
+      "compare",
+      "<private-evidence>/build-a/build-record.json",
+      "<private-evidence>/build-b/build-record.json"
+    ],
+    "elapsed_seconds": 0.0750621659681201,
+    "deadline": 600,
+    "exit_code": 0,
+    "timeout": false,
+    "log_sha256": "baf015cc4302af2c590bbe65beed7d230510f15f47a8a3649dd7f4bcbc913f5d",
+    "source_sha": "e712603cc753686675319358f0413946461249e2"
+  },
+  {
+    "name": "compare-packages",
+    "command": [
+      "python3",
+      "scripts/package_release.py",
+      "compare",
+      "<private-evidence>/package-a/relayterm-0.1.0-aarch64-apple-darwin.manifest.json",
+      "<private-evidence>/package-b/relayterm-0.1.0-aarch64-apple-darwin.manifest.json"
+    ],
+    "elapsed_seconds": 0.07837195787578821,
+    "deadline": 600,
+    "exit_code": 0,
+    "timeout": false,
+    "log_sha256": "a199717c6dabf39b8421d094692c39b2393ee6188f205ecc22b6ae08c2d852cc",
+    "source_sha": "e712603cc753686675319358f0413946461249e2"
+  },
+  {
+    "name": "inspect-package",
+    "command": [
+      "python3",
+      "scripts/package_release.py",
+      "inspect",
+      "<private-evidence>/package-a/relayterm-0.1.0-aarch64-apple-darwin.tar.gz"
+    ],
+    "elapsed_seconds": 0.13238341733813286,
+    "deadline": 600,
+    "exit_code": 0,
+    "timeout": false,
+    "log_sha256": "7f36e76d0cd555cba713a5d21270fc8ee4dbe636a2c58eba247b5f9c2668a942",
+    "source_sha": "e712603cc753686675319358f0413946461249e2"
+  },
+  {
+    "name": "smoke-package",
+    "command": [
+      "python3",
+      "scripts/smoke_release.py",
+      "<private-evidence>/package-a/relayterm-0.1.0-aarch64-apple-darwin.tar.gz"
+    ],
+    "elapsed_seconds": 1.0286692092195153,
+    "deadline": 180,
+    "exit_code": 0,
+    "timeout": false,
+    "log_sha256": "3f968a6aa7caa87d92f71e0d58d24c7e300ac447e403af29265dc38e007ef661",
+    "source_sha": "e712603cc753686675319358f0413946461249e2"
+  },
+  {
+    "name": "extract-package",
+    "command": [
+      "python3",
+      "scripts/package_release.py",
+      "extract",
+      "<private-evidence>/package-a/relayterm-0.1.0-aarch64-apple-darwin.tar.gz",
+      "--output",
+      "<private-evidence>/extracted"
+    ],
+    "elapsed_seconds": 0.1255768332630396,
+    "deadline": 600,
+    "exit_code": 0,
+    "timeout": false,
+    "log_sha256": "27ea3152496e16f87227ee65485cff203aa0977fce453661387ec014a7a4da3f",
+    "source_sha": "e712603cc753686675319358f0413946461249e2"
+  },
+  {
+    "name": "mach-o",
+    "command": [
+      "/usr/bin/file",
+      "<private-evidence>/extracted/relayterm-0.1.0-aarch64-apple-darwin/rt"
+    ],
+    "elapsed_seconds": 0.007314791902899742,
+    "deadline": 600,
+    "exit_code": 0,
+    "timeout": false,
+    "log_sha256": "0149d1d3f9a23a3ad402666c62108cd5f5146c8980a4f12c2ce4bb7b6a789337",
+    "source_sha": "e712603cc753686675319358f0413946461249e2"
+  },
+  {
+    "name": "dependencies",
+    "command": [
+      "/usr/bin/otool",
+      "-L",
+      "<private-evidence>/extracted/relayterm-0.1.0-aarch64-apple-darwin/rt"
+    ],
+    "elapsed_seconds": 0.038392750546336174,
+    "deadline": 600,
+    "exit_code": 0,
+    "timeout": false,
+    "log_sha256": "9fb43a24e9661c19ca998148504aa3f8eb9a510442b38c9088f6b87cece1924b",
+    "source_sha": "e712603cc753686675319358f0413946461249e2"
+  },
+  {
+    "name": "load-commands",
+    "command": [
+      "/usr/bin/otool",
+      "-l",
+      "<private-evidence>/extracted/relayterm-0.1.0-aarch64-apple-darwin/rt"
+    ],
+    "elapsed_seconds": 0.020626166835427284,
+    "deadline": 600,
+    "exit_code": 0,
+    "timeout": false,
+    "log_sha256": "0a84037f5e4fbbb9ff11b6d409ff3e0be30f02bc94fba45ade23ddfd3010a1c0",
+    "source_sha": "e712603cc753686675319358f0413946461249e2"
+  },
+  {
+    "name": "package-tui_gate",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "relayterm-cli",
+      "--test",
+      "tui_gate",
+      "--locked",
+      "--offline",
+      "--",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "elapsed_seconds": 141.34065249934793,
+    "deadline": 600,
+    "exit_code": 0,
+    "timeout": false,
+    "log_sha256": "3898e85a26229e7d34c561889e5a6441628250c9899dee6617c6f4548b740d9f",
+    "source_sha": "e712603cc753686675319358f0413946461249e2",
+    "product_override": true,
+    "product_sha256": "ef20a01284008741b03229f6aa8610403dc60205e3cd534df51cbef09e6b14a4"
+  },
+  {
+    "name": "package-session_presentation",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "relayterm-cli",
+      "--test",
+      "session_presentation",
+      "--locked",
+      "--offline",
+      "--",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "elapsed_seconds": 1.088771834038198,
+    "deadline": 600,
+    "exit_code": 0,
+    "timeout": false,
+    "log_sha256": "232640927f96ae06cc90dad8960486a67c0d38949f13031ed264ec1ae6ed2a8a",
+    "source_sha": "e712603cc753686675319358f0413946461249e2",
+    "product_override": true,
+    "product_sha256": "ef20a01284008741b03229f6aa8610403dc60205e3cd534df51cbef09e6b14a4"
+  },
+  {
+    "name": "package-worktree_gate",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "relayterm-cli",
+      "--test",
+      "worktree_gate",
+      "--locked",
+      "--offline",
+      "--",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "elapsed_seconds": 4.898086332716048,
+    "deadline": 600,
+    "exit_code": 0,
+    "timeout": false,
+    "log_sha256": "8b86a057f5257e0e5d96480eb279d4681769379e0484167c7c33ffb3dc769484",
+    "source_sha": "e712603cc753686675319358f0413946461249e2",
+    "product_override": true,
+    "product_sha256": "ef20a01284008741b03229f6aa8610403dc60205e3cd534df51cbef09e6b14a4"
+  },
+  {
+    "name": "package-backup_restore",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "relayterm-cli",
+      "--test",
+      "backup_restore",
+      "--locked",
+      "--offline",
+      "--",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "elapsed_seconds": 1.972746791318059,
+    "deadline": 600,
+    "exit_code": 0,
+    "timeout": false,
+    "log_sha256": "feccdc68ce7747ccb15f5ff6a93406dd062a41680305ed11999d902f358b9760",
+    "source_sha": "e712603cc753686675319358f0413946461249e2",
+    "product_override": true,
+    "product_sha256": "ef20a01284008741b03229f6aa8610403dc60205e3cd534df51cbef09e6b14a4"
+  }
+]

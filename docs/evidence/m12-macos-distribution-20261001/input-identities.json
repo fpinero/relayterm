@@ -1,0 +1,105 @@
+{
+  "source_sha": "e712603cc753686675319358f0413946461249e2",
+  "files": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "c2a0a6aaaef016e275323aed682313c73e28e1a104561c305ce74d3a49885ec8",
+      "bytes": 67289
+    },
+    {
+      "path": "Cargo.toml",
+      "sha256": "95a5393215a38fd6b7026e6a7e6da96ad77c4c68d54e3be811bcb42722d488a9",
+      "bytes": 1695
+    },
+    {
+      "path": "crates/relayterm-cli/src/main.rs",
+      "sha256": "6f465056e82f29a2e7665fa52ea442b4101ed4b3de5ffeed2377dc5d0ec4acf7",
+      "bytes": 45505
+    },
+    {
+      "path": "crates/relayterm-daemon/src/supervisor.rs",
+      "sha256": "d5faf6bcba3044ee2af86db0e1bd84d5b3cb7bb7f05804acfe9859bd62d40219",
+      "bytes": 24209
+    },
+    {
+      "path": "crates/relayterm-cli/tests/tui_gate.rs",
+      "sha256": "0e78db100747e4aba731133082dd1cf64b4f590499c56eb17dce006185d9028e",
+      "bytes": 41183
+    },
+    {
+      "path": "crates/relayterm-cli/tests/resource_runtime_gate.rs",
+      "sha256": "f22c41c1c46423105598e07c1daeac4f84d4a4abb2c63c76ed0351ff10f44f3f",
+      "bytes": 25728
+    },
+    {
+      "path": "target/debug/rt",
+      "sha256": "cd30592194468c83eecd8df0e56532ace8ced935b6a114684ba18ebafc46e738",
+      "bytes": 38473632
+    },
+    {
+      "path": "target/debug/deps/protocol_gate-b696767aba21192c",
+      "sha256": "d10c7daaa7aa2ea3b92918279bb20c9f463cb228468681b6657c4be0dfbcfa7d",
+      "bytes": 29256912
+    },
+    {
+      "path": "target/debug/deps/runtime_gate-d74fec8f14cb4e1a",
+      "sha256": "6d0dd3a5e69bb70c79f3bdb6beed760b051d46ba0ea6961785acc2699b21690d",
+      "bytes": 33528864
+    },
+    {
+      "path": "target/debug/deps/worktree_cancellation_gate-56b7fab66f35c330",
+      "sha256": "2348ba489fe04f7deb8dba47879fa032887562c815b77f066affd9b85ee9b951",
+      "bytes": 1027112
+    },
+    {
+      "path": "target/debug/deps/offline_gate-f88713d486c51d3a",
+      "sha256": "a3f934d36c0dfd78b1d1cca33df453189d0d37c980e1c83849411149b2a6bc7f",
+      "bytes": 1883184
+    },
+    {
+      "path": "target/debug/deps/resource_runtime_gate-82f992891d27ba39",
+      "sha256": "49375cb75a57acc44508de67d7adcfe99f496810ccba18e1e3862739c3896b03",
+      "bytes": 3799656
+    },
+    {
+      "path": "target/debug/deps/agent_templates_gate-10992c4d1f6c0e5d",
+      "sha256": "f3dea8df910292dbf14c1fb191155c050edbd74c1d692b57c01500b0a952f7bf",
+      "bytes": 3250088
+    },
+    {
+      "path": "target/debug/deps/tui_gate-2e49e8ca133f2d55",
+      "sha256": "3dd1cc3abbc654c929f3cbbfdb8ddcdb51162beab20e6ff687ce8552fb97dc6c",
+      "bytes": 20763960
+    },
+    {
+      "path": "target/debug/deps/hardening_gate-12c8482a92bbe33c",
+      "sha256": "dcb1bc99905bee3e02d393ba10ac8aaf81acecc1861ab5484251851ebf9353cf",
+      "bytes": 21142496
+    },
+    {
+      "path": "target/debug/deps/pty_gate-93c88099f6cdc1d8",
+      "sha256": "7cc596caeb5db0b9a7d2bd9ddf1562048f808a113e58eb052bd976e16a25817f",
+      "bytes": 30107416
+    },
+    {
+      "path": "target/debug/deps/resource_gate-c82da44d81176a59",
+      "sha256": "4c34599eb96e7bb7a4ce87b204ab4240609f1d6c24afc3df24aa1b9de0bc2f45",
+      "bytes": 15119184
+    },
+    {
+      "path": "target/debug/deps/sqlite_kill_gate-1a72951da445622e",
+      "sha256": "dce31b00b20385ae49dcb91b1cee0883cc7780d24c6fb557a899e302ce73e043",
+      "bytes": 1026960
+    },
+    {
+      "path": "target/debug/deps/worktree_gate-5822d7c175d44898",
+      "sha256": "d29f9067aaa63fcb35b2280538b2388c9d9cc33213a43e408beb25019a36ecb5",
+      "bytes": 3409824
+    },
+    {
+      "path": "crates/relayterm-cli/tests/support/sustained_load.rs",
+      "sha256": "ee80ac913bd775784a5e7f7e289202885c1c359ea0c3a805d238472723cbf244",
+      "bytes": 16674
+    }
+  ]
+}

@@ -2382,3 +2382,80 @@ account observations and affected Mac/Linux/global acceptance remain pending.
   through gh was unavailable because that CLI has no authentication; no login or
   account settings were changed. The workflow only automatically runs for main
   pushes or pull requests, so this branch push does not trigger its hosted gates.
+
+
+## 2026-10-01: M12.MAC-DISTRIBUTION-REGRESSION
+
+Completed the affected native Mac continuation at exact source
+e712603cc753686675319358f0413946461249e2 in a separate checkout on
+fix/m12-final-validation. Preserved original local work, retained artifacts,
+private trial state and historical failures. No production/dependency changes.
+Added docs/m12-macos-distribution-regression.md with source/artifact identities,
+measurements and limitations. Reconciled stale pending descriptions and added a
+current finite closure table without erasing historical checkpoints. M12 remains open.
+
+Verification: both rustfmt selections; default and all-feature/all-target Clippy
+with warnings denied; vendored Unix library test; six Python tooling/evidence
+modules (31 tests, five Windows skips); repository and secret negative controls;
+offline cargo deny and license/ban negative controls; full locked offline
+workspace (204 passed, zero failed, 25 ignored across 48 groups); explicit ignored
+resource scenario (60 samples, 100 reconnects including 20 abrupt, descriptors
+48 to 50); SQLite kill, Git cancellation and ignored Git descendants. All 16
+bounded native commands passed, with no timeout. Git-history Gitleaks found no
+leaks in 289 commits. Shared Windows evidence: 21 hashes matched; independently
+reparsed 15 logs, 11 sections and 11 qualified sections, preserving failed commands.
+
+Two clean native production builds and normalized archives were byte-identical.
+Inspected ARM64 Mach-O/system dependencies and nine-file archive inventory;
+constrained-PATH smoke, exact-extracted TUI/session/worktree/populated backup
+restore and actual POSIX clean install/collision/discovery/removal checks passed.
+Extracted rt hash before/after was
+ef20a01284008741b03229f6aa8610403dc60205e3cd534df51cbef09e6b14a4;
+archive hash was
+9fb3b5a7567a2682b9d27cd9fbd73bbc6a2142fbec2394958891a431b338d34a.
+Independent arithmetic qualified all three sustained sections, with navigation/
+echo p95 25.324/101.164, 28.213/110.787 and 29.334/77.706 ms. Original budgets
+remain unchanged. No builds overlapped measurements; a brief separate installer
+check overlapped the release measurement and is explicitly retained in the report.
+
+Preserved wrong-directory evidence parsing and read-only file-lookup failures.
+Computer Use rejected Terminal.app before interaction; no new physical screenshot
+is claimed. Existing unaffected Mac/SSH/VM journeys are reused. Raw logs, drivers,
+binaries and runtime state remain private outside Git. No Linux execution,
+new hosted coverage, provider trial, corporate probe, security change, commit,
+push, merge, PR, tag, release or binary publication occurred.
+
+Final public-document verification passed: python3 scripts/check_repository.py
+(89 Markdown files, nine ADRs), python3 scripts/check_secrets.py including its
+negative control, git diff --check, append-only prefix comparison and unchanged
+production/dependency checks. Original working-tree status remained unchanged.
+
+
+## 2026-10-01: M12.LINUX-SHARED-HANDOFF
+
+Prepared the bounded Linux distribution continuation with a copy-paste request,
+exact e712603 source/artifact mapping, native/tooling/resource/fault commands,
+production package and POSIX installation checks, runtime-impact reconciliation,
+autonomous correction and a stopping rule against repeated physical/SSH rounds.
+The request authorizes verified public Linux result delivery on its own branch,
+not main merges, PRs, releases or binary uploads. Added the concrete Linux task
+to TODO and linked the current audit/acceptance matrix to the latest checkpoints.
+
+Exported eight public-safe Mac evidence data files: 32 bounded command outcomes,
+three numeric observation logs, independent sustained/resource arithmetic,
+candidate inventory, captured input identities and retained attempt boundaries.
+All three sustained sections and Unix memory medians reproduce the private
+checkpoint exactly. Raw logs, drivers with native paths, binaries, databases,
+provider data and the unrelated original document remain outside this delivery.
+An initial manifest check used the wrong directory and failed read-only; the
+corrected evidence-directory check passed. No historical attempts were erased.
+
+Verification: repository contracts (92 Markdown files, nine ADRs), candidate
+secrets and synthetic negative control, git diff --check, all eight SHA-256
+manifest entries, independent exported observation parsing (three logs, three
+qualified sections), exact retained-data comparison and public-path checks.
+Verified append-only log history and unchanged production/dependency/tooling
+sources. These are Mac preparation/document checks, not native Linux execution.
+The user explicitly authorized committing and pushing useful Mac results and
+this handoff to the existing work branch. M12 remains open; no merge, PR, tag,
+release, corporate probe or binary publication is included.
