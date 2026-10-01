@@ -319,8 +319,13 @@ experimental runtime results remain separate. The subsequent
 [standard-account/real-console observation](m12-windows-standard-observation.md)
 passed with the same package, separate automatic and physical confirmations,
 return-time integrity and verified fixture cleanup. Its preceding failed attempt
-remains retained. Runtime-floor/independence reconciliation remains open; the
-second account is on the same host.
+remains retained. Other platform runtime-floor/independence mappings remain open; the
+second account is on the same host. The later
+[automatic Windows audit](m12-windows-runtime-independence.md) closes its separate
+development-environment independence delta using fresh allowlisted configuration
+and reviewed loaded modules. The exact-package 19045 floor remains verified.
+Remaining platform mappings, retained Mac macOS 14 execution and global acceptance
+remain open. A separate Windows installation is not an independence prerequisite.
 
 The [Mac regression report](m12-macos-distribution-regression.md) and
 [numeric evidence](evidence/m12-macos-distribution-20261001/README.md) map native

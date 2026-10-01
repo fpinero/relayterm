@@ -2588,3 +2588,80 @@ fixtures and evidence payloads. This is handoff/document verification, not fresh
 runtime or hosted evidence. Failed attempts and all original private state remain
 preserved. Authorized delivery is the Windows handoff/result branch push only;
 no main merge, PR, tag, release, binary upload or external chat message is included.
+
+## 2026-10-01: M12.WINDOWS-RUNTIME-INDEPENDENCE
+
+Verified the supplied runtime-audit ZIP SHA-256 and every bundled manifest entry
+before use. Ran its synthetic tests from the extracted root: nine tests, eight
+passed and one explicitly non-Windows control skipped. Natively parsed original
+and corrected generated collectors with system Windows PowerShell. Python was
+64-bit. Used the complete unchanged f2b3f6f 13-file package and fresh private output
+roots outside candidate and checkout, preserving original state and prior evidence.
+
+The first native attempt exited 1 at module_inventory: the Python driver inherited
+a PSModulePath that prevented Windows PowerShell Get-FileHash discovery. Preserved
+all raw outputs, state and failed result. Initialization/IPC/real session creation
+had returned accepted JSON; owned daemon stop returned stopped and a subsequent
+scoped inventory was empty. Bounded driver-only probes reproduced inherited-path
+failure (exit 1) and discovery without that driver variable (exit 0). Corrected
+only collector hashing to framework SHA-256 with disposed streams; no product,
+module-origin/hash requirement, runtime prerequisite or security setting changed.
+
+The final runner SHA-256 is
+5f217292a2d533e5b35cebcdb6a02ff5d719b4d054a33a43530ff6cd398c95a5.
+The corrected fixture's same nine tests again passed with the explicit platform
+skip, native parsing passed and the full automatic attempt exited 0. Help/version,
+accepted fresh initialization, IPC, running cmd.exe PTY, input/normal session exit 0,
+normal daemon stop and original/copied 13-file integrity passed. The product had
+only allowlisted Windows paths and fresh profile/TEMP/workspace/private state;
+Python/PowerShell remained external drivers. The non-elevated filtered development
+token is recorded standard_account=false, not relabelled as a standard account.
+
+Reviewed 70 module records across the daemon, packaged helper and synthetic shell:
+43 unique files, three matching package pins and 40 Windows files. Independent
+post-snapshot hashes all matched. Forty Windows files and both Microsoft packaged
+runtime files had valid Microsoft catalog/Authenticode signatures. The pinned
+unsigned rt.exe remains the original candidate. System32 VCRUNTIME140.dll matched
+the declared hash/version; no prerequisite change was needed. All three recorded
+PID/UTC creation-time identities were absent after normal shutdown and on return;
+no process was forcibly killed. Failed and successful fixture states remain private.
+
+Prepared the reviewed sanitized result, retained failed result, signature/hash
+module disposition, numeric cleanup proof and original/final script identities.
+Repository contracts passed (99 Markdown files, nine ADRs), secret scan and its
+synthetic negative control passed, whitespace checks passed, and five public JSON
+payloads were checked for private identifiers/paths and canonical LF hashes.
+Only Windows development-environment independence closes under the explicitly
+permitted audited user-environment definition. Existing exact-package Windows
+19045 floor and physical evidence are reused; no separate machine is required.
+Retained Mac macOS 14 execution, the real-agent trial and global acceptance remain
+open. No visual/performance/full battery/VM journey, rebuild, CI, corporate probe,
+system change, push, main merge, PR, tag, release or binary publication occurred.
+
+## 2026-10-01: M12.WINDOWS-RUNTIME-DELIVERY
+
+Audited remaining Windows work against the current closure table, ordinary
+package report, completed standard-account/runtime audit and ACL diagnostic
+contract. No further automatic retained-package runtime check is pending in
+this bounded continuation. Runtime floor, physical account/console, distribution,
+ordinary sustained/helper and audited-user-environment independence evidence
+must be reused. The ACL/1355 instrumented diagnostic is separate pending engineering
+work; no instrumented reproducer or actual blocked-host condition is available
+here and corporate execution remains deferred. A successful init is not a 1355
+reproduction or root-cause explanation. No speculative product patch was attempted.
+
+Prepared the Mac orchestrator runtime handoff with exact fixture/product identities,
+reviewed passing and failed JSON, module signatures/hashes, cleanup disposition,
+remaining Windows/global limits and canonical evidence verification instructions.
+The operator now authorizes this sanitized Windows result-branch push and asks
+that continuation follow the Mac orchestrator's next bounded direction. This
+supersedes the preceding no-push instruction for these results only, not main
+merges, PRs, tags, releases, binaries or new CI/security/corporate actions.
+
+Verification: repository contracts passed (100 Markdown files, nine ADRs), candidate
+secret scan and synthetic negative control passed, and whitespace checks passed.
+All five canonical LF evidence entries match their hashes, the final runner bytes
+match the actually executed identity, result scope remains non-elevated filtered
+account/automatic-only, and production/dependency files remain unchanged. Existing
+native/synthetic passes are reused rather than repeated. Original dirty checkout,
+raw state/logs and failed attempts remain preserved. Global M12 is not closed.

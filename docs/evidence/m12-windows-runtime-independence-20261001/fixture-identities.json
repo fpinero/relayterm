@@ -1,0 +1,47 @@
+{
+  "native_parser_passed": true,
+  "synthetic_tests": {
+    "run": 9,
+    "skip_reason": "non-Windows execution control is not applicable on Windows",
+    "skipped": 1,
+    "passed": 8
+  },
+  "zip_sha256": "0bac0b072ba220393b9574e420223134ae2a0a69d2942ef14326489f2bfc3adc",
+  "bundle_manifest_verified": true,
+  "archive_locally_rehashed": false,
+  "original_runner_sha256": "717bed70b3318def0c8e0181568a437192f82003fccfa5e8a5ae44c19b0d0a4f",
+  "module_path_diagnosis": {
+    "without_inherited_module_path_exit": 0,
+    "inherited_driver_exit": 1
+  },
+  "final_collector_sha256": "60cdac0e9b9dee6b7b6fc15b52c0bd092408d5e6430ad699f570e3e404244dbf",
+  "original_collector_sha256": "31fc2fea306b1ef01b96c321bb6c85db1912cb31a2ee41892dbe4a9404cab83a",
+  "global_M12_acceptance": false,
+  "native_attempts": [
+    {
+      "exit_code": 1,
+      "reason": "inherited PSModulePath prevents Get-FileHash discovery",
+      "fixture_cleanup_verified": true,
+      "stage": "module_inventory",
+      "attempt": 1
+    },
+    {
+      "exit_code": 0,
+      "status": "passed",
+      "attempt": 2
+    }
+  ],
+  "python_bits": 64,
+  "inventory_sha256": "6694fd3da7b17e6a54b9472f17dbc87021049137b24ca3c27d42a758c9851bf3",
+  "final_runner_sha256": "5f217292a2d533e5b35cebcdb6a02ff5d719b4d054a33a43530ff6cd398c95a5",
+  "test_script_sha256": "47f42e96802fc31cc826a5b82066c888446c1caf6b51c609f0c9c3045866261c",
+  "fixture_correction": "Use framework SHA-256 for module hashing, without changing predicates or product environment",
+  "module_closure": {
+    "unique_files": 43,
+    "unsigned_pinned_rt_files": 1,
+    "total_records": 70,
+    "Microsoft_valid_signed_files": 42,
+    "Windows_files": 40,
+    "candidate_files": 3
+  }
+}

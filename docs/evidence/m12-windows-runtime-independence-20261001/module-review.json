@@ -1,0 +1,346 @@
+[
+  {
+    "sha256": "39fba2713e2495117b1591ae8c32a3b904bea7aa66069cf7815e2844c76d75d8",
+    "signature_type": "Authenticode",
+    "origin": "candidate",
+    "name": "conpty.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "b7fd936c2668b87b9ecf7b3366dc6568afc1c6f981874cba3e955a1c35cf8160",
+    "signature_type": "Authenticode",
+    "origin": "candidate",
+    "name": "OpenConsole.exe",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "ce1ae04c16430bcd37fa91810fd613f38ef06feca83d5cea29c1056525c92efa",
+    "signature_type": "None",
+    "origin": "candidate",
+    "name": "rt.exe",
+    "publisher": "unsigned retained Relayterm candidate",
+    "signature_status": "NotSigned"
+  },
+  {
+    "sha256": "fe875dfe559d8bbcf1f3701405fe43d37078896280001697c6f2f2bc060af3df",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "advapi32.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "6f2a8aff95cea688fe4ec679c1b3d48a6194f414e7d0cdde3004ba83453a5ed0",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "apphelp.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "54ea6103870ed2799daa841a2103ce7b63146d0a66db326a16976549a7f53924",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "bcrypt.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "a315ca95eefb9c51ba61fe263dd96160b3c31ebca964743709124ea6d19002fa",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "bcryptPrimitives.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "badf4752413cb0cbdc03fb95820ca167f0cdc63b597ccdb5ef43111180e088b0",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "cmd.exe",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "b7a2ff0a46714f3efa95b86bc17ff66f236950079d1afc10c3439397259686ee",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "combase.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "1c106a9a13257b321fe9fd33087191eaf1a6b64d3ac3a2d4b40f723f0610a2ee",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "CRYPTSP.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "cfd1ca9f44ae783e57f78d3975094de25555bf013c10365db1c6e2c34e4eccbb",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "d2d1.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "0928927d92d8bbe236221be5f4b209ac707eb94a893c072abb183b52416197d7",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "d3d11.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "8c6d644f86724b542a490eb4f2bfdfad759998b9a3c51fa46eb5dfc5460ed9d7",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "D3DCOMPILER_47.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "a0bc6c8d2232b7c71f094e1c6b0161424e34455e869b451de82c697e368f2cc4",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "DWrite.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "346453f1a82e0e6995d038c4dcc177a00d1ce55ef767d2021291f9184c2b43fc",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "dxgi.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "24ecd7663f7f3a6e20a89c49620f6ecd0e9810078df5113cea91ea042596c2bc",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "GDI32.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "1354e21c5da49ee9aeee6c8e58734c0ba0f3d2cebee281c8e9b573d619080ba5",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "gdi32full.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "2a882bc0df58f4f6dd906889b1fb6d7b7bc70da7109e016e0f1e67b264d073b6",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "IMM32.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "7db088338b81ad0a5030ae73adb3202004ccedd79d92a87ceb91483ba09e6728",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "KERNEL32.DLL",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "d61c22640e212b29c206ddacba658ac1a5bed3761d0364476fcd7d2c26389ded",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "KERNELBASE.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "7d6840ab8847eda1c930beedb6da966888bdbe6cea9114b7613850dc9a598f8d",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "msvcp_win.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "5af062f7f5e969b62ce506a6fb58bec5c56060f4ae57a7db46c387289625d8ad",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "msvcrt.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "3063ca9a91d64bfb319c805def6c7f89158d4f33a3167b728c7421cd26b90a5b",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "ntdll.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "252d198d0660d7d021209c25ed91333a63ccb00e47b00521af9cb562ca1d7e3a",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "ntmarta.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "af667d5a9ccdd98df16afd12d0c7f8df24301c029f6e9c68303427db2c1580ba",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "OLEAUT32.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "daed04c5a01ac5308ca3e56a085e6dfa8408add2c0aa1788c2f53a48d0da8248",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "PROPSYS.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "23b935e0c28fe80e75807533d7f335991abd8e30a30a266ea3daa25827f11d30",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "RPCRT4.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "3d6190ae1633215749f0cda96fc8400aaeada2eae0b85e7088f2d289b15ad7d7",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "SAMLIB.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "a00c44cc2ca38598744517f48cc6b9ccd9af97f3d37d97921df9b8255fcddabc",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "sechost.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "e20c2651fffa055adc3179f37fec4439f937bc3f50fa2a130fa4b8ca4f2940ac",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "shcore.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "4d5d5c2c8cfe9be6e48fee7d03cf7945e793b123280612d360ec6884bfd6bb97",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "SHELL32.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "185b56b4f32ee97a308471bf0e4a7615f861958b2d1231386d7ef07193db9808",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "ucrtbase.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "0186185878d9f5c2e1aefc29015717b3d905b587e0700f3c0452f251bf52a41f",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "uiautomationcore.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "b73464e740e356eafbe0296ae1cbec5be535ae3422750998bc1e230c75b30e4a",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "user32.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "749806dceea5635ef7a919046423befa6529009c3e9e91e515a2bff833185944",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "USP10.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "85e26787282d70d203026e393242a8616cfd832d4e68db466151301b6063af4e",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "uxtheme.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "d5e4d9a3e835fa679450145d6a7d94e36573a509317111904d9b3712c30d9066",
+    "signature_type": "Authenticode",
+    "origin": "Windows",
+    "name": "VCRUNTIME140.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "c5b17809e15d620022630cbc36874ba4e3421e76f606ceb9899f67137c6bcedd",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "win32u.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "e20c95d2aa14bcadec24e5353fbd6d502f0026fbe32cb4efa724c735f763e653",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "winbrand.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "9c1463e58be7d4d4e4d45ff9709aa000be3ac2b06cd850bfa43db2d9603501a3",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "windows.storage.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "ead9055dc522bcab041c8eb7b875adb681a2f1fa851d4075789d78d0242711a0",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "WINMM.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "d8024c6afcfe7b3442b315e03ca3379e0a2be242be40933700fa084aef87827a",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "Wldp.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  },
+  {
+    "sha256": "a417e3a17d46b309d18e35591c83dd138a048b86ff74bfc4de19d73315dfb7d8",
+    "signature_type": "Catalog",
+    "origin": "Windows",
+    "name": "ws2_32.dll",
+    "publisher": "Microsoft Corporation",
+    "signature_status": "Valid"
+  }
+]

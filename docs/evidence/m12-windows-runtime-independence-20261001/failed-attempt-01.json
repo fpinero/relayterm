@@ -1,0 +1,17 @@
+{
+  "archive_locally_rehashed": false,
+  "archive_sha256_mapping": "039676c0665363fed10d0ed746e636a175351d8506a4076a75820fd7e9ef3d50",
+  "automatic_only": true,
+  "candidate_sha256": "ce1ae04c16430bcd37fa91810fd613f38ef06feca83d5cea29c1056525c92efa",
+  "elevated": false,
+  "error_type": "RuntimeError",
+  "failure_cleanup": "owned daemon stop requested",
+  "failure_stage": "module_inventory",
+  "filesystem_sandbox": false,
+  "global_M12_acceptance": false,
+  "os_version": "10.0.19045.0",
+  "product_source": "f2b3f6f446466f5b3657c3cd91746735cab59d78",
+  "standard_account": false,
+  "status": "failed",
+  "windows_10_floor_execution": true
+}

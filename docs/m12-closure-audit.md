@@ -25,10 +25,20 @@ Use the [Mac orchestrator handoff](m12-windows-standard-observation-mac-handoff.
 to consume the checked evidence and reconcile it with newer Mac/Linux work without
 overwriting those checkpoints.
 
+The subsequent [automatic Windows runtime independence audit](m12-windows-runtime-independence.md)
+also passed. Its fresh allowlisted user environment and reviewed loaded-module
+closure satisfy the plan's development-environment independence definition,
+without requiring another computer or Windows installation. Reuse the existing
+19045 exact-package runtime-floor proof. The non-elevated development token in
+this automatic audit is not relabelled as a standard account. The operator
+subsequently authorized its sanitized Windows-branch delivery. Use the
+[runtime handoff](m12-windows-runtime-independence-mac-handoff.md) for the remaining
+Windows check disposition; global acceptance remains open.
+
 | Remaining gate | Next bounded action | Evidence that must be reused |
 | --- | --- | --- |
 | Native Linux delta | Follow the [bounded Linux handoff](m12-linux-distribution-handoff.md) for affected dependency/tooling, locked workspace/resource/fault and exact-package checks; Mac execution cannot certify Linux. | Existing unaffected Linux physical and isolated-runtime observations. |
-| Runtime floor and independence | Reconcile existing Mac/Linux/Windows VM isolation and declared oldest OS with changed dependencies/artifacts. Execute only genuinely missing proof, recording its environment; do not relabel developer-host smoke as an independent machine. | Existing Mac isolation, Linux independent runtime and Windows 11 VM journey, each at its original source. |
+| Runtime floor and independence | Reconcile remaining platform mappings, including retained Mac-binary execution on macOS 14. Windows floor and audited-user-environment independence now have mapped proof; neither needs another physical journey or a separate Windows installation. Execute only genuinely missing proof. | Exact Windows 19045 floor and automatic dependency audit, existing Mac isolation, Linux independent runtime and Windows 11 VM journey, each at its original source. |
 | Hosted and final acceptance | Obtain current native hosted quality/security coverage when explicitly authorized, then reconcile AC-1 through AC-16, phases and the three-target artifact inventory. | Old hosted jobs retain ancestor scope; local cached cargo deny is not fresh hosted security coverage. |
 | Practical trial | Complete the prepared private real-agent implementation/test/review handovers with the operator and an explicitly hashed executable. | Existing trial preparation and private state; version probes alone are not authentication or interactive success. |
 | Publication | Prepare the reviewed inventory and request the maintainer's concrete publication decision after technical gates pass. | No release, tag, merge, PR or binary upload is authorized by this continuation. |

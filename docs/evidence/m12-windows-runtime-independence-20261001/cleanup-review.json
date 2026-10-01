@@ -1,0 +1,21 @@
+{
+  "remaining_pid_creation_time_matches": 0,
+  "forced_termination": false,
+  "recorded_processes": [
+    {
+      "pid": 13316,
+      "created_utc": "2026-10-01T17:05:14.107316Z"
+    },
+    {
+      "pid": 29932,
+      "created_utc": "2026-10-01T17:05:14.587796Z"
+    },
+    {
+      "pid": 30116,
+      "created_utc": "2026-10-01T17:05:14.601157Z"
+    }
+  ],
+  "failed_attempt_daemon_stop_accepted": true,
+  "successful_after_snapshot_empty": true,
+  "failed_attempt_return_snapshot_empty": true
+}

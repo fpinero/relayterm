@@ -159,7 +159,11 @@ No account creation, policy change, elevation, system installation or rebuild wa
 performed by this continuation.
 
 Mac/Linux affected dependency, tooling and package regressions remain for their native
-hosts. Final-source/global acceptance, clean-machine/runtime-floor independence and
+hosts. The [automatic runtime audit](m12-windows-runtime-independence.md) now verifies
+Windows development-environment independence with fresh product configuration and
+reviewed package/Windows-only loaded dependencies. The existing exact Windows 19045
+floor proof is reused. Another computer or Windows installation is not required
+for that audit. Remaining platform runtime mappings, final-source/global acceptance and
 practical trial remain open. Existing unaffected physical, SSH and Windows 11 VM
 journeys are reused. Corporate execution remains deferred; no FortiClient causality
 or ACL/reputation root cause is established. No push, merge, tag, release or upload
