@@ -42,3 +42,8 @@ all = "warn"
 
 [patch.crates-io]
 portable-pty-psmux = { path = "third_party/portable-pty-psmux" }
+
+# Keep terminal parsing responsive in development without disabling debug checks
+# in Relayterm or changing the production release profile.
+[profile.dev.package.vt100]
+opt-level = 1

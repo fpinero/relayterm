@@ -12,12 +12,19 @@ runtime integration, ordinary debug/release sustained measurements and helper
 resource/lifecycle automation for its exact f2b3f6f package. The
 [Mac distribution regression](m12-macos-distribution-regression.md) closes
 native Mac dependency/tooling, workspace, resource/fault, reproducible package,
-exact-extracted tests and POSIX installer checks at e712603. These are distinct
-artifacts; earlier failures are retained and global acceptance is still open.
+exact-extracted tests and POSIX installer checks at e712603. The [Linux distribution report](m12-linux-distribution-regression.md) closes the
+native Linux regression and new exact-package isolated Ubuntu runtime at 6486da6.
+It retains the initial failed load scenario and adds only opt-level 1 for vt100
+in the development profile. Linux product/ELF proof is Ubuntu 24.04 x86_64,
+glibc 2.39; ARM64, musl and older distributions are not covered. All three native
+platform continuations now have mapped production artifacts. The imported parser
+profile needs affected Mac development checks and current hosted verification.
+These are distinct artifacts; earlier failures are retained and global acceptance
+is still open.
 
 | Remaining gate | Next bounded action | Evidence that must be reused |
 | --- | --- | --- |
-| Native Linux delta | Follow the [bounded Linux handoff](m12-linux-distribution-handoff.md) for affected dependency/tooling, locked workspace/resource/fault and exact-package checks; Mac execution cannot certify Linux. | Existing unaffected Linux physical and isolated-runtime observations. |
+| Mac development profile | Verify the imported vt100 development-profile change with native Mac debug/workspace/resource checks. Preserve the production package and existing physical/SSH evidence. | Release settings and runtime source are unchanged; no new production artifact or manual journey is requested. |
 | Windows operator delta | Use the [single-switch Windows handoff](m12-windows-standard-account-handoff.md): prepare the shared synthetic kit first, then run the observer in an actual standard account and normal console with the final package hash. Record input, narrower/wider redraw, normal exit and restoration. A filtered administrator token is insufficient. | Passed ordinary package, sustained/helper, installation and automated runtime-negative checks. No new Windows build is required for this observation. |
 | Runtime floor and independence | Reconcile existing Mac/Linux/Windows VM isolation and declared oldest OS with changed dependencies/artifacts. Execute only genuinely missing proof, recording its environment; do not relabel developer-host smoke as an independent machine. | Existing Mac isolation, Linux independent runtime and Windows 11 VM journey, each at its original source. |
 | Hosted and final acceptance | Obtain current native hosted quality/security coverage when explicitly authorized, then reconcile AC-1 through AC-16, phases and the three-target artifact inventory. | Old hosted jobs retain ancestor scope; local cached cargo deny is not fresh hosted security coverage. |

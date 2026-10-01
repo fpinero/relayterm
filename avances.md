@@ -2493,3 +2493,105 @@ Useful source handoff delivery remains authorized by the operator's preceding
 request. The copied Windows request separately authorizes its verified result
 branch push only. No main merge, PR, tag, release, binary upload, corporate probe,
 persistent security change or account operation was performed from this Mac.
+
+
+## 2026-10-01: M12.LINUX-DISTRIBUTION-REGRESSION
+
+Completed the bounded native Linux continuation on Ubuntu 24.04.5 LTS x86_64,
+Rust/Cargo 1.98.1, glibc 2.39. Fetched delivery 3845420 and verified its
+post-e712603 delta is documentation/evidence only. Preserved the original clean
+checkout's work branch, packages, logs, backups and stopped isolated runtime.
+Used fix/m12-linux-distribution-validation and retained all attempts privately.
+
+The original workspace exited 101 at a sustained consumption interval failure.
+Serial diagnostics measured pipe/native output at 3.15 MB/s and daemon output
+at 2.43 MB/s; parser processing dominated the 16 MiB component workload.
+Committed correction 6486da6 optimizes only vt100 in the development profile,
+retaining debug checks, release settings, locked versions and all thresholds.
+The original unqualified measurements remain exported, never counted as a pass.
+
+Verification: workspace/vendor rustfmt; default and all-feature/all-target Clippy
+with warnings denied; vendored Unix library test; six Python modules (31 tests,
+five Windows skips); repository/secret negative controls; 290-commit Gitleaks;
+explicit advisory preparation, online and subsequent offline cargo-deny, and
+license/ban negative controls. Corrected complete locked offline workspace passed
+205 tests, zero failures and 25 ignores across 48 groups in 438.893 seconds under
+1,200 seconds. Explicit resources passed 60 samples, 100 reconnects including
+20 abrupt, descriptors 43 to 43, maximum daemon/TUI 352862208/27197440 bytes.
+SQLite pre-commit kill/rollback, Git cancellation and two ignored Git descendant
+containment tests passed. No timeout or acceptance-budget change occurred.
+
+Two clean 6486da6 native release builds passed in 451.747/451.717 seconds under
+900 seconds each. Binary/archive bytes, build records, package manifests and both
+SHA256SUMS matched. Nine-file inventory, x86-64 ELF/interpreter/dependencies and
+GLIBC_2.39 floor, constrained-PATH archive smoke and real POSIX installation,
+Bash/sh discovery, executable-command collision, reinstallation refusal and scoped
+owned removal passed. Executable SHA-256:
+248c36e33d25601cb2dcee5d8dc2760b881dded44c79845fd79d85f5ef027236.
+Archive SHA-256:
+e2e716d3549681b129fc8813c2e4ba7d62f97cadaef8764e96bf75b4b6e9797b.
+Unsigned 0.1.0 release profile, empty production features; no binary publication.
+
+Exact-installed tui_gate, session_presentation, worktree_gate and populated
+backup_restore passed 14 tests with five ignores and unchanged hashes.
+Independent scripts/verify_sustained_evidence.py and private arithmetic qualify
+three accepted sections: debug hardening 40.603/208.177 ms, debug TUI
+21.080/226.600 ms and installed release 21.040/126.230 ms navigation/echo p95.
+All original interval/window/duration/sample budgets hold; the original failed
+section remains unqualified. No build overlapped sustained measurements.
+
+The existing unprivileged Ubuntu 24.04 container ran the exact new candidate
+without network, mounts or development tooling. New paths preserved old state.
+Installed discovery/collision, initialization, three PTYs/input, claim rejection,
+progress/handover/successor/completion, history readback, automated TUI normal exit/
+restoration, continuity and private backup/fresh-home recovery passed. Old install
+and backup hashes matched before/after; both new daemons stopped normally. Two
+exited daemon entries remained unreaped under sleep PID 1 before container stop;
+no live product process remained. Container and all old/new state are retained.
+
+Added the public Linux report and nine sanitized evidence files plus SHA256SUMS,
+updated the current closure table and acceptance matrix, removed only the verified
+Linux task and refined hosted-only/native remaining boundaries. Raw drivers/logs,
+private paths, packages, binaries and databases remain outside Git. Existing
+physical/SSH observations retain original source mappings, with no new screenshots,
+corporate access, security changes or provider trial. M12 remains open for Windows
+operator proof, non-Linux runtime-floor/independence, hosted/final acceptance,
+private practical trial and later publication decision. Only the Linux branch push
+is authorized; no main merge, PR, tag, release or binary upload.
+
+The first public numeric export omitted headers printed inline after test names.
+Its verifier returned zero sections, and an exact-count integrity assertion failed.
+The incomplete export is preserved privately. Correcting only the sanitized
+headers restored four public sections with three qualified; numeric values and
+private original evidence are unchanged. Public repository/secrets/whitespace
+checks and independent private arithmetic had passed before this export issue.
+Append-only prefix comparison against 3845420 and unchanged crates/scripts/vendor/
+lock/toolchain checks passed. The sole build configuration delta is the documented
+development parser profile; final delivery checks cover the corrected export.
+
+Final public contracts passed for 95 Markdown files and nine ADRs. The prepared
+candidate secret scanner/control and history scan of 291 commits passed. All nine
+exported file hashes matched. The initial staged check caught an extra EOF blank
+line in the new untracked report; trimming it made the repeated staged check pass.
+The staged evidence blobs matched their external SHA256SUMS before delivery.
+
+## 2026-10-01: Linux handoff for the Mac orchestrator
+
+Completed M12.LINUX-ORCHESTRATOR-HANDOFF by adding
+`docs/m12-linux-to-macos-handoff.md`. It identifies the Linux source correction,
+public evidence commit, exact artifact hashes and tested Ubuntu/glibc scope.
+It records the newer shared documentation revision b5f8865 and directs integration
+to preserve its Windows standard-account handoff, both append-only histories and
+pending-only queue. No additional Linux execution remains in the requested scope;
+global M12 acceptance and the finite non-Linux/coordination gates remain open.
+No source or artifact change was made for this handoff.
+
+Verified the public repository contracts (96 Markdown files, nine ADRs), all nine
+Linux evidence hashes and fresh sustained arithmetic: exactly four sections,
+three qualified, original failed section unqualified. The public secret scan
+and synthetic negative control passed using the existing private pinned tooling.
+The first invocation could not locate Gitleaks in the ordinary shell PATH;
+that attempt was preserved privately and the check repeated with the prepared
+PATH, without changing system configuration. The existing logbook prefix was
+verified unchanged. Work-branch delivery retains the already published source
+and evidence commits; final staged/publication controls are recorded privately.

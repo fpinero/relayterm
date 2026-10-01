@@ -14,6 +14,13 @@ cargo run -p relayterm-cli --bin rt -- --help
 
 Fetch first: the architecture tests inspect the locked graph for all targets, including dependencies not compiled on the current host. After fetching, the Rust tests can run offline. Initial dependency/toolchain installation needs network access; the `rt` bootstrap does not.
 
+The development profile optimizes the `vt100` dependency at level 1 so terminal
+parsing can sustain the declared output workload on the Linux reference laptop.
+Relayterm crates retain their default debug settings, and dependency debug checks
+remain enabled. The release profile, locked dependency versions, reader sizes and
+acceptance workloads are unchanged. Record this profile input when comparing
+development measurements with historical unoptimized-parser runs.
+
 ## Required checks
 
 ```sh

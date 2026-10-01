@@ -330,3 +330,35 @@ remaining native regression. Reuse completed physical/SSH/isolated-runtime evide
 with source impact assessment. The current closure table owns outstanding global
 requirements; dated next-action statements above do not restart completed work.
 No AC or global M12 completion is inferred from these two platform checkpoints.
+
+
+## Linux distribution regression on 2026-10-01
+
+The [Linux report](m12-linux-distribution-regression.md) and
+[numeric evidence](evidence/m12-linux-distribution-20261001/README.md) map native
+Ubuntu 24.04.5 x86_64 verification to requested e712603 and committed correction
+6486da6. An original workspace sustained-load failure remains unqualified.
+Serial diagnostics support a level-1 vt100 development-profile correction without
+changing release settings, dependency versions, reader size or acceptance budgets.
+The corrected locked offline workspace passed 205 tests, with zero failures and
+25 ignores. Resource/fault/descendant gates and three independently qualified
+sustained sections pass. Fresh hosted coverage must include this profile input.
+
+Two clean production binaries and nine-file archives are byte-identical.
+Executable SHA-256 is
+248c36e33d25601cb2dcee5d8dc2760b881dded44c79845fd79d85f5ef027236;
+archive SHA-256 is
+e2e716d3549681b129fc8813c2e4ba7d62f97cadaef8764e96bf75b4b6e9797b.
+ELF requires GLIBC_2.39. Exact-installed TUI/presentation/worktrees/populated
+backup gates passed 14 tests, with unchanged hashes. Packaged POSIX discovery,
+executable-command collision, reinstallation refusal and owned removal pass.
+The same exact candidate passes installed coordination/TUI/recovery in the retained
+unprivileged Ubuntu 24.04 runtime without network, host mounts or build tools.
+Old runtime install/backup checksums remain unchanged.
+
+This closes only the Linux portion of the current distribution regression,
+supporting affected AC-1 through AC-10, AC-12 through AC-16 within the report's
+scope. Existing physical and SSH observations retain their original identities.
+Windows operator observations, non-Linux runtime-floor/independence reconciliation,
+fresh hosted quality/security, private practical trial and final AC/phase/artifact
+sign-off remain in the current closure audit. No global AC or M12 completion follows.
