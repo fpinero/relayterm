@@ -2344,3 +2344,28 @@ Original source-file hashes remained unchanged. No corporate probes, repeated
 physical/SSH/VM journey, persistent policy/account change, system install,
 push, merge, tag, release or upload occurred. Operator real-console/standard
 account observations and affected Mac/Linux/global acceptance remain pending.
+
+
+## 2026-10-01: M12 Windows shared handoff
+
+- M12.WINDOWS-SHARED-HANDOFF: Added the public-safe numeric evidence export and
+  Mac/Linux continuation guide. Preserved all 118 driver outcomes, including 19
+  failures, preparation failures, artifact identities, PE inspection, all 15
+  numeric-only observation files and original thresholds. Raw logs, private host
+  inventories, runtime data, patches and binaries remain outside Git.
+- Directory-local Git attributes preserve the exact exported evidence bytes and
+  their SHA-256 manifest across Windows and Unix checkout line-ending settings.
+  Product source remains f2b3f6f; this sharing task changes no production code.
+- Verification: all 21 evidence data files matched the private export byte for
+  byte; independently reparsing every observation reproduced all original
+  sustained/resource fields. The verifier reported 15 logs, 11 scenarios and
+  11 qualified sections. Four verifier unit tests passed. Repository contracts
+  passed for 88 Markdown files and nine ADRs. Candidate secret scan and its
+  synthetic negative control passed; git diff --check passed. M12 remains open.
+- The operator explicitly authorized source/evidence sharing on the existing
+  branch. The verification checkpoint's earlier no-push condition is historical;
+  no merge, tag, release or runtime binary publication is authorized here.
+- The first staged whitespace check treated retained CRLF evidence as trailing
+  whitespace. The evidence-local cr-at-eol attribute corrected that interpretation
+  without changing evidence bytes, hashes or thresholds. The repeated staged check
+  passed, and all 21 staged Git blobs matched the evidence manifest.

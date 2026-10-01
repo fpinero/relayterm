@@ -117,8 +117,8 @@ Helper identities remained stable across reconnects. The loaded daemon module wa
 verified at the installed executable directory. Forced exit of a positively identified
 synthetic child left seven helpers; normal fixture exit left zero; a fresh shell made
 one; daemon shutdown left zero. The outer helper exited after closing its master.
-All original memory/plateau/handle checks passed. Raw helper/PID observations and
-independent calculations are in the private numerical evidence.
+All original memory/plateau/handle checks passed. Numeric helper/PID observations and
+independent calculations are in the [shared evidence](evidence/m12-windows-distribution-20260930/README.md).
 
 ## Failed attempts and corrections
 
@@ -158,4 +158,6 @@ Mac/Linux affected dependency, tooling and package regressions remain for their 
 hosts. Final-source/global acceptance, clean-machine/runtime-floor independence and
 practical trial remain open. Existing unaffected physical, SSH and Windows 11 VM
 journeys are reused. Corporate execution remains deferred; no FortiClient causality
-or ACL/reputation root cause is established. No push, merge, tag, release or upload.
+or ACL/reputation root cause is established. No push, merge, tag, release or upload
+occurred at the verification checkpoint. Subsequent source/evidence branch sharing
+was explicitly authorized. See the [Mac/Linux handoff](m12-windows-to-unix-handoff.md).

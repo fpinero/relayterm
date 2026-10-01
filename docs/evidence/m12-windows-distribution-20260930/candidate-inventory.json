@@ -1,0 +1,230 @@
+{
+  "artifact": {
+    "archive": {
+      "bytes": 5113812,
+      "name": "relayterm-0.1.0-x86_64-pc-windows-msvc.zip",
+      "sha256": "039676c0665363fed10d0ed746e636a175351d8506a4076a75820fd7e9ef3d50"
+    },
+    "binary": {
+      "bytes": 11835904,
+      "name": "rt.exe",
+      "sha256": "ce1ae04c16430bcd37fa91810fd613f38ef06feca83d5cea29c1056525c92efa"
+    },
+    "format_version": 1,
+    "product": "relayterm",
+    "signing": "unsigned",
+    "source_sha": "f2b3f6f446466f5b3657c3cd91746735cab59d78",
+    "target": "x86_64-pc-windows-msvc",
+    "version": "0.1.0"
+  },
+  "installation": {
+    "reinstallation_preserved": true,
+    "helper_collision_preserved": true,
+    "owned_removal_preserved_foreign_and_state": true,
+    "installed_matches_extracted": true,
+    "path_resolution_verified": true,
+    "inventory": {
+      "conpty.dll": "39fba2713e2495117b1591ae8c32a3b904bea7aa66069cf7815e2844c76d75d8",
+      "CONPTY_LICENSE.txt": "ad0cf28f3381ca9bb0bf101d127402d44c17bfa0991e1a00bff7ae6679e9dada",
+      "CONPTY_PROVENANCE.json": "91f857c8ca9f5083fe2972fd242d5e85c1d83f4735b522c10e78f9e5af69a97d",
+      "INSTALL.md": "eae6f6d2da38a3b75146ae0b978ef7a9edfda58ece88db3c2cc1e279bd37cb66",
+      "install_release.ps1": "cefe20aea7914c426ebb863c252930610f9ad746012bf4825e30ddfe581c1cd6",
+      "install_release.sh": "1eaa2aaafb777070e5f2cf6217497c0aea8af115bb1446a5747af5876eaf594e",
+      "LICENSE": "1eb85fc97224598dad1852b5d6483bbcf0aa8608790dcc657a5a2a761ae9c8c6",
+      "manifest.json": "3613459c018e6abfb0eddd205b94b216dccff83dfbf7b9aa4d84d11cecf06a09",
+      "OpenConsole.exe": "b7fd936c2668b87b9ecf7b3366dc6568afc1c6f981874cba3e955a1c35cf8160",
+      "RECOVERY.md": "712fe4e8880eda5c2e51dfb286f295415bed04108235587cfdbf41e23926e27b",
+      "rt.exe": "ce1ae04c16430bcd37fa91810fd613f38ef06feca83d5cea29c1056525c92efa",
+      "THIRD_PARTY_LICENSES.txt": "00b8da9371b195d70e44d1dee628b3e5b43107da68821b0ef04e4ac4aa873f1a",
+      "THIRD_PARTY_NOTICES.txt": "d5c47ddb251e95fc7d47e043e1491af3930b52cf3512c8a34842fa6d43d08a37"
+    }
+  },
+  "pe": {
+    "files": [
+      {
+        "file": "rt.exe",
+        "sha256": "ce1ae04c16430bcd37fa91810fd613f38ef06feca83d5cea29c1056525c92efa",
+        "machine": "0x8664",
+        "imports": [
+          "KERNEL32.dll",
+          "USER32.dll",
+          "VCRUNTIME140.dll",
+          "advapi32.dll",
+          "api-ms-win-core-synch-l1-2-0.dll",
+          "api-ms-win-crt-heap-l1-1-0.dll",
+          "api-ms-win-crt-locale-l1-1-0.dll",
+          "api-ms-win-crt-math-l1-1-0.dll",
+          "api-ms-win-crt-runtime-l1-1-0.dll",
+          "api-ms-win-crt-stdio-l1-1-0.dll",
+          "api-ms-win-crt-string-l1-1-0.dll",
+          "api-ms-win-crt-time-l1-1-0.dll",
+          "api-ms-win-crt-utility-l1-1-0.dll",
+          "bcryptprimitives.dll",
+          "combase.dll",
+          "kernel32.dll",
+          "ntdll.dll",
+          "oleaut32.dll",
+          "shell32.dll",
+          "ws2_32.dll"
+        ],
+        "outputs": {
+          "/headers": {
+            "log": "rt.exe-headers.log",
+            "sha256": "053d33ae67f895a913cc1fe4138960d2ca89b70d2fe898f2240696e90c306bdc"
+          },
+          "/imports": {
+            "log": "rt.exe-imports.log",
+            "sha256": "a0e09af77c8d1a1fe30d98a1fcff8503ff600a95da74e3586ebddaee729d163a"
+          }
+        }
+      },
+      {
+        "file": "conpty.dll",
+        "sha256": "39fba2713e2495117b1591ae8c32a3b904bea7aa66069cf7815e2844c76d75d8",
+        "machine": "0x8664",
+        "imports": [
+          "api-ms-win-core-debug-l1-1-0.dll",
+          "api-ms-win-core-errorhandling-l1-1-0.dll",
+          "api-ms-win-core-file-l1-1-0.dll",
+          "api-ms-win-core-file-l1-2-2.dll",
+          "api-ms-win-core-file-l2-1-0.dll",
+          "api-ms-win-core-handle-l1-1-0.dll",
+          "api-ms-win-core-heap-l1-1-0.dll",
+          "api-ms-win-core-heap-l2-1-0.dll",
+          "api-ms-win-core-interlocked-l1-1-0.dll",
+          "api-ms-win-core-libraryloader-l1-2-0.dll",
+          "api-ms-win-core-localization-l1-2-0.dll",
+          "api-ms-win-core-namedpipe-l1-1-0.dll",
+          "api-ms-win-core-processthreads-l1-1-0.dll",
+          "api-ms-win-core-processthreads-l1-1-1.dll",
+          "api-ms-win-core-profile-l1-1-0.dll",
+          "api-ms-win-core-psapi-l1-1-0.dll",
+          "api-ms-win-core-rtlsupport-l1-1-0.dll",
+          "api-ms-win-core-string-l1-1-0.dll",
+          "api-ms-win-core-synch-l1-1-0.dll",
+          "api-ms-win-core-synch-l1-2-0.dll",
+          "api-ms-win-core-sysinfo-l1-1-0.dll",
+          "api-ms-win-core-util-l1-1-0.dll",
+          "api-ms-win-core-wow64-l1-1-1.dll",
+          "api-ms-win-crt-heap-l1-1-0.dll",
+          "api-ms-win-crt-locale-l1-1-0.dll",
+          "api-ms-win-crt-runtime-l1-1-0.dll",
+          "api-ms-win-crt-stdio-l1-1-0.dll",
+          "api-ms-win-crt-string-l1-1-0.dll"
+        ],
+        "outputs": {
+          "/headers": {
+            "log": "conpty.dll-headers.log",
+            "sha256": "468730a6e9120c928c87208b4b10dad757a4c54c46435f4eff54db093e325ee8"
+          },
+          "/imports": {
+            "log": "conpty.dll-imports.log",
+            "sha256": "0bf7f023e40cc01d5d4b3ae9872c94d2f83a38dc02528644a549f7089a69b547"
+          },
+          "/exports": {
+            "log": "conpty.dll-exports.log",
+            "sha256": "7b89fa0d7299399a4cbb444d00bf53f50822525c16642090ca1dd7261e60a942"
+          }
+        }
+      },
+      {
+        "file": "OpenConsole.exe",
+        "sha256": "b7fd936c2668b87b9ecf7b3366dc6568afc1c6f981874cba3e955a1c35cf8160",
+        "machine": "0x8664",
+        "imports": [
+          "D3DCOMPILER_47.dll",
+          "DWrite.dll",
+          "GDI32.dll",
+          "IMM32.dll",
+          "OLEAUT32.dll",
+          "PROPSYS.dll",
+          "SHELL32.dll",
+          "USER32.dll",
+          "USP10.dll",
+          "WINMM.dll",
+          "api-ms-win-core-com-l1-1-0.dll",
+          "api-ms-win-core-debug-l1-1-0.dll",
+          "api-ms-win-core-errorhandling-l1-1-0.dll",
+          "api-ms-win-core-file-l1-1-0.dll",
+          "api-ms-win-core-file-l1-2-2.dll",
+          "api-ms-win-core-file-l2-1-0.dll",
+          "api-ms-win-core-handle-l1-1-0.dll",
+          "api-ms-win-core-heap-l1-1-0.dll",
+          "api-ms-win-core-heap-l2-1-0.dll",
+          "api-ms-win-core-heap-obsolete-l1-1-0.dll",
+          "api-ms-win-core-interlocked-l1-1-0.dll",
+          "api-ms-win-core-io-l1-1-0.dll",
+          "api-ms-win-core-largeinteger-l1-1-0.dll",
+          "api-ms-win-core-libraryloader-l1-2-0.dll",
+          "api-ms-win-core-libraryloader-l1-2-1.dll",
+          "api-ms-win-core-localization-l1-2-0.dll",
+          "api-ms-win-core-memory-l1-1-0.dll",
+          "api-ms-win-core-namedpipe-l1-1-0.dll",
+          "api-ms-win-core-path-l1-1-0.dll",
+          "api-ms-win-core-processenvironment-l1-1-0.dll",
+          "api-ms-win-core-processthreads-l1-1-0.dll",
+          "api-ms-win-core-processthreads-l1-1-1.dll",
+          "api-ms-win-core-processthreads-l1-1-3.dll",
+          "api-ms-win-core-profile-l1-1-0.dll",
+          "api-ms-win-core-psapi-l1-1-0.dll",
+          "api-ms-win-core-realtime-l1-1-0.dll",
+          "api-ms-win-core-registry-l1-1-0.dll",
+          "api-ms-win-core-registry-l2-1-0.dll",
+          "api-ms-win-core-rtlsupport-l1-1-0.dll",
+          "api-ms-win-core-shlwapi-legacy-l1-1-0.dll",
+          "api-ms-win-core-sidebyside-l1-1-0.dll",
+          "api-ms-win-core-string-l1-1-0.dll",
+          "api-ms-win-core-synch-l1-1-0.dll",
+          "api-ms-win-core-synch-l1-2-0.dll",
+          "api-ms-win-core-sysinfo-l1-1-0.dll",
+          "api-ms-win-core-threadpool-l1-2-0.dll",
+          "api-ms-win-core-util-l1-1-0.dll",
+          "api-ms-win-core-version-l1-1-0.dll",
+          "api-ms-win-core-winrt-error-l1-1-0.dll",
+          "api-ms-win-core-winrt-l1-1-0.dll",
+          "api-ms-win-core-winrt-string-l1-1-0.dll",
+          "api-ms-win-crt-convert-l1-1-0.dll",
+          "api-ms-win-crt-heap-l1-1-0.dll",
+          "api-ms-win-crt-locale-l1-1-0.dll",
+          "api-ms-win-crt-math-l1-1-0.dll",
+          "api-ms-win-crt-runtime-l1-1-0.dll",
+          "api-ms-win-crt-stdio-l1-1-0.dll",
+          "api-ms-win-crt-string-l1-1-0.dll",
+          "api-ms-win-eventing-provider-l1-1-0.dll",
+          "api-ms-win-ntuser-sysparams-l1-1-0.dll",
+          "api-ms-win-shcore-obsolete-l1-1-0.dll",
+          "api-ms-win-shcore-scaling-l1-1-1.dll",
+          "api-ms-win-shell-namespace-l1-1-0.dll",
+          "d2d1.dll",
+          "d3d11.dll",
+          "dxgi.dll",
+          "ext-ms-win-uiacore-l1-1-0.dll",
+          "ext-ms-win-uiacore-l1-1-1.dll",
+          "icu.dll",
+          "ntdll.dll"
+        ],
+        "outputs": {
+          "/headers": {
+            "log": "OpenConsole.exe-headers.log",
+            "sha256": "2d53dda4b485e5121391b3222d74362d791ee5a57fb59269300a8bfaeddac01b"
+          },
+          "/imports": {
+            "log": "OpenConsole.exe-imports.log",
+            "sha256": "3acdd16c62d3d2315ea309f7feee856c9b258f4275625d4f06b2d05acf1f9170"
+          }
+        }
+      }
+    ],
+    "system_prerequisites": [
+      {
+        "name": "VCRUNTIME140.dll",
+        "system32": true,
+        "version": "14.44.35211.0",
+        "sha256": "d5e4d9a3e835fa679450145d6a7d94e36573a509317111904d9b3712c30d9066"
+      }
+    ]
+  },
+  "product_source": "f2b3f6f446466f5b3657c3cd91746735cab59d78",
+  "final_source": "df241836f667bcd84873b971f1a1ad5986c1f358",
+  "signing": "unsigned"
+}

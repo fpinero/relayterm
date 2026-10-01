@@ -1,0 +1,2 @@
+# Preserve exported evidence bytes and SHA-256 identities on every host.
+* -text whitespace=cr-at-eol

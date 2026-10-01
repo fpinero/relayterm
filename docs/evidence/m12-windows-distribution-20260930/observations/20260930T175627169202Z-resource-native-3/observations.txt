@@ -1,0 +1,595 @@
+M12 runtime loaded_module_verified=true
+M12 resource process_id=8516 bytes=5455872 handles=61
+M12 resource process_id=9960 bytes=5451776 handles=61
+M12 resource process_id=10964 bytes=5431296 handles=60
+M12 resource process_id=12304 bytes=5455872 handles=61
+M12 resource process_id=12964 bytes=5464064 handles=61
+M12 resource process_id=15080 bytes=5459968 handles=61
+M12 resource process_id=16364 bytes=5451776 handles=61
+M12 resource process_id=22360 bytes=5439488 handles=61
+M12 resource process_id=15584 bytes=355385344 handles=259
+M12 resource process_id=17732 bytes=25047040 handles=143
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=25047040 aggregate_bytes=34783232 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355385344 aggregate_bytes=432926720
+M12 resource elapsed_ms=882 daemon_bytes=355385344 tui_bytes=25047040 fixture_bytes=43610112
+M12 resource process_id=8516 bytes=5455872 handles=61
+M12 resource process_id=9960 bytes=5451776 handles=61
+M12 resource process_id=10964 bytes=5431296 handles=60
+M12 resource process_id=12304 bytes=5455872 handles=61
+M12 resource process_id=12964 bytes=5464064 handles=61
+M12 resource process_id=15080 bytes=5459968 handles=61
+M12 resource process_id=16364 bytes=5451776 handles=61
+M12 resource process_id=22360 bytes=5439488 handles=61
+M12 resource process_id=15584 bytes=355454976 handles=259
+M12 resource process_id=17732 bytes=25243648 handles=143
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=25243648 aggregate_bytes=34979840 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355454976 aggregate_bytes=432996352
+M12 resource elapsed_ms=5037 daemon_bytes=355454976 tui_bytes=25243648 fixture_bytes=43610112
+M12 resource process_id=8516 bytes=5455872 handles=61
+M12 resource process_id=9960 bytes=5451776 handles=61
+M12 resource process_id=10964 bytes=5431296 handles=60
+M12 resource process_id=12304 bytes=5455872 handles=61
+M12 resource process_id=12964 bytes=5464064 handles=61
+M12 resource process_id=15080 bytes=5459968 handles=61
+M12 resource process_id=16364 bytes=5451776 handles=61
+M12 resource process_id=22360 bytes=5439488 handles=61
+M12 resource process_id=15584 bytes=355434496 handles=259
+M12 resource process_id=17732 bytes=24915968 handles=143
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=24915968 aggregate_bytes=34652160 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355434496 aggregate_bytes=432975872
+M12 resource elapsed_ms=8918 daemon_bytes=355434496 tui_bytes=24915968 fixture_bytes=43610112
+M12 resource process_id=8516 bytes=5455872 handles=61
+M12 resource process_id=9960 bytes=5451776 handles=61
+M12 resource process_id=10964 bytes=5431296 handles=60
+M12 resource process_id=12304 bytes=5455872 handles=61
+M12 resource process_id=12964 bytes=5464064 handles=61
+M12 resource process_id=15080 bytes=5459968 handles=61
+M12 resource process_id=16364 bytes=5451776 handles=61
+M12 resource process_id=22360 bytes=5439488 handles=61
+M12 resource process_id=15584 bytes=355434496 handles=259
+M12 resource process_id=17732 bytes=26198016 handles=143
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=26198016 aggregate_bytes=35934208 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355434496 aggregate_bytes=432975872
+M12 resource elapsed_ms=12782 daemon_bytes=355434496 tui_bytes=26198016 fixture_bytes=43610112
+M12 resource process_id=8516 bytes=5455872 handles=61
+M12 resource process_id=9960 bytes=5451776 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5455872 handles=61
+M12 resource process_id=12964 bytes=5464064 handles=61
+M12 resource process_id=15080 bytes=5459968 handles=61
+M12 resource process_id=16364 bytes=5451776 handles=61
+M12 resource process_id=22360 bytes=5439488 handles=61
+M12 resource process_id=15584 bytes=355434496 handles=261
+M12 resource process_id=17732 bytes=27172864 handles=143
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=27172864 aggregate_bytes=36909056 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355434496 aggregate_bytes=432975872
+M12 resource elapsed_ms=16628 daemon_bytes=355434496 tui_bytes=27172864 fixture_bytes=43565056
+M12 resource process_id=8516 bytes=5455872 handles=61
+M12 resource process_id=9960 bytes=5451776 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5455872 handles=61
+M12 resource process_id=12964 bytes=5464064 handles=61
+M12 resource process_id=15080 bytes=5459968 handles=61
+M12 resource process_id=16364 bytes=5451776 handles=60
+M12 resource process_id=22360 bytes=5439488 handles=61
+M12 resource process_id=15584 bytes=355438592 handles=261
+M12 resource process_id=17732 bytes=24420352 handles=143
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=24420352 aggregate_bytes=34156544 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355438592 aggregate_bytes=432979968
+M12 resource elapsed_ms=20666 daemon_bytes=355438592 tui_bytes=24420352 fixture_bytes=43565056
+M12 resource process_id=8516 bytes=5455872 handles=61
+M12 resource process_id=9960 bytes=5451776 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5455872 handles=61
+M12 resource process_id=12964 bytes=5464064 handles=61
+M12 resource process_id=15080 bytes=5459968 handles=61
+M12 resource process_id=16364 bytes=5451776 handles=61
+M12 resource process_id=22360 bytes=5439488 handles=61
+M12 resource process_id=15584 bytes=355434496 handles=261
+M12 resource process_id=17732 bytes=25292800 handles=143
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=25292800 aggregate_bytes=35028992 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355434496 aggregate_bytes=432975872
+M12 resource elapsed_ms=24770 daemon_bytes=355434496 tui_bytes=25292800 fixture_bytes=43565056
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5402624 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5394432 handles=61
+M12 resource process_id=15584 bytes=355430400 handles=261
+M12 resource process_id=17732 bytes=25333760 handles=143
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=25333760 aggregate_bytes=35069952 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355430400 aggregate_bytes=432971776
+M12 resource elapsed_ms=28784 daemon_bytes=355430400 tui_bytes=25333760 fixture_bytes=43237376
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5402624 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5394432 handles=61
+M12 resource process_id=15584 bytes=355442688 handles=261
+M12 resource process_id=17732 bytes=30445568 handles=144
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=30445568 aggregate_bytes=40181760 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355442688 aggregate_bytes=432984064
+M12 resource elapsed_ms=32870 daemon_bytes=355442688 tui_bytes=30445568 fixture_bytes=43237376
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5402624 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5394432 handles=61
+M12 resource process_id=15584 bytes=355446784 handles=261
+M12 resource process_id=17732 bytes=28143616 handles=144
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=28143616 aggregate_bytes=37879808 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355446784 aggregate_bytes=432988160
+M12 resource elapsed_ms=36865 daemon_bytes=355446784 tui_bytes=28143616 fixture_bytes=43237376
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355446784 handles=261
+M12 resource process_id=17732 bytes=30732288 handles=144
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=30732288 aggregate_bytes=40468480 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355446784 aggregate_bytes=432988160
+M12 resource elapsed_ms=40856 daemon_bytes=355446784 tui_bytes=30732288 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355442688 handles=260
+M12 resource process_id=17732 bytes=25530368 handles=144
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=25530368 aggregate_bytes=35266560 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355442688 aggregate_bytes=432984064
+M12 resource elapsed_ms=44954 daemon_bytes=355442688 tui_bytes=25530368 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355442688 handles=260
+M12 resource process_id=17732 bytes=30121984 handles=144
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=30121984 aggregate_bytes=39858176 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355442688 aggregate_bytes=432984064
+M12 resource elapsed_ms=49354 daemon_bytes=355442688 tui_bytes=30121984 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355438592 handles=260
+M12 resource process_id=17732 bytes=24383488 handles=144
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=24383488 aggregate_bytes=34119680 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355438592 aggregate_bytes=432979968
+M12 resource elapsed_ms=53439 daemon_bytes=355438592 tui_bytes=24383488 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355430400 handles=260
+M12 resource process_id=17732 bytes=25427968 handles=144
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=25427968 aggregate_bytes=35164160 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355430400 aggregate_bytes=432971776
+M12 resource elapsed_ms=57447 daemon_bytes=355430400 tui_bytes=25427968 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355438592 handles=260
+M12 resource process_id=17732 bytes=31477760 handles=145
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=31477760 aggregate_bytes=41213952 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355438592 aggregate_bytes=432979968
+M12 resource elapsed_ms=61456 daemon_bytes=355438592 tui_bytes=31477760 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355442688 handles=260
+M12 resource process_id=17732 bytes=31178752 handles=145
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=31178752 aggregate_bytes=40914944 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355442688 aggregate_bytes=432984064
+M12 resource elapsed_ms=65517 daemon_bytes=355442688 tui_bytes=31178752 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355446784 handles=260
+M12 resource process_id=17732 bytes=31703040 handles=145
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=31703040 aggregate_bytes=41439232 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355446784 aggregate_bytes=432988160
+M12 resource elapsed_ms=69715 daemon_bytes=355446784 tui_bytes=31703040 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355434496 handles=260
+M12 resource process_id=17732 bytes=31916032 handles=145
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=31916032 aggregate_bytes=41652224 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355434496 aggregate_bytes=432975872
+M12 resource elapsed_ms=73731 daemon_bytes=355434496 tui_bytes=31916032 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355434496 handles=260
+M12 resource process_id=17732 bytes=31240192 handles=145
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=31240192 aggregate_bytes=40976384 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355434496 aggregate_bytes=432975872
+M12 resource elapsed_ms=77758 daemon_bytes=355434496 tui_bytes=31240192 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355434496 handles=260
+M12 resource process_id=17732 bytes=32288768 handles=145
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=32288768 aggregate_bytes=42024960 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355434496 aggregate_bytes=432975872
+M12 resource elapsed_ms=81817 daemon_bytes=355434496 tui_bytes=32288768 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355438592 handles=260
+M12 resource process_id=17732 bytes=32194560 handles=145
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=32194560 aggregate_bytes=41930752 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355438592 aggregate_bytes=432979968
+M12 resource elapsed_ms=86087 daemon_bytes=355438592 tui_bytes=32194560 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355434496 handles=260
+M12 resource process_id=17732 bytes=32165888 handles=145
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=32165888 aggregate_bytes=41902080 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355434496 aggregate_bytes=432975872
+M12 resource elapsed_ms=90150 daemon_bytes=355434496 tui_bytes=32165888 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355434496 handles=260
+M12 resource process_id=17732 bytes=31600640 handles=145
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=31600640 aggregate_bytes=41336832 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355434496 aggregate_bytes=432975872
+M12 resource elapsed_ms=94151 daemon_bytes=355434496 tui_bytes=31600640 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355438592 handles=260
+M12 resource process_id=17732 bytes=32260096 handles=145
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=32260096 aggregate_bytes=41996288 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355438592 aggregate_bytes=432979968
+M12 resource elapsed_ms=98176 daemon_bytes=355438592 tui_bytes=32260096 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355434496 handles=260
+M12 resource process_id=17732 bytes=32243712 handles=145
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=32243712 aggregate_bytes=41979904 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355434496 aggregate_bytes=432975872
+M12 resource elapsed_ms=102164 daemon_bytes=355434496 tui_bytes=32243712 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355438592 handles=260
+M12 resource process_id=17732 bytes=31981568 handles=145
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=31981568 aggregate_bytes=41717760 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355438592 aggregate_bytes=432979968
+M12 resource elapsed_ms=106292 daemon_bytes=355438592 tui_bytes=31981568 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355442688 handles=260
+M12 resource process_id=17732 bytes=32284672 handles=145
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=32284672 aggregate_bytes=42020864 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355442688 aggregate_bytes=432984064
+M12 resource elapsed_ms=110298 daemon_bytes=355442688 tui_bytes=32284672 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355442688 handles=260
+M12 resource process_id=17732 bytes=32014336 handles=145
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=32014336 aggregate_bytes=41750528 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355442688 aggregate_bytes=432984064
+M12 resource elapsed_ms=114316 daemon_bytes=355442688 tui_bytes=32014336 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355446784 handles=260
+M12 resource process_id=17732 bytes=31096832 handles=145
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=31096832 aggregate_bytes=40833024 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355446784 aggregate_bytes=432988160
+M12 resource elapsed_ms=118319 daemon_bytes=355446784 tui_bytes=31096832 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355414016 handles=256
+M12 resource process_id=17732 bytes=32546816 handles=145
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=32546816 aggregate_bytes=42283008 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355414016 aggregate_bytes=432955392
+M12 resource elapsed_ms=122302 daemon_bytes=355414016 tui_bytes=32546816 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355414016 handles=256
+M12 resource process_id=17732 bytes=32313344 handles=145
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=32313344 aggregate_bytes=42049536 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355414016 aggregate_bytes=432955392
+M12 resource elapsed_ms=126289 daemon_bytes=355414016 tui_bytes=32313344 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355418112 handles=256
+M12 resource process_id=17732 bytes=31465472 handles=145
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=31465472 aggregate_bytes=41201664 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355418112 aggregate_bytes=432959488
+M12 resource elapsed_ms=130399 daemon_bytes=355418112 tui_bytes=31465472 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355414016 handles=256
+M12 resource process_id=17732 bytes=30707712 handles=141
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=30707712 aggregate_bytes=40443904 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355414016 aggregate_bytes=432955392
+M12 resource elapsed_ms=134397 daemon_bytes=355414016 tui_bytes=30707712 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355405824 handles=256
+M12 resource process_id=17732 bytes=31137792 handles=141
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=31137792 aggregate_bytes=40873984 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355405824 aggregate_bytes=432947200
+M12 resource elapsed_ms=138403 daemon_bytes=355405824 tui_bytes=31137792 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355401728 handles=256
+M12 resource process_id=17732 bytes=31997952 handles=141
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=31997952 aggregate_bytes=41734144 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355401728 aggregate_bytes=432943104
+M12 resource elapsed_ms=142420 daemon_bytes=355401728 tui_bytes=31997952 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355409920 handles=256
+M12 resource process_id=17732 bytes=32460800 handles=141
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=32460800 aggregate_bytes=42196992 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355409920 aggregate_bytes=432951296
+M12 resource elapsed_ms=146428 daemon_bytes=355409920 tui_bytes=32460800 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355409920 handles=256
+M12 resource process_id=17732 bytes=32571392 handles=141
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=32571392 aggregate_bytes=42307584 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355409920 aggregate_bytes=432951296
+M12 resource elapsed_ms=150440 daemon_bytes=355409920 tui_bytes=32571392 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355405824 handles=256
+M12 resource process_id=17732 bytes=31432704 handles=141
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=31432704 aggregate_bytes=41168896 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355405824 aggregate_bytes=432947200
+M12 resource elapsed_ms=154453 daemon_bytes=355405824 tui_bytes=31432704 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355409920 handles=256
+M12 resource process_id=17732 bytes=32198656 handles=141
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=32198656 aggregate_bytes=41934848 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355409920 aggregate_bytes=432951296
+M12 resource elapsed_ms=158460 daemon_bytes=355409920 tui_bytes=32198656 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355418112 handles=256
+M12 resource process_id=17732 bytes=31735808 handles=141
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=31735808 aggregate_bytes=41472000 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355418112 aggregate_bytes=432959488
+M12 resource elapsed_ms=162433 daemon_bytes=355418112 tui_bytes=31735808 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355409920 handles=256
+M12 resource process_id=17732 bytes=30187520 handles=141
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=30187520 aggregate_bytes=39923712 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355409920 aggregate_bytes=432951296
+M12 resource elapsed_ms=166453 daemon_bytes=355409920 tui_bytes=30187520 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355401728 handles=256
+M12 resource process_id=17732 bytes=31477760 handles=141
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=31477760 aggregate_bytes=41213952 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355401728 aggregate_bytes=432943104
+M12 resource elapsed_ms=170456 daemon_bytes=355401728 tui_bytes=31477760 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355405824 handles=256
+M12 resource process_id=17732 bytes=30629888 handles=141
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=30629888 aggregate_bytes=40366080 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355405824 aggregate_bytes=432947200
+M12 resource elapsed_ms=174603 daemon_bytes=355405824 tui_bytes=30629888 fixture_bytes=43249664
+M12 resource process_id=8516 bytes=5410816 handles=61
+M12 resource process_id=9960 bytes=5410816 handles=61
+M12 resource process_id=10964 bytes=5386240 handles=60
+M12 resource process_id=12304 bytes=5406720 handles=61
+M12 resource process_id=12964 bytes=5414912 handles=61
+M12 resource process_id=15080 bytes=5410816 handles=61
+M12 resource process_id=16364 bytes=5410816 handles=61
+M12 resource process_id=22360 bytes=5398528 handles=61
+M12 resource process_id=15584 bytes=355409920 handles=256
+M12 resource process_id=17732 bytes=32456704 handles=141
+M12 runtime outer_helpers=[(17404, 9736192, 155)] tui_bytes=32456704 aggregate_bytes=42192896 product_processes=10 fixture_processes=8 harness_helpers=1
+M12 runtime helpers=[(3048, 9695232, 153), (4372, 9699328, 153), (8728, 9703424, 153), (9480, 9687040, 153), (9644, 9687040, 153), (11956, 9682944, 153), (18836, 9699328, 153), (20200, 9687040, 153)] daemon_bytes=355409920 aggregate_bytes=432951296
+M12 resource elapsed_ms=178597 daemon_bytes=355409920 tui_bytes=32456704 fixture_bytes=43249664
+M11 resource process=daemon samples=45 first_median_bytes=355438592 last_median_bytes=355409920 maximum_bytes=355454976
+M11 resource process=daemon_with_owned_helpers samples=45 first_median_bytes=432979968 last_median_bytes=432951296 maximum_bytes=432996352
+M11 resource process=tui samples=45 first_median_bytes=32194560 last_median_bytes=31997952 maximum_bytes=32571392
+M11 resource process=tui_with_outer_harness_helper samples=45 first_median_bytes=41930752 last_median_bytes=41734144 maximum_bytes=42307584
+M11 resource process=fixture_child samples=45 maximum_bytes=43610112
+M12 runtime aggregate_handles_baseline=1483 aggregate_handles_final=1483
+M11 resource reconnects=100 abrupt=20 daemon_handles_baseline=259 daemon_handles_final=259
+M12 runtime owned_helpers_after_forced_session=7
+M11 resource sustained_output_bytes=709410372 duration_ms=223031 throughput_bytes_per_second=3180770
