@@ -362,3 +362,19 @@ scope. Existing physical and SSH observations retain their original identities.
 Windows operator observations, non-Linux runtime-floor/independence reconciliation,
 fresh hosted quality/security, private practical trial and final AC/phase/artifact
 sign-off remain in the current closure audit. No global AC or M12 completion follows.
+
+
+## Mac integration of the Linux continuation on 2026-10-01
+
+The [integration report](m12-linux-integration.md) maps the two-parent source
+4e138d2, preserved platform artifacts and append-only histories. Its imported
+Linux sustained arithmetic matched all four sections, including the retained
+unqualified failure. Native Mac development-profile verification passed 204 tests,
+zero failures and 25 ignores, two qualified sustained inclusions and the explicit
+60-sample resource gate. No release settings, thresholds or package bytes changed.
+
+Current Quality and Security runs are linked in that report and retain their
+exact source and hosted-product identities. They supplement existing M11 evidence,
+not final M12 sign-off. The current closure audit retains Windows console/account,
+changed-product runtime mapping, private practical trial and final AC/phase gates.
+No additional Linux, physical, SSH or corporate-host execution is requested.

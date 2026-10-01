@@ -17,8 +17,9 @@ No corporate host is part of this procedure.
 
 This closes only the mapped package's standard-account and real-console observation
 if it passes. A new account on the same developer machine is not an independent
-clean machine or proof of an older Windows floor. Linux, hosted checks, practical
-agent trial and global acceptance remain in the [current closure audit](m12-closure-audit.md).
+clean machine or proof of an older Windows floor. Native Linux regression is
+complete within its mapped Ubuntu scope. Hosted checks, practical agent trial
+and global acceptance are tracked in the [current closure audit](m12-closure-audit.md).
 
 ## Exact candidate and source
 

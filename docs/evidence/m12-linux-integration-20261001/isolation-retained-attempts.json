@@ -1,0 +1,1744 @@
+{
+  "attempts": [
+    {
+      "attempt": 1,
+      "driver_exit_code": 1,
+      "qualified": false,
+      "profile_sha256": "59189d27b790220a852b961633d6e77c68f6d9b440563fc6a1aec00287d9ba9a",
+      "driver_sha256": "0640a628a586869969671b88b903c302e59305de4f4fe64967ed3edf1be499fc",
+      "bounded_commands": [
+        {
+          "name": "external-positive",
+          "restricted": false,
+          "exit_code": 0,
+          "elapsed_seconds": 0.0036458326503634453,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "external-negative",
+          "restricted": true,
+          "exit_code": -6,
+          "elapsed_seconds": 0.010910124517977238,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "repository-negative",
+          "restricted": true,
+          "exit_code": -6,
+          "elapsed_seconds": 0.009902500547468662,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "system-python-negative",
+          "restricted": true,
+          "exit_code": -6,
+          "elapsed_seconds": 0.009605875238776207,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "homebrew-python-negative",
+          "restricted": true,
+          "exit_code": -6,
+          "elapsed_seconds": 0.009679917246103287,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "cargo-negative",
+          "restricted": true,
+          "exit_code": -6,
+          "elapsed_seconds": 0.010884875431656837,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "tcp-positive",
+          "restricted": false,
+          "exit_code": 0,
+          "elapsed_seconds": 0.015340750105679035,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "tcp-negative",
+          "restricted": true,
+          "exit_code": -6,
+          "elapsed_seconds": 0.010133999399840832,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "help",
+          "restricted": true,
+          "exit_code": -6,
+          "elapsed_seconds": 0.5204228749498725,
+          "deadline_seconds": 30
+        }
+      ],
+      "raw_log_sha256": [
+        "f91c77f8157629c086313571b4978527050f79f0c9ea6b85f7e6a16faa81be97",
+        "a3680b6601c39b586ea892ad2bbaa58a7f72b62a64f73917b09aa8c5f188110e",
+        "a3680b6601c39b586ea892ad2bbaa58a7f72b62a64f73917b09aa8c5f188110e",
+        "a3680b6601c39b586ea892ad2bbaa58a7f72b62a64f73917b09aa8c5f188110e",
+        "a3680b6601c39b586ea892ad2bbaa58a7f72b62a64f73917b09aa8c5f188110e",
+        "a3680b6601c39b586ea892ad2bbaa58a7f72b62a64f73917b09aa8c5f188110e",
+        "ef517aeb95005bcb1dd01813441382bd516c3be2cf708e66fbff25bd8728848d",
+        "a3680b6601c39b586ea892ad2bbaa58a7f72b62a64f73917b09aa8c5f188110e",
+        "a3680b6601c39b586ea892ad2bbaa58a7f72b62a64f73917b09aa8c5f188110e"
+      ]
+    },
+    {
+      "attempt": 2,
+      "driver_exit_code": 1,
+      "qualified": false,
+      "profile_sha256": "45d146c663129c589ee8937c4a34b5e7993c03397de95dc6c709985fd7efe1f6",
+      "driver_sha256": "50e56612c7ee046abfdaf46a8ce3e401013a22f250b017ecefe0043418e70006",
+      "bounded_commands": [
+        {
+          "name": "external-positive",
+          "restricted": false,
+          "exit_code": 0,
+          "elapsed_seconds": 0.006294292397797108,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "external-negative",
+          "restricted": true,
+          "exit_code": -6,
+          "elapsed_seconds": 0.012797042727470398,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "repository-negative",
+          "restricted": true,
+          "exit_code": -6,
+          "elapsed_seconds": 0.015428874641656876,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "system-python-negative",
+          "restricted": true,
+          "exit_code": -6,
+          "elapsed_seconds": 0.010489165782928467,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "homebrew-python-negative",
+          "restricted": true,
+          "exit_code": -6,
+          "elapsed_seconds": 0.010297499597072601,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "cargo-negative",
+          "restricted": true,
+          "exit_code": -6,
+          "elapsed_seconds": 0.009908916428685188,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "tcp-positive",
+          "restricted": false,
+          "exit_code": 0,
+          "elapsed_seconds": 0.012419791892170906,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "tcp-negative",
+          "restricted": true,
+          "exit_code": -6,
+          "elapsed_seconds": 0.010997041128575802,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "help",
+          "restricted": true,
+          "exit_code": -6,
+          "elapsed_seconds": 0.3975689588114619,
+          "deadline_seconds": 30
+        }
+      ],
+      "raw_log_sha256": [
+        "f91c77f8157629c086313571b4978527050f79f0c9ea6b85f7e6a16faa81be97",
+        "a3680b6601c39b586ea892ad2bbaa58a7f72b62a64f73917b09aa8c5f188110e",
+        "a3680b6601c39b586ea892ad2bbaa58a7f72b62a64f73917b09aa8c5f188110e",
+        "a3680b6601c39b586ea892ad2bbaa58a7f72b62a64f73917b09aa8c5f188110e",
+        "a3680b6601c39b586ea892ad2bbaa58a7f72b62a64f73917b09aa8c5f188110e",
+        "a3680b6601c39b586ea892ad2bbaa58a7f72b62a64f73917b09aa8c5f188110e",
+        "570566d8046cfda895021f9410953cb9b62dc378fdaf22f48596ae7207884c79",
+        "a3680b6601c39b586ea892ad2bbaa58a7f72b62a64f73917b09aa8c5f188110e",
+        "a3680b6601c39b586ea892ad2bbaa58a7f72b62a64f73917b09aa8c5f188110e"
+      ]
+    },
+    {
+      "attempt": 3,
+      "driver_exit_code": 1,
+      "qualified": false,
+      "profile_sha256": "d408540ba446ac7ae120dba6b1d3392d510bacae9005729094634e34f1a154af",
+      "driver_sha256": "2438f1c3601432a7c5261708bf1948268fd29fe28f2713b9a666d95a8cb668ce",
+      "bounded_commands": [
+        {
+          "name": "external-positive",
+          "restricted": false,
+          "exit_code": 0,
+          "elapsed_seconds": 0.0046900417655706406,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "restricted-positive",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.012669291347265244,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "external-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.01309970859438181,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "repository-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.014803333207964897,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "system-python-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.024152415804564953,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "homebrew-python-negative",
+          "restricted": true,
+          "exit_code": -6,
+          "elapsed_seconds": 0.018737250007689,
+          "deadline_seconds": 30
+        }
+      ],
+      "raw_log_sha256": [
+        "f91c77f8157629c086313571b4978527050f79f0c9ea6b85f7e6a16faa81be97",
+        "273328e16b04911c9cea6d1d45cef34550ef7dd482c32893727032a433ab84bf",
+        "797fa8f07c83b95d710cf95144b73ab19605d240b92243e40a37f018c5c809b3",
+        "db4df8b1083dcc8aef8a1ae42fa9d7310a8fa076daeda83ff6b0caf3b3dcd8d2",
+        "d9a2b86f7bf8e806ba76b1cdbbba1881ea8b4d442fa38b7b491ad8f84a79ced8",
+        "172c588a37e3a9645bee1348bdc43c66e6c1f48f99acc954e08320f83c586f86"
+      ]
+    },
+    {
+      "attempt": 4,
+      "driver_exit_code": 1,
+      "qualified": false,
+      "profile_sha256": "3d2e5a1f22f0b1d80f25412512c058a52aee8ee15ae218b00d924dc4d201b3d5",
+      "driver_sha256": "61aaef27b8406f4649bd8e273eb0fb48c431a64c664500f6c95990adc485f34e",
+      "bounded_commands": [
+        {
+          "name": "external-positive",
+          "restricted": false,
+          "exit_code": 0,
+          "elapsed_seconds": 0.02060366701334715,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "restricted-positive",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.032102624885737896,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "external-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.050217749550938606,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "repository-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.015353374183177948,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "system-python-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.023703083395957947,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "homebrew-python-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.023548917844891548,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "cargo-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.01879087556153536,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "tcp-positive",
+          "restricted": false,
+          "exit_code": 0,
+          "elapsed_seconds": 0.05194416735321283,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "tcp-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.024501667357981205,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "help",
+          "restricted": true,
+          "exit_code": 71,
+          "elapsed_seconds": 0.010926250368356705,
+          "deadline_seconds": 30
+        }
+      ],
+      "raw_log_sha256": [
+        "f91c77f8157629c086313571b4978527050f79f0c9ea6b85f7e6a16faa81be97",
+        "5e848b46ab14273707fef067c090dcbdfd202136fd3aa2dd821ca98167b5365c",
+        "25aec9e38350acd92d1fd836971963c51ba5764880336852acf48713fbf2ae41",
+        "db4df8b1083dcc8aef8a1ae42fa9d7310a8fa076daeda83ff6b0caf3b3dcd8d2",
+        "8d861e95618e5036119aa4b78fa80e37ab822cf85816cbbcfc376cbe85032ea7",
+        "28c242784453d8537a6c759186fa618d2afa3ee83af7ebd8e1bbfdb3a2a47e72",
+        "c2a3634f95e02d7848d341c01b5d026fc6e02ca8d26b373220da5a4b2a76b43e",
+        "c48429f45dc7eda3a9a6ad30feba96b3c917c1334ab70c5123b731f5db605034",
+        "a3680b6601c39b586ea892ad2bbaa58a7f72b62a64f73917b09aa8c5f188110e",
+        "3c56c20585dbb597a51ab9e685d8a67a0cd5ca763e8a269c5600949117a9e2d9"
+      ]
+    },
+    {
+      "attempt": 5,
+      "driver_exit_code": 1,
+      "qualified": false,
+      "profile_sha256": "69382e52aecbc44037af93586cf306560ffae82a568736df011a4d217558c66e",
+      "driver_sha256": "1bb3678d9e3e650f2e1736c8a34c20a737c15b3b41730dfebec6526095dfeb02",
+      "bounded_commands": [
+        {
+          "name": "external-positive",
+          "restricted": false,
+          "exit_code": 0,
+          "elapsed_seconds": 0.013639291748404503,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "restricted-positive",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.02068191673606634,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "external-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.015799333341419697,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "repository-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.017559333704411983,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "system-python-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.014782167039811611,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "homebrew-python-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.012879667803645134,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "cargo-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.013169333338737488,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "tcp-positive",
+          "restricted": false,
+          "exit_code": 0,
+          "elapsed_seconds": 0.01109504234045744,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "tcp-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.014575125649571419,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "help",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.36811666563153267,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "version",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.01459741685539484,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "discovery",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.015909500420093536,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.11079008411616087,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.04236570838838816,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-agent",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03726520761847496,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 5,
+          "elapsed_seconds": 0.04448966775089502,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-daemon",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.0454676253721118,
+          "deadline_seconds": 30
+        }
+      ],
+      "raw_log_sha256": [
+        "f91c77f8157629c086313571b4978527050f79f0c9ea6b85f7e6a16faa81be97",
+        "0270eb79380af58b25017340b1156d35b047d7b0e6f6b3ee5ca4bd5d086c0611",
+        "996acc420bc1f910f8e4d066dbb9dc6a9133af2db62b3e7b35134ffee9c23a37",
+        "db4df8b1083dcc8aef8a1ae42fa9d7310a8fa076daeda83ff6b0caf3b3dcd8d2",
+        "8d861e95618e5036119aa4b78fa80e37ab822cf85816cbbcfc376cbe85032ea7",
+        "28c242784453d8537a6c759186fa618d2afa3ee83af7ebd8e1bbfdb3a2a47e72",
+        "c2a3634f95e02d7848d341c01b5d026fc6e02ca8d26b373220da5a4b2a76b43e",
+        "598f62e91d591f70d5d6ad596a688b6facd3fa9d708907e218438d94c767173b",
+        "a3680b6601c39b586ea892ad2bbaa58a7f72b62a64f73917b09aa8c5f188110e",
+        "0465e5fd3d5ac92f6907515d5f985b202ca2b0e2963809db8470b1c44d2c9604",
+        "77b2a2e85f4cf4d160fd5e2e683756b74a5007a37ccd0df746ee67353fc1471d",
+        "5b58e2d6d9c5e1b991e15bad5378283b6f0552ae8eb8b75b1db5dfc5597b89a2",
+        "18f5dbe801836247f2a306c3f2e55719318890f3c151a8ea2edd3b421f6d2a51",
+        "0fd3c47b8f9f8327ea2d1c23e7a5c21c404a20a0d1c4067fd424771cf79cc682",
+        "4f5d415ffe4dfb304d7693ac67bf12149f9f194f976ada24fb4be246dcc3711c",
+        "29668c124de8e0797f5a369203a4ee6fb7fe1cbc7b6dbb9f2392ebd9a06eba41",
+        "e075fdb0607db823d9cb527bac33612b3cd89041b6f0b2141dca37231a8c9654"
+      ]
+    },
+    {
+      "attempt": 6,
+      "driver_exit_code": 1,
+      "qualified": false,
+      "profile_sha256": "204a3a238ad236b67ef1934261edd9ea9672ef39540152ee1f51177297f6835b",
+      "driver_sha256": "979c2b1b728391d23802913680429f7c6ba3ffca7ad721f917b1d6eb0dafd4b4",
+      "bounded_commands": [
+        {
+          "name": "external-positive",
+          "restricted": false,
+          "exit_code": 0,
+          "elapsed_seconds": 0.004048124887049198,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "restricted-positive",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.011553584598004818,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "external-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.011911584064364433,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "repository-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.0119852926582098,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "system-python-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.014418041333556175,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "homebrew-python-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.013694584369659424,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "cargo-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.013959833420813084,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "tcp-positive",
+          "restricted": false,
+          "exit_code": 0,
+          "elapsed_seconds": 0.01109408400952816,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "tcp-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.015441416762769222,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "help",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.30030000023543835,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "version",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.013941541314125061,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "discovery",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.01520545780658722,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.10116087459027767,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.037912833504378796,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-agent",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.036370459012687206,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.038811792619526386,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.033007457852363586,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03681920748203993,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.031006500124931335,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03931429237127304,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.030186458490788937,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03419612441211939,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03238462470471859,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.04045712482184172,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.029574084095656872,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03623141720890999,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.034308457747101784,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03640587441623211,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-task",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03729895781725645,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03422775026410818,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-task",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.035901750437915325,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-task",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03197012469172478,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.0323407081887126,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-backup",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.04966454207897186,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-daemon",
+          "restricted": true,
+          "exit_code": 5,
+          "elapsed_seconds": 5.051470375619829,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-daemon",
+          "restricted": true,
+          "exit_code": 5,
+          "elapsed_seconds": 5.0652150409296155,
+          "deadline_seconds": 30
+        }
+      ],
+      "raw_log_sha256": [
+        "f91c77f8157629c086313571b4978527050f79f0c9ea6b85f7e6a16faa81be97",
+        "84178a9f212b7f051665d36c275fd03653072f3b6572148785cd173234871f3d",
+        "ad6c2ef4e27148980cd7e78fb177623f57f6d3c89f9a01853b6ee56fca561d76",
+        "db4df8b1083dcc8aef8a1ae42fa9d7310a8fa076daeda83ff6b0caf3b3dcd8d2",
+        "8d861e95618e5036119aa4b78fa80e37ab822cf85816cbbcfc376cbe85032ea7",
+        "28c242784453d8537a6c759186fa618d2afa3ee83af7ebd8e1bbfdb3a2a47e72",
+        "c2a3634f95e02d7848d341c01b5d026fc6e02ca8d26b373220da5a4b2a76b43e",
+        "b03062db7b0af4e9bbe38f13c8ea6c3b76cc0dcf0678ac379037e39fee22780b",
+        "a3680b6601c39b586ea892ad2bbaa58a7f72b62a64f73917b09aa8c5f188110e",
+        "0465e5fd3d5ac92f6907515d5f985b202ca2b0e2963809db8470b1c44d2c9604",
+        "77b2a2e85f4cf4d160fd5e2e683756b74a5007a37ccd0df746ee67353fc1471d",
+        "0c298c57ec29ad24d853d5b7370f13e2d2ccc1d71e6c1068cbc153c90e400c9b",
+        "3665dcb140ef6c17bc0c8dd6115dfdb88be290f062c89beef94a2f7972617da1",
+        "b8d41282d3b492b59ef1535db6dc18d13856e9d8acc71ba7edae1a98945abc7a",
+        "bee6bb5284fc257cea4e39e0650a95c2116b6680f4681a8b0dde74ba081bc6d3",
+        "13e3d65ea618a5ebb9fa9a4bf4aff6063ad3daaba22e7b09c291aba8475a1e09",
+        "ed258f64654d0aae35d9f7001e4d09aee6177707137a50ddacedc4767401c741",
+        "6c9c38de601608cea9aa12154c363029744c8a2de53f37f88ddc1da767f836d1",
+        "440d1a04b4bb1b0629fd081cd1b01574e19f459007ea69961cbd14926343fde6",
+        "dbd99c80c97c952354e2ba87ed92330b80f2b4611ecfee7b7bd88a932e3b509c",
+        "27523ce1d42c38f2a411e74ebb5ec15393725a6a85ac1af9d51007beeabd49e8",
+        "d680cbe27c2fce13169971c8a3ac4c34aa16065ff1725aae1b681ba87ed529f1",
+        "440d1a04b4bb1b0629fd081cd1b01574e19f459007ea69961cbd14926343fde6",
+        "36e650880d21a9190326a95ae333c7f8368d2f24eb9cbd330f91bb0b7815e5ff",
+        "3c8683908126c398c754fd59a58c58f120a88f552954e29c4d17bceda3055620",
+        "84f3b01366ff22c0657573e68c201dce9d34001c89fb3296697a2da636e22cb3",
+        "440d1a04b4bb1b0629fd081cd1b01574e19f459007ea69961cbd14926343fde6",
+        "803658cfd305e533429492f6d59e5978d036517370eceb0f9987c47d8025c67d",
+        "650f44e5106b6292a05623584c598d302b2546b173d080c1807e4e56c2890a0f",
+        "7820f55126b1b665e5ad94c22fc459fde8e565db9fe7e9d0c7256d11342c05d3",
+        "5daafdb08b76b9bb303e8a907bc8ffccec198ad9418ee74ebebc3f7322ac5e8c",
+        "328cda7a0c7796a60683a1cadccf9d53e07ed235d8a0f7844399041a0cc3824b",
+        "21a83075d8aac4262151a8c4c8e8a536144707e4de84864f9254f5254fbddbb1",
+        "6751ef71b91521fa803e5038450abf8ddcb21d810f4d7f6586c5dc628e1501a6",
+        "a9710a78fe7de57d69a9d81e7d7656b7d8f40d08210ee0399aa40ee719c6301d",
+        "a9710a78fe7de57d69a9d81e7d7656b7d8f40d08210ee0399aa40ee719c6301d"
+      ]
+    },
+    {
+      "attempt": 7,
+      "driver_exit_code": 1,
+      "qualified": false,
+      "profile_sha256": "2f2cb14f92342a84f414fe7333c819af6e72d192db0679842df3edb17536e776",
+      "driver_sha256": "a48dd7a9e779c8c22f88f0939f34fe65c42d0e92c375f95bf7605b42fb6486c4",
+      "bounded_commands": [
+        {
+          "name": "external-positive",
+          "restricted": false,
+          "exit_code": 0,
+          "elapsed_seconds": 0.004155750386416912,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "restricted-positive",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.012135582976043224,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "external-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.011731666512787342,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "repository-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.011770833283662796,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "system-python-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.014940833672881126,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "homebrew-python-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.013200417160987854,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "cargo-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.013377584517002106,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "tcp-positive",
+          "restricted": false,
+          "exit_code": 0,
+          "elapsed_seconds": 0.01212591677904129,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "tcp-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.014519041404128075,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "help",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.346993749961257,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "version",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.013088875450193882,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "discovery",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.017520874738693237,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.09899900015443563,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03517920896410942,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-agent",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03422541543841362,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03867354150861502,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.032180958427488804,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03529000002890825,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03407175000756979,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03844929113984108,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.033266582526266575,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.035467457957565784,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.0347721241414547,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03646591678261757,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.033197250217199326,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03468995913863182,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.0327510004863143,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03580091707408428,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-task",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.0351117504760623,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03476841747760773,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-task",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03695454075932503,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-task",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.032861124724149704,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.033210999332368374,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-backup",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.05739120952785015,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-daemon",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.12474374938756227,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-backup",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03328341618180275,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.08723083417862654,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-task",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03691812511533499,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-daemon",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.047002583742141724,
+          "deadline_seconds": 30
+        }
+      ],
+      "raw_log_sha256": [
+        "f91c77f8157629c086313571b4978527050f79f0c9ea6b85f7e6a16faa81be97",
+        "d9854ef8250bffac9d84e93f1651afb2422f81078f7a844914ab9657e133e596",
+        "1d630447a2cceb9699cb85de30e76aa30d420da15df14807c8f75bb54d35563c",
+        "db4df8b1083dcc8aef8a1ae42fa9d7310a8fa076daeda83ff6b0caf3b3dcd8d2",
+        "8d861e95618e5036119aa4b78fa80e37ab822cf85816cbbcfc376cbe85032ea7",
+        "28c242784453d8537a6c759186fa618d2afa3ee83af7ebd8e1bbfdb3a2a47e72",
+        "c2a3634f95e02d7848d341c01b5d026fc6e02ca8d26b373220da5a4b2a76b43e",
+        "3215f2cf997a58bfb57b3fc315619f603b6dd8edfd91cfb17a4d73c227f1c6ab",
+        "a3680b6601c39b586ea892ad2bbaa58a7f72b62a64f73917b09aa8c5f188110e",
+        "0465e5fd3d5ac92f6907515d5f985b202ca2b0e2963809db8470b1c44d2c9604",
+        "77b2a2e85f4cf4d160fd5e2e683756b74a5007a37ccd0df746ee67353fc1471d",
+        "4321465c51cfd407b6a96a06fd52e2283029af7856c6b5d9d805b7a49784279b",
+        "fa83568b63fd692768ffa82ea413fb654d2d376ac1e806680c35de9ad4e42a08",
+        "6aa6a2bdbd3c31f896d5facd1d0725bad781162ad8a67836fbd895297d8eb59d",
+        "1698577b57022a5b38480315eca59426708abc966814fd235c70157239b11568",
+        "37d77cbe6e6d6a4e79e1e998ad21c7bf3d40e8aac3f7b756868890f0f8cc603d",
+        "68e7888571e7f73ab86d8f7af8b57b7e14e88cf89e01317be45e8655100ea0c0",
+        "47ea053b18e3c2e2bbc580ab43d3e66b1c3dd3813764895c42042a5975f50702",
+        "440d1a04b4bb1b0629fd081cd1b01574e19f459007ea69961cbd14926343fde6",
+        "c8ee7da1bfce99e50d9c88dc89b109e80672609d9f74ff1fd492ac4c0f27d42d",
+        "926263518eed6b73247546c18667264008c0738a5d6dca6ddb167a45b23e68aa",
+        "b597df1f4952372631db42ed83b8fa63c61657a99fa266c9145ca36ddde7b590",
+        "440d1a04b4bb1b0629fd081cd1b01574e19f459007ea69961cbd14926343fde6",
+        "fccb33e9bc73bfaa43871d60ee546df6a72166dc9b57a0eb799efd16e74eb9e7",
+        "b926ca9f2626adc5a3150f671a684a58c2e1fafed6c89734d5b0e3f3e034c170",
+        "e1f5206444d2bfb108cf88bf3c466f2bd301571ee58de7deea541c325321d592",
+        "440d1a04b4bb1b0629fd081cd1b01574e19f459007ea69961cbd14926343fde6",
+        "33308333cad8dd59299f90f034dc1ee185f26b32fda36f40174560c74ce212e2",
+        "e7ca23982e5caa462461019804938d3a8c14d6542ba8d621298de6fbac7f8159",
+        "b06e87c35d2c063d5bd55630dad334516d36fd17dca3854a09db5d3e0ef3a43f",
+        "43e2483bee2907de04a423d56a473114bae552cd82e6225d4de6055f67ca920c",
+        "f9a2dd386e0b2e03ab3d7d8c39e55237606539980c5ef941cdcfa802fa09c1ff",
+        "c17a105e1802e310c03dc1b70bb86f4a63494c062d6d9dccfe083adbbb8fbbd0",
+        "2fb3592d3a1bdccc1dc3015dc6fd52853d73178e4925c245106a975afb5ef397",
+        "8687f5c962f844f57026c6a6e9899f0d70d28b8bdc116ba47658aedfa9a3775a",
+        "2fb3592d3a1bdccc1dc3015dc6fd52853d73178e4925c245106a975afb5ef397",
+        "acac2eda5cc5854489a691c5b66dca4c9f0b57ae40e7b30de136a11fd6ea9fe7",
+        "cc8fb10ea70c59d18b7d26fa70b7ec8dce96a752381e66daebb4e4cf3e03506e",
+        "7f27ef47cd3a0253a2582bf646f889673c68d70c5bac1ca168d807e0f0e0ab82"
+      ]
+    },
+    {
+      "attempt": 8,
+      "driver_exit_code": 1,
+      "qualified": false,
+      "profile_sha256": "b3ee8be2bb378a643f43c9615d7784ca13a0defd81f77cc74501fcd101bd861a",
+      "driver_sha256": "70e24a94cc6b1a32cb64f24c54c52ce0d0086341fefdf2546e433e8a0374925b",
+      "bounded_commands": [
+        {
+          "name": "external-positive",
+          "restricted": false,
+          "exit_code": 0,
+          "elapsed_seconds": 0.00569154042750597,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "restricted-positive",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.015018917620182037,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "external-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.01293004211038351,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "repository-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.012313790619373322,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "system-python-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.013395584188401699,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "homebrew-python-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.01929137483239174,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "cargo-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.013170959427952766,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "tcp-positive",
+          "restricted": false,
+          "exit_code": 0,
+          "elapsed_seconds": 0.011891999281942844,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "tcp-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.014398458413779736,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "help",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.5480630835518241,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "version",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.016105875372886658,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "discovery",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.01545895729213953,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.09637266770005226,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03076408337801695,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-agent",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03561075031757355,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.04280583281069994,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03270341549068689,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.032873041927814484,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03513508290052414,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.0366544583812356,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03513399977236986,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03335920814424753,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.04186604265123606,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.04109583329409361,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.04038324952125549,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03139737527817488,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03336295858025551,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03652745857834816,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-task",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03838995937258005,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.033393166959285736,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-task",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03582562506198883,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-task",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.034669000655412674,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.054923917166888714,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-backup",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.047205124981701374,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-daemon",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.12215225026011467,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-backup",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.0540567496791482,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.08786129206418991,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-task",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.035543667152523994,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-daemon",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.04813462495803833,
+          "deadline_seconds": 30
+        }
+      ],
+      "raw_log_sha256": [
+        "f91c77f8157629c086313571b4978527050f79f0c9ea6b85f7e6a16faa81be97",
+        "0b340aeb77c01b07bd4ee4f37b531420ad60fc0321b2ada2d62a89ca287b15ce",
+        "d133e34169b62677617875e2efff7e70e8daed327aec0b5a54aeba3f3f437c34",
+        "db4df8b1083dcc8aef8a1ae42fa9d7310a8fa076daeda83ff6b0caf3b3dcd8d2",
+        "8d861e95618e5036119aa4b78fa80e37ab822cf85816cbbcfc376cbe85032ea7",
+        "28c242784453d8537a6c759186fa618d2afa3ee83af7ebd8e1bbfdb3a2a47e72",
+        "c2a3634f95e02d7848d341c01b5d026fc6e02ca8d26b373220da5a4b2a76b43e",
+        "ff0d318422889f2c4c702536191e678a98648bfdeb1d6370b0e418cd226e176e",
+        "a3680b6601c39b586ea892ad2bbaa58a7f72b62a64f73917b09aa8c5f188110e",
+        "0465e5fd3d5ac92f6907515d5f985b202ca2b0e2963809db8470b1c44d2c9604",
+        "77b2a2e85f4cf4d160fd5e2e683756b74a5007a37ccd0df746ee67353fc1471d",
+        "dde7655b57f8d367f8c4eeb9b2f3804e325d7bb8c4f76596d2b4ecc71dc9dc6a",
+        "fda1adae1a465f0f453f3f54973c1aadd074e62cb62c5266cd4e458e9f3ef4d6",
+        "20212ef357d6189db8ce50fad7c677be141425bcad64b3fc0b9bf1296bc23910",
+        "97786f8b15e4686b79861e1c3a047d8bc853fb54f0ad2e28120a93a80cc980a5",
+        "04e7db8fa4600df6239f48b5ee960243fffe2cafdf82e4596855032ae5859e45",
+        "6f2edb46fcab636af8021df628a2d013175d0631128756cdea7ef4cf7b4c8a7c",
+        "95353b6768e8e95fa5e484d35adf0ef591d0de08e44c3f4e9878f38b5a37e80b",
+        "440d1a04b4bb1b0629fd081cd1b01574e19f459007ea69961cbd14926343fde6",
+        "e7473db604d7b40d155aed20e11f3ad18069e36f2a9aeb1e6bd9c2e61e6c52c7",
+        "e8e7c73b63948e975c242e94f3186d655e2a344b0138754f6ba613ac614f1e07",
+        "d3cfc1b8022a90cf20d02de62168f90c1f354ab544bb7096a5fd6d9d55b3d627",
+        "440d1a04b4bb1b0629fd081cd1b01574e19f459007ea69961cbd14926343fde6",
+        "8a9696d414146907b0bccabc8f0dd09788e47cb1ed1499a93ebaa68ae43c4b22",
+        "c036f1bcaf0878aa12bf309e97a409018c80a2019e25aa2477bd441c32916cf2",
+        "86409e05ce01b229b1060b92d55b55614d783670e6f5fe1d04886119abed0624",
+        "440d1a04b4bb1b0629fd081cd1b01574e19f459007ea69961cbd14926343fde6",
+        "936d7d56b8166cc5817733498cb6b5ac802b8e95a8405db61c7e77ec0950890a",
+        "f68da1225d82d8c0c3b1df110ca3ab3748bfdddfaeae27292a9d9e3f2a4170b6",
+        "3c37ac9d1284665790d42cd5928b2924c1d801dba4749e3bb39e7622fca4fd34",
+        "188aa5d2e009cd478df1a63dc8ce735dc699ac0426c5dc7ed2fb223e760ead0a",
+        "f3946925f1edb41d12ddfe91fc4d74449c3878fd139b682e03298290bb6110e5",
+        "ae592044b062e254606d9a2b1c51e880900e2288e6e707e9abc3b4fe3c6dcf5d",
+        "df01ef0bdaf3f52d7febb086f2de5ae419b47318f52349a6d72dec39509fa518",
+        "ade75f85772675e53082f7005ce6ca336f52cdb8c3f6fd18fa36d86d00a143a3",
+        "df01ef0bdaf3f52d7febb086f2de5ae419b47318f52349a6d72dec39509fa518",
+        "0b46c8203338ca5bedb491d15ae80ec1f1ba0a4ac74c2ed063b5f124d3f371fb",
+        "6b1647296f7952214304c350cc29e41c6b59086b96d6088d8ade9ea163864596",
+        "d58177679d27b2a05586a168ef87214a1de7a21a8152279ca38880a5190ca1b5"
+      ]
+    },
+    {
+      "attempt": 9,
+      "driver_exit_code": 0,
+      "qualified": true,
+      "profile_sha256": "59f4a582ad6b7d73bcdd3e11b4b329760a9de12b542bf0f90199ad04b91bf35d",
+      "driver_sha256": "b3fa759ba8808e1471f85f1fa40f636083453c2e2987b37c6115e882c95e0baf",
+      "bounded_commands": [
+        {
+          "name": "external-positive",
+          "restricted": false,
+          "exit_code": 0,
+          "elapsed_seconds": 0.006425000727176666,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "restricted-positive",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.02082500047981739,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "external-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.012744208797812462,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "repository-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.012049457989633083,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "system-python-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.018599708564579487,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "homebrew-python-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.01518320757895708,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "cargo-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.014706749469041824,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "tcp-positive",
+          "restricted": false,
+          "exit_code": 0,
+          "elapsed_seconds": 0.014748499728739262,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "tcp-negative",
+          "restricted": true,
+          "exit_code": 1,
+          "elapsed_seconds": 0.014546583406627178,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "help",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.36637524981051683,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "version",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.017442707903683186,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "discovery",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.016437625512480736,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.10231508314609528,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.037616875022649765,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-agent",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.04504925012588501,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.04471845831722021,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.033793999813497066,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03476304095238447,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.028933624736964703,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03931787423789501,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03358854167163372,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.036164707504212856,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.035254957154393196,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.0393895423039794,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03279224969446659,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03436929173767567,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.027892624959349632,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.038974249735474586,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-task",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.038452000357210636,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03480891603976488,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-task",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.0361113753169775,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-task",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.037375958636403084,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.030216749757528305,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-backup",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.05105287488549948,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-daemon",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.12439354136586189,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-backup",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03305716719478369,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-workspace",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.09092445764690638,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-task",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03873433358967304,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-session",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.03133475035429001,
+          "deadline_seconds": 30
+        },
+        {
+          "name": "rt-daemon",
+          "restricted": true,
+          "exit_code": 0,
+          "elapsed_seconds": 0.045389208011329174,
+          "deadline_seconds": 30
+        }
+      ],
+      "raw_log_sha256": [
+        "f91c77f8157629c086313571b4978527050f79f0c9ea6b85f7e6a16faa81be97",
+        "ae0ab96c1ad942db076f237d83597b144b3b8101af8a28cfe284ad20b80bde06",
+        "751f715002b06dc71c8ab838dd57f0d7649a69033452c013188a9e5321d2ead1",
+        "db4df8b1083dcc8aef8a1ae42fa9d7310a8fa076daeda83ff6b0caf3b3dcd8d2",
+        "8d861e95618e5036119aa4b78fa80e37ab822cf85816cbbcfc376cbe85032ea7",
+        "28c242784453d8537a6c759186fa618d2afa3ee83af7ebd8e1bbfdb3a2a47e72",
+        "c2a3634f95e02d7848d341c01b5d026fc6e02ca8d26b373220da5a4b2a76b43e",
+        "d679026cf17db7499514d715831aeed5f44e82eeeddaa3fe892eaccd4e23926f",
+        "a3680b6601c39b586ea892ad2bbaa58a7f72b62a64f73917b09aa8c5f188110e",
+        "0465e5fd3d5ac92f6907515d5f985b202ca2b0e2963809db8470b1c44d2c9604",
+        "77b2a2e85f4cf4d160fd5e2e683756b74a5007a37ccd0df746ee67353fc1471d",
+        "5be5f5ac638dd916a4ac2bbdb8d2858e966c167eeb29eace8a2f133d72be2636",
+        "707cd69dd00fd726e8e7197e5159cdf1f2c976984f2a2f24ac5e5abf32d58d04",
+        "458782bc9289acd7df8c7ff9ebc8be50b72a9172a7c41cda07ed409483edcdaf",
+        "2540b8c5051b56c6b2ae46435e8922196501b1bcbee0397da88e560bf8be1d0d",
+        "20a579e0955f0d3db284d5f678de0270d61461e44fdffb95108c016d1ad90af9",
+        "8bb995bce3fd8eb299c857f9ab84133bf5755ad3aecd9ffd4a330096d1b1b207",
+        "63cf94988a136bd11f73e4e0140f7c2df06eef1188c51c882eee9443264fe1ce",
+        "440d1a04b4bb1b0629fd081cd1b01574e19f459007ea69961cbd14926343fde6",
+        "76ec71c06d7c3819154e5d2ef34e99179168f140440f8f9491f77d6e0b506073",
+        "caa83ba1d365e88ba34440cf7b476e52b81ecbe9283723e7895cf1f2ae9b6f81",
+        "187e8aca3c9692c55b789a11d01718dc9eddf8c31ee6141ca34295d03f6a3250",
+        "440d1a04b4bb1b0629fd081cd1b01574e19f459007ea69961cbd14926343fde6",
+        "21df8bab53d93708a41e8e8d2e704e1ae7a8cc07ae471bfe0aed6ca8aeed85c0",
+        "7ae414fa3a4b78c50677da85c3885c97fed5c1c43ddcf4f539dd104c42bd94dd",
+        "7a1dd56703b61f11afc8b180c15d5eacf7328dc9833a4b895467c17c4eb4c3e8",
+        "440d1a04b4bb1b0629fd081cd1b01574e19f459007ea69961cbd14926343fde6",
+        "a99400807ef4f2f29086791527c4ef50a4db6db35333bc35049cbf2d7ebc5847",
+        "adba188ad5f057e2d3258116c1812a706c1a63cb4139bf07874833f918721ed2",
+        "34194eba169a2ce6c7edce534ea87c2a94bbb79a72e22db55fadf5ff00580024",
+        "87c41f95b6aa62b18f4d34977edeaff26fdc34f72ae3a94b694f993e39f85da1",
+        "5d49ff66fee60f634519ac8350ddff122f003aa641f1ddfb85f59750b4fe8ec5",
+        "40d023b0d1d8ec7b52287496c611a1a983a275ea3e0819b00aca4abacb9c271e",
+        "8296a5373fe072af3499e14a378ff611ba64a225e602ce78d339f65049a361d2",
+        "a6f40eaf994b5d481fddfb9c97f140076bc9545182ad6b8633bf09274e97dc52",
+        "8296a5373fe072af3499e14a378ff611ba64a225e602ce78d339f65049a361d2",
+        "1d9cbdade9ce45008b6bfc62e74635900337a4b5f98279fa3634aaa29e7ed6ef",
+        "e2650d1d3e095aad8a29090d42352d0711259b844e60f3ddde06046249dc02cb",
+        "f03d72337f4347298ee0f464ef2533527b52c3a770ffe72d6975e02d76ab104e",
+        "0fa092fcf72f70d37196f3287caf39ddad6a774d77d0e1fc0f207a741ba1412f"
+      ]
+    }
+  ],
+  "note": "Only attempt nine qualifies. Earlier driver failures and invalid negative controls are retained; see integration report."
+}

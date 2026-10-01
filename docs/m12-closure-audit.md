@@ -17,17 +17,21 @@ native Linux regression and new exact-package isolated Ubuntu runtime at 6486da6
 It retains the initial failed load scenario and adds only opt-level 1 for vt100
 in the development profile. Linux product/ELF proof is Ubuntu 24.04 x86_64,
 glibc 2.39; ARM64, musl and older distributions are not covered. All three native
-platform continuations now have mapped production artifacts. The imported parser
-profile needs affected Mac development checks and current hosted verification.
+platform continuations now have mapped production artifacts. The current Mac
+package also passes the bounded restricted-runtime delta in the integration
+report, without relabeling older independent-runtime or physical observations.
+The imported parser
+profile passed affected native Mac development checks, documented in the
+[integration report](m12-linux-integration.md). Current hosted verification is
+complete there at 4e138d2: Quality passed all seven jobs and Security passed.
 These are distinct artifacts; earlier failures are retained and global acceptance
 is still open.
 
 | Remaining gate | Next bounded action | Evidence that must be reused |
 | --- | --- | --- |
-| Mac development profile | Verify the imported vt100 development-profile change with native Mac debug/workspace/resource checks. Preserve the production package and existing physical/SSH evidence. | Release settings and runtime source are unchanged; no new production artifact or manual journey is requested. |
 | Windows operator delta | Use the [single-switch Windows handoff](m12-windows-standard-account-handoff.md): prepare the shared synthetic kit first, then run the observer in an actual standard account and normal console with the final package hash. Record input, narrower/wider redraw, normal exit and restoration. A filtered administrator token is insufficient. | Passed ordinary package, sustained/helper, installation and automated runtime-negative checks. No new Windows build is required for this observation. |
 | Runtime floor and independence | Reconcile existing Mac/Linux/Windows VM isolation and declared oldest OS with changed dependencies/artifacts. Execute only genuinely missing proof, recording its environment; do not relabel developer-host smoke as an independent machine. | Existing Mac isolation, Linux independent runtime and Windows 11 VM journey, each at its original source. |
-| Hosted and final acceptance | Obtain current native hosted quality/security coverage when explicitly authorized, then reconcile AC-1 through AC-16, phases and the three-target artifact inventory. | Old hosted jobs retain ancestor scope; local cached cargo deny is not fresh hosted security coverage. |
+| Final acceptance | Reconcile AC-1 through AC-16, phases and the three-target artifact inventory after the remaining operator/runtime/trial deltas. | Current Quality and Security passed at 4e138d2, including the committed development profile; hosted packages keep separate hashes. Old hosted jobs retain ancestor scope. |
 | Practical trial | Complete the prepared private real-agent implementation/test/review handovers with the operator and an explicitly hashed executable. | Existing trial preparation and private state; version probes alone are not authentication or interactive success. |
 | Publication | Prepare the reviewed inventory and request the maintainer's concrete publication decision after technical gates pass. | No release, tag, merge, PR or binary upload is authorized by this continuation. |
 

@@ -1,0 +1,30 @@
+{
+  "source": "e712603cc753686675319358f0413946461249e2",
+  "executable_sha256": "ef20a01284008741b03229f6aa8610403dc60205e3cd534df51cbef09e6b14a4",
+  "profile_sha256": "59f4a582ad6b7d73bcdd3e11b4b329760a9de12b542bf0f90199ad04b91bf35d",
+  "controls": {
+    "external_positive": true,
+    "external_negative": true,
+    "repository_negative": true,
+    "system-python_negative": true,
+    "homebrew-python_negative": true,
+    "cargo_negative": true,
+    "tcp_positive": true,
+    "tcp_negative": true,
+    "three_supervised_shells_denied_external": true
+  },
+  "installed_help_version_discovery": "passed",
+  "workspace_pty_three_sessions": "passed",
+  "populated_backup_restore_tasks": "passed",
+  "executable_sha256_after": "ef20a01284008741b03229f6aa8610403dc60205e3cd534df51cbef09e6b14a4",
+  "status": "passed",
+  "session_metadata_restoration": "passed",
+  "restored_statuses": [
+    "lost",
+    "lost",
+    "lost"
+  ],
+  "restricted_positive_file_read": "passed",
+  "attempt_count": 9,
+  "public_parameterized_profile_sha256": "67d7ea74449ccd4eddbf126d1355dd87b429e51afb0ed0e90126435e17bda573"
+}

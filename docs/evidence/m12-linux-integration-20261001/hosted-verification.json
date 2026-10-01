@@ -1,0 +1,94 @@
+{
+  "runs": [
+    {
+      "databaseId": 36858091674,
+      "url": "https://github.com/fpinero/relayterm/actions/runs/36858091674",
+      "headSha": "4e138d28155060d3ed616d3f5f6aec058cf43b7d",
+      "status": "completed",
+      "conclusion": "success",
+      "createdAt": "2026-10-01T11:52:21Z",
+      "startedAt": "2026-10-01T11:52:21Z",
+      "updatedAt": "2026-10-01T12:28:42Z",
+      "workflow": "quality",
+      "jobs": [
+        {
+          "databaseId": 110355302239,
+          "name": "macos-14 / stable",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-01T11:52:31Z",
+          "completedAt": "2026-10-01T12:27:21Z"
+        },
+        {
+          "databaseId": 110355302492,
+          "name": "windows-2022 / stable",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-01T11:52:25Z",
+          "completedAt": "2026-10-01T12:28:41Z"
+        },
+        {
+          "databaseId": 110355302504,
+          "name": "ubuntu-24.04 / stable",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-01T11:52:25Z",
+          "completedAt": "2026-10-01T12:19:24Z"
+        },
+        {
+          "databaseId": 110355302514,
+          "name": "Release / aarch64-apple-darwin",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-01T11:52:30Z",
+          "completedAt": "2026-10-01T12:01:37Z"
+        },
+        {
+          "databaseId": 110355302528,
+          "name": "ubuntu-24.04 / 1.98.1",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-01T11:52:25Z",
+          "completedAt": "2026-10-01T12:06:54Z"
+        },
+        {
+          "databaseId": 110355302564,
+          "name": "Release / x86_64-pc-windows-msvc",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-01T11:52:26Z",
+          "completedAt": "2026-10-01T12:02:33Z"
+        },
+        {
+          "databaseId": 110355302632,
+          "name": "Release / x86_64-unknown-linux-gnu",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-01T11:52:25Z",
+          "completedAt": "2026-10-01T11:59:51Z"
+        }
+      ]
+    },
+    {
+      "databaseId": 36858094906,
+      "url": "https://github.com/fpinero/relayterm/actions/runs/36858094906",
+      "headSha": "4e138d28155060d3ed616d3f5f6aec058cf43b7d",
+      "status": "completed",
+      "conclusion": "success",
+      "createdAt": "2026-10-01T11:52:23Z",
+      "startedAt": "2026-10-01T11:52:23Z",
+      "updatedAt": "2026-10-01T11:52:51Z",
+      "workflow": "security",
+      "jobs": [
+        {
+          "databaseId": 110355311758,
+          "name": "audit",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-01T11:52:27Z",
+          "completedAt": "2026-10-01T11:52:50Z"
+        }
+      ]
+    }
+  ]
+}

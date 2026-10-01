@@ -1,0 +1,9 @@
+{
+  "integration_source": "4e138d28155060d3ed616d3f5f6aec058cf43b7d",
+  "parents": [
+    "b5f886503865a67d6620de47fba3f4d2ed0ec357",
+    "bdedf7463f5688938b43f0ff82b125d94988d73b"
+  ],
+  "manifest_sha256": "e6271cd4c95450ceefecb4cef3b82e7be8fdde08f0f6c3396f499f62e3ee0148",
+  "lock_sha256": "c2a0a6aaaef016e275323aed682313c73e28e1a104561c305ce74d3a49885ec8"
+}

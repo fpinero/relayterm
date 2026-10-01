@@ -1,5 +1,14 @@
 # Release build contract
 
+## Current artifact reconciliation
+
+The [2026-10-01 integration report](m12-linux-integration.md) maps the current
+Linux 6486da6, Mac e712603 and Windows f2b3f6f packages, their exact hashes and
+remaining runtime boundaries. Older candidate-specific results below retain their
+original scope. A hosted rebuild or documentation descendant does not replace a
+retained tested package. Linux is limited to Ubuntu 24.04 x86_64 and GLIBC_2.39;
+no additional architectures or distributions are claimed.
+
 ## Candidate scope
 
 Relayterm's first local release candidate keeps package version `0.1.0`. A version does not identify an artifact by itself. Every manifest and handoff must also identify the exact source commit and target triple. No tag, signed artifact, notarization, package upload, or published release exists merely because this recipe succeeds.

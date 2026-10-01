@@ -2595,3 +2595,82 @@ that attempt was preserved privately and the check repeated with the prepared
 PATH, without changing system configuration. The existing logbook prefix was
 verified unchanged. Work-branch delivery retains the already published source
 and evidence commits; final staged/publication controls are recorded privately.
+
+## 2026-10-01: Mac integration of the verified Linux continuation
+
+Completed M12.MAC-PARSER-PROFILE-INTEGRATION on the two-parent integration source
+4e138d28155060d3ed616d3f5f6aec058cf43b7d. Preserved both logbook suffixes verbatim,
+the newer Windows standard-account handoff and all three original package hashes.
+The only imported build delta is level-1 vt100 development optimization; release
+settings, dependencies, source behavior and acceptance thresholds are unchanged.
+All nine imported Linux hashes matched. Four independently recomputed sustained
+sections matched published evidence exactly, three qualified and the original
+failed debug section unqualified. Resource arithmetic and limits were checked.
+
+Seven serial bounded native Mac commands passed: formatting, default/all-feature
+Clippy with warnings denied, TUI library tests, offline locked prebuild and full
+workspace (204 passed, zero failed, 25 ignored), plus the explicit resource gate.
+The two sustained inclusions independently qualify, with navigation/echo p95
+30.200/115.742 ms and 30.183/117.354 ms. The resource gate preserved 60 samples,
+100 reconnects, 20 abrupt detachments and descriptors 48 to 48. The initial numeric
+export's incorrect warm-up/median interpretation is retained privately; corrected
+20-sample warm-up and upper medians match the original native output exactly.
+The public command ledger records each source, limit, elapsed time and log hash.
+
+Completed M12.MAC-EXACT-ISOLATED-DELTA against the retained e712603 executable
+without rebuilding it. Positive and negative file, executable and loopback TCP
+controls passed in a fresh restricted macOS 26.5.2 runtime. Three supervised sh
+sessions inherited external-file denial. Discovery, private initialization, IPC,
+populated task backup/restore and three named ordered sessions with retained
+identities/launch snapshots passed; former live instances restore as lost.
+Executable hash was unchanged before and after. The eighth preparatory failure
+and all earlier attempts remain privately preserved as detailed in the integration
+report; only attempt nine qualifies. The final profile explicitly allows system
+root entry reading, native PTYs and owned child lifecycle operations while keeping
+external file/executable and TCP denials. Only synthetic owned state was changed.
+This is host-OS test isolation, not a VM, macOS 14 retained-package run, product
+sandbox feature, new physical/SSH journey or provider trial.
+
+Added the integration report, sanitized numerical/runtime evidence and explicit
+AC/runtime/artifact boundaries. Removed only these verified integration tasks;
+Windows operator, oldest-runtime/independence mapping, hosted/final acceptance,
+private real-agent trial and publication remain pending. Security run 36858094906
+passed at 4e138d2; Quality run 36858091674 is tracked separately until completion.
+No corporate host, main merge, PR, tag, release or binary upload was involved.
+
+Public repository checks passed for 99 Markdown files and nine ADRs. The candidate
+secret scan and synthetic negative control passed. Both historical logbook suffixes
+were checked byte for byte before appending this entry. All eight new evidence
+hashes matched, and the public parameterized profile independently passed exact
+product version and external-file denial controls. No raw/private evidence is
+committed.
+
+## 2026-10-01: Current hosted gates after Linux integration
+
+Completed M12.PERFORMANCE-HARNESS-NATIVE at integration source 4e138d2. Quality
+run 36858091674 completed successfully with all seven native/release jobs: Ubuntu
+24.04 stable and pinned Rust 1.98.1, macOS 14 stable, Windows Server 2022 stable
+and the three production targets. Security run 36858094906 also passed at the
+same source. The committed development profile is covered by these fresh runs.
+All original sustained/resource thresholds and native historical attempts remain.
+
+Published sanitized completed-run metadata and hosted artifact inventory. The
+three real source-filtered build/package records independently confirm matching
+pairs of hosted production binaries and archives; synthetic tooling controls were
+excluded. Hosted executable/archive hashes are distinct from all three retained
+native products and never replace their installation/manual/runtime attribution.
+No CI binary was downloaded or uploaded. Mac hosted floor proof remains distinct
+from the retained Mac package on the newer developer OS.
+
+Removed only the completed hosted performance gate from the pending queue and
+refined current final-source/runtime/trial actions. M12 remains open for Windows
+standard-account/real-console observation, minimum/independent runtime mapping,
+private real-agent trial and final AC/phase/artifact sign-off. Corporate probes
+and publication remain excluded. The tested source tree is unchanged by this
+documentation/evidence continuation. Final public and delivery controls follow.
+
+Final public verification passed for 99 Markdown files and nine ADRs, the candidate
+secret scan with synthetic negative control, all eleven evidence hashes, qualified
+numeric exports, completed hosted-job outcomes and the unchanged tested source
+inputs. The full integration logbook prefix remains byte-identical. Staged and
+remote delivery checks identify the documentation-only descendant separately.

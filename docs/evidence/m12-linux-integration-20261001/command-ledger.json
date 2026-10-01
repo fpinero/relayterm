@@ -1,0 +1,138 @@
+[
+  {
+    "name": "format",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "source_sha": "4e138d28155060d3ed616d3f5f6aec058cf43b7d",
+    "deadline_seconds": 120,
+    "elapsed_seconds": 0.7682188749313354,
+    "exit_code": 0,
+    "timeout": false,
+    "raw_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "default-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--workspace",
+      "--all-targets",
+      "--locked",
+      "--offline",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "source_sha": "4e138d28155060d3ed616d3f5f6aec058cf43b7d",
+    "deadline_seconds": 600,
+    "elapsed_seconds": 4.71138362493366,
+    "exit_code": 0,
+    "timeout": false,
+    "raw_log_sha256": "d93e8bb6cbc7e4e34925d7c9e0a11b79af80b65c45000ba1b94476a2e8141827"
+  },
+  {
+    "name": "all-feature-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--workspace",
+      "--all-features",
+      "--all-targets",
+      "--locked",
+      "--offline",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "source_sha": "4e138d28155060d3ed616d3f5f6aec058cf43b7d",
+    "deadline_seconds": 600,
+    "elapsed_seconds": 3.017271582968533,
+    "exit_code": 0,
+    "timeout": false,
+    "raw_log_sha256": "7505afc760ecb822a9c6bff563123f04e31ff5dad21fce9c546d740fd25846ab"
+  },
+  {
+    "name": "tui-library",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "relayterm-tui",
+      "--lib",
+      "--locked",
+      "--offline"
+    ],
+    "source_sha": "4e138d28155060d3ed616d3f5f6aec058cf43b7d",
+    "deadline_seconds": 300,
+    "elapsed_seconds": 8.209558333270252,
+    "exit_code": 0,
+    "timeout": false,
+    "raw_log_sha256": "b906b813ce9470a3cbd5f5d8b975f3398a90d95f7cb837ae5109c8897be08215"
+  },
+  {
+    "name": "prebuild",
+    "command": [
+      "cargo",
+      "test",
+      "--workspace",
+      "--locked",
+      "--offline",
+      "--no-run"
+    ],
+    "source_sha": "4e138d28155060d3ed616d3f5f6aec058cf43b7d",
+    "deadline_seconds": 600,
+    "elapsed_seconds": 13.41588337533176,
+    "exit_code": 0,
+    "timeout": false,
+    "raw_log_sha256": "9d3b90a9391532e78817efa1191bbe01476b9b0970e80e7d77c4faa71a273520"
+  },
+  {
+    "name": "workspace",
+    "command": [
+      "cargo",
+      "test",
+      "--workspace",
+      "--locked",
+      "--offline",
+      "--",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "source_sha": "4e138d28155060d3ed616d3f5f6aec058cf43b7d",
+    "deadline_seconds": 1200,
+    "elapsed_seconds": 388.8553647501394,
+    "exit_code": 0,
+    "timeout": false,
+    "raw_log_sha256": "46b2b4dfaf71caacebf9dc06a5f00e1c710c50b4885c1b6f667fd38aa0e3149d"
+  },
+  {
+    "name": "resource",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "relayterm-cli",
+      "--test",
+      "resource_runtime_gate",
+      "--locked",
+      "--offline",
+      "sustained_output_memory_and_reconnect_resources_are_bounded",
+      "--",
+      "--ignored",
+      "--exact",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "source_sha": "4e138d28155060d3ed616d3f5f6aec058cf43b7d",
+    "deadline_seconds": 360,
+    "elapsed_seconds": 189.39896391518414,
+    "exit_code": 0,
+    "timeout": false,
+    "raw_log_sha256": "e235e26334b2fc82aa11a8119cdc89351838fd23d5b455c6f63e06649bc4ef16"
+  }
+]

@@ -1,0 +1,322 @@
+[
+  {
+    "name": "external-positive",
+    "restricted": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.006425000727176666,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "f91c77f8157629c086313571b4978527050f79f0c9ea6b85f7e6a16faa81be97"
+  },
+  {
+    "name": "restricted-positive",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.02082500047981739,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "ae0ab96c1ad942db076f237d83597b144b3b8101af8a28cfe284ad20b80bde06"
+  },
+  {
+    "name": "external-negative",
+    "restricted": true,
+    "exit_code": 1,
+    "elapsed_seconds": 0.012744208797812462,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "751f715002b06dc71c8ab838dd57f0d7649a69033452c013188a9e5321d2ead1"
+  },
+  {
+    "name": "repository-negative",
+    "restricted": true,
+    "exit_code": 1,
+    "elapsed_seconds": 0.012049457989633083,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "db4df8b1083dcc8aef8a1ae42fa9d7310a8fa076daeda83ff6b0caf3b3dcd8d2"
+  },
+  {
+    "name": "system-python-negative",
+    "restricted": true,
+    "exit_code": 1,
+    "elapsed_seconds": 0.018599708564579487,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "8d861e95618e5036119aa4b78fa80e37ab822cf85816cbbcfc376cbe85032ea7"
+  },
+  {
+    "name": "homebrew-python-negative",
+    "restricted": true,
+    "exit_code": 1,
+    "elapsed_seconds": 0.01518320757895708,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "28c242784453d8537a6c759186fa618d2afa3ee83af7ebd8e1bbfdb3a2a47e72"
+  },
+  {
+    "name": "cargo-negative",
+    "restricted": true,
+    "exit_code": 1,
+    "elapsed_seconds": 0.014706749469041824,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "c2a3634f95e02d7848d341c01b5d026fc6e02ca8d26b373220da5a4b2a76b43e"
+  },
+  {
+    "name": "tcp-positive",
+    "restricted": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.014748499728739262,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "d679026cf17db7499514d715831aeed5f44e82eeeddaa3fe892eaccd4e23926f"
+  },
+  {
+    "name": "tcp-negative",
+    "restricted": true,
+    "exit_code": 1,
+    "elapsed_seconds": 0.014546583406627178,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "a3680b6601c39b586ea892ad2bbaa58a7f72b62a64f73917b09aa8c5f188110e"
+  },
+  {
+    "name": "help",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.36637524981051683,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "0465e5fd3d5ac92f6907515d5f985b202ca2b0e2963809db8470b1c44d2c9604"
+  },
+  {
+    "name": "version",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.017442707903683186,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "77b2a2e85f4cf4d160fd5e2e683756b74a5007a37ccd0df746ee67353fc1471d"
+  },
+  {
+    "name": "discovery",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.016437625512480736,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "5be5f5ac638dd916a4ac2bbdb8d2858e966c167eeb29eace8a2f133d72be2636"
+  },
+  {
+    "name": "rt-workspace",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.10231508314609528,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "707cd69dd00fd726e8e7197e5159cdf1f2c976984f2a2f24ac5e5abf32d58d04"
+  },
+  {
+    "name": "rt-workspace",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.037616875022649765,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "458782bc9289acd7df8c7ff9ebc8be50b72a9172a7c41cda07ed409483edcdaf"
+  },
+  {
+    "name": "rt-agent",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.04504925012588501,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "2540b8c5051b56c6b2ae46435e8922196501b1bcbee0397da88e560bf8be1d0d"
+  },
+  {
+    "name": "rt-session",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.04471845831722021,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "20a579e0955f0d3db284d5f678de0270d61461e44fdffb95108c016d1ad90af9"
+  },
+  {
+    "name": "rt-workspace",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.033793999813497066,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "8bb995bce3fd8eb299c857f9ab84133bf5755ad3aecd9ffd4a330096d1b1b207"
+  },
+  {
+    "name": "rt-session",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.03476304095238447,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "63cf94988a136bd11f73e4e0140f7c2df06eef1188c51c882eee9443264fe1ce"
+  },
+  {
+    "name": "rt-session",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.028933624736964703,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "440d1a04b4bb1b0629fd081cd1b01574e19f459007ea69961cbd14926343fde6"
+  },
+  {
+    "name": "rt-session",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.03931787423789501,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "76ec71c06d7c3819154e5d2ef34e99179168f140440f8f9491f77d6e0b506073"
+  },
+  {
+    "name": "rt-workspace",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.03358854167163372,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "caa83ba1d365e88ba34440cf7b476e52b81ecbe9283723e7895cf1f2ae9b6f81"
+  },
+  {
+    "name": "rt-session",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.036164707504212856,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "187e8aca3c9692c55b789a11d01718dc9eddf8c31ee6141ca34295d03f6a3250"
+  },
+  {
+    "name": "rt-session",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.035254957154393196,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "440d1a04b4bb1b0629fd081cd1b01574e19f459007ea69961cbd14926343fde6"
+  },
+  {
+    "name": "rt-session",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.0393895423039794,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "21df8bab53d93708a41e8e8d2e704e1ae7a8cc07ae471bfe0aed6ca8aeed85c0"
+  },
+  {
+    "name": "rt-workspace",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.03279224969446659,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "7ae414fa3a4b78c50677da85c3885c97fed5c1c43ddcf4f539dd104c42bd94dd"
+  },
+  {
+    "name": "rt-session",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.03436929173767567,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "7a1dd56703b61f11afc8b180c15d5eacf7328dc9833a4b895467c17c4eb4c3e8"
+  },
+  {
+    "name": "rt-session",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.027892624959349632,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "440d1a04b4bb1b0629fd081cd1b01574e19f459007ea69961cbd14926343fde6"
+  },
+  {
+    "name": "rt-workspace",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.038974249735474586,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "a99400807ef4f2f29086791527c4ef50a4db6db35333bc35049cbf2d7ebc5847"
+  },
+  {
+    "name": "rt-task",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.038452000357210636,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "adba188ad5f057e2d3258116c1812a706c1a63cb4139bf07874833f918721ed2"
+  },
+  {
+    "name": "rt-workspace",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.03480891603976488,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "34194eba169a2ce6c7edce534ea87c2a94bbb79a72e22db55fadf5ff00580024"
+  },
+  {
+    "name": "rt-task",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.0361113753169775,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "87c41f95b6aa62b18f4d34977edeaff26fdc34f72ae3a94b694f993e39f85da1"
+  },
+  {
+    "name": "rt-task",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.037375958636403084,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "5d49ff66fee60f634519ac8350ddff122f003aa641f1ddfb85f59750b4fe8ec5"
+  },
+  {
+    "name": "rt-session",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.030216749757528305,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "40d023b0d1d8ec7b52287496c611a1a983a275ea3e0819b00aca4abacb9c271e"
+  },
+  {
+    "name": "rt-backup",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.05105287488549948,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "8296a5373fe072af3499e14a378ff611ba64a225e602ce78d339f65049a361d2"
+  },
+  {
+    "name": "rt-daemon",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.12439354136586189,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "a6f40eaf994b5d481fddfb9c97f140076bc9545182ad6b8633bf09274e97dc52"
+  },
+  {
+    "name": "rt-backup",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.03305716719478369,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "8296a5373fe072af3499e14a378ff611ba64a225e602ce78d339f65049a361d2"
+  },
+  {
+    "name": "rt-workspace",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.09092445764690638,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "1d9cbdade9ce45008b6bfc62e74635900337a4b5f98279fa3634aaa29e7ed6ef"
+  },
+  {
+    "name": "rt-task",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.03873433358967304,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "e2650d1d3e095aad8a29090d42352d0711259b844e60f3ddde06046249dc02cb"
+  },
+  {
+    "name": "rt-session",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.03133475035429001,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "f03d72337f4347298ee0f464ef2533527b52c3a770ffe72d6975e02d76ab104e"
+  },
+  {
+    "name": "rt-daemon",
+    "restricted": true,
+    "exit_code": 0,
+    "elapsed_seconds": 0.045389208011329174,
+    "deadline_seconds": 30,
+    "raw_log_sha256": "0fa092fcf72f70d37196f3287caf39ddad6a774d77d0e1fc0f207a741ba1412f"
+  }
+]

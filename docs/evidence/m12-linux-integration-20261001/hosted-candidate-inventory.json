@@ -1,0 +1,93 @@
+{
+  "run_id": 36858091674,
+  "url": "https://github.com/fpinero/relayterm/actions/runs/36858091674",
+  "artifacts": [
+    {
+      "job_id": 110355302514,
+      "source_sha": "4e138d28155060d3ed616d3f5f6aec058cf43b7d",
+      "target": "aarch64-apple-darwin",
+      "binary": {
+        "bytes": 11050336,
+        "name": "rt",
+        "sha256": "f6a92c27f5c167f50e57cf1a3b37e34ca5241cd6a5a685d73f86a2ee12d1eb0d"
+      },
+      "archive": {
+        "bytes": 4373257,
+        "name": "relayterm-0.1.0-aarch64-apple-darwin.tar.gz",
+        "sha256": "5dbc2497f2a60b36396b1b2125ab2162166a5ccd02f20d9e65711e85260923f5"
+      },
+      "signing": "unsigned",
+      "two_builds_and_archives_identical": true,
+      "runtime": null,
+      "raw_log_sha256": "3333b66f855da8a2eac7427dfd22ad15f87bc8e82ffffe877c6b28bb8f5594c4",
+      "version": "0.1.0",
+      "features": [],
+      "profile": "release",
+      "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+      "cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05)"
+    },
+    {
+      "job_id": 110355302564,
+      "source_sha": "4e138d28155060d3ed616d3f5f6aec058cf43b7d",
+      "target": "x86_64-pc-windows-msvc",
+      "binary": {
+        "bytes": 11793920,
+        "name": "rt.exe",
+        "sha256": "c7ed9b85500dfec1e023c8e31cd0967ff25a22528f52df679feebe49498d4d52"
+      },
+      "archive": {
+        "bytes": 5091674,
+        "name": "relayterm-0.1.0-x86_64-pc-windows-msvc.zip",
+        "sha256": "369dce4f232c6f88055db4452bc4284b810aa92b5c3729bae9a0a06308035c2b"
+      },
+      "signing": "unsigned",
+      "two_builds_and_archives_identical": true,
+      "runtime": {
+        "files": {
+          "OpenConsole.exe": "b7fd936c2668b87b9ecf7b3366dc6568afc1c6f981874cba3e955a1c35cf8160",
+          "conpty.dll": "39fba2713e2495117b1591ae8c32a3b904bea7aa66069cf7815e2844c76d75d8"
+        },
+        "header_sha256": "8f682aabd975264f1fb08b3e61739d4b99363a99dd74875635c623a71177ccb4",
+        "license": "MIT",
+        "license_sha256": "ad0cf28f3381ca9bb0bf101d127402d44c17bfa0991e1a00bff7ae6679e9dada",
+        "license_source": "https://github.com/microsoft/terminal/blob/main/LICENSE",
+        "license_source_sha256": "5d177f23ecfeb0ea8e050b6a5a16355e1ae9a0b286436ca8f83ed08b3795be6b",
+        "package": "Microsoft.Windows.Console.ConPTY",
+        "package_sha256": "175640566a3b59c4b132070ee96c2c77e5ab7edd2e92732a5eb3610bbf63d90e",
+        "url": "https://api.nuget.org/v3-flatcontainer/microsoft.windows.console.conpty/1.24.260710001/microsoft.windows.console.conpty.1.24.260710001.nupkg",
+        "version": "1.24.260710001"
+      },
+      "raw_log_sha256": "b22466dc9ea6c5fa163afce3d8256df6effe3520ae2d5c60b3eee3a33f31588e",
+      "version": "0.1.0",
+      "features": [],
+      "profile": "release",
+      "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+      "cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05)"
+    },
+    {
+      "job_id": 110355302632,
+      "source_sha": "4e138d28155060d3ed616d3f5f6aec058cf43b7d",
+      "target": "x86_64-unknown-linux-gnu",
+      "binary": {
+        "bytes": 13038992,
+        "name": "rt",
+        "sha256": "7b5453e569b4a153dd0ad0e8e7986ce5d3e44b86484cb9a5eb1dc6888db7e6a2"
+      },
+      "archive": {
+        "bytes": 4839486,
+        "name": "relayterm-0.1.0-x86_64-unknown-linux-gnu.tar.gz",
+        "sha256": "e85ccd8f6cfe47918e6e968426befb66bf3aeed3888ade4d40b47ed07409557a"
+      },
+      "signing": "unsigned",
+      "two_builds_and_archives_identical": true,
+      "runtime": null,
+      "raw_log_sha256": "d7216de7db5c4615e35115c3e94c57c1b5c899f2dedd268d652166ba0561980a",
+      "version": "0.1.0",
+      "features": [],
+      "profile": "release",
+      "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+      "cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05)"
+    }
+  ],
+  "boundary": "Hosted build identities only. No binary upload or replacement of retained native packages."
+}
