@@ -14,12 +14,18 @@ resource/lifecycle automation for its exact f2b3f6f package. The
 native Mac dependency/tooling, workspace, resource/fault, reproducible package,
 exact-extracted tests and POSIX installer checks at e712603. These are distinct
 artifacts; earlier failures are retained and global acceptance is still open.
+The [Linux distribution regression](m12-linux-distribution-regression.md) now
+closes the bounded Linux task on Ubuntu 24.04.5 x86_64. The original e712603
+workspace load failure is retained. Committed 6486da6 optimizes only the development
+vt100 parser, retaining debug checks and all budgets. Full workspace/resource/fault,
+two reproducible production packages, exact-installed gates, POSIX installer and
+isolated Ubuntu 24.04 runtime pass. The Linux artifact is explicitly mapped to
+6486da6; no Mac/Windows artifact is relabelled.
 
 | Remaining gate | Next bounded action | Evidence that must be reused |
 | --- | --- | --- |
-| Native Linux delta | Follow the [bounded Linux handoff](m12-linux-distribution-handoff.md) for affected dependency/tooling, locked workspace/resource/fault and exact-package checks; Mac execution cannot certify Linux. | Existing unaffected Linux physical and isolated-runtime observations. |
 | Windows operator delta | Run observe_windows_package.ps1 once in an existing actual standard account and normal console using the final Windows package hash. Record input, narrower/wider redraw, normal shell exit and restored console. A filtered administrator token is insufficient. | Passed ordinary package, sustained/helper, installation and automated runtime-negative checks. No new Windows build is required for this observation. |
-| Runtime floor and independence | Reconcile existing Mac/Linux/Windows VM isolation and declared oldest OS with changed dependencies/artifacts. Execute only genuinely missing proof, recording its environment; do not relabel developer-host smoke as an independent machine. | Existing Mac isolation, Linux independent runtime and Windows 11 VM journey, each at its original source. |
+| Runtime floor and independence | Reconcile remaining Mac/Windows isolation and declared oldest OS with changed dependencies/artifacts; the current Linux Ubuntu 24.04 boundary passes. Execute only genuinely missing proof, recording its environment; do not relabel developer-host smoke as an independent machine. | Existing Mac isolation and Windows 11 VM journey retain original sources. Linux now passes the exact 6486da6 package in the retained isolated Ubuntu 24.04 runtime; only non-Linux missing boundaries remain. |
 | Hosted and final acceptance | Obtain current native hosted quality/security coverage when explicitly authorized, then reconcile AC-1 through AC-16, phases and the three-target artifact inventory. | Old hosted jobs retain ancestor scope; local cached cargo deny is not fresh hosted security coverage. |
 | Practical trial | Complete the prepared private real-agent implementation/test/review handovers with the operator and an explicitly hashed executable. | Existing trial preparation and private state; version probes alone are not authentication or interactive success. |
 | Publication | Prepare the reviewed inventory and request the maintainer's concrete publication decision after technical gates pass. | No release, tag, merge, PR or binary upload is authorized by this continuation. |

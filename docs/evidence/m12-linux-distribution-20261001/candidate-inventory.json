@@ -1,0 +1,122 @@
+{
+  "requested_checkpoint": "e712603cc753686675319358f0413946461249e2",
+  "delivery": "3845420e88bb8f6b3b40f95f4b042f8afb603b87",
+  "tested_source": "6486da6c6005f366586f7ded036708bf3f6d3ccd",
+  "build": {
+    "binary": {
+      "bytes": 13053304,
+      "name": "rt",
+      "sha256": "248c36e33d25601cb2dcee5d8dc2760b881dded44c79845fd79d85f5ef027236"
+    },
+    "build_command": "cargo build --locked --offline --release -p relayterm-cli --bin rt --target x86_64-unknown-linux-gnu",
+    "cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05)",
+    "features": [],
+    "format_version": 1,
+    "product": "relayterm",
+    "profile": "release",
+    "runtime": null,
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "rustflags": [
+      "--remap-path-prefix=<source>=/source",
+      "--remap-path-prefix=<cargo-home>=/cargo",
+      "--remap-path-prefix=<build-home>=/build-home"
+    ],
+    "signing": "unsigned",
+    "source_date_epoch": "1790852390",
+    "source_sha": "6486da6c6005f366586f7ded036708bf3f6d3ccd",
+    "target": "x86_64-unknown-linux-gnu",
+    "tested_runtime_baseline": "Ubuntu 24.04",
+    "version": "0.1.0"
+  },
+  "package": {
+    "archive": {
+      "bytes": 4840159,
+      "name": "relayterm-0.1.0-x86_64-unknown-linux-gnu.tar.gz",
+      "sha256": "e2e716d3549681b129fc8813c2e4ba7d62f97cadaef8764e96bf75b4b6e9797b"
+    },
+    "binary": {
+      "bytes": 13053304,
+      "name": "rt",
+      "sha256": "248c36e33d25601cb2dcee5d8dc2760b881dded44c79845fd79d85f5ef027236"
+    },
+    "format_version": 1,
+    "product": "relayterm",
+    "signing": "unsigned",
+    "source_sha": "6486da6c6005f366586f7ded036708bf3f6d3ccd",
+    "target": "x86_64-unknown-linux-gnu",
+    "version": "0.1.0"
+  },
+  "lock_sha256": "c2a0a6aaaef016e275323aed682313c73e28e1a104561c305ce74d3a49885ec8",
+  "manifest_sha256": "e6271cd4c95450ceefecb4cef3b82e7be8fdde08f0f6c3396f499f62e3ee0148",
+  "archive_members": [
+    {
+      "name": "relayterm-0.1.0-x86_64-unknown-linux-gnu/INSTALL.md",
+      "bytes": 6238,
+      "mode": "0o644"
+    },
+    {
+      "name": "relayterm-0.1.0-x86_64-unknown-linux-gnu/LICENSE",
+      "bytes": 11357,
+      "mode": "0o644"
+    },
+    {
+      "name": "relayterm-0.1.0-x86_64-unknown-linux-gnu/RECOVERY.md",
+      "bytes": 6761,
+      "mode": "0o644"
+    },
+    {
+      "name": "relayterm-0.1.0-x86_64-unknown-linux-gnu/THIRD_PARTY_LICENSES.txt",
+      "bytes": 433582,
+      "mode": "0o644"
+    },
+    {
+      "name": "relayterm-0.1.0-x86_64-unknown-linux-gnu/THIRD_PARTY_NOTICES.txt",
+      "bytes": 33002,
+      "mode": "0o644"
+    },
+    {
+      "name": "relayterm-0.1.0-x86_64-unknown-linux-gnu/install_release.ps1",
+      "bytes": 3782,
+      "mode": "0o644"
+    },
+    {
+      "name": "relayterm-0.1.0-x86_64-unknown-linux-gnu/install_release.sh",
+      "bytes": 1518,
+      "mode": "0o755"
+    },
+    {
+      "name": "relayterm-0.1.0-x86_64-unknown-linux-gnu/manifest.json",
+      "bytes": 74093,
+      "mode": "0o644"
+    },
+    {
+      "name": "relayterm-0.1.0-x86_64-unknown-linux-gnu/rt",
+      "bytes": 13053304,
+      "mode": "0o755"
+    }
+  ],
+  "environment": {
+    "distribution": "Ubuntu 24.04.5 LTS",
+    "architecture": "x86_64",
+    "kernel": "7.0.0-34-generic",
+    "glibc": "2.39",
+    "gcc": "13.3.0",
+    "ld": "2.42",
+    "bash": "5.2.21",
+    "dash": "0.5.12",
+    "build_jobs": 2
+  },
+  "runtime": {
+    "image": "sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3",
+    "network": "none",
+    "host_mounts": false,
+    "unprivileged": true,
+    "build_tools_present": false,
+    "old_install_and_backup_hashes_unchanged": true
+  },
+  "private_driver_sha256": {
+    "runtime-delta.py": "4bfce36165caa0dcfc42ad575dffa6a111d2e122ec351da3ae520be855ee4b46",
+    "installer.py": "f7833cb754c6ad2ddb88d13e1d51f405a29a9d3aae2c46fbe0d669346823d51b",
+    "numerics.py": "3d83add571425d4c05421d31f7174995826e2f156178ec1abf06b3aa5baeedb2"
+  }
+}
