@@ -2540,3 +2540,24 @@ candidate secret scanner/control and history scan of 291 commits passed. All nin
 exported file hashes matched. The initial staged check caught an extra EOF blank
 line in the new untracked report; trimming it made the repeated staged check pass.
 The staged evidence blobs matched their external SHA256SUMS before delivery.
+
+## 2026-10-01: Linux handoff for the Mac orchestrator
+
+Completed M12.LINUX-ORCHESTRATOR-HANDOFF by adding
+`docs/m12-linux-to-macos-handoff.md`. It identifies the Linux source correction,
+public evidence commit, exact artifact hashes and tested Ubuntu/glibc scope.
+It records the newer shared documentation revision b5f8865 and directs integration
+to preserve its Windows standard-account handoff, both append-only histories and
+pending-only queue. No additional Linux execution remains in the requested scope;
+global M12 acceptance and the finite non-Linux/coordination gates remain open.
+No source or artifact change was made for this handoff.
+
+Verified the public repository contracts (96 Markdown files, nine ADRs), all nine
+Linux evidence hashes and fresh sustained arithmetic: exactly four sections,
+three qualified, original failed section unqualified. The public secret scan
+and synthetic negative control passed using the existing private pinned tooling.
+The first invocation could not locate Gitleaks in the ordinary shell PATH;
+that attempt was preserved privately and the check repeated with the prepared
+PATH, without changing system configuration. The existing logbook prefix was
+verified unchanged. Work-branch delivery retains the already published source
+and evidence commits; final staged/publication controls are recorded privately.
