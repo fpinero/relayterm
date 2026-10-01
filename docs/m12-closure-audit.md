@@ -18,7 +18,7 @@ artifacts; earlier failures are retained and global acceptance is still open.
 | Remaining gate | Next bounded action | Evidence that must be reused |
 | --- | --- | --- |
 | Native Linux delta | Follow the [bounded Linux handoff](m12-linux-distribution-handoff.md) for affected dependency/tooling, locked workspace/resource/fault and exact-package checks; Mac execution cannot certify Linux. | Existing unaffected Linux physical and isolated-runtime observations. |
-| Windows operator delta | Run observe_windows_package.ps1 once in an existing actual standard account and normal console using the final Windows package hash. Record input, narrower/wider redraw, normal shell exit and restored console. A filtered administrator token is insufficient. | Passed ordinary package, sustained/helper, installation and automated runtime-negative checks. No new Windows build is required for this observation. |
+| Windows operator delta | Use the [single-switch Windows handoff](m12-windows-standard-account-handoff.md): prepare the shared synthetic kit first, then run the observer in an actual standard account and normal console with the final package hash. Record input, narrower/wider redraw, normal exit and restoration. A filtered administrator token is insufficient. | Passed ordinary package, sustained/helper, installation and automated runtime-negative checks. No new Windows build is required for this observation. |
 | Runtime floor and independence | Reconcile existing Mac/Linux/Windows VM isolation and declared oldest OS with changed dependencies/artifacts. Execute only genuinely missing proof, recording its environment; do not relabel developer-host smoke as an independent machine. | Existing Mac isolation, Linux independent runtime and Windows 11 VM journey, each at its original source. |
 | Hosted and final acceptance | Obtain current native hosted quality/security coverage when explicitly authorized, then reconcile AC-1 through AC-16, phases and the three-target artifact inventory. | Old hosted jobs retain ancestor scope; local cached cargo deny is not fresh hosted security coverage. |
 | Practical trial | Complete the prepared private real-agent implementation/test/review handovers with the operator and an explicitly hashed executable. | Existing trial preparation and private state; version probes alone are not authentication or interactive success. |
@@ -29,7 +29,12 @@ security settings or infer FortiClient/ACL/reputation causality. Preserve the
 recorded failure; corporate deferral is not a new test request or an acceptance
 waiver. Existing accepted fixed-grid and interrupted-SSH limits remain unchanged.
 
-For the Windows operator delta, use the existing source script against the
+The operator may create a dedicated standard account before testing. The
+[single-switch handoff](m12-windows-standard-account-handoff.md) keeps account
+creation/passwords with the operator and prepares all commands/results before
+switching. Codex and developer tools are not required in the new account.
+
+The underlying Windows observation uses the existing source script against the
 retained package, not a newly rebuilt executable:
 
 ```powershell

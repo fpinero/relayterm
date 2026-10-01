@@ -2459,3 +2459,37 @@ sources. These are Mac preparation/document checks, not native Linux execution.
 The user explicitly authorized committing and pushing useful Mac results and
 this handoff to the existing work branch. M12 remains open; no merge, PR, tag,
 release, corporate probe or binary publication is included.
+
+
+## 2026-10-01: M12.WINDOWS-STANDARD-HANDOFF
+
+Prepared docs/m12-windows-standard-account-handoff.md for the operator's requested
+dedicated local standard-account trial. The operator creates the account and
+enters its password; the Windows agent prepares a complete synthetic shared kit
+from the normal development account first. The new account only needs the exact
+retained package and system PowerShell, not Codex or developer/provider tools.
+The continuation requires a preflight that rejects filtered administrator tokens,
+account-scoped private state, one bounded console observation and sanitized
+shared result collection. No account credential is transferred between sessions.
+
+Mapped the unchanged f2b3f6f product and exact executable/archive/helper hashes.
+The launcher/wrapper are native Windows preparation work, not untested Mac-generated
+scripts or completed operator proof. Added the guide to the current closure table
+and refined the pending ordinary-distribution observation. Account creation is
+explicitly the operator's newly authorized action, outside product scripts; a new
+account on the same host is not an independent clean machine. No old physical,
+performance, SSH or VM journey is reopened. M12 remains open.
+
+Verification: reviewed the actual observer's token/hash checks, synthetic fixture,
+bounded administrative capture and cleanup; noted that its non-elevated filtered
+administrator case prints false but does not abort, so the prepared wrapper must
+reject that case before product launch. Repository contracts passed (93 Markdown
+files, nine ADRs), candidate secret scan and negative control passed, and whitespace
+checks passed. Confirmed append-only log history and unchanged production/tooling/
+dependency files. This verifies handoff preparation, not Windows launcher execution,
+account creation or a successful physical standard-account observation.
+
+Useful source handoff delivery remains authorized by the operator's preceding
+request. The copied Windows request separately authorizes its verified result
+branch push only. No main merge, PR, tag, release, binary upload, corporate probe,
+persistent security change or account operation was performed from this Mac.
