@@ -2493,3 +2493,30 @@ Useful source handoff delivery remains authorized by the operator's preceding
 request. The copied Windows request separately authorizes its verified result
 branch push only. No main merge, PR, tag, release, binary upload, corporate probe,
 persistent security change or account operation was performed from this Mac.
+
+## 2026-10-01: M12.WINDOWS-STANDARD-KIT
+
+Prepared the exact retained Windows package and a local shared observation kit
+from b5f8865 in an isolated Windows worktree. Preserved the original dirty
+checkout and all prior evidence. Added a system-PowerShell launcher and wrapper
+that reject elevated and filtered administrator tokens, check shared write/read,
+package/fixture hashes and the mapped System32 prerequisite, scope each invocation
+to fresh native TEMP, retain private raw state and export sanitized per-attempt
+results. Normal cleanup and three explicit operator confirmations are required.
+No account, credential, PATH, persistent policy or ACL changes were made.
+
+Verification: exact retained archive hash; all 13 source and copied file hashes;
+internal package manifest hashes; observer byte identity and fixture bindings;
+System32 runtime hash/version; Windows PowerShell parser; actual CMD launcher
+refusal (exit 1, standard_account=false, elevated=false); unchanged observer
+PrepareOnly (exit 0, no remaining scoped fixture processes). Six private synthetic
+collector controls passed for valid readback, nonzero TUI exit, missing JSON,
+negative confirmation, timeout and incorrect binding. Mocked controls do not
+qualify as standard-account or physical evidence. Preparation lookup, binding
+and redirected-console control failures remain retained in private attempts.
+
+The dedicated kit is ready for the operator's single account-switch observation.
+Actual account access, input, narrow/wide redraw and restoration remain pending,
+as do return-time reconciliation and the authorized sanitized Windows-branch push.
+No completed platform/performance/SSH/VM battery was repeated. No binary was
+rebuilt, uploaded or published. No main merge, PR, tag or release occurred.
