@@ -2369,3 +2369,16 @@ account observations and affected Mac/Linux/global acceptance remain pending.
   whitespace. The evidence-local cr-at-eol attribute corrected that interpretation
   without changing evidence bytes, hashes or thresholds. The repeated staged check
   passed, and all 21 staged Git blobs matched the evidence manifest.
+
+
+## 2026-10-01: Portable shared evidence manifest
+
+- Made the generated SHA256SUMS manifest explicitly LF so Unix checksum tools
+  receive filenames without CR suffixes. The 21 exported evidence files and their
+  hashes remain unchanged. Verified the manifest has no CR bytes and all 21 file
+  hashes match. The eight implementation/report/sharing commits were pushed to
+  origin/fix/m12-final-validation and remote HEAD matched 7a2796a7.
+- Git-history Gitleaks scanned all eight commits with no leaks. Hosted run lookup
+  through gh was unavailable because that CLI has no authentication; no login or
+  account settings were changed. The workflow only automatically runs for main
+  pushes or pull requests, so this branch push does not trigger its hosted gates.
