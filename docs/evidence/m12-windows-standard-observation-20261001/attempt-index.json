@@ -1,0 +1,46 @@
+[
+  {
+    "failure_stage": "account_preflight",
+    "sha256": "e85cd923b058e611850a3aae3ef5e4b82bce5513ce07fea08459d554c5ffd648",
+    "standard_account": false,
+    "elevated": false,
+    "diagnostic": -2146233087,
+    "run_id": "0b80a4272cc44d9ba6df0e01489175cb",
+    "classification": "expected development-account refusal",
+    "preparation_only": true,
+    "status": "failed"
+  },
+  {
+    "failure_stage": "integrity",
+    "sha256": "30df84b7a629770a3e5beceb369f208e0244ee3d6e864ce4e576a58563ba7f29",
+    "standard_account": true,
+    "elevated": false,
+    "diagnostic": -2146233087,
+    "run_id": "1a4b25886cf04a6e9ffac6a5597c91da",
+    "classification": "retained unsuccessful operator attempt",
+    "preparation_only": false,
+    "status": "failed"
+  },
+  {
+    "failure_stage": "account_preflight",
+    "sha256": "8be5292941699802358ba99c5f00e49923c7aea317b1aa7499c0e76f062e1457",
+    "standard_account": false,
+    "elevated": false,
+    "diagnostic": -2146233087,
+    "run_id": "c848444e91d94869a6f0a0c2ec510af1",
+    "classification": "expected development-account refusal",
+    "preparation_only": true,
+    "status": "failed"
+  },
+  {
+    "failure_stage": null,
+    "sha256": "74084166559bf4d57fc62b76ed5a2f065290ec3911ba6707df4ad24aadce8d02",
+    "standard_account": true,
+    "elevated": false,
+    "diagnostic": 0,
+    "run_id": "ff9e4a7c74994bdf8f943801881da33a",
+    "classification": "verified operator observation",
+    "preparation_only": false,
+    "status": "passed"
+  }
+]

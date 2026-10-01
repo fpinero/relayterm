@@ -1,0 +1,118 @@
+{
+  "schema": 1,
+  "run_id": "ff9e4a7c74994bdf8f943801881da33a",
+  "status": "passed",
+  "failure_stage": null,
+  "diagnostic": 0,
+  "standard_account": true,
+  "elevated": false,
+  "preparation_only": false,
+  "observer_exit": 0,
+  "tui_exit": 0,
+  "automatic": {
+    "shared_write_read": true,
+    "administrators_sid_present": false,
+    "integrity_before": true,
+    "system_runtime_sha256": "d5e4d9a3e835fa679450145d6a7d94e36573a509317111904d9b3712c30d9066",
+    "system_runtime_version": "14.44.35211.0",
+    "console_before": {
+      "width": 144,
+      "height": 32
+    },
+    "exact_invocation_readback": true,
+    "observer_completed_commands": [
+      {
+        "accepted": true,
+        "command": "workspace init",
+        "exit_code": 0
+      },
+      {
+        "accepted": true,
+        "command": "workspace status",
+        "exit_code": 0
+      },
+      {
+        "accepted": true,
+        "command": "agent register",
+        "exit_code": 0
+      },
+      {
+        "accepted": true,
+        "command": "session create",
+        "exit_code": 0
+      },
+      {
+        "accepted": true,
+        "command": "daemon stop --terminate-sessions",
+        "exit_code": 0
+      }
+    ],
+    "raw_observation_sha256": "ba535a84623dc6cef8ef6ebb953132660cc425b0826e24ba18affe7720844c07",
+    "cleanup_remaining": 0,
+    "cleanup_verified": true,
+    "forced_cleanup": false,
+    "integrity_after": true,
+    "console_after": {
+      "width": 144,
+      "height": 32
+    },
+    "fixture_processes": [
+      {
+        "pid": 6368,
+        "created_utc": "2026-10-01T15:14:23.6204730Z",
+        "ownership": "exact candidate and scoped fixture arguments"
+      },
+      {
+        "pid": 32,
+        "created_utc": "2026-10-01T15:14:24.2736700Z",
+        "ownership": "descendant of a live positively identified fixture process"
+      },
+      {
+        "pid": 23396,
+        "created_utc": "2026-10-01T15:14:23.6557990Z",
+        "ownership": "descendant of a live positively identified fixture process"
+      },
+      {
+        "pid": 16956,
+        "created_utc": "2026-10-01T15:14:23.8104930Z",
+        "ownership": "exact candidate and scoped fixture arguments"
+      },
+      {
+        "pid": 27400,
+        "created_utc": "2026-10-01T15:14:24.2653520Z",
+        "ownership": "descendant of a live positively identified fixture process"
+      },
+      {
+        "pid": 28284,
+        "created_utc": "2026-10-01T15:14:24.2980560Z",
+        "ownership": "exact candidate and scoped fixture arguments"
+      },
+      {
+        "pid": 24440,
+        "created_utc": "2026-10-01T15:14:23.6269270Z",
+        "ownership": "descendant of a live positively identified fixture process"
+      }
+    ]
+  },
+  "physical": {
+    "input": true,
+    "resize": true,
+    "restoration": true
+  },
+  "identities": {
+    "observer_source": "b5f886503865a67d6620de47fba3f4d2ed0ec357",
+    "product_source": "f2b3f6f446466f5b3657c3cd91746735cab59d78",
+    "archive_sha256": "039676c0665363fed10d0ed746e636a175351d8506a4076a75820fd7e9ef3d50",
+    "files": {
+      "observe_windows_package.ps1": "6223d726000683c2643aa3269732b62ca5cb27aa248b03d4e72c0158a99619d2",
+      "run_standard_observation.ps1": "f4dbcbec5d418e5d32a6be6d64495db98156dac175213976c6bedb97ce0157d8",
+      "run-observation.cmd": "a21dc5b3c48f6e2840ed59eb8cdc84d46cb312fd4eab3c6d8e63cd0971457457",
+      "candidate-inventory.json": "6694fd3da7b17e6a54b9472f17dbc87021049137b24ca3c27d42a758c9851bf3"
+    },
+    "fixture_source": "fe726a8dbdd27551fc63abddc32f340371afbf30"
+  },
+  "candidate_sha256": "ce1ae04c16430bcd37fa91810fd613f38ef06feca83d5cea29c1056525c92efa",
+  "product_source": "f2b3f6f446466f5b3657c3cd91746735cab59d78",
+  "os_version": "10.0.19045.0",
+  "terminal_scope": "ordinary interactive Windows console on the existing development host"
+}

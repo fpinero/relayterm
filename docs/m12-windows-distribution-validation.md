@@ -147,12 +147,16 @@ No test threshold was changed to obtain success.
 
 ## Remaining evidence
 
-scripts/observe_windows_package.ps1 passed PrepareOnly against the exact final hash.
-It prepares a synthetic cmd.exe session, verifies the token/hash and uses bounded
-administrative capture. Real console input, resize/redraw, normal exit and restoration,
-and an existing actual standard-account context remain operator observations. No
-account creation, persistent policy change, elevation or system installation is needed
-for the completed automation.
+The [standard-account observation](m12-windows-standard-observation.md) subsequently
+passed on 2026-10-01 with this exact retained package. Verified shared write/read,
+standard token, exact per-invocation readback, observer/TUI exit 0 and normal fixture
+cleanup accompany explicit operator confirmations for input, narrower/wider redraw
+and normal restoration. All package/archive/fixture hashes passed return-time checks;
+the seven recorded fixture process identities were gone. A preceding integrity-stage
+failure remains retained and does not qualify as success. No extra process was killed.
+The dedicated account is on the same development host, not an independent machine.
+No account creation, policy change, elevation, system installation or rebuild was
+performed by this continuation.
 
 Mac/Linux affected dependency, tooling and package regressions remain for their native
 hosts. Final-source/global acceptance, clean-machine/runtime-floor independence and

@@ -1,0 +1,22 @@
+{
+    "schema":  1,
+    "run_id":  "1a4b25886cf04a6e9ffac6a5597c91da",
+    "status":  "failed",
+    "failure_stage":  "integrity",
+    "diagnostic":  -2146233087,
+    "standard_account":  true,
+    "elevated":  false,
+    "preparation_only":  false,
+    "observer_exit":  null,
+    "tui_exit":  null,
+    "automatic":  {
+                      "shared_write_read":  true,
+                      "administrators_sid_present":  false,
+                      "fixture_processes":  [
+
+                                            ]
+                  },
+    "physical":  {
+
+                 }
+}

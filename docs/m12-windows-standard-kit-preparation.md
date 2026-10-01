@@ -81,3 +81,10 @@ Only then update the Windows report, current closure table and pending queue for
 the actual passed scope. Publish sanitized verified results on the Windows branch
 with a normal push and verify local/remote SHA equality. Main merge, PR, tag,
 release and binary publication remain excluded.
+
+## Subsequent operator result
+
+The [operator observation and return verification](m12-windows-standard-observation.md)
+subsequently passed on 2026-10-01. The preparation statements above retain their
+original checkpoint scope. The actual result includes a preceding integrity-stage
+failure, retained separately, and does not claim every launcher invocation passed.

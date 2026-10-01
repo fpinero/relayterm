@@ -315,8 +315,12 @@ remain pending. Existing physical/SSH/VM evidence and all failures remain intact
 The [ordinary Windows report](m12-windows-distribution-validation.md) maps the
 bundled ConPTY package to f2b3f6f and its exact executable. Ordinary native and
 installed sustained gates and helper resource/lifecycle automation now pass;
-experimental runtime results remain separate. Actual standard-account/real-console
-observations and runtime-floor/independence reconciliation remain open.
+experimental runtime results remain separate. The subsequent
+[standard-account/real-console observation](m12-windows-standard-observation.md)
+passed with the same package, separate automatic and physical confirmations,
+return-time integrity and verified fixture cleanup. Its preceding failed attempt
+remains retained. Runtime-floor/independence reconciliation remains open; the
+second account is on the same host.
 
 The [Mac regression report](m12-macos-distribution-regression.md) and
 [numeric evidence](evidence/m12-macos-distribution-20261001/README.md) map native

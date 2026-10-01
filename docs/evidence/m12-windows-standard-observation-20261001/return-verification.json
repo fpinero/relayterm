@@ -1,0 +1,48 @@
+{
+  "kit_files_verified": {
+    "observe_windows_package.ps1": "6223d726000683c2643aa3269732b62ca5cb27aa248b03d4e72c0158a99619d2",
+    "run_standard_observation.ps1": "f4dbcbec5d418e5d32a6be6d64495db98156dac175213976c6bedb97ce0157d8",
+    "run-observation.cmd": "a21dc5b3c48f6e2840ed59eb8cdc84d46cb312fd4eab3c6d8e63cd0971457457",
+    "candidate-inventory.json": "6694fd3da7b17e6a54b9472f17dbc87021049137b24ca3c27d42a758c9851bf3"
+  },
+  "scope": {
+    "os_version": "10.0.19045.0",
+    "independent_machine": false,
+    "elevated": false,
+    "standard_account": true,
+    "new_build": false,
+    "global_M12_acceptance": false
+  },
+  "fixture_source": "fe726a8dbdd27551fc63abddc32f340371afbf30",
+  "product_source": "f2b3f6f446466f5b3657c3cd91746735cab59d78",
+  "observer_source": "b5f886503865a67d6620de47fba3f4d2ed0ec357",
+  "return_verification": {
+    "operator_confirmation": "input, resize and restoration confirmed in per-run prompts and subsequent operator report",
+    "screenshots_received": 0,
+    "all_kit_hashes_match": true,
+    "all_package_hashes_match": true,
+    "remaining_rt_or_OpenConsole_processes": 0,
+    "archive_matches": true,
+    "package_file_count": 13,
+    "recorded_process_identities": 7,
+    "profiles_and_shells_left_open": true,
+    "remaining_recorded_processes": 0
+  },
+  "archive_sha256": "039676c0665363fed10d0ed746e636a175351d8506a4076a75820fd7e9ef3d50",
+  "candidate_sha256": "ce1ae04c16430bcd37fa91810fd613f38ef06feca83d5cea29c1056525c92efa",
+  "package_files_verified": {
+    "conpty.dll": "39fba2713e2495117b1591ae8c32a3b904bea7aa66069cf7815e2844c76d75d8",
+    "CONPTY_LICENSE.txt": "ad0cf28f3381ca9bb0bf101d127402d44c17bfa0991e1a00bff7ae6679e9dada",
+    "CONPTY_PROVENANCE.json": "91f857c8ca9f5083fe2972fd242d5e85c1d83f4735b522c10e78f9e5af69a97d",
+    "INSTALL.md": "eae6f6d2da38a3b75146ae0b978ef7a9edfda58ece88db3c2cc1e279bd37cb66",
+    "install_release.ps1": "cefe20aea7914c426ebb863c252930610f9ad746012bf4825e30ddfe581c1cd6",
+    "install_release.sh": "1eaa2aaafb777070e5f2cf6217497c0aea8af115bb1446a5747af5876eaf594e",
+    "LICENSE": "1eb85fc97224598dad1852b5d6483bbcf0aa8608790dcc657a5a2a761ae9c8c6",
+    "manifest.json": "3613459c018e6abfb0eddd205b94b216dccff83dfbf7b9aa4d84d11cecf06a09",
+    "OpenConsole.exe": "b7fd936c2668b87b9ecf7b3366dc6568afc1c6f981874cba3e955a1c35cf8160",
+    "RECOVERY.md": "712fe4e8880eda5c2e51dfb286f295415bed04108235587cfdbf41e23926e27b",
+    "rt.exe": "ce1ae04c16430bcd37fa91810fd613f38ef06feca83d5cea29c1056525c92efa",
+    "THIRD_PARTY_LICENSES.txt": "00b8da9371b195d70e44d1dee628b3e5b43107da68821b0ef04e4ac4aa873f1a",
+    "THIRD_PARTY_NOTICES.txt": "d5c47ddb251e95fc7d47e043e1491af3930b52cf3512c8a34842fa6d43d08a37"
+  }
+}

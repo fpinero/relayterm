@@ -2520,3 +2520,42 @@ Actual account access, input, narrow/wide redraw and restoration remain pending,
 as do return-time reconciliation and the authorized sanitized Windows-branch push.
 No completed platform/performance/SSH/VM battery was repeated. No binary was
 rebuilt, uploaded or published. No main merge, PR, tag or release occurred.
+
+## 2026-10-01: M12.WINDOWS-STANDARD-OBSERVATION
+
+Closed the bounded standard-account and real-console observation for the unchanged
+f2b3f6f package. The existing dedicated local standard account recorded input,
+narrower/wider redraw and normal restoration confirmations, observer/TUI exit 0,
+exact-invocation readback and normal cleanup without forced termination. This is
+same-host evidence, not an independent clean installation or global M12 acceptance.
+Published-safe evidence retains a preceding integrity-stage failure and both
+expected filtered-administrator preflight refusals without claiming a root cause.
+The parameterized observer's manual launch was unnecessary; the successful wrapper
+already invoked the unchanged observer with its required arguments.
+
+Verification: inspected all four shared attempt identities and outcomes; checked
+successful run ff9e4a7c74994bdf8f943801881da33a against the prepared kit bindings;
+recomputed the exact archive SHA-256, all 13 package file hashes and all four
+fixture file hashes; required standard_account=true, elevated=false, zero actual
+observer/TUI exits, exact readback, normal cleanup and all three operator prompts.
+Compared the seven recorded PID/UTC creation-time identities with the current
+Windows process inventory: all were absent, with no rt.exe or OpenConsole.exe
+remaining. No extra process was terminated. Unrelated shells and the standard
+account's desktop session remain open; private state and every attempt are retained.
+No screenshot was supplied or inferred. The original observation path, profiles,
+credentials and raw state are excluded from public evidence.
+
+Updated the Windows report, current closure table, acceptance checkpoint and
+pending-only queue for this passed scope. Global platform/runtime-floor/independence,
+hosted and practical-trial gates remain open. No completed performance/SSH/VM/full
+usability rounds were repeated; no product code, artifact or budget changed.
+The authorized delivery is a sanitized Windows result-branch push only, excluding
+main merge, PR, tag, release and binary publication.
+
+Public-delivery verification: repository contracts passed (96 Markdown files,
+nine ADRs), candidate secret scan and synthetic negative control passed, and
+whitespace checks passed. Independently checked all four portable manifest entries,
+all four attempt classifications, complete passing-result predicates, unchanged
+product/dependency files and append-only log history. The original dirty checkout
+remains preserved. Branch-only delivery does not trigger the main/PR-only Quality
+or Security push workflows; no new hosted result is claimed or dispatched.
