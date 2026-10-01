@@ -2559,3 +2559,13 @@ all four attempt classifications, complete passing-result predicates, unchanged
 product/dependency files and append-only log history. The original dirty checkout
 remains preserved. Branch-only delivery does not trigger the main/PR-only Quality
 or Security push workflows; no new hosted result is claimed or dispatched.
+
+## 2026-10-01: M12.WINDOWS-EVIDENCE-MANIFEST
+
+The post-push committed-blob checksum check found that Git CRLF normalization
+changed all four JSON byte hashes relative to the initial working-file manifest.
+Preserved the original shared results and their provenance hashes. Canonicalized
+public JSON to LF without BOM and regenerated the public manifest against committed
+bytes. JSON payloads and the verified physical/product outcomes are unchanged.
+Verified every manifest entry against both disk bytes and git show HEAD blobs.
+This corrects evidence portability only; no product test or observation was repeated.
