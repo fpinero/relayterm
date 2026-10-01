@@ -93,3 +93,6 @@ No account, system protection, persistent policy, PATH or ACL was changed.
 Affected native Linux/hosted gates, runtime-floor/independence reconciliation,
 the practical agent trial and global distribution/acceptance remain governed by
 the [current closure audit](m12-closure-audit.md). No global latency waiver follows.
+The [Mac orchestrator handoff](m12-windows-standard-observation-mac-handoff.md)
+provides the source mapping, evidence inventory, checksum procedure and bounded
+reconciliation prompt for the three-platform continuation.

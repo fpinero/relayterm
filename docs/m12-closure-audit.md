@@ -21,6 +21,9 @@ standard token, input, narrower/wider redraw, normal exit/restoration and verifi
 fixture cleanup. Return-time package/fixture/archive hashes match; failed attempts
 remain preserved. This is a second account on the same development host, not an
 independent clean installation. No further physical account-switch round is needed.
+Use the [Mac orchestrator handoff](m12-windows-standard-observation-mac-handoff.md)
+to consume the checked evidence and reconcile it with newer Mac/Linux work without
+overwriting those checkpoints.
 
 | Remaining gate | Next bounded action | Evidence that must be reused |
 | --- | --- | --- |

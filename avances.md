@@ -2569,3 +2569,22 @@ public JSON to LF without BOM and regenerated the public manifest against commit
 bytes. JSON payloads and the verified physical/product outcomes are unchanged.
 Verified every manifest entry against both disk bytes and git show HEAD blobs.
 This corrects evidence portability only; no product test or observation was repeated.
+
+## 2026-10-01: M12.WINDOWS-MAC-HANDOFF
+
+Prepared the Mac orchestrator handoff with exact branch ancestry, product/package/
+observer/fixture/report identities, public evidence inventory, canonical checksum
+instructions, bounded three-platform reconciliation and a copy-paste prompt.
+Linked it from the current closure audit and Windows observation report. Existing
+Windows evidence and conclusions were already published at e250ee5; the handoff
+adds no product change, rebuild or platform observation. Preserve newer Mac/Linux
+queues and append-only logs instead of copying entire Windows checkpoint files.
+
+Verification: repository contracts passed (97 Markdown files, nine ADRs), candidate
+secret scan and its synthetic negative control passed, and git diff --check passed.
+Rechecked all four evidence manifest entries against both disk and committed Git
+bytes and exact candidate/source mappings. Verified unchanged product, dependencies,
+fixtures and evidence payloads. This is handoff/document verification, not fresh
+runtime or hosted evidence. Failed attempts and all original private state remain
+preserved. Authorized delivery is the Windows handoff/result branch push only;
+no main merge, PR, tag, release, binary upload or external chat message is included.
